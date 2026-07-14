@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {
   Zap,
   TrendingUp,
@@ -85,9 +86,16 @@ export default function Home() {
       {/* Sticky nav */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-bold tracking-tight">
-            KO <span className="text-orange-500">Consultings</span>
-          </span>
+          <div className="rounded-lg bg-white px-3 py-1.5">
+            <Image
+              src="/brand/logo-banner.jpg"
+              alt="KO Consultings"
+              width={4001}
+              height={1251}
+              priority
+              className="h-6 w-auto sm:h-7"
+            />
+          </div>
           <a
             href="#apply"
             className="group flex items-center gap-1.5 rounded-full bg-orange-600 px-5 py-2 text-sm font-semibold transition-all hover:bg-orange-500 hover:shadow-lg hover:shadow-orange-600/30"
