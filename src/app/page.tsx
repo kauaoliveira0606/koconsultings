@@ -58,7 +58,6 @@ const ROLES = [
     blurb:
       "You'll be the first line of contact turning inbound and outbound interest into booked calls for a high-growth e-commerce brand. This is a role for someone obsessed with the numbers, relentless in follow-up, and hungry to grow into a closer.",
     responsibilities: [
-      "Qualify and book calls with inbound leads daily",
       "Run structured outbound prospecting sequences",
       "Track and hit weekly connection & booking targets",
       "Follow our proven scripts while adding your own edge",
