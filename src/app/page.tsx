@@ -64,6 +64,23 @@ const ROLES = [
       "Follow our proven scripts while adding your own edge",
       "Report directly into the growth & sales leadership team",
     ],
+    fullDescription: [
+      "Dialer position - Full time",
+      "OTE 2k-5.4k/m, people have earned 10k+/m with this model",
+      "Abundant amount of leads coming through",
+      "Lots of bonuses set up for performance",
+      "We value and compensate hard work heavily. This is a full-time position. Some of our reps CHOOSE to work 8+ hours. Ask yourself before you apply: is this the type of culture and standard you can commit to at the moment?",
+      "This isn't a typical offer that you'll see. You're going to be doing an affiliate play that huge names in the e-commerce space, like Nathan Nazareth and Ramin Popal, are doing. They're bringing in 50k to 100k a day using the exact same funnel.",
+      "There is going to be a massive lead though. You can get a lot of repetition and make up to $100 per lead.",
+      "KPI's are closing at least 5 leads a day on the affiliate which is $50 a month, we've seen people do around ten a day.",
+      "You will get a lot better in your skill set just because of the amount of reps that you will have that you will not see in any other offer.",
+      "You close people on $50/m you get paid $25, stack multiple of those a day, and they stack up. If you close people on up-sells, it can add an extra $75 per lead. Which is closing them on a $20/month software.",
+      "The stuff is really easy. The marketing is they get access to a free course that we used to charge thousands of dollars for if they sign up for a platform software that they would have to sign up for already.",
+      "You will be getting sales training from me who has collected millions in cash and made multiple 20-30k months.",
+      "Culture is hunger, obsession, and going above and beyond. You're going to be in an environment that can make you a way better version of yourself.",
+      "Expectations: seven days a week. Speed to lead. Being active and responsive very quickly.",
+    ],
+    contact: "@kauaoliveirallc",
   },
 ];
 
@@ -208,16 +225,18 @@ export default function Home() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6">
           {ROLES.map((role) => (
             <div
               key={role.title}
-              className="group relative overflow-hidden rounded-3xl border border-orange-500/20 bg-gradient-to-b from-orange-600/[0.08] to-transparent p-8 transition-all hover:border-orange-500/50 lg:col-span-1"
+              className="group relative overflow-hidden rounded-3xl border border-orange-500/20 bg-gradient-to-b from-orange-600/[0.08] to-transparent p-8 transition-all hover:border-orange-500/50 sm:p-10"
             >
               <span className="inline-block rounded-full bg-orange-600/15 px-3 py-1 text-xs font-bold tracking-wide text-orange-400 uppercase">
                 {role.tag}
               </span>
-              <h3 className="mt-4 text-2xl font-bold">{role.title}</h3>
+              <h3 className="mt-4 text-2xl font-bold sm:text-3xl">
+                {role.title}
+              </h3>
 
               <div className="mt-4 flex flex-wrap gap-3 text-sm text-white/50">
                 <span className="flex items-center gap-1.5">
@@ -247,9 +266,27 @@ export default function Home() {
                 ))}
               </ul>
 
+              <div className="mt-8 grid gap-6 border-t border-white/10 pt-8 sm:grid-cols-2">
+                {role.fullDescription.map((paragraph) => (
+                  <p
+                    key={paragraph}
+                    className="text-sm leading-relaxed text-white/60 sm:col-span-2"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+
+              <p className="mt-6 text-sm text-white/50">
+                Questions? DM{" "}
+                <span className="font-semibold text-orange-400">
+                  {role.contact}
+                </span>
+              </p>
+
               <a
                 href="#apply"
-                className="group/btn mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-orange-600 py-3.5 text-sm font-bold transition-all hover:bg-orange-500 hover:shadow-lg hover:shadow-orange-600/30"
+                className="group/btn mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-orange-600 py-3.5 text-sm font-bold transition-all hover:bg-orange-500 hover:shadow-lg hover:shadow-orange-600/30 sm:max-w-xs"
               >
                 Apply for this Role
                 <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
@@ -257,12 +294,12 @@ export default function Home() {
             </div>
           ))}
 
-          {/* Placeholder card teasing future growth */}
-          <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 p-8 text-center lg:col-span-2">
-            <p className="text-lg font-bold text-white/70">
+          {/* Placeholder teasing future growth */}
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 p-6 text-center">
+            <p className="text-base font-bold text-white/70">
               More roles opening soon
             </p>
-            <p className="mt-2 max-w-sm text-sm text-white/40">
+            <p className="mt-1 max-w-sm text-sm text-white/40">
               We&apos;re scaling fast. Apply to the SDR role now and stand out
               early as we grow the team.
             </p>
@@ -284,17 +321,29 @@ export default function Home() {
             the obsessed move forward.
           </p>
 
-          <div className="mt-10 flex justify-center">
+          <div className="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl shadow-orange-600/10">
+            <iframe
+              src={`${GOOGLE_FORM_URL}${GOOGLE_FORM_URL.includes("?") ? "&" : "?"}embedded=true`}
+              width="100%"
+              height="900"
+              className="block"
+            >
+              Loading application form…
+            </iframe>
+          </div>
+
+          <p className="mt-6 text-sm text-white/40">
+            Form not loading?{" "}
             <a
               href={GOOGLE_FORM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-center gap-2 rounded-full bg-orange-600 px-10 py-5 text-lg font-bold shadow-xl shadow-orange-600/30 transition-all hover:scale-105 hover:bg-orange-500"
+              className="font-semibold text-orange-500 hover:text-orange-400"
             >
-              Apply on Google Form
-              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              Open it in a new tab
             </a>
-          </div>
+            .
+          </p>
         </div>
       </section>
 
