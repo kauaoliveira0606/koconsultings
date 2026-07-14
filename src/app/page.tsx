@@ -11,8 +11,8 @@ import {
   DollarSign,
 } from "lucide-react";
 
-// Replace with your real Google Form link when ready.
-const GOOGLE_FORM_URL = "https://forms.gle/REPLACE_WITH_YOUR_FORM";
+const GOOGLE_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSct9oGZZgENUXiPi-9V1aybXITWz9WPTE7pRw7Y-wpwbaARvQ/viewform?usp=dialog";
 
 const VALUES = [
   {
@@ -53,7 +53,7 @@ const ROLES = [
     tag: "E-Commerce Offer",
     location: "Remote",
     type: "Full-Time",
-    comp: "Base + Commission",
+    comp: "Commission Only",
     blurb:
       "You'll be the first line of contact turning inbound and outbound interest into booked calls for a high-growth e-commerce brand. This is a role for someone obsessed with the numbers, relentless in follow-up, and hungry to grow into a closer.",
     responsibilities: [
