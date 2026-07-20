@@ -179,8 +179,7 @@ export default function Home() {
             Our Mission
           </p>
           <p className="mt-4 text-2xl leading-snug font-bold sm:text-3xl">
-            Become industry leaders. The most credible company thought of when
-            mentioning the industry.
+            Become industry leaders.
           </p>
         </div>
       </section>
