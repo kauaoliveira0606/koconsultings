@@ -88,7 +88,7 @@ export default function Home() {
     <div className="relative flex flex-1 flex-col overflow-x-hidden bg-black text-white">
       {/* Ambient background glow */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="animate-drift absolute -top-40 -left-40 h-[32rem] w-[32rem] rounded-full bg-orange-600/20 blur-[120px]" />
+        <div className="animate-drift absolute -top-40 -left-40 h-[32rem] w-[32rem] rounded-full bg-red-600/20 blur-[120px]" />
         <div
           className="animate-drift absolute top-1/3 -right-40 h-[28rem] w-[28rem] rounded-full bg-red-600/20 blur-[120px]"
           style={{ animationDelay: "3s" }}
@@ -114,7 +114,7 @@ export default function Home() {
           </div>
           <a
             href="#apply"
-            className="group flex items-center gap-1.5 rounded-full bg-orange-600 px-5 py-2 text-sm font-semibold transition-all hover:bg-orange-500 hover:shadow-lg hover:shadow-orange-600/30"
+            className="group flex items-center gap-1.5 rounded-full bg-red-600 px-5 py-2 text-sm font-semibold transition-all hover:bg-red-500 hover:shadow-lg hover:shadow-red-600/30"
           >
             Apply Now
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -125,12 +125,12 @@ export default function Home() {
       {/* Hero */}
       <section className="relative z-10 mx-auto flex max-w-6xl flex-col items-center px-6 pt-24 pb-20 text-center sm:pt-32 sm:pb-28">
         <div
-          className="animate-fade-in-up mb-6 inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-sm font-medium text-orange-400"
+          className="animate-fade-in-up mb-6 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-sm font-medium text-red-400"
           style={{ animationDelay: "0.05s" }}
         >
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-orange-500" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
           </span>
           Now hiring — E-commerce SDR
         </div>
@@ -146,9 +146,10 @@ export default function Home() {
           className="animate-fade-in-up mt-6 max-w-2xl text-lg text-white/60 sm:text-xl"
           style={{ animationDelay: "0.3s" }}
         >
-          We&apos;re building industry leaders — not employees. If you&apos;re
-          obsessed with growth, allergic to average, and ready to earn what
-          you&apos;re worth, we want to hear from you.
+          If you&apos;re obsessed with growth, allergic to average, and ready
+          to earn what you&apos;re worth, we want to hear from you. A lot of
+          room for growth with great leaders bringing you closer to your
+          goals. Join the family.
         </p>
 
         <div
@@ -157,7 +158,7 @@ export default function Home() {
         >
           <a
             href="#apply"
-            className="group flex items-center gap-2 rounded-full bg-orange-600 px-8 py-4 text-base font-bold shadow-lg shadow-orange-600/30 transition-all hover:scale-105 hover:bg-orange-500 hover:shadow-orange-500/40"
+            className="group flex items-center gap-2 rounded-full bg-red-600 px-8 py-4 text-base font-bold shadow-lg shadow-red-600/30 transition-all hover:scale-105 hover:bg-red-500 hover:shadow-red-500/40"
           >
             Apply for the Role
             <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -174,7 +175,7 @@ export default function Home() {
       {/* Mission statement banner */}
       <section className="relative z-10 border-y border-white/10 bg-white/[0.03] py-14">
         <div className="mx-auto max-w-4xl overflow-hidden px-6 text-center">
-          <p className="text-xs font-semibold tracking-[0.3em] text-orange-500 uppercase">
+          <p className="text-xs font-semibold tracking-[0.3em] text-red-500 uppercase">
             Our Mission
           </p>
           <p className="mt-4 text-2xl leading-snug font-bold sm:text-3xl">
@@ -187,7 +188,7 @@ export default function Home() {
       {/* Core values */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
         <div className="mb-16 text-center">
-          <p className="text-sm font-semibold tracking-[0.3em] text-orange-500 uppercase">
+          <p className="text-sm font-semibold tracking-[0.3em] text-red-500 uppercase">
             What We Stand For
           </p>
           <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
@@ -199,9 +200,9 @@ export default function Home() {
           {VALUES.map(({ icon: Icon, title, description }) => (
             <div
               key={title}
-              className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:-translate-y-1 hover:border-orange-500/40 hover:bg-white/[0.06]"
+              className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:-translate-y-1 hover:border-red-500/40 hover:bg-white/[0.06]"
             >
-              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 text-orange-500 transition-colors group-hover:bg-orange-600 group-hover:text-white">
+              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 text-red-500 transition-colors group-hover:bg-red-600 group-hover:text-white">
                 <Icon className="h-5.5 w-5.5" />
               </div>
               <h3 className="text-lg font-bold">{title}</h3>
@@ -216,7 +217,7 @@ export default function Home() {
       {/* Open roles */}
       <section id="roles" className="relative z-10 mx-auto max-w-6xl px-6 py-24">
         <div className="mb-16 text-center">
-          <p className="text-sm font-semibold tracking-[0.3em] text-orange-500 uppercase">
+          <p className="text-sm font-semibold tracking-[0.3em] text-red-500 uppercase">
             Open Positions
           </p>
           <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
@@ -228,9 +229,9 @@ export default function Home() {
           {ROLES.map((role) => (
             <div
               key={role.title}
-              className="group relative overflow-hidden rounded-3xl border border-orange-500/20 bg-gradient-to-b from-orange-600/[0.08] to-transparent p-8 transition-all hover:border-orange-500/50 sm:p-10"
+              className="group relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-b from-red-600/[0.08] to-transparent p-8 transition-all hover:border-red-500/50 sm:p-10"
             >
-              <span className="inline-block rounded-full bg-orange-600/15 px-3 py-1 text-xs font-bold tracking-wide text-orange-400 uppercase">
+              <span className="inline-block rounded-full bg-red-600/15 px-3 py-1 text-xs font-bold tracking-wide text-red-400 uppercase">
                 {role.tag}
               </span>
               <h3 className="mt-4 text-2xl font-bold sm:text-3xl">
@@ -259,7 +260,7 @@ export default function Home() {
                     key={item}
                     className="flex items-start gap-2 text-sm text-white/70"
                   >
-                    <Target className="mt-0.5 h-4 w-4 flex-shrink-0 text-orange-500" />
+                    <Target className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
                     {item}
                   </li>
                 ))}
@@ -278,14 +279,14 @@ export default function Home() {
 
               <p className="mt-6 text-sm text-white/50">
                 Questions? DM{" "}
-                <span className="font-semibold text-orange-400">
+                <span className="font-semibold text-red-400">
                   {role.contact}
                 </span>
               </p>
 
               <a
                 href="#apply"
-                className="group/btn mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-orange-600 py-3.5 text-sm font-bold transition-all hover:bg-orange-500 hover:shadow-lg hover:shadow-orange-600/30 sm:max-w-xs"
+                className="group/btn mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-red-600 py-3.5 text-sm font-bold transition-all hover:bg-red-500 hover:shadow-lg hover:shadow-red-600/30 sm:max-w-xs"
               >
                 Apply for this Role
                 <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
@@ -309,7 +310,7 @@ export default function Home() {
       {/* Apply section */}
       <section
         id="apply"
-        className="relative z-10 border-t border-white/10 bg-gradient-to-b from-orange-600/10 to-transparent py-24"
+        className="relative z-10 border-t border-white/10 bg-gradient-to-b from-red-600/10 to-transparent py-24"
       >
         <div className="mx-auto max-w-3xl px-6 text-center">
           <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
@@ -320,7 +321,7 @@ export default function Home() {
             the obsessed move forward.
           </p>
 
-          <div className="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl shadow-orange-600/10">
+          <div className="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl shadow-red-600/10">
             <iframe
               src={`${GOOGLE_FORM_URL}${GOOGLE_FORM_URL.includes("?") ? "&" : "?"}embedded=true`}
               width="100%"
@@ -337,7 +338,7 @@ export default function Home() {
               href={GOOGLE_FORM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-orange-500 hover:text-orange-400"
+              className="font-semibold text-red-500 hover:text-red-400"
             >
               Open it in a new tab
             </a>
