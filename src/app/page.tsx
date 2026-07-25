@@ -370,11 +370,6 @@ export default function Home() {
         <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
           What the Job Actually Looks Like
         </h2>
-        <p className="mt-4 max-w-2xl text-lg text-white/60">
-          This is a full-time outbound setting role where you will be closing
-          people on a low-ticket funnel and upselling them into our
-          high-ticket funnel.
-        </p>
 
         <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
