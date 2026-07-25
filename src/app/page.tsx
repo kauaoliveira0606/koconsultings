@@ -11,6 +11,9 @@ import {
   Clock,
   DollarSign,
   AlertTriangle,
+  Phone,
+  Check,
+  X,
 } from "lucide-react";
 
 const GOOGLE_FORM_URL =
@@ -84,6 +87,28 @@ const ROLES = [
     ],
     contact: "@kauaoliveirallc",
   },
+];
+
+const JOB_DO = [
+  "Dial a minimum of 200 leads per day",
+  "Respond to leads within 5-10 minutes",
+  "Close 5 people on our low-ticket funnel per day",
+  "Book financially qualified leads for closers using the ILEITCA framework",
+  "Attend 5 team meetings per week",
+  "Attend training sessions daily",
+  "Work 8 to 10 hours a day, 6 days a week",
+  "Work in EST timezone (US, UK, and Canada only)",
+];
+
+const JOB_NOT_FOR_YOU = [
+  "You just want to hit KPIs and be done for the day",
+  "You're not willing to work Sundays",
+  "You want to \"just hit dials and be done\"",
+  "You're not willing to go all-in every day",
+  "You're looking for a laid-back, low-effort gig",
+  "You're outside the USA, UK, or Canada",
+  "You can't commit to 8-10 hours per day",
+  "You're not coachable and open to feedback",
 ];
 
 export default function Home() {
@@ -335,6 +360,55 @@ export default function Home() {
               We&apos;re scaling fast. Apply to the SDR role now and stand out
               early as we grow the team.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* What the job actually looks like */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white/60 uppercase">
+          <Phone className="h-3.5 w-3.5" />
+          The Role
+        </div>
+        <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
+          What the Job Actually Looks Like
+        </h2>
+        <p className="mt-4 max-w-2xl text-lg text-white/60">
+          This is a full-time outbound setting role where you will be closing
+          people on a low-ticket funnel and upselling them into our
+          high-ticket funnel.
+        </p>
+
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+            <h3 className="text-xl font-bold">What You&apos;ll Do</h3>
+            <ul className="mt-5 space-y-3">
+              {JOB_DO.map((item) => (
+                <li key={item} className="flex items-start gap-3 text-sm text-white/70">
+                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-400">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-sm font-semibold text-emerald-400 italic">
+              If this is too much, this is not the position for you
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+            <h3 className="text-xl font-bold">This is NOT for You If...</h3>
+            <ul className="mt-5 space-y-3">
+              {JOB_NOT_FOR_YOU.map((item) => (
+                <li key={item} className="flex items-start gap-3 text-sm text-white/70">
+                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-600/20 text-red-400">
+                    <X className="h-3.5 w-3.5" />
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
