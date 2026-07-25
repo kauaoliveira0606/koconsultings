@@ -124,7 +124,7 @@ const TRAINING = [
     icon: GraduationCap,
     title: "Ramp Up Sheet",
     description:
-      "A full course dedicated to making you an elite phone setter — from zero to confident, fast.",
+      "Full step by step guide to get you ramped up on the offer in 24 hours.",
   },
   {
     icon: Users,
