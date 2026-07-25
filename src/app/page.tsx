@@ -14,6 +14,11 @@ import {
   Phone,
   Check,
   X,
+  GraduationCap,
+  Calendar,
+  Users,
+  ClipboardList,
+  MessageCircle,
 } from "lucide-react";
 
 const GOOGLE_FORM_URL =
@@ -106,6 +111,45 @@ const JOB_NOT_FOR_YOU = [
   "You're not willing to go all-in every day",
   "You're looking for a laid-back, low-effort gig",
   "You're not coachable and open to feedback",
+];
+
+const TRAINING = [
+  {
+    icon: Calendar,
+    title: "Daily Training",
+    description:
+      "Every day starts with daily drills, coaching, and frameworks. Objections? Re-sharpen your skills consistently.",
+  },
+  {
+    icon: GraduationCap,
+    title: "Advanced Setter Course",
+    description:
+      "A full course dedicated to making you an elite phone setter — from zero to confident, fast.",
+  },
+  {
+    icon: Users,
+    title: "Daily Group Training",
+    description:
+      "Live group sessions every week to review calls, share wins, fix mistakes, and level everyone up.",
+  },
+  {
+    icon: ClipboardList,
+    title: "5x Weekly Team Meetings",
+    description:
+      "Regular check-ins with the team to stay aligned, share what's working, and hit targets together.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Path to Move Up",
+    description:
+      "Start on the setting team and grow. High performers get opportunities to advance within the company.",
+  },
+  {
+    icon: MessageCircle,
+    title: "High-Performance Culture",
+    description:
+      "Professional, ambitious, and fun. We win as a team and celebrate every milestone together.",
+  },
 ];
 
 export default function Home() {
@@ -358,6 +402,38 @@ export default function Home() {
               early as we grow the team.
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Training & support */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white/60 uppercase">
+          <GraduationCap className="h-3.5 w-3.5" />
+          Training &amp; Support
+        </div>
+        <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
+          You Won&apos;t Be Left to Figure It Out Alone
+        </h2>
+        <p className="mt-4 max-w-2xl text-lg text-white/60">
+          We invest in your success from day one. You&apos;ll get structured
+          training and live coaching every single week.
+        </p>
+
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {TRAINING.map(({ icon: Icon, title, description }) => (
+            <div
+              key={title}
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+            >
+              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-400">
+                <Icon className="h-5.5 w-5.5" />
+              </div>
+              <h3 className="text-lg font-bold">{title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/55">
+                {description}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
