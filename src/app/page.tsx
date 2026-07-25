@@ -425,7 +425,7 @@ export default function Home() {
               key={title}
               className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
             >
-              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-400">
+              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 text-red-400">
                 <Icon className="h-5.5 w-5.5" />
               </div>
               <h3 className="text-lg font-bold">{title}</h3>
