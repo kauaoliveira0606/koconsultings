@@ -241,36 +241,68 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Mission statement banner */}
-      <section className="relative z-10 border-y border-white/10 bg-white/[0.03] py-14">
-        <div className="mx-auto max-w-4xl overflow-hidden px-6 text-center">
-          <p className="text-xs font-semibold tracking-[0.3em] text-red-500 uppercase">
-            Our Mission
-          </p>
-          <p className="mt-4 text-2xl leading-snug font-bold sm:text-3xl">
-            Become industry leaders.
-          </p>
+      {/* What the job actually looks like */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white/60 uppercase">
+          <Phone className="h-3.5 w-3.5" />
+          The Role
+        </div>
+        <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
+          What the Job Actually Looks Like
+        </h2>
+
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+            <h3 className="text-xl font-bold">What You&apos;ll Do</h3>
+            <ul className="mt-5 space-y-3">
+              {JOB_DO.map((item) => (
+                <li key={item} className="flex items-start gap-3 text-sm text-white/70">
+                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-400">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+            <h3 className="text-xl font-bold">This is NOT for You If...</h3>
+            <ul className="mt-5 space-y-3">
+              {JOB_NOT_FOR_YOU.map((item) => (
+                <li key={item} className="flex items-start gap-3 text-sm text-white/70">
+                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-600/20 text-red-400">
+                    <X className="h-3.5 w-3.5" />
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
-      {/* Core values */}
+      {/* Training & support */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
-        <div className="mb-16 text-center">
-          <p className="text-sm font-semibold tracking-[0.3em] text-red-500 uppercase">
-            What We Stand For
-          </p>
-          <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
-            Our Core Values
-          </h2>
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white/60 uppercase">
+          <GraduationCap className="h-3.5 w-3.5" />
+          Training &amp; Support
         </div>
+        <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
+          You Won&apos;t Be Left to Figure It Out Alone
+        </h2>
+        <p className="mt-4 max-w-2xl text-lg text-white/60">
+          We invest in your success from day one. You&apos;ll get structured
+          training and live coaching every single week.
+        </p>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
-          {VALUES.map(({ icon: Icon, title, description }) => (
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {TRAINING.map(({ icon: Icon, title, description }) => (
             <div
               key={title}
-              className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:-translate-y-1 hover:border-red-500/40 hover:bg-white/[0.06]"
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
             >
-              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 text-red-500 transition-colors group-hover:bg-red-600 group-hover:text-white">
+              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 text-red-400">
                 <Icon className="h-5.5 w-5.5" />
               </div>
               <h3 className="text-lg font-bold">{title}</h3>
@@ -405,27 +437,24 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Training & support */}
+      {/* Core values */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white/60 uppercase">
-          <GraduationCap className="h-3.5 w-3.5" />
-          Training &amp; Support
+        <div className="mb-16 text-center">
+          <p className="text-sm font-semibold tracking-[0.3em] text-red-500 uppercase">
+            What We Stand For
+          </p>
+          <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
+            Our Core Values
+          </h2>
         </div>
-        <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
-          You Won&apos;t Be Left to Figure It Out Alone
-        </h2>
-        <p className="mt-4 max-w-2xl text-lg text-white/60">
-          We invest in your success from day one. You&apos;ll get structured
-          training and live coaching every single week.
-        </p>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {TRAINING.map(({ icon: Icon, title, description }) => (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+          {VALUES.map(({ icon: Icon, title, description }) => (
             <div
               key={title}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+              className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:-translate-y-1 hover:border-red-500/40 hover:bg-white/[0.06]"
             >
-              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 text-red-400">
+              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 text-red-500 transition-colors group-hover:bg-red-600 group-hover:text-white">
                 <Icon className="h-5.5 w-5.5" />
               </div>
               <h3 className="text-lg font-bold">{title}</h3>
@@ -437,44 +466,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* What the job actually looks like */}
-      <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white/60 uppercase">
-          <Phone className="h-3.5 w-3.5" />
-          The Role
-        </div>
-        <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
-          What the Job Actually Looks Like
-        </h2>
-
-        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-            <h3 className="text-xl font-bold">What You&apos;ll Do</h3>
-            <ul className="mt-5 space-y-3">
-              {JOB_DO.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm text-white/70">
-                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-400">
-                    <Check className="h-3.5 w-3.5" />
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-            <h3 className="text-xl font-bold">This is NOT for You If...</h3>
-            <ul className="mt-5 space-y-3">
-              {JOB_NOT_FOR_YOU.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm text-white/70">
-                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-600/20 text-red-400">
-                    <X className="h-3.5 w-3.5" />
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+      {/* Mission statement banner */}
+      <section className="relative z-10 border-y border-white/10 bg-white/[0.03] py-14">
+        <div className="mx-auto max-w-4xl overflow-hidden px-6 text-center">
+          <p className="text-xs font-semibold tracking-[0.3em] text-red-500 uppercase">
+            Our Mission
+          </p>
+          <p className="mt-4 text-2xl leading-snug font-bold sm:text-3xl">
+            Become industry leaders.
+          </p>
         </div>
       </section>
 
