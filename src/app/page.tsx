@@ -10,6 +10,7 @@ import {
   MapPin,
   Clock,
   DollarSign,
+  AlertTriangle,
 } from "lucide-react";
 
 const GOOGLE_FORM_URL =
@@ -351,8 +352,7 @@ export default function Home() {
             questions and also role play.
           </p>
           <p className="mt-8 text-sm text-white/40">
-            US, UK, &amp; Canada only · Full-time · EST timezone · 8+ hrs/day,
-            6 days/week
+            Full-time · EST timezone · 8+ hrs/day, 6-7 days/week
           </p>
         </div>
       </section>
@@ -366,6 +366,16 @@ export default function Home() {
           <span>Speed. Growth. Obsession. Excellence.</span>
         </div>
       </footer>
+
+      {/* Disclaimer */}
+      <div className="relative z-10 border-t-2 border-red-500 bg-amber-50 px-6 py-6">
+        <p className="mx-auto flex max-w-4xl items-center justify-center gap-2 text-center text-sm text-amber-900">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-900" />
+          Individual results vary. OTE figures represent potential earnings
+          based on hitting performance targets. Income is not guaranteed and
+          depends on effort, coachability, and market conditions.
+        </p>
+      </div>
     </div>
   );
 }
