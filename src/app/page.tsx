@@ -338,6 +338,25 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Interested in working with us */}
+      <section className="relative z-10 border-t border-white/10 py-24">
+        <div className="mx-auto max-w-3xl px-6 text-center">
+          <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
+            If You&apos;re Interested in{" "}
+            <span className="text-red-500">Working With Us</span>
+          </h2>
+          <p className="mt-6 text-lg text-white/70">
+            We review every single application. If you make it past the first
+            round, you will be invited to an interview where you will answer
+            questions and also role play.
+          </p>
+          <p className="mt-8 text-sm text-white/40">
+            US, UK, &amp; Canada only · Full-time · EST timezone · 8+ hrs/day,
+            6 days/week
+          </p>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/10 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-white/40 sm:flex-row">
