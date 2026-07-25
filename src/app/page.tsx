@@ -92,7 +92,7 @@ const ROLES = [
 const JOB_DO = [
   "Dial a minimum of 200 leads per day",
   "Respond to leads within 5-10 minutes",
-  "Close 5 people on our low-ticket funnel per day or book financially qualified leads for closers using the ILEITCA framework",
+  "Close 5 people on our low-ticket funnel per day or book financially qualified leads for closers",
   "Attend 5 team meetings per week",
   "Attend training sessions daily",
   "Work 8 to 10 hours a day, 6 days a week",
