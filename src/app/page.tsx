@@ -105,8 +105,6 @@ const JOB_NOT_FOR_YOU = [
   "You want to \"just hit dials and be done\"",
   "You're not willing to go all-in every day",
   "You're looking for a laid-back, low-effort gig",
-  "You're outside the USA, UK, or Canada",
-  "You can't commit to 8-10 hours per day",
   "You're not coachable and open to feedback",
 ];
 
