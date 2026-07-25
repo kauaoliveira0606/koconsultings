@@ -384,9 +384,6 @@ export default function Home() {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-sm font-semibold text-emerald-400 italic">
-              If this is too much, this is not the position for you
-            </p>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
