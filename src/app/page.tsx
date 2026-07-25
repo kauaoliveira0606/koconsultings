@@ -96,7 +96,7 @@ const JOB_DO = [
   "Attend 5 team meetings per week",
   "Attend training sessions daily",
   "Work 8 to 10 hours a day, 6 days a week",
-  "Work in EST timezone (US, UK, and Canada only)",
+  "Work in EST timezone",
 ];
 
 const JOB_NOT_FOR_YOU = [
