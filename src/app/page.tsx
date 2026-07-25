@@ -122,7 +122,7 @@ const TRAINING = [
   },
   {
     icon: GraduationCap,
-    title: "Advanced Setter Course",
+    title: "Ramp Up Sheet",
     description:
       "A full course dedicated to making you an elite phone setter — from zero to confident, fast.",
   },
