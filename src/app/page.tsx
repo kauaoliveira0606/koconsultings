@@ -473,7 +473,7 @@ export default function Home() {
             Our Mission
           </p>
           <p className="mt-4 text-2xl leading-snug font-bold sm:text-3xl">
-            Become industry leaders.
+            Become industry leaders. Grow 8 Figure Info Offers.
           </p>
         </div>
       </section>
