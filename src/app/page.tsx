@@ -50,8 +50,10 @@ const VALUES = [
 
 const ROLES = [
   {
+    slug: "sdr-ecommerce",
     title: "Sales Development Representative",
     tag: "E-Commerce Offer",
+    formUrl: GOOGLE_FORM_URL,
     location: "Remote",
     type: "Full-Time",
     comp: "Commission Only",
@@ -113,7 +115,7 @@ export default function Home() {
             />
           </div>
           <a
-            href="#apply"
+            href="#roles"
             className="group flex items-center gap-1.5 rounded-full bg-red-600 px-5 py-2 text-sm font-semibold transition-all hover:bg-red-500 hover:shadow-lg hover:shadow-red-600/30"
           >
             Apply Now
@@ -157,7 +159,7 @@ export default function Home() {
           style={{ animationDelay: "0.45s" }}
         >
           <a
-            href="#apply"
+            href="#roles"
             className="group flex items-center gap-2 rounded-full bg-red-600 px-8 py-4 text-base font-bold shadow-lg shadow-red-600/30 transition-all hover:scale-105 hover:bg-red-500 hover:shadow-red-500/40"
           >
             Apply for the Role
@@ -283,13 +285,43 @@ export default function Home() {
                 </span>
               </p>
 
-              <a
-                href="#apply"
-                className="group/btn mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-red-600 py-3.5 text-sm font-bold transition-all hover:bg-red-500 hover:shadow-lg hover:shadow-red-600/30 sm:max-w-xs"
+              <div
+                id={`apply-${role.slug}`}
+                className="mt-8 border-t border-white/10 pt-8"
               >
-                Apply for this Role
-                <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-              </a>
+                <h4 className="flex items-center gap-2 text-lg font-bold">
+                  Apply for this Role
+                  <ArrowRight className="h-4 w-4 text-red-500" />
+                </h4>
+                <p className="mt-2 text-sm text-white/50">
+                  Fill out the application below. We review every submission —
+                  only the obsessed move forward.
+                </p>
+
+                <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl shadow-red-600/10">
+                  <iframe
+                    src={`${role.formUrl}${role.formUrl.includes("?") ? "&" : "?"}embedded=true`}
+                    width="100%"
+                    height="900"
+                    className="block"
+                  >
+                    Loading application form…
+                  </iframe>
+                </div>
+
+                <p className="mt-4 text-sm text-white/40">
+                  Form not loading?{" "}
+                  <a
+                    href={role.formUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-red-500 hover:text-red-400"
+                  >
+                    Open it in a new tab
+                  </a>
+                  .
+                </p>
+              </div>
             </div>
           ))}
 
@@ -303,46 +335,6 @@ export default function Home() {
               early as we grow the team.
             </p>
           </div>
-        </div>
-      </section>
-
-      {/* Apply section */}
-      <section
-        id="apply"
-        className="relative z-10 border-t border-white/10 bg-gradient-to-b from-red-600/10 to-transparent py-24"
-      >
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
-            Ready to prove you&apos;re the best?
-          </h2>
-          <p className="mt-4 text-lg text-white/60">
-            Fill out the application below. We review every submission — only
-            the obsessed move forward.
-          </p>
-
-          <div className="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl shadow-red-600/10">
-            <iframe
-              src={`${GOOGLE_FORM_URL}${GOOGLE_FORM_URL.includes("?") ? "&" : "?"}embedded=true`}
-              width="100%"
-              height="900"
-              className="block"
-            >
-              Loading application form…
-            </iframe>
-          </div>
-
-          <p className="mt-6 text-sm text-white/40">
-            Form not loading?{" "}
-            <a
-              href={GOOGLE_FORM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-red-500 hover:text-red-400"
-            >
-              Open it in a new tab
-            </a>
-            .
-          </p>
         </div>
       </section>
 
