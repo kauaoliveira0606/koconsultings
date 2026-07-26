@@ -66,6 +66,7 @@ const ROLES = [
     title: "Sales Development Representative",
     tag: "E-Commerce Offer",
     formUrl: GOOGLE_FORM_URL,
+    ote: "OTE $2K-$5.4K/mo",
     location: "Remote",
     type: "Full-Time",
     comp: "Commission Only",
@@ -100,6 +101,7 @@ const ROLES = [
     title: "Sales Development Representative",
     tag: "Section 8 Offer",
     formUrl: GOOGLE_FORM_URL_SECTION8,
+    ote: "OTE $2K-$5.5K/mo",
     location: "Remote",
     type: "Full-Time",
     comp: "Commission Only",
@@ -361,7 +363,7 @@ export default function Home() {
         <div className="grid grid-cols-1 gap-6">
           {ROLES.map((role) => (
             <div
-              key={role.title}
+              key={role.slug}
               className="group relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-b from-red-600/[0.08] to-transparent p-8 transition-all hover:border-red-500/50 sm:p-10"
             >
               <span className="inline-block rounded-full bg-red-600/15 px-3 py-1 text-xs font-bold tracking-wide text-red-400 uppercase">
@@ -370,6 +372,9 @@ export default function Home() {
               <h3 className="mt-4 text-2xl font-bold sm:text-3xl">
                 {role.title}
               </h3>
+              <p className="mt-2 text-lg font-bold text-red-400 sm:text-xl">
+                {role.ote}
+              </p>
 
               <div className="mt-4 flex flex-wrap gap-3 text-sm text-white/50">
                 <span className="flex items-center gap-1.5">
