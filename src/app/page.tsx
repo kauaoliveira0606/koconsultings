@@ -92,6 +92,36 @@ const ROLES = [
     ],
     contact: "@kauaoliveirallc",
   },
+  {
+    slug: "sdr-section8",
+    title: "Sales Development Representative",
+    tag: "Section 8 Offer",
+    formUrl: GOOGLE_FORM_URL,
+    location: "Remote",
+    type: "Full-Time",
+    comp: "Commission Only",
+    blurb:
+      "You'll be selling a low-ticket software offer and booking financially qualified leads into a $7K high-ticket program. Higher lead flow than usual is coming in, and this is a role for someone who wants a ton of reps fast and is ready to get paid on both ends of the funnel.",
+    responsibilities: [
+      "Sell Base44 (a $50-$200/m software package) to inbound leads",
+      "Book qualified leads into our $7K high-ticket offer",
+      "Follow speed-to-lead and follow-up sequences daily",
+      "Track and hit daily closing KPIs on the low-ticket funnel",
+    ],
+    fullDescription: [
+      "Dialer position - Full time, commission only",
+      "Low-ticket: selling Base44 software, a $50-$200/m package that pays out $250",
+      "High-ticket: booking financially qualified leads into a $7K offer",
+      "OTE 2k-5.5k/m for setters",
+      "Higher lead flow than usual coming in",
+      "Lots of bonuses set up for performance",
+      "We value and compensate hard work heavily. This is a full-time position. Some of our reps CHOOSE to work 8+ hours. Ask yourself before you apply: is this the type of culture and standard you can commit to at the moment?",
+      "KPI's are closing at least 5 leads a day on the affiliate which is $50/month, we've seen people do around ten a day.",
+      "You will get a lot better in your skill set just because of the amount of reps that you will have that you will not see in any other offer.",
+      "The stuff is really easy. The marketing is they get access to a free course that we used to charge thousands of dollars for if they sign up for a platform software that they would have to sign up for already.",
+    ],
+    contact: "@kauaoliveirallc",
+  },
 ];
 
 const JOB_DO = [
@@ -201,7 +231,7 @@ export default function Home() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
           </span>
-          Now hiring — E-commerce SDR
+          Now hiring — 2 Open SDR Roles
         </div>
 
         <h1
@@ -430,8 +460,8 @@ export default function Home() {
               More roles opening soon
             </p>
             <p className="mt-1 max-w-sm text-sm text-white/40">
-              We&apos;re scaling fast. Apply to the SDR role now and stand out
-              early as we grow the team.
+              We&apos;re scaling fast. Apply to one of the roles above and
+              stand out early as we grow the team.
             </p>
           </div>
         </div>
