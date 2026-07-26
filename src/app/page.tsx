@@ -24,6 +24,9 @@ import {
 const GOOGLE_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSct9oGZZgENUXiPi-9V1aybXITWz9WPTE7pRw7Y-wpwbaARvQ/viewform?usp=dialog";
 
+const GOOGLE_FORM_URL_SECTION8 =
+  "https://docs.google.com/forms/d/e/1FAIpQLSeAySSUwPAef6ymJcBJ6JLZjloWtSPflJvkvhV6zkUKbFqasg/viewform?usp=dialog";
+
 const VALUES = [
   {
     icon: Zap,
@@ -96,7 +99,7 @@ const ROLES = [
     slug: "sdr-section8",
     title: "Sales Development Representative",
     tag: "Section 8 Offer",
-    formUrl: GOOGLE_FORM_URL,
+    formUrl: GOOGLE_FORM_URL_SECTION8,
     location: "Remote",
     type: "Full-Time",
     comp: "Commission Only",
