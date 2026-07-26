@@ -130,7 +130,7 @@ const ROLES = [
   {
     slug: "dm-setter",
     title: "DM Setter",
-    tag: "High-Ticket Offer",
+    tag: "Section 8 Offer",
     formUrl: GOOGLE_FORM_URL_SECTION8,
     ote: "OTE $1K-$2K/mo",
     location: "Remote",
@@ -154,7 +154,6 @@ const ROLES = [
       "You will get a lot better in your skill set just because of the amount of reps that you will have that you will not see in any other offer.",
       "You will be getting sales training from me who has collected millions in cash and made multiple 20-30k months.",
       "Culture is hunger, obsession, and going above and beyond. You're going to be in an environment that can make you a way better version of yourself.",
-      "Expectations: seven days a week. Speed to lead. Being active and responsive very quickly.",
     ],
     contact: "@kauaoliveirallc",
   },
