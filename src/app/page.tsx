@@ -63,9 +63,53 @@ const VALUES = [
   },
 ];
 
+const ROLE_ACCENTS = {
+  violet: {
+    card: "border-violet-500/20 bg-gradient-to-b from-violet-600/[0.08] to-transparent hover:border-violet-500/50",
+    pill: "bg-violet-600/15 text-violet-400",
+    ote: "text-violet-400",
+    target: "text-violet-500",
+    arrow: "text-violet-500",
+    contact: "text-violet-400",
+    apply: "text-violet-500 hover:text-violet-400",
+    formShadow: "shadow-violet-600/10",
+  },
+  red: {
+    card: "border-red-500/20 bg-gradient-to-b from-red-600/[0.08] to-transparent hover:border-red-500/50",
+    pill: "bg-red-600/15 text-red-400",
+    ote: "text-red-400",
+    target: "text-red-500",
+    arrow: "text-red-500",
+    contact: "text-red-400",
+    apply: "text-red-500 hover:text-red-400",
+    formShadow: "shadow-red-600/10",
+  },
+  amber: {
+    card: "border-amber-500/20 bg-gradient-to-b from-amber-600/[0.08] to-transparent hover:border-amber-500/50",
+    pill: "bg-amber-600/15 text-amber-400",
+    ote: "text-amber-400",
+    target: "text-amber-500",
+    arrow: "text-amber-500",
+    contact: "text-amber-400",
+    apply: "text-amber-500 hover:text-amber-400",
+    formShadow: "shadow-amber-600/10",
+  },
+  emerald: {
+    card: "border-emerald-500/20 bg-gradient-to-b from-emerald-600/[0.08] to-transparent hover:border-emerald-500/50",
+    pill: "bg-emerald-600/15 text-emerald-400",
+    ote: "text-emerald-400",
+    target: "text-emerald-500",
+    arrow: "text-emerald-500",
+    contact: "text-emerald-400",
+    apply: "text-emerald-500 hover:text-emerald-400",
+    formShadow: "shadow-emerald-600/10",
+  },
+};
+
 const ROLES = [
   {
     slug: "sdr-andy-stauring",
+    accent: "violet",
     title: "Sales Development Representative",
     tag: "Andy Stauring - Ecom Simulation",
     formUrl: GOOGLE_FORM_URL_ANDY,
@@ -95,6 +139,7 @@ const ROLES = [
   },
   {
     slug: "sdr-ecommerce",
+    accent: "red",
     title: "Sales Development Representative",
     tag: "E-Commerce Offer",
     formUrl: GOOGLE_FORM_URL,
@@ -130,6 +175,7 @@ const ROLES = [
   },
   {
     slug: "sdr-section8",
+    accent: "amber",
     title: "Sales Development Representative",
     tag: "Section 8 Offer",
     formUrl: GOOGLE_FORM_URL_SECTION8,
@@ -161,6 +207,7 @@ const ROLES = [
   },
   {
     slug: "dm-setter",
+    accent: "emerald",
     title: "DM Setter",
     tag: "Section 8 Offer",
     formUrl: GOOGLE_FORM_URL_SECTION8,
@@ -423,18 +470,20 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 gap-6">
-          {ROLES.map((role) => (
+          {ROLES.map((role) => {
+            const accent = ROLE_ACCENTS[role.accent];
+            return (
             <div
               key={role.slug}
-              className="group relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-b from-red-600/[0.08] to-transparent p-8 transition-all hover:border-red-500/50 sm:p-10"
+              className={`group relative overflow-hidden rounded-3xl border p-8 transition-all sm:p-10 ${accent.card}`}
             >
-              <span className="inline-block rounded-full bg-red-600/15 px-3 py-1 text-xs font-bold tracking-wide text-red-400 uppercase">
+              <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase ${accent.pill}`}>
                 {role.tag}
               </span>
               <h3 className="mt-4 text-2xl font-bold sm:text-3xl">
                 {role.title}
               </h3>
-              <p className="mt-2 text-lg font-bold text-red-400 sm:text-xl">
+              <p className={`mt-2 text-lg font-bold sm:text-xl ${accent.ote}`}>
                 {role.ote}
               </p>
 
@@ -460,7 +509,7 @@ export default function Home() {
                     key={item}
                     className="flex items-start gap-2 text-sm text-white/70"
                   >
-                    <Target className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
+                    <Target className={`mt-0.5 h-4 w-4 flex-shrink-0 ${accent.target}`} />
                     {item}
                   </li>
                 ))}
@@ -479,7 +528,7 @@ export default function Home() {
 
               <p className="mt-6 text-sm text-white/50">
                 Questions? DM{" "}
-                <span className="font-semibold text-red-400">
+                <span className={`font-semibold ${accent.contact}`}>
                   {role.contact}
                 </span>
               </p>
@@ -490,14 +539,14 @@ export default function Home() {
               >
                 <h4 className="flex items-center gap-2 text-lg font-bold">
                   Apply for this Role
-                  <ArrowRight className="h-4 w-4 text-red-500" />
+                  <ArrowRight className={`h-4 w-4 ${accent.arrow}`} />
                 </h4>
                 <p className="mt-2 text-sm text-white/50">
                   Fill out the application below. We review every submission —
                   only the obsessed move forward.
                 </p>
 
-                <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl shadow-red-600/10">
+                <div className={`mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl ${accent.formShadow}`}>
                   <iframe
                     src={`${role.formUrl}${role.formUrl.includes("?") ? "&" : "?"}embedded=true`}
                     width="100%"
@@ -514,7 +563,7 @@ export default function Home() {
                     href={role.formUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-red-500 hover:text-red-400"
+                    className={`font-semibold ${accent.apply}`}
                   >
                     Open it in a new tab
                   </a>
@@ -522,7 +571,8 @@ export default function Home() {
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           {/* Placeholder teasing future growth */}
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 p-6 text-center">
