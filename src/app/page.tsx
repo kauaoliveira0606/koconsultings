@@ -217,37 +217,6 @@ const ROLES = [
     ],
     contact: "@kauaoliveirallc",
   },
-  {
-    slug: "dm-setter",
-    accent: "emerald",
-    title: "DM Setter",
-    tag: "Section 8 Offer",
-    formUrl: GOOGLE_FORM_URL_SECTION8,
-    ote: "OTE $1K-$2K/mo",
-    location: "Remote",
-    type: "Full-Time",
-    comp: "Commission Only",
-    blurb:
-      "You'll be sliding into DMs and working warm conversations to book financially qualified leads straight into our $7K high-ticket offer. This is a role for someone who loves the game of conversation, knows how to build rapport in text, and wants a ton of reps setting high-ticket calls.",
-    responsibilities: [
-      "Work inbound and warm DM conversations daily",
-      "Qualify leads and book them into our $7K high-ticket offer",
-      "Follow speed-to-lead and follow-up sequences inside DMs",
-      "Track and hit daily booking KPIs",
-    ],
-    fullDescription: [
-      "DM setting position - Full time, commission only",
-      "Straight high-ticket: no funnels, no software upsells, just booking qualified leads into our $7K offer",
-      "OTE 1k-2k/m for setters",
-      "Abundant amount of leads coming through the DMs daily",
-      "Lots of bonuses set up for performance",
-      "We value and compensate hard work heavily. This is a full-time position. Some of our reps CHOOSE to work 8+ hours. Ask yourself before you apply: is this the type of culture and standard you can commit to at the moment?",
-      "You will get a lot better in your skill set just because of the amount of reps that you will have that you will not see in any other offer.",
-      "You will be getting sales training from me who has collected millions in cash and made multiple 20-30k months.",
-      "Culture is hunger, obsession, and going above and beyond. You're going to be in an environment that can make you a way better version of yourself.",
-    ],
-    contact: "@kauaoliveirallc",
-  },
 ];
 
 const JOB_DO = [
