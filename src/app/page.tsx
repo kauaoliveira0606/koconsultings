@@ -27,6 +27,9 @@ const GOOGLE_FORM_URL =
 const GOOGLE_FORM_URL_SECTION8 =
   "https://docs.google.com/forms/d/e/1FAIpQLSeAySSUwPAef6ymJcBJ6JLZjloWtSPflJvkvhV6zkUKbFqasg/viewform?usp=dialog";
 
+const GOOGLE_FORM_URL_ANDY =
+  "https://docs.google.com/forms/d/e/1FAIpQLSe-VuGw3guY-Ftnbx39UXdrwwoaU8kvQt-f5OrqNgvO0Uhvsg/viewform?usp=publish-editor";
+
 const VALUES = [
   {
     icon: Zap,
@@ -61,6 +64,35 @@ const VALUES = [
 ];
 
 const ROLES = [
+  {
+    slug: "sdr-andy-stauring",
+    title: "Sales Development Representative",
+    tag: "Andy Stauring - Ecom Simulation",
+    formUrl: GOOGLE_FORM_URL_ANDY,
+    ote: "OTE $2K-$5.1K/mo",
+    location: "Remote",
+    type: "Full-Time",
+    comp: "Commission Only",
+    blurb:
+      "You'll be selling Base44 as an affiliate to an audience fed by Andy Stauring's massive organic following — 300K on Instagram and 200K on YouTube — turning inbound interest into booked calls and closed low-ticket sales. This is a role for someone who wants huge organic reach behind their leads and real room to grow within the offer and the agency.",
+    responsibilities: [
+      "Sell Base44 (a $50-$200/m software package) as an affiliate to inbound leads",
+      "Work leads generated from Andy Stauring's 300K IG + 200K YouTube audience",
+      "Follow speed-to-lead and follow-up sequences daily",
+      "Track and hit daily closing KPIs on the low-ticket funnel",
+    ],
+    fullDescription: [
+      "Dialer position - Full time, commission only",
+      "Base44 Affiliate offer: sell a $50-$200/m software package",
+      "OTE 2k-5.1k/m",
+      "Talent partner has 300k on Instagram and 200k on YouTube — big organic brand with a strong existing audience",
+      "Lots of room for growth within the offer and within the agency",
+      "Lots of bonuses set up for performance",
+      "We value and compensate hard work heavily. This is a full-time position. Some of our reps CHOOSE to work 8+ hours. Ask yourself before you apply: is this the type of culture and standard you can commit to at the moment?",
+      "You will get a lot better in your skill set just because of the amount of reps that you will have that you will not see in any other offer.",
+    ],
+    contact: "@kauaoliveirallc",
+  },
   {
     slug: "sdr-ecommerce",
     title: "Sales Development Representative",
