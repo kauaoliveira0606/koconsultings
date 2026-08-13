@@ -130,7 +130,7 @@ const ROLES = [
     type: "Full-Time",
     comp: "Commission Only",
     blurb:
-      "You'll be selling Base44 as an affiliate to an audience fed by Andy Stauring's massive organic following — 300K on Instagram and 200K on YouTube — turning inbound interest into booked calls and closed low-ticket sales. This is a role for someone who wants huge organic reach behind their leads and real room to grow within the offer and the agency.",
+      "You'll be selling Base44 as an affiliate to an audience fed by Andy Stauring's massive organic following — 300K on Instagram and 200K on YouTube — turning inbound interest into booked calls and closed low-ticket sales. This is a role for someone who wants real room to grow within the offer and the agency.",
     responsibilities: [
       "Sell Base44 (a $50-$200/m software package) as an affiliate to inbound leads",
       "Work leads generated from Andy Stauring's 300K IG + 200K YouTube audience",
