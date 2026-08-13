@@ -63,7 +63,19 @@ const VALUES = [
   },
 ];
 
-const ROLE_ACCENTS = {
+const ROLE_ACCENTS: Record<
+  string,
+  {
+    card: string;
+    pill: string;
+    ote: string;
+    target: string;
+    arrow: string;
+    contact: string;
+    apply: string;
+    formShadow: string;
+  }
+> = {
   violet: {
     card: "border-violet-500/20 bg-gradient-to-b from-violet-600/[0.08] to-transparent hover:border-violet-500/50",
     pill: "bg-violet-600/15 text-violet-400",
