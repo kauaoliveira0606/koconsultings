@@ -246,7 +246,6 @@ const ROLES = [
       "Low-ticket-to-high-ticket funnel — every lead has already bought a package from us before, so they're a lot warmer than the average funnel",
       "Lots of bonuses set up for performance",
       "We value and compensate hard work heavily. Even part-time, we expect focus and consistency during your shifts.",
-      "You will get a lot of reps on warm, pre-qualified leads that you will not see in any other offer.",
     ],
     contact: "@kauaoliveirallc",
   },
