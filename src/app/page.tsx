@@ -19,9 +19,13 @@ import {
   Users,
   ClipboardList,
   MessageCircle,
+  ChevronDown,
 } from "lucide-react";
 
 const GOOGLE_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSct9oGZZgENUXiPi-9V1aybXITWz9WPTE7pRw7Y-wpwbaARvQ/viewform?usp=dialog";
+
+const GOOGLE_FORM_URL_CLOSER =
   "https://docs.google.com/forms/d/e/1FAIpQLSct9oGZZgENUXiPi-9V1aybXITWz9WPTE7pRw7Y-wpwbaARvQ/viewform?usp=dialog";
 
 const GOOGLE_FORM_URL_SECTION8 =
@@ -217,6 +221,35 @@ const ROLES = [
     ],
     contact: "@kauaoliveirallc",
   },
+  {
+    slug: "closer-ecommerce",
+    accent: "emerald",
+    title: "Closer",
+    tag: "E-Commerce Offer",
+    formUrl: GOOGLE_FORM_URL_CLOSER,
+    ote: "OTE $1K-$3K/mo",
+    location: "Remote",
+    type: "Part-Time",
+    comp: "Commission Only",
+    blurb:
+      "You'll be closing a $1.5K high-ticket offer for buyers who already purchased a low-ticket package from us — these leads are pre-qualified and a lot warmer than a cold funnel. This is a part-time role for someone who wants strong pay per hour worked without the full-time grind.",
+    responsibilities: [
+      "Close a $1.5K high-ticket offer inside our low-ticket-to-high-ticket e-com funnel",
+      "Work leads who already bought a package from us — no cold prospecting",
+      "Follow speed-to-lead and follow-up sequences on assigned shifts",
+      "Track and hit closing KPIs on a part-time schedule",
+    ],
+    fullDescription: [
+      "Closer position - Part time, commission only",
+      "Single ticket: $1.5K high-ticket e-com offer",
+      "OTE 1k-3k/m part-time",
+      "Low-ticket-to-high-ticket funnel — every lead has already bought a package from us before, so they're a lot warmer than the average funnel",
+      "Lots of bonuses set up for performance",
+      "We value and compensate hard work heavily. Even part-time, we expect focus and consistency during your shifts.",
+      "You will get a lot of reps on warm, pre-qualified leads that you will not see in any other offer.",
+    ],
+    contact: "@kauaoliveirallc",
+  },
 ];
 
 const JOB_DO = [
@@ -306,6 +339,29 @@ export default function Home() {
               className="h-6 w-auto sm:h-7"
             />
           </div>
+
+          <details className="group relative">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-white/70 transition-colors hover:text-white [&::-webkit-details-marker]:hidden">
+              Open Positions
+              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="absolute top-full left-1/2 z-50 mt-3 w-72 -translate-x-1/2 rounded-2xl border border-white/10 bg-black/95 p-2 shadow-2xl backdrop-blur-md">
+              {ROLES.map((role) => (
+                <a
+                  key={role.slug}
+                  href={`#apply-${role.slug}`}
+                  className="block rounded-xl px-4 py-3 transition-colors hover:bg-white/5"
+                >
+                  <p className="text-sm font-semibold text-white">
+                    {role.title}
+                    <span className="text-white/40"> · {role.tag}</span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-white/50">{role.ote}</p>
+                </a>
+              ))}
+            </div>
+          </details>
+
           <a
             href="#roles"
             className="group flex items-center gap-1.5 rounded-full bg-red-600 px-5 py-2 text-sm font-semibold transition-all hover:bg-red-500 hover:shadow-lg hover:shadow-red-600/30"
@@ -326,7 +382,7 @@ export default function Home() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
           </span>
-          Now hiring — 3 Open Roles
+          Now hiring — 4 Open Roles
         </div>
 
         <h1
