@@ -563,7 +563,8 @@ export default function Home() {
               </div>
 
               <p className="mt-6 text-sm text-white/50">
-                Questions? DM{" "}
+                Got questions? Or want to stay up to date on future roles?
+                {" --> "}
                 <span className={`font-semibold ${accent.contact}`}>
                   {role.contact}
                 </span>
