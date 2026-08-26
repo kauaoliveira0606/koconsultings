@@ -1,5 +1,8 @@
 import { getMarketingDailyMetrics } from "@/lib/airtable/tables";
 
+// Not statically prerenderable: it always needs live Airtable data
+// (and would otherwise be built before deploy env vars are available).
+export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 function isoDateDaysAgo(days: number): string {
