@@ -1,0 +1,152 @@
+"use client";
+
+import { useState } from "react";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
+import { RangeFilterBar, defaultRangeState, type RangeState } from "@/components/dashboard/RangeFilterBar";
+import { DataTable, type Column } from "@/components/dashboard/DataTable";
+import { useSectionData } from "@/lib/use-section-data";
+import { formatDateTime, formatStatValue } from "@/lib/format";
+
+type SpeedToLeadResponse = {
+  avgSpeedToLead: number | null;
+  medianSpeedToLead: number | null;
+  leadsCalled: { called: number; total: number; notYetCalled: number };
+  leads: {
+    id: string;
+    name: string | null;
+    createdAt: string | null;
+    firstCallAt: string | null;
+    minutesToCall: number | null;
+    status: string | null;
+  }[];
+};
+
+type TeamTotalsResponse = {
+  outboundDials: number | null;
+  pickups: number | null;
+  convosOver2Min: number | null;
+  totalTalkTimeMinutes: number | null;
+};
+
+type ByRepResponse = {
+  reps: {
+    rep: string;
+    outboundDials: number | null;
+    pickups: number | null;
+    convosOver2Min: number | null;
+    totalTalkTimeMinutes: number | null;
+  }[];
+};
+
+function formatMinutes(minutes: number | null): string {
+  if (minutes === null || !Number.isFinite(minutes)) return "—";
+  return `${minutes.toFixed(1)}m`;
+}
+
+export default function SalesTeamPage() {
+  const [range, setRange] = useState<RangeState>(defaultRangeState("today"));
+
+  const { data: speedToLead } = useSectionData<SpeedToLeadResponse>(
+    "/api/bronson/sales-team/speed-to-lead",
+    range
+  );
+  const { data: teamTotals } = useSectionData<TeamTotalsResponse>(
+    "/api/bronson/sales-team/team-totals",
+    range
+  );
+  const { data: byRep } = useSectionData<ByRepResponse>("/api/bronson/sales-team/by-rep", range);
+
+  const repColumns: Column<ByRepResponse["reps"][number]>[] = [
+    { key: "rep", header: "Rep", render: (r) => r.rep },
+    { key: "dials", header: "Outbound Dials", render: (r) => formatStatValue(r.outboundDials), align: "right" },
+    { key: "pickups", header: "Pickups", render: (r) => formatStatValue(r.pickups), align: "right" },
+    {
+      key: "convos",
+      header: "2-Min+ Conversations",
+      render: (r) => formatStatValue(r.convosOver2Min),
+      align: "right",
+    },
+    {
+      key: "talkTime",
+      header: "Total Talk Time",
+      render: (r) => formatMinutes(r.totalTalkTimeMinutes),
+      align: "right",
+    },
+  ];
+
+  const leadColumns: Column<SpeedToLeadResponse["leads"][number]>[] = [
+    { key: "lead", header: "Lead", render: (l) => l.name ?? "Unknown" },
+    { key: "created", header: "Created", render: (l) => formatDateTime(l.createdAt) },
+    { key: "firstCalled", header: "First Called", render: (l) => formatDateTime(l.firstCallAt) },
+    {
+      key: "timeToCall",
+      header: "Time to Call",
+      render: (l) => formatMinutes(l.minutesToCall),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (l) =>
+        l.firstCallAt ? (
+          l.status ?? "—"
+        ) : (
+          <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs text-black/50">
+            Not called yet
+          </span>
+        ),
+    },
+  ];
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">Sales Team</h1>
+        <RangeFilterBar value={range} onChange={setRange} showCustom={false} />
+      </div>
+
+      <DashboardSection title="Speed to Lead">
+        <StatCardGrid>
+          <StatCard label="Avg. Speed to Lead" value={speedToLead?.avgSpeedToLead} format="number" />
+          <StatCard label="Median Speed to Lead" value={speedToLead?.medianSpeedToLead} format="number" />
+          <StatCard
+            label="Leads Called"
+            value={speedToLead?.leadsCalled.called}
+            format="number"
+            subtext={
+              speedToLead
+                ? `${speedToLead.leadsCalled.called}/${speedToLead.leadsCalled.total} — ${speedToLead.leadsCalled.notYetCalled} not yet called`
+                : undefined
+            }
+          />
+        </StatCardGrid>
+      </DashboardSection>
+
+      <DashboardSection title="Team Totals">
+        <StatCardGrid>
+          <StatCard label="Outbound Dials" value={teamTotals?.outboundDials} format="number" />
+          <StatCard label="Pickups" value={teamTotals?.pickups} format="number" />
+          <StatCard label="2-Min+ Conversations" value={teamTotals?.convosOver2Min} format="number" />
+          <StatCard
+            label="Total Talk Time"
+            value={teamTotals?.totalTalkTimeMinutes}
+            format="number"
+            subtext={formatMinutes(teamTotals?.totalTalkTimeMinutes ?? null)}
+          />
+        </StatCardGrid>
+      </DashboardSection>
+
+      <DashboardSection title="By Rep">
+        <DataTable columns={repColumns} rows={byRep?.reps ?? []} rowKey={(r) => r.rep} />
+      </DashboardSection>
+
+      <DashboardSection title="Leads — Speed to Lead Detail">
+        <DataTable
+          columns={leadColumns}
+          rows={speedToLead?.leads ?? []}
+          rowKey={(l) => l.id}
+        />
+      </DashboardSection>
+    </div>
+  );
+}
