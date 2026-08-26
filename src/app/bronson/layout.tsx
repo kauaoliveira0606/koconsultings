@@ -1,5 +1,14 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { BronsonSidebar } from "./BronsonSidebar";
+
+export const metadata: Metadata = {
+  title: "Bronson",
+  description: "Bronson dashboard",
+  icons: { icon: [] },
+  openGraph: { images: [] },
+  twitter: { images: [] },
+};
 
 export default function BronsonLayout({ children }: { children: ReactNode }) {
   return (
