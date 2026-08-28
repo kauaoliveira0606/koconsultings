@@ -121,3 +121,51 @@ export function mergeCashBySource(
     unattributedCount,
   };
 }
+
+export type CashBySourceByDay = Record<
+  string,
+  { paid: number; organic: number; unattributed: number }
+>;
+
+/**
+ * Same attribution as mergeCashBySource, bucketed by day instead of summed
+ * into one range total — powers the Cash Calendar's paid/organic split.
+ */
+export function cashBySourceByDay(
+  allLeads: LeadRow[],
+  pcnClosed: (ClosedCallRow & { date: string | null })[]
+): CashBySourceByDay {
+  const lookup = buildLeadSourceLookup(allLeads);
+  const byDay: CashBySourceByDay = {};
+  const matchedEmails = new Set<string>();
+
+  const add = (date: string, key: "paid" | "organic" | "unattributed", amount: number) => {
+    if (!byDay[date]) byDay[date] = { paid: 0, organic: 0, unattributed: 0 };
+    byDay[date][key] += amount;
+  };
+
+  for (const r of pcnClosed) {
+    if (r.cpaCash === null || !r.date) continue;
+    const email = normalizeEmail(r.leadEmail);
+    const source = email ? (lookup.get(email) ?? null) : null;
+    if (email && isPaidSource(source)) {
+      matchedEmails.add(email);
+      add(r.date, "paid", r.cpaCash);
+    } else if (email && isOrganicSource(source)) {
+      matchedEmails.add(email);
+      add(r.date, "organic", r.cpaCash);
+    } else {
+      add(r.date, "unattributed", r.cpaCash);
+    }
+  }
+
+  for (const lead of allLeads) {
+    if (lead.cashCollected === null || lead.cashCollected <= 0 || !lead.createdAt) continue;
+    const email = normalizeEmail(lead.email);
+    if (email && matchedEmails.has(email)) continue;
+    if (isPaidSource(lead.source)) add(lead.createdAt, "paid", lead.cashCollected);
+    else if (isOrganicSource(lead.source)) add(lead.createdAt, "organic", lead.cashCollected);
+  }
+
+  return byDay;
+}

@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
-import { getMarketingDailyMetrics } from "@/lib/airtable/tables";
+import { getMarketingDailyMetrics, getLeads, getBronsonAffiliatePcn } from "@/lib/airtable/tables";
 import { filterByMonth, getCashByDay, monthTotal } from "@/lib/cash-calendar";
+import { cashBySourceByDay } from "@/lib/airtable/lead-source-lookup";
 
 export const revalidate = 60;
 
@@ -10,8 +11,19 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "month query param (YYYY-MM) is required" }, { status: 400 });
   }
 
-  const marketing = await getMarketingDailyMetrics();
+  const [marketing, leads, pcn] = await Promise.all([
+    getMarketingDailyMetrics(),
+    getLeads(),
+    getBronsonAffiliatePcn(),
+  ]);
+
   const byDay = filterByMonth(getCashByDay(marketing), month);
 
-  return Response.json({ byDay, total: monthTotal(byDay) });
+  const bySourceDay = cashBySourceByDay(leads, pcn);
+  const bySourceForMonth: typeof bySourceDay = {};
+  for (const [date, value] of Object.entries(bySourceDay)) {
+    if (date.startsWith(month)) bySourceForMonth[date] = value;
+  }
+
+  return Response.json({ byDay, total: monthTotal(byDay), bySourceDay: bySourceForMonth });
 }

@@ -16,6 +16,12 @@ const BUCKET_COLORS = [
   "bg-emerald-700",
 ];
 
+type CashCalendarResponse = {
+  byDay: Record<string, number>;
+  total: number;
+  bySourceDay: Record<string, { paid: number; organic: number; unattributed: number }>;
+};
+
 function monthLabel(month: string): string {
   const [year, m] = month.split("-").map(Number);
   return new Date(year, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -44,20 +50,25 @@ function leadingBlankCount(month: string): number {
 
 export function CashCalendar() {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const { data } = useSWR<{ byDay: Record<string, number>; total: number }>(
+  const { data } = useSWR<CashCalendarResponse>(
     `/api/bronson/overview/cash-calendar?month=${month}`,
     fetcher
   );
 
   const byDay = data?.byDay ?? {};
+  const bySourceDay = data?.bySourceDay ?? {};
   const max = Math.max(0, ...Object.values(byDay));
   const days = daysInMonth(month);
   const blanks = leadingBlankCount(month);
 
   return (
     <div className="rounded-lg border border-black/10 bg-white p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-black/60">Cash collected per day, from Marketing Daily Metrics submissions.</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-black/60">
+          Cash collected per day, from Marketing Daily Metrics submissions. Paid/Organic split
+          below each day is the Affiliate PCN cross-reference (may not sum to the same total —
+          independently submitted sources).
+        </p>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -92,14 +103,23 @@ export function CashCalendar() {
         {days.map(({ day, date }) => {
           const value = byDay[date] ?? 0;
           const bucket = bucketIntensity(value, max);
+          const source = bySourceDay[date];
           return (
             <div
               key={date}
-              className={`flex h-20 flex-col justify-between rounded-md border border-black/5 p-2 ${BUCKET_COLORS[bucket]}`}
+              className={`flex h-24 flex-col justify-between rounded-md border border-black/5 p-2 ${BUCKET_COLORS[bucket]}`}
             >
               <span className="text-xs font-semibold">{day}</span>
               {value > 0 ? (
                 <span className="text-right text-xs font-bold">{formatStatValue(value, "currency")}</span>
+              ) : null}
+              {source && (source.paid > 0 || source.organic > 0) ? (
+                <div className="text-right text-[10px] leading-tight text-black/60">
+                  {source.paid > 0 ? <div>P: {formatStatValue(source.paid, "currency")}</div> : null}
+                  {source.organic > 0 ? (
+                    <div>O: {formatStatValue(source.organic, "currency")}</div>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           );
