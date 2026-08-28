@@ -175,7 +175,7 @@ export default function OverviewPage() {
 
       <DashboardSection
         title="Lead Sources"
-        action={<RangeFilterBar value={leadSourcesRange} onChange={setLeadSourcesRange} showCustom={false} />}
+        action={<RangeFilterBar value={leadSourcesRange} onChange={setLeadSourcesRange} />}
       >
         <StatCardGrid>
           <StatCard label="Paid Leads (Tracked)" value={leadSources?.paidLeadsTracked} format="number" />
@@ -275,7 +275,7 @@ export default function OverviewPage() {
 
       <DashboardSection
         title="Leaderboard"
-        action={<RangeFilterBar value={leaderboardRange} onChange={setLeaderboardRange} showCustom={false} />}
+        action={<RangeFilterBar value={leaderboardRange} onChange={setLeaderboardRange} />}
       >
         {leaderboard && leaderboard.rows.length > 0 ? (
           <div className="rounded-lg border border-black/10 bg-white p-4">

@@ -113,7 +113,7 @@ export default function SalesTeamPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Sales Team</h1>
-        <RangeFilterBar value={range} onChange={setRange} showCustom={false} />
+        <RangeFilterBar value={range} onChange={setRange} />
       </div>
 
       <DashboardSection title="Team Totals">

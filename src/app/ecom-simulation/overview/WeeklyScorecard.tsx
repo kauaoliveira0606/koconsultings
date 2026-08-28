@@ -67,7 +67,6 @@ export function WeeklyScorecard() {
           value={range}
           onChange={setRange}
           presets={["this_week", "last_7_days", "last_30_days", "all_time"]}
-          showCustom={false}
         />
       }
     >
