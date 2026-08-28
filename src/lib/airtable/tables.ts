@@ -272,3 +272,83 @@ export function wasHighTicketPitched(row: PostCallNoteRow): boolean {
 export function wasClosed(row: PostCallNoteRow): boolean {
   return !!row.callOutcome && CLOSED_OUTCOMES.includes(row.callOutcome);
 }
+
+// EOD Dialer/EOD Closer/Post Call Note above are Bronson's legacy tracking —
+// the team stopped submitting them mid-July 2026. Current activity (through
+// today) lives in these two tables instead, same pattern as Ecom Simulation's
+// Affiliate EOD/PCN, but with Bronson's own field names and — unlike Ecom
+// Simulation — real high-ticket data, since Bronson actually has that motion.
+const BRONSON_AFFILIATE_PCN_TABLE_ID = "tblXsKo89QNuRawBy";
+const BRONSON_AFFILIATE_EOD_TABLE_ID = "tblezCVnizBHKPL4Q";
+
+export type BronsonAffiliateEodRow = {
+  id: string;
+  date: string | null;
+  repName: string | null;
+  outboundDials: number | null;
+  pickups: number | null;
+  softwarePitched: number | null;
+  softwareClosed: number | null;
+  highTicketCallsPitched: number | null;
+  newHighTicketCallsBooked: number | null;
+  cashCollectedAffiliate: number | null;
+  cashCollectedHighTicket: number | null;
+  totalTalkTimeRaw: string | null;
+};
+
+export async function getBronsonAffiliateEod(): Promise<BronsonAffiliateEodRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    BRONSON_BASE_ID,
+    BRONSON_AFFILIATE_EOD_TABLE_ID
+  );
+
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      date: parseDateOnly(f.Date),
+      repName: (f["Your name"] as string) ?? null,
+      outboundDials: parseNumericText(f["Outbound dials"]),
+      pickups: parseNumericText(f["Pick ups"]),
+      softwarePitched: parseNumericText(f["Software pitched"]),
+      softwareClosed: parseNumericText(f["software closed"]),
+      highTicketCallsPitched: parseNumericText(f["high ticket call pitched"]),
+      newHighTicketCallsBooked: parseNumericText(f["new high ticket calls booked"]),
+      cashCollectedAffiliate: parseNumericText(f["Cash collected affiliate"]),
+      cashCollectedHighTicket: parseNumericText(f["cash collected high ticket"]),
+      totalTalkTimeRaw: (f["total talk time"] as string) ?? null,
+    };
+  });
+}
+
+export type BronsonAffiliatePcnRow = {
+  id: string;
+  date: string | null;
+  repName: string | null;
+  leadName: string | null;
+  leadEmail: string | null;
+  software: string | null;
+  plan: string | null;
+  cpaCash: number | null;
+};
+
+export async function getBronsonAffiliatePcn(): Promise<BronsonAffiliatePcnRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    BRONSON_BASE_ID,
+    BRONSON_AFFILIATE_PCN_TABLE_ID
+  );
+
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      date: parseDateOnly(f.Date),
+      repName: (f["Full Name"] as string) ?? null,
+      leadName: (f["Lead name"] as string) ?? null,
+      leadEmail: (f["lead email"] as string) ?? null,
+      software: (f["Which software"] as string) ?? null,
+      plan: (f["Plan?"] as string) ?? null,
+      cpaCash: parseNumericText(f["CPA (Payout / Cash Collected)"]),
+    };
+  });
+}

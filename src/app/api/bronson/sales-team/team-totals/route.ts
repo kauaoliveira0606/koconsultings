@@ -1,21 +1,33 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
-import { getEodDialer } from "@/lib/airtable/tables";
+import { getBronsonAffiliateEod } from "@/lib/airtable/tables";
 import { parseDurationMinutes } from "@/lib/airtable/parse";
-import { sum } from "@/lib/metrics";
+import { pickupRate, sum } from "@/lib/metrics";
 
 export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
-  const rows = await getEodDialer();
+  const rows = await getBronsonAffiliateEod();
   const inRange = rows.filter((r) => isDateInRange(r.date, range));
 
+  const outboundDials = sum(inRange.map((r) => r.outboundDials));
+  const pickups = sum(inRange.map((r) => r.pickups));
+  const cashCollected = sum([
+    sum(inRange.map((r) => r.cashCollectedAffiliate)),
+    sum(inRange.map((r) => r.cashCollectedHighTicket)),
+  ]);
+
   return Response.json({
-    outboundDials: sum(inRange.map((r) => r.outboundDials)),
-    pickups: sum(inRange.map((r) => r.pickups)),
-    convosOver2Min: sum(inRange.map((r) => r.convosOver2Min)),
+    outboundDials,
+    pickups,
+    pickupRate: pickupRate(pickups, outboundDials),
+    softwarePitched: sum(inRange.map((r) => r.softwarePitched)),
+    totalSales: sum(inRange.map((r) => r.softwareClosed)),
+    cashCollected,
+    highTicketCallsPitched: sum(inRange.map((r) => r.highTicketCallsPitched)),
+    newHighTicketCallsBooked: sum(inRange.map((r) => r.newHighTicketCallsBooked)),
     totalTalkTimeMinutes: sum(inRange.map((r) => parseDurationMinutes(r.totalTalkTimeRaw))),
   });
 }

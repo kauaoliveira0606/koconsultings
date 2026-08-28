@@ -1,15 +1,7 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
-import {
-  getLeads,
-  getMarketingDailyMetrics,
-  getEodDialer,
-  getPostCallNotes,
-  wasPitched,
-  wasHighTicketPitched,
-  wasClosed,
-} from "@/lib/airtable/tables";
+import { getLeads, getMarketingDailyMetrics, getBronsonAffiliateEod } from "@/lib/airtable/tables";
 import {
   averageOrderValue,
   cashCollectedPerOptIn,
@@ -27,17 +19,15 @@ export const revalidate = 60;
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
-  const [marketing, leads, dialer, postCallNotes] = await Promise.all([
+  const [marketing, leads, affiliateEod] = await Promise.all([
     getMarketingDailyMetrics(),
     getLeads(),
-    getEodDialer(),
-    getPostCallNotes(),
+    getBronsonAffiliateEod(),
   ]);
 
   const inRangeMarketing = marketing.filter((r) => isDateInRange(r.date, range));
   const inRangeLeads = leads.filter((l) => isDateInRange(l.createdAt, range));
-  const inRangeDialer = dialer.filter((r) => isDateInRange(r.date, range));
-  const inRangePcn = postCallNotes.filter((r) => isDateInRange(r.date, range));
+  const inRangeEod = affiliateEod.filter((r) => isDateInRange(r.date, range));
 
   const salesCount = sum(inRangeMarketing.map((r) => r.salesLowTicket)) ?? 0;
   const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta));
@@ -48,12 +38,11 @@ export async function GET(request: NextRequest) {
       ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0)
       : null;
   const optInsPaid = sum(inRangeMarketing.map((r) => r.optInsPaid));
-  const pickups = sum(inRangeDialer.map((r) => r.pickups));
-  const dials = sum(inRangeDialer.map((r) => r.outboundDials));
-
-  const pitched = inRangePcn.filter(wasPitched);
-  const htPitched = inRangePcn.filter(wasHighTicketPitched);
-  const htClosed = htPitched.filter(wasClosed);
+  const pickups = sum(inRangeEod.map((r) => r.pickups));
+  const dials = sum(inRangeEod.map((r) => r.outboundDials));
+  const softwarePitched = sum(inRangeEod.map((r) => r.softwarePitched));
+  const htPitched = sum(inRangeEod.map((r) => r.highTicketCallsPitched));
+  const htBooked = sum(inRangeEod.map((r) => r.newHighTicketCallsBooked));
 
   return Response.json({
     sales: salesCount,
@@ -62,12 +51,12 @@ export async function GET(request: NextRequest) {
     cashCollectedLowTicket: cashLowTicket,
     pickupRate: pickupRate(pickups, dials),
     pickups,
-    softwarePitched: pitched.length,
-    pitchRate: pitchRateOf(pitched.length, pickups),
+    softwarePitched,
+    pitchRate: pitchRateOf(softwarePitched, pickups),
     cashCollectedPerOptInPaid: cashCollectedPerOptIn(totalCashCollected, optInsPaid),
     averageOrderValue: averageOrderValue(totalCashCollected, salesCount || null),
-    highTicketPitchRate: highTicketPitchRateOf(htPitched.length, salesCount || null),
-    upsellBookingRate: upsellBookingRateOf(htClosed.length, htPitched.length || null),
+    highTicketPitchRate: highTicketPitchRateOf(htPitched, salesCount || null),
+    upsellBookingRate: upsellBookingRateOf(htBooked, htPitched),
     costPerAcquisition: costPerAcquisition(adSpend, salesCount || null),
     leadToCloseRate: leadToCloseRate(salesCount || null, inRangeLeads.length || null),
   });

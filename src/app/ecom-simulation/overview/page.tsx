@@ -35,6 +35,17 @@ type LeadSourcesResponse = {
   paidRoas: number | null;
   costPerPaidLead: number | null;
   costPerAcquisitionPaid: number | null;
+  pcn: {
+    totalLogged: number;
+    matchedToLead: number;
+    paidCallsMatched: number;
+    organicCallsMatched: number;
+    paidClosed: number;
+    organicClosed: number;
+    cashCollectedPaid: number | null;
+    cashCollectedOrganic: number | null;
+    costPerAcquisitionPaid: number | null;
+  };
 };
 
 type CrossCheckResponse = { mismatched: boolean; details: string[] };
@@ -215,6 +226,47 @@ export default function OverviewPage() {
             tagging is firing correctly or the manual entry is stale.
           </div>
         ) : null}
+
+        <div className="mt-4">
+          <h3 className="mb-2 text-sm font-semibold text-black/70">
+            Cross-Check — Affiliate PCN matched to Leads by email
+          </h3>
+          <p className="mb-3 text-xs text-black/50">
+            {leadSources
+              ? `${leadSources.pcn.matchedToLead}/${leadSources.pcn.totalLogged} logged calls matched a lead by email in this range.`
+              : null}
+          </p>
+          <StatCardGrid>
+            <StatCard
+              label="Paid Calls Matched"
+              value={leadSources?.pcn.paidCallsMatched}
+              format="number"
+            />
+            <StatCard
+              label="Organic Calls Matched"
+              value={leadSources?.pcn.organicCallsMatched}
+              format="number"
+            />
+            <StatCard label="Paid Closed" value={leadSources?.pcn.paidClosed} format="number" />
+            <StatCard label="Organic Closed" value={leadSources?.pcn.organicClosed} format="number" />
+            <StatCard
+              label="Cash Collected — Paid (PCN)"
+              value={leadSources?.pcn.cashCollectedPaid}
+              format="currency"
+            />
+            <StatCard
+              label="Cash Collected — Organic (PCN)"
+              value={leadSources?.pcn.cashCollectedOrganic}
+              format="currency"
+            />
+            <StatCard
+              label="CPA — Paid (PCN)"
+              value={leadSources?.pcn.costPerAcquisitionPaid}
+              format="currency"
+              subtext="Ad Spend ÷ Paid calls closed"
+            />
+          </StatCardGrid>
+        </div>
       </DashboardSection>
 
       <DashboardSection title="Cash Calendar">

@@ -36,8 +36,10 @@ type LeadSourcesResponse = {
   costPerPaidLead: number | null;
   costPerAcquisitionPaid: number | null;
   pcn: {
-    paidCallsLogged: number;
-    organicCallsLogged: number;
+    totalLogged: number;
+    matchedToLead: number;
+    paidCallsMatched: number;
+    organicCallsMatched: number;
     paidClosed: number;
     organicClosed: number;
     cashCollectedPaid: number | null;
@@ -227,20 +229,23 @@ export default function OverviewPage() {
 
         <div className="mt-4">
           <h3 className="mb-2 text-sm font-semibold text-black/70">
-            Cross-Check — Post Call Note (per-call closer log)
+            Cross-Check — Affiliate PCN matched to Leads by email
           </h3>
+          <p className="mb-3 text-xs text-black/50">
+            {leadSources
+              ? `${leadSources.pcn.matchedToLead}/${leadSources.pcn.totalLogged} logged calls matched a lead by email in this range.`
+              : null}
+          </p>
           <StatCardGrid>
             <StatCard
-              label="Paid Calls Logged"
-              value={leadSources?.pcn.paidCallsLogged}
+              label="Paid Calls Matched"
+              value={leadSources?.pcn.paidCallsMatched}
               format="number"
-              subtext="Source of Lead = VSL Ad"
             />
             <StatCard
-              label="Organic Calls Logged"
-              value={leadSources?.pcn.organicCallsLogged}
+              label="Organic Calls Matched"
+              value={leadSources?.pcn.organicCallsMatched}
               format="number"
-              subtext="Source of Lead = Instagram/Youtube"
             />
             <StatCard label="Paid Closed" value={leadSources?.pcn.paidClosed} format="number" />
             <StatCard label="Organic Closed" value={leadSources?.pcn.organicClosed} format="number" />

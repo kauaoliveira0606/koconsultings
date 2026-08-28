@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
-import { getLeads, getMarketingDailyMetrics, getPostCallNotes, wasClosed } from "@/lib/airtable/tables";
+import { getLeads, getMarketingDailyMetrics, getBronsonAffiliatePcn } from "@/lib/airtable/tables";
+import { buildLeadSourceLookup, lookupSource } from "@/lib/airtable/lead-source-lookup";
 import { roas, costPerLead, costPerAcquisition, sum } from "@/lib/metrics";
 
 export const revalidate = 60;
@@ -16,28 +17,18 @@ function isOrganicSource(source: string | null): boolean {
   return source.toLowerCase().includes("organic");
 }
 
-// Post Call Note's own "Source of Lead" field is more granular than the
-// Leads table's Paid/Organic — bucket it the same way so the two views are
-// comparable. VSL Ad is Bronson's one paid (Meta) funnel; everything else
-// logged here (Instagram, Youtube) is organic/content-driven.
-function pcnBucket(source: string | null): "paid" | "organic" | null {
-  if (!source) return null;
-  if (source === "VSL Ad") return "paid";
-  return "organic";
-}
-
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
-  const [leads, marketing, postCallNotes] = await Promise.all([
+  const [leads, marketing, pcn] = await Promise.all([
     getLeads(),
     getMarketingDailyMetrics(),
-    getPostCallNotes(),
+    getBronsonAffiliatePcn(),
   ]);
 
   const inRangeLeads = leads.filter((l) => isDateInRange(l.createdAt, range));
   const inRangeMarketing = marketing.filter((r) => isDateInRange(r.date, range));
-  const inRangePcn = postCallNotes.filter((r) => isDateInRange(r.date, range));
+  const inRangePcn = pcn.filter((r) => isDateInRange(r.date, range));
 
   const paidLeads = inRangeLeads.filter((l) => isPaidSource(l.source));
   const organicLeads = inRangeLeads.filter((l) => isOrganicSource(l.source));
@@ -47,10 +38,19 @@ export async function GET(request: NextRequest) {
   const cashOrganic = sum(organicLeads.map((l) => l.cashCollected));
   const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta));
 
-  const pcnPaid = inRangePcn.filter((r) => pcnBucket(r.source) === "paid");
-  const pcnOrganic = inRangePcn.filter((r) => pcnBucket(r.source) === "organic");
-  const pcnPaidClosed = pcnPaid.filter(wasClosed);
-  const pcnOrganicClosed = pcnOrganic.filter(wasClosed);
+  // Cross-reference: match each Affiliate PCN close to its lead by email,
+  // then use the Leads table's own Paid/Organic tag (not a free-text field
+  // on the call log) to attribute the sale to a source.
+  const lookup = buildLeadSourceLookup(leads);
+  const pcnWithSource = inRangePcn.map((r) => ({
+    ...r,
+    matchedSource: lookupSource(lookup, r.leadEmail),
+  }));
+  const pcnMatched = pcnWithSource.filter((r) => r.matchedSource !== null);
+  const pcnPaid = pcnMatched.filter((r) => isPaidSource(r.matchedSource));
+  const pcnOrganic = pcnMatched.filter((r) => isOrganicSource(r.matchedSource));
+  const pcnPaidClosed = pcnPaid.filter((r) => r.cpaCash !== null);
+  const pcnOrganicClosed = pcnOrganic.filter((r) => r.cpaCash !== null);
 
   return Response.json({
     paidLeadsTracked: paidLeads.length,
@@ -61,15 +61,15 @@ export async function GET(request: NextRequest) {
     paidRoas: roas(cashPaid, adSpend),
     costPerPaidLead: costPerLead(adSpend, paidLeads.length || null),
     costPerAcquisitionPaid: costPerAcquisition(adSpend, paidCloses.length || null),
-    // Cross-check against Post Call Note's own per-call "Source of Lead" field
-    // (closer-log granularity, not the top-of-funnel Leads table).
     pcn: {
-      paidCallsLogged: pcnPaid.length,
-      organicCallsLogged: pcnOrganic.length,
+      totalLogged: inRangePcn.length,
+      matchedToLead: pcnMatched.length,
+      paidCallsMatched: pcnPaid.length,
+      organicCallsMatched: pcnOrganic.length,
       paidClosed: pcnPaidClosed.length,
       organicClosed: pcnOrganicClosed.length,
-      cashCollectedPaid: sum(pcnPaidClosed.map((r) => r.cashCollected)),
-      cashCollectedOrganic: sum(pcnOrganicClosed.map((r) => r.cashCollected)),
+      cashCollectedPaid: sum(pcnPaidClosed.map((r) => r.cpaCash)),
+      cashCollectedOrganic: sum(pcnOrganicClosed.map((r) => r.cpaCash)),
       costPerAcquisitionPaid: costPerAcquisition(adSpend, pcnPaidClosed.length || null),
     },
   });

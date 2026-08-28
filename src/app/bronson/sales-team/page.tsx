@@ -25,7 +25,12 @@ type SpeedToLeadResponse = {
 type TeamTotalsResponse = {
   outboundDials: number | null;
   pickups: number | null;
-  convosOver2Min: number | null;
+  pickupRate: number | null;
+  softwarePitched: number | null;
+  totalSales: number | null;
+  cashCollected: number | null;
+  highTicketCallsPitched: number | null;
+  newHighTicketCallsBooked: number | null;
   totalTalkTimeMinutes: number | null;
 };
 
@@ -34,8 +39,24 @@ type ByRepResponse = {
     rep: string;
     outboundDials: number | null;
     pickups: number | null;
-    convosOver2Min: number | null;
+    pickupRate: number | null;
+    totalSales: number | null;
+    cashCollected: number | null;
     totalTalkTimeMinutes: number | null;
+  }[];
+};
+
+type CpaResponse = {
+  totalCpaCollected: number | null;
+  totalCpaByDay: { date: string; total: number }[];
+  records: {
+    id: string;
+    date: string | null;
+    repName: string | null;
+    leadName: string | null;
+    software: string | null;
+    plan: string | null;
+    cpaCash: number | null;
   }[];
 };
 
@@ -56,15 +77,23 @@ export default function SalesTeamPage() {
     range
   );
   const { data: byRep } = useSectionData<ByRepResponse>("/api/bronson/sales-team/by-rep", range);
+  const { data: cpa } = useSectionData<CpaResponse>("/api/bronson/sales-team/cpa", range);
 
   const repColumns: Column<ByRepResponse["reps"][number]>[] = [
     { key: "rep", header: "Rep", render: (r) => r.rep },
     { key: "dials", header: "Outbound Dials", render: (r) => formatStatValue(r.outboundDials), align: "right" },
     { key: "pickups", header: "Pickups", render: (r) => formatStatValue(r.pickups), align: "right" },
     {
-      key: "convos",
-      header: "2-Min+ Conversations",
-      render: (r) => formatStatValue(r.convosOver2Min),
+      key: "pickupRate",
+      header: "Pickup Rate",
+      render: (r) => formatStatValue(r.pickupRate, "percent"),
+      align: "right",
+    },
+    { key: "sales", header: "Sales", render: (r) => formatStatValue(r.totalSales), align: "right" },
+    {
+      key: "cashCollected",
+      header: "Cash Collected",
+      render: (r) => formatStatValue(r.cashCollected, "currency"),
       align: "right",
     },
     {
@@ -98,12 +127,81 @@ export default function SalesTeamPage() {
     },
   ];
 
+  const cpaByDayColumns: Column<CpaResponse["totalCpaByDay"][number]>[] = [
+    { key: "date", header: "Date", render: (d) => d.date },
+    {
+      key: "total",
+      header: "Total CPA",
+      render: (d) => formatStatValue(d.total, "currency"),
+      align: "right",
+    },
+  ];
+
+  const cpaRecordColumns: Column<CpaResponse["records"][number]>[] = [
+    { key: "date", header: "Date", render: (r) => (r.date ? formatDateTime(r.date) : "—") },
+    { key: "rep", header: "Rep", render: (r) => r.repName ?? "Unknown" },
+    { key: "lead", header: "Lead", render: (r) => r.leadName ?? "—" },
+    { key: "software", header: "Software", render: (r) => r.software ?? "—" },
+    { key: "plan", header: "Plan", render: (r) => r.plan ?? "—" },
+    {
+      key: "cpa",
+      header: "CPA / Cash",
+      render: (r) => formatStatValue(r.cpaCash, "currency"),
+      align: "right",
+    },
+  ];
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Sales Team</h1>
         <RangeFilterBar value={range} onChange={setRange} showCustom={false} />
       </div>
+
+      <DashboardSection title="Team Totals">
+        <StatCardGrid>
+          <StatCard label="Outbound Dials" value={teamTotals?.outboundDials} format="number" />
+          <StatCard label="Pickups" value={teamTotals?.pickups} format="number" />
+          <StatCard label="Pickup Rate" value={teamTotals?.pickupRate} format="percent" />
+          <StatCard label="Software Pitched" value={teamTotals?.softwarePitched} format="number" />
+          <StatCard label="Total Sales" value={teamTotals?.totalSales} format="number" />
+          <StatCard label="Cash Collected" value={teamTotals?.cashCollected} format="currency" />
+          <StatCard
+            label="High Ticket Pitched"
+            value={teamTotals?.highTicketCallsPitched}
+            format="number"
+          />
+          <StatCard
+            label="New High Ticket Booked"
+            value={teamTotals?.newHighTicketCallsBooked}
+            format="number"
+          />
+          <StatCard
+            label="Total Talk Time"
+            value={teamTotals?.totalTalkTimeMinutes}
+            format="number"
+            subtext={formatMinutes(teamTotals?.totalTalkTimeMinutes ?? null)}
+          />
+        </StatCardGrid>
+      </DashboardSection>
+
+      <DashboardSection title="By Rep">
+        <DataTable columns={repColumns} rows={byRep?.reps ?? []} rowKey={(r) => r.rep} />
+      </DashboardSection>
+
+      <DashboardSection title="Affiliate CPA">
+        <StatCardGrid>
+          <StatCard label="Total CPA Collected" value={cpa?.totalCpaCollected} format="currency" />
+        </StatCardGrid>
+      </DashboardSection>
+
+      <DashboardSection title="Total CPA by Day">
+        <DataTable columns={cpaByDayColumns} rows={cpa?.totalCpaByDay ?? []} rowKey={(d) => d.date} />
+      </DashboardSection>
+
+      <DashboardSection title="Affiliate PCN Records">
+        <DataTable columns={cpaRecordColumns} rows={cpa?.records ?? []} rowKey={(r) => r.id} />
+      </DashboardSection>
 
       <DashboardSection title="Speed to Lead">
         <StatCardGrid>
@@ -120,24 +218,6 @@ export default function SalesTeamPage() {
             }
           />
         </StatCardGrid>
-      </DashboardSection>
-
-      <DashboardSection title="Team Totals">
-        <StatCardGrid>
-          <StatCard label="Outbound Dials" value={teamTotals?.outboundDials} format="number" />
-          <StatCard label="Pickups" value={teamTotals?.pickups} format="number" />
-          <StatCard label="2-Min+ Conversations" value={teamTotals?.convosOver2Min} format="number" />
-          <StatCard
-            label="Total Talk Time"
-            value={teamTotals?.totalTalkTimeMinutes}
-            format="number"
-            subtext={formatMinutes(teamTotals?.totalTalkTimeMinutes ?? null)}
-          />
-        </StatCardGrid>
-      </DashboardSection>
-
-      <DashboardSection title="By Rep">
-        <DataTable columns={repColumns} rows={byRep?.reps ?? []} rowKey={(r) => r.rep} />
       </DashboardSection>
 
       <DashboardSection title="Leads — Speed to Lead Detail">
