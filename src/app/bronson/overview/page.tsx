@@ -34,6 +34,16 @@ type LeadSourcesResponse = {
   adSpend: number | null;
   paidRoas: number | null;
   costPerPaidLead: number | null;
+  costPerAcquisitionPaid: number | null;
+  pcn: {
+    paidCallsLogged: number;
+    organicCallsLogged: number;
+    paidClosed: number;
+    organicClosed: number;
+    cashCollectedPaid: number | null;
+    cashCollectedOrganic: number | null;
+    costPerAcquisitionPaid: number | null;
+  };
 };
 
 type CrossCheckResponse = { mismatched: boolean; details: string[] };
@@ -198,6 +208,12 @@ export default function OverviewPage() {
             format="currency"
             subtext="Ad Spend ÷ tracked Paid leads"
           />
+          <StatCard
+            label="CPA — Paid"
+            value={leadSources?.costPerAcquisitionPaid}
+            format="currency"
+            subtext="Ad Spend ÷ Paid leads that actually closed"
+          />
         </StatCardGrid>
 
         {crossCheck?.mismatched ? (
@@ -208,6 +224,44 @@ export default function OverviewPage() {
             tagging is firing correctly or the manual entry is stale.
           </div>
         ) : null}
+
+        <div className="mt-4">
+          <h3 className="mb-2 text-sm font-semibold text-black/70">
+            Cross-Check — Post Call Note (per-call closer log)
+          </h3>
+          <StatCardGrid>
+            <StatCard
+              label="Paid Calls Logged"
+              value={leadSources?.pcn.paidCallsLogged}
+              format="number"
+              subtext="Source of Lead = VSL Ad"
+            />
+            <StatCard
+              label="Organic Calls Logged"
+              value={leadSources?.pcn.organicCallsLogged}
+              format="number"
+              subtext="Source of Lead = Instagram/Youtube"
+            />
+            <StatCard label="Paid Closed" value={leadSources?.pcn.paidClosed} format="number" />
+            <StatCard label="Organic Closed" value={leadSources?.pcn.organicClosed} format="number" />
+            <StatCard
+              label="Cash Collected — Paid (PCN)"
+              value={leadSources?.pcn.cashCollectedPaid}
+              format="currency"
+            />
+            <StatCard
+              label="Cash Collected — Organic (PCN)"
+              value={leadSources?.pcn.cashCollectedOrganic}
+              format="currency"
+            />
+            <StatCard
+              label="CPA — Paid (PCN)"
+              value={leadSources?.pcn.costPerAcquisitionPaid}
+              format="currency"
+              subtext="Ad Spend ÷ Paid calls closed"
+            />
+          </StatCardGrid>
+        </div>
       </DashboardSection>
 
       <DashboardSection title="Cash Calendar">

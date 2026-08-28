@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
 import { getLeads, getMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
-import { roas, costPerLead, sum } from "@/lib/metrics";
+import { roas, costPerLead, costPerAcquisition, sum } from "@/lib/metrics";
 
 export const revalidate = 60;
 
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
 
   const paidLeads = inRangeLeads.filter((l) => isPaidSource(l.source));
   const organicLeads = inRangeLeads.filter((l) => isOrganicSource(l.source));
+  const paidCloses = paidLeads.filter((l) => l.cashCollected !== null && l.cashCollected > 0);
 
   const cashPaid = sum(paidLeads.map((l) => l.cashCollected));
   const cashOrganic = sum(organicLeads.map((l) => l.cashCollected));
@@ -39,5 +40,6 @@ export async function GET(request: NextRequest) {
     adSpend,
     paidRoas: roas(cashPaid, adSpend),
     costPerPaidLead: costPerLead(adSpend, paidLeads.length || null),
+    costPerAcquisitionPaid: costPerAcquisition(adSpend, paidCloses.length || null),
   });
 }

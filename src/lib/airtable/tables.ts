@@ -218,3 +218,57 @@ export const {
   getSpeedToLead,
   getLeaderboard,
 } = createAirtableTables(BRONSON_BASE_ID, BRONSON_TABLE_IDS);
+
+// Per-call closer log — richer than EOD Closer's daily aggregate (tracks the
+// actual tier pitched and where the lead came from, per call), so this is
+// the source of truth for pitch/close/lead-source breakdowns.
+const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
+
+const HIGH_TICKET_TIERS = ["Mid tier ($3k-$4k)", "Flagship ($5k)"];
+const CLOSED_OUTCOMES = ["Closed (PIF)", "Payment Plan"];
+
+export type PostCallNoteRow = {
+  id: string;
+  date: string | null;
+  repName: string | null;
+  leadName: string | null;
+  source: string | null;
+  callOutcome: string | null;
+  offerPitched: string | null;
+  cashCollected: number | null;
+  totalRevenue: number | null;
+};
+
+export async function getPostCallNotes(): Promise<PostCallNoteRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    BRONSON_BASE_ID,
+    POST_CALL_NOTE_TABLE_ID
+  );
+
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      date: parseDateOnly(f.Date),
+      repName: (f["Setters Full Name"] as string) ?? (f["Setters Name"] as string) ?? null,
+      leadName: (f["Full Name (Lead)"] as string) ?? null,
+      source: (f["Source of Lead (Where they came from)"] as string) ?? null,
+      callOutcome: (f["Call Outcome"] as string) ?? null,
+      offerPitched: (f["Offer Pitched On/Closed"] as string) ?? null,
+      cashCollected: parseNumericText(f["Cash Collected"]),
+      totalRevenue: parseNumericText(f["Total Revenue"]),
+    };
+  });
+}
+
+export function wasPitched(row: PostCallNoteRow): boolean {
+  return !!row.offerPitched && row.offerPitched !== "No Pitch/No Show";
+}
+
+export function wasHighTicketPitched(row: PostCallNoteRow): boolean {
+  return !!row.offerPitched && HIGH_TICKET_TIERS.includes(row.offerPitched);
+}
+
+export function wasClosed(row: PostCallNoteRow): boolean {
+  return !!row.callOutcome && CLOSED_OUTCOMES.includes(row.callOutcome);
+}

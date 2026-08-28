@@ -34,6 +34,7 @@ type LeadSourcesResponse = {
   adSpend: number | null;
   paidRoas: number | null;
   costPerPaidLead: number | null;
+  costPerAcquisitionPaid: number | null;
 };
 
 type CrossCheckResponse = { mismatched: boolean; details: string[] };
@@ -197,6 +198,12 @@ export default function OverviewPage() {
             value={leadSources?.costPerPaidLead}
             format="currency"
             subtext="Ad Spend ÷ tracked Paid leads"
+          />
+          <StatCard
+            label="CPA — Paid"
+            value={leadSources?.costPerAcquisitionPaid}
+            format="currency"
+            subtext="Ad Spend ÷ Paid leads that actually closed"
           />
         </StatCardGrid>
 
