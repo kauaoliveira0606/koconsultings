@@ -91,39 +91,43 @@ export function CashCalendar() {
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-black/50">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d}>{d}</div>
-        ))}
-      </div>
-      <div className="mt-2 grid grid-cols-7 gap-2">
-        {Array.from({ length: blanks }).map((_, i) => (
-          <div key={`blank-${i}`} />
-        ))}
-        {days.map(({ day, date }) => {
-          const value = byDay[date] ?? 0;
-          const bucket = bucketIntensity(value, max);
-          const source = bySourceDay[date];
-          return (
-            <div
-              key={date}
-              className={`flex h-24 flex-col justify-between rounded-md border border-black/5 p-2 ${BUCKET_COLORS[bucket]}`}
-            >
-              <span className="text-xs font-semibold">{day}</span>
-              {value > 0 ? (
-                <span className="text-right text-xs font-bold">{formatStatValue(value, "currency")}</span>
-              ) : null}
-              {source && (source.paid > 0 || source.organic > 0) ? (
-                <div className="text-right text-[10px] leading-tight text-black/60">
-                  {source.paid > 0 ? <div>P: {formatStatValue(source.paid, "currency")}</div> : null}
-                  {source.organic > 0 ? (
-                    <div>O: {formatStatValue(source.organic, "currency")}</div>
+      <div className="overflow-x-auto">
+        <div className="min-w-[640px]">
+          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-black/50">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+              <div key={d}>{d}</div>
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-7 gap-2">
+            {Array.from({ length: blanks }).map((_, i) => (
+              <div key={`blank-${i}`} />
+            ))}
+            {days.map(({ day, date }) => {
+              const value = byDay[date] ?? 0;
+              const bucket = bucketIntensity(value, max);
+              const source = bySourceDay[date];
+              return (
+                <div
+                  key={date}
+                  className={`flex h-24 flex-col justify-between rounded-md border border-black/5 p-2 ${BUCKET_COLORS[bucket]}`}
+                >
+                  <span className="text-xs font-semibold">{day}</span>
+                  {value > 0 ? (
+                    <span className="text-right text-xs font-bold">{formatStatValue(value, "currency")}</span>
+                  ) : null}
+                  {source && (source.paid > 0 || source.organic > 0) ? (
+                    <div className="text-right text-[10px] leading-tight text-black/60">
+                      {source.paid > 0 ? <div>P: {formatStatValue(source.paid, "currency")}</div> : null}
+                      {source.organic > 0 ? (
+                        <div>O: {formatStatValue(source.organic, "currency")}</div>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
-              ) : null}
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="mt-4 flex items-center justify-end gap-2 text-xs text-black/50">
