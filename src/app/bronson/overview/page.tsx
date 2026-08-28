@@ -31,6 +31,8 @@ type LeadSourcesResponse = {
   organicLeadsTracked: number;
   cashCollectedPaid: number | null;
   cashCollectedOrganic: number | null;
+  unattributedCash: number | null;
+  unattributedCount: number;
   adSpend: number | null;
   paidRoas: number | null;
   costPerPaidLead: number | null;
@@ -38,13 +40,8 @@ type LeadSourcesResponse = {
   pcn: {
     totalLogged: number;
     matchedToLead: number;
-    paidCallsMatched: number;
-    organicCallsMatched: number;
     paidClosed: number;
     organicClosed: number;
-    cashCollectedPaid: number | null;
-    cashCollectedOrganic: number | null;
-    costPerAcquisitionPaid: number | null;
   };
 };
 
@@ -184,13 +181,13 @@ export default function OverviewPage() {
             label="Cash Collected — Paid"
             value={leadSources?.cashCollectedPaid}
             format="currency"
-            subtext="From the Leads table's Cash Collected field"
+            subtext="Affiliate PCN closes matched to a lead by email, plus any lead's own Cash Collected value"
           />
           <StatCard
             label="Cash Collected — Organic"
             value={leadSources?.cashCollectedOrganic}
             format="currency"
-            subtext="From the Leads table's Cash Collected field"
+            subtext="Affiliate PCN closes matched to a lead by email, plus any lead's own Cash Collected value"
           />
           <StatCard
             label="Ad Spend"
@@ -227,45 +224,27 @@ export default function OverviewPage() {
           </div>
         ) : null}
 
-        <div className="mt-4">
-          <h3 className="mb-2 text-sm font-semibold text-black/70">
-            Cross-Check — Affiliate PCN matched to Leads by email
-          </h3>
-          <p className="mb-3 text-xs text-black/50">
-            {leadSources
-              ? `${leadSources.pcn.matchedToLead}/${leadSources.pcn.totalLogged} logged calls matched a lead by email in this range.`
-              : null}
+        <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm">
+          <p className="text-black/70">
+            {leadSources ? (
+              <>
+                <span className="font-semibold">{leadSources.pcn.matchedToLead}</span>/
+                {leadSources.pcn.totalLogged} Affiliate PCN calls in this range matched a lead by
+                email ({leadSources.pcn.paidClosed} paid closes, {leadSources.pcn.organicClosed}{" "}
+                organic closes attributed above).
+              </>
+            ) : null}
           </p>
-          <StatCardGrid>
-            <StatCard
-              label="Paid Calls Matched"
-              value={leadSources?.pcn.paidCallsMatched}
-              format="number"
-            />
-            <StatCard
-              label="Organic Calls Matched"
-              value={leadSources?.pcn.organicCallsMatched}
-              format="number"
-            />
-            <StatCard label="Paid Closed" value={leadSources?.pcn.paidClosed} format="number" />
-            <StatCard label="Organic Closed" value={leadSources?.pcn.organicClosed} format="number" />
-            <StatCard
-              label="Cash Collected — Paid (PCN)"
-              value={leadSources?.pcn.cashCollectedPaid}
-              format="currency"
-            />
-            <StatCard
-              label="Cash Collected — Organic (PCN)"
-              value={leadSources?.pcn.cashCollectedOrganic}
-              format="currency"
-            />
-            <StatCard
-              label="CPA — Paid (PCN)"
-              value={leadSources?.pcn.costPerAcquisitionPaid}
-              format="currency"
-              subtext="Ad Spend ÷ Paid calls closed"
-            />
-          </StatCardGrid>
+          {leadSources?.unattributedCount ? (
+            <p className="mt-2 text-black/50">
+              <span className="font-semibold text-black/70">
+                {formatStatValue(leadSources.unattributedCash, "currency")}
+              </span>{" "}
+              from {leadSources.unattributedCount} closed{" "}
+              {leadSources.unattributedCount === 1 ? "call" : "calls"} couldn&apos;t be matched to
+              a lead email, so it&apos;s not counted above as Paid or Organic.
+            </p>
+          ) : null}
         </div>
       </DashboardSection>
 

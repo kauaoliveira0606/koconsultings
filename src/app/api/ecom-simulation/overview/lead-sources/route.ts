@@ -6,20 +6,16 @@ import {
   getMarketingDailyMetrics,
   getAffiliatePcn,
 } from "@/lib/airtable/tables-ecom-simulation";
-import { buildLeadSourceLookup, lookupSource } from "@/lib/airtable/lead-source-lookup";
+import {
+  isPaidSource,
+  isOrganicSource,
+  mergeCashBySource,
+  buildLeadSourceLookup,
+  lookupSource,
+} from "@/lib/airtable/lead-source-lookup";
 import { roas, costPerLead, costPerAcquisition, sum } from "@/lib/metrics";
 
 export const revalidate = 60;
-
-function isPaidSource(source: string | null): boolean {
-  if (!source) return false;
-  return source.toLowerCase().includes("paid");
-}
-
-function isOrganicSource(source: string | null): boolean {
-  if (!source) return false;
-  return source.toLowerCase().includes("organic");
-}
 
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
@@ -33,48 +29,37 @@ export async function GET(request: NextRequest) {
   const inRangeLeads = leads.filter((l) => isDateInRange(l.createdAt, range));
   const inRangeMarketing = marketing.filter((r) => isDateInRange(r.date, range));
   const inRangePcn = pcn.filter((r) => isDateInRange(r.date, range));
+  const inRangePcnClosed = inRangePcn.filter((r) => r.cpaCash !== null);
 
   const paidLeads = inRangeLeads.filter((l) => isPaidSource(l.source));
   const organicLeads = inRangeLeads.filter((l) => isOrganicSource(l.source));
-  const paidCloses = paidLeads.filter((l) => l.cashCollected !== null && l.cashCollected > 0);
-
-  const cashPaid = sum(paidLeads.map((l) => l.cashCollected));
-  const cashOrganic = sum(organicLeads.map((l) => l.cashCollected));
   const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta));
 
-  // Cross-reference: match each Affiliate PCN close to its lead by email,
-  // then use the Leads table's own Paid/Organic tag (Affiliate PCN has no
-  // source field of its own) to attribute the sale to a source.
+  // Cash Collected — Paid/Organic: merges each Affiliate PCN close (matched
+  // to its lead by email, dated by when the call closed) with any lead that
+  // has its own direct Cash Collected value, deduped by email so nothing
+  // gets counted twice.
+  const merged = mergeCashBySource(leads, inRangeLeads, inRangePcnClosed);
+
   const lookup = buildLeadSourceLookup(leads);
-  const pcnWithSource = inRangePcn.map((r) => ({
-    ...r,
-    matchedSource: lookupSource(lookup, r.leadEmail),
-  }));
-  const pcnMatched = pcnWithSource.filter((r) => r.matchedSource !== null);
-  const pcnPaid = pcnMatched.filter((r) => isPaidSource(r.matchedSource));
-  const pcnOrganic = pcnMatched.filter((r) => isOrganicSource(r.matchedSource));
-  const pcnPaidClosed = pcnPaid.filter((r) => r.cpaCash !== null);
-  const pcnOrganicClosed = pcnOrganic.filter((r) => r.cpaCash !== null);
+  const matchedToLead = inRangePcn.filter((r) => lookupSource(lookup, r.leadEmail) !== null).length;
 
   return Response.json({
     paidLeadsTracked: paidLeads.length,
     organicLeadsTracked: organicLeads.length,
-    cashCollectedPaid: cashPaid,
-    cashCollectedOrganic: cashOrganic,
+    cashCollectedPaid: merged.cashCollectedPaid,
+    cashCollectedOrganic: merged.cashCollectedOrganic,
+    unattributedCash: merged.unattributedCash,
+    unattributedCount: merged.unattributedCount,
     adSpend,
-    paidRoas: roas(cashPaid, adSpend),
+    paidRoas: roas(merged.cashCollectedPaid, adSpend),
     costPerPaidLead: costPerLead(adSpend, paidLeads.length || null),
-    costPerAcquisitionPaid: costPerAcquisition(adSpend, paidCloses.length || null),
+    costPerAcquisitionPaid: costPerAcquisition(adSpend, merged.paidClosedCount || null),
     pcn: {
       totalLogged: inRangePcn.length,
-      matchedToLead: pcnMatched.length,
-      paidCallsMatched: pcnPaid.length,
-      organicCallsMatched: pcnOrganic.length,
-      paidClosed: pcnPaidClosed.length,
-      organicClosed: pcnOrganicClosed.length,
-      cashCollectedPaid: sum(pcnPaidClosed.map((r) => r.cpaCash)),
-      cashCollectedOrganic: sum(pcnOrganicClosed.map((r) => r.cpaCash)),
-      costPerAcquisitionPaid: costPerAcquisition(adSpend, pcnPaidClosed.length || null),
+      matchedToLead,
+      paidClosed: merged.paidClosedCount,
+      organicClosed: merged.organicClosedCount,
     },
   });
 }
