@@ -103,6 +103,10 @@ export function mergeCashBySource(
     if (email && matchedEmails.has(email)) continue;
     if (isPaidSource(lead.source)) paidDirectCash.push(lead.cashCollected);
     else if (isOrganicSource(lead.source)) organicDirectCash.push(lead.cashCollected);
+    else {
+      unattributedCash += lead.cashCollected;
+      unattributedCount += 1;
+    }
   }
 
   const allPaidCash = [...paidPcnCash, ...paidDirectCash];
@@ -165,6 +169,7 @@ export function cashBySourceByDay(
     if (email && matchedEmails.has(email)) continue;
     if (isPaidSource(lead.source)) add(lead.createdAt, "paid", lead.cashCollected);
     else if (isOrganicSource(lead.source)) add(lead.createdAt, "organic", lead.cashCollected);
+    else add(lead.createdAt, "unattributed", lead.cashCollected);
   }
 
   return byDay;

@@ -38,7 +38,6 @@ type CpaResponse = {
     date: string | null;
     repName: string | null;
     leadName: string | null;
-    leadEmail: string | null;
     software: string | null;
     plan: string | null;
     cpaCash: number | null;

@@ -65,9 +65,10 @@ export function CashCalendar() {
     <div className="rounded-lg border border-black/10 bg-white p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-black/60">
-          Cash collected per day, from Marketing Daily Metrics submissions. Paid/Organic split
-          below each day is the Affiliate PCN cross-reference (may not sum to the same total —
-          independently submitted sources).
+          Cash collected per day, from Marketing Daily Metrics submissions. Paid/Organic/
+          Unattributed split below each day is the Affiliate PCN cross-reference (may not sum to
+          the same total — independently submitted sources; Unattributed = closed calls whose
+          email didn&apos;t match a lead).
         </p>
         <div className="flex items-center gap-3">
           <button
@@ -115,11 +116,14 @@ export function CashCalendar() {
                   {value > 0 ? (
                     <span className="text-right text-xs font-bold">{formatStatValue(value, "currency")}</span>
                   ) : null}
-                  {source && (source.paid > 0 || source.organic > 0) ? (
+                  {source && (source.paid > 0 || source.organic > 0 || source.unattributed > 0) ? (
                     <div className="text-right text-[10px] leading-tight text-black/60">
                       {source.paid > 0 ? <div>P: {formatStatValue(source.paid, "currency")}</div> : null}
                       {source.organic > 0 ? (
                         <div>O: {formatStatValue(source.organic, "currency")}</div>
+                      ) : null}
+                      {source.unattributed > 0 ? (
+                        <div>U: {formatStatValue(source.unattributed, "currency")}</div>
                       ) : null}
                     </div>
                   ) : null}
