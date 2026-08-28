@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
-import { RangeFilterBar, defaultRangeState, type RangeState } from "@/components/dashboard/RangeFilterBar";
+import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
 
@@ -53,23 +52,14 @@ function Group({ emoji, title, entries }: { emoji: string; title: string; entrie
 }
 
 export function WeeklyScorecard() {
-  const [range, setRange] = useState<RangeState>(defaultRangeState("this_week"));
+  const { range } = useSharedRange();
   const { data } = useSectionData<WeeklyScorecardResponse>(
     "/api/ecom-simulation/overview/weekly-scorecard",
     range
   );
 
   return (
-    <DashboardSection
-      title="Weekly Scorecard"
-      action={
-        <RangeFilterBar
-          value={range}
-          onChange={setRange}
-          presets={["this_week", "last_7_days", "last_30_days", "all_time"]}
-        />
-      }
-    >
+    <DashboardSection title="Weekly Scorecard">
       {data ? (
         <>
           <Group emoji="💰" title="Leading Metrics" entries={data.leadingMetrics} />

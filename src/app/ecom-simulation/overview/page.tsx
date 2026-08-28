@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
-import { RangeFilterBar, defaultRangeState, type RangeState } from "@/components/dashboard/RangeFilterBar";
+import { RangeFilterBar, defaultRangeState } from "@/components/dashboard/RangeFilterBar";
+import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
 import { CashCalendar } from "./CashCalendar";
@@ -97,32 +97,30 @@ const RECENT_CHANGES_FORMATS: Record<string, StatFormat> = {
 };
 
 export default function OverviewPage() {
-  const [metricsRange, setMetricsRange] = useState<RangeState>(defaultRangeState("yesterday"));
-  const [leadSourcesRange, setLeadSourcesRange] = useState<RangeState>(defaultRangeState("today"));
-  const [leaderboardRange, setLeaderboardRange] = useState<RangeState>(defaultRangeState("today"));
+  const { range, setRange } = useSharedRange();
 
   const { data: metrics } = useSectionData<MetricsResponse>(
     "/api/ecom-simulation/overview/metrics",
-    metricsRange
+    range
   );
   const { data: leadSources } = useSectionData<LeadSourcesResponse>(
     "/api/ecom-simulation/overview/lead-sources",
-    leadSourcesRange
+    range
   );
   const { data: crossCheck } = useSectionData<CrossCheckResponse>(
     "/api/ecom-simulation/overview/cross-check",
-    leadSourcesRange
+    range
   );
   const { data: leaderboard } = useSectionData<LeaderboardResponse>(
     "/api/ecom-simulation/overview/leaderboard",
-    leaderboardRange
+    range
   );
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Overview</h1>
-        <RangeFilterBar value={metricsRange} onChange={setMetricsRange} />
+        <RangeFilterBar value={range} onChange={setRange} />
       </div>
 
       <DashboardSection title="Metrics">
@@ -170,10 +168,7 @@ export default function OverviewPage() {
         </div>
       </DashboardSection>
 
-      <DashboardSection
-        title="Lead Sources"
-        action={<RangeFilterBar value={leadSourcesRange} onChange={setLeadSourcesRange} />}
-      >
+      <DashboardSection title="Lead Sources">
         <StatCardGrid>
           <StatCard label="Paid Leads (Tracked)" value={leadSources?.paidLeadsTracked} format="number" />
           <StatCard label="Organic Leads (Tracked)" value={leadSources?.organicLeadsTracked} format="number" />
@@ -252,10 +247,7 @@ export default function OverviewPage() {
         <CashCalendar />
       </DashboardSection>
 
-      <DashboardSection
-        title="Leaderboard"
-        action={<RangeFilterBar value={leaderboardRange} onChange={setLeaderboardRange} />}
-      >
+      <DashboardSection title="Leaderboard">
         {leaderboard && leaderboard.rows.length > 0 ? (
           <div className="rounded-lg border border-black/10 bg-white p-4">
             <ol className="space-y-2">

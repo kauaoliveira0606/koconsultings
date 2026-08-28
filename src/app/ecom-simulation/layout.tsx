@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { EcomSimulationSidebar } from "./EcomSimulationSidebar";
+import { RangeProvider } from "@/lib/range-context";
 
 export const metadata: Metadata = {
   title: "Ecom Simulation",
@@ -12,9 +13,11 @@ export const metadata: Metadata = {
 
 export default function EcomSimulationLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-[#F1EEE4] text-black">
-      <EcomSimulationSidebar />
-      <main className="flex-1 overflow-x-hidden p-8">{children}</main>
-    </div>
+    <RangeProvider>
+      <div className="flex min-h-screen bg-[#F1EEE4] text-black">
+        <EcomSimulationSidebar />
+        <main className="flex-1 overflow-x-hidden p-8">{children}</main>
+      </div>
+    </RangeProvider>
   );
 }
