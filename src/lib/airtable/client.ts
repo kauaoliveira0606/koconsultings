@@ -24,16 +24,12 @@ type ListParams = {
   pageSize?: number;
 };
 
-function getCredentials() {
+function getPat() {
   const pat = process.env.AIRTABLE_PAT;
-  const baseId = process.env.AIRTABLE_BASE_ID;
-  if (!pat || !baseId) {
-    throw new AirtableError(
-      "Missing AIRTABLE_PAT or AIRTABLE_BASE_ID environment variables",
-      500
-    );
+  if (!pat) {
+    throw new AirtableError("Missing AIRTABLE_PAT environment variable", 500);
   }
-  return { pat, baseId };
+  return pat;
 }
 
 function buildQueryString(params: ListParams, offset?: string): string {
@@ -59,11 +55,12 @@ function buildQueryString(params: ListParams, offset?: string): string {
  * pagination cursor until exhausted. Always runs server-side.
  */
 export async function airtableListAll<TFields = Record<string, unknown>>(
+  baseId: string,
   tableId: string,
   params: ListParams = {},
   revalidateSeconds = 60
 ): Promise<AirtableRecord<TFields>[]> {
-  const { pat, baseId } = getCredentials();
+  const pat = getPat();
   const records: AirtableRecord<TFields>[] = [];
   let offset: string | undefined;
 
