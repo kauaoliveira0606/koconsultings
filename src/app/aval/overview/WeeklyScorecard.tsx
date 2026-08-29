@@ -32,7 +32,7 @@ function goalLabel(entry: ScorecardEntry): string | null {
 function Group({ emoji, title, entries }: { emoji: string; title: string; entries: ScorecardEntry[] }) {
   return (
     <div className="mt-4 first:mt-0">
-      <h3 className="mb-2 text-xs font-semibold uppercase text-white/50">
+      <h3 className="mb-2 text-xs font-semibold uppercase text-white">
         {emoji} {title}
       </h3>
       <StatCardGrid>
@@ -74,8 +74,8 @@ export function WeeklyScorecard() {
               </span>
               <span className="text-sm font-semibold text-white">Weekly Intelligence Summary</span>
             </div>
-            <p className="mb-2 text-xs text-white/40">Based on live scorecard data — rule-based, not AI-generated</p>
-            <p className="text-sm text-white/70">{data.summary}</p>
+            <p className="mb-2 text-xs text-white">Based on live scorecard data — rule-based, not AI-generated</p>
+            <p className="text-sm text-white">{data.summary}</p>
           </div>
         </>
       ) : null}

@@ -112,7 +112,7 @@ export default function OverviewPage() {
       </DashboardSection>
 
       <DashboardSection title="Yearly / Monthly Plan Split">
-        <div className="rounded-lg border border-white/10 bg-[#111826] p-4 text-sm text-white/40">
+        <div className="rounded-lg border border-white/10 bg-[#111826] p-4 text-sm text-white">
           No monthly or yearly plans in this range.
         </div>
       </DashboardSection>
@@ -160,7 +160,7 @@ export default function OverviewPage() {
         </StatCardGrid>
 
         <div className="mt-4 rounded-lg border border-white/10 bg-[#111826] p-4 text-sm">
-          <p className="text-white/70">
+          <p className="text-white">
             {leadSources ? (
               <>
                 <span className="font-semibold text-white">{leadSources.pcn.matchedToLead}</span>/
@@ -171,8 +171,8 @@ export default function OverviewPage() {
             ) : null}
           </p>
           {leadSources?.unattributedCount ? (
-            <p className="mt-2 text-white/50">
-              <span className="font-semibold text-white/80">
+            <p className="mt-2 text-white">
+              <span className="font-semibold text-white">
                 {formatStatValue(leadSources.unattributedCash, "currency")}
               </span>{" "}
               from {leadSources.unattributedCount} closed{" "}
@@ -202,7 +202,7 @@ function RecentChanges() {
 
   return (
     <DashboardSection title="Recent Changes — Last 3 Days">
-      <p className="mb-3 text-sm text-white/50">
+      <p className="mb-3 text-sm text-white">
         Whatever is logged in the Marketing Daily Metrics form&apos;s &quot;Changes Made
         Today&quot; field shows up here next to that day&apos;s actual numbers, so you can see
         what moved.
@@ -210,16 +210,16 @@ function RecentChanges() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {data?.days.map((day, i) => (
           <div key={day.date} className="rounded-lg border border-white/10 bg-[#111826] p-4">
-            <div className="mb-2 text-xs font-semibold uppercase text-white/50">
+            <div className="mb-2 text-xs font-semibold uppercase text-white">
               {i === 0 ? "Today" : i === 1 ? "Yesterday" : ""} — {day.date}
             </div>
             {!day.hasSubmission ? (
-              <p className="mb-2 text-sm italic text-white/40">No submission for this day yet.</p>
+              <p className="mb-2 text-sm italic text-white">No submission for this day yet.</p>
             ) : null}
             <dl className="space-y-1 text-sm">
               {Object.entries(RECENT_CHANGES_LABELS).map(([key, label]) => (
                 <div key={key} className="flex items-center justify-between">
-                  <dt className="text-white/50">{label}</dt>
+                  <dt className="text-white">{label}</dt>
                   <dd className="font-medium text-white">
                     {formatStatValue(day.metrics?.[key], RECENT_CHANGES_FORMATS[key])}
                   </dd>

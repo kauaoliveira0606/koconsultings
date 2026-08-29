@@ -37,7 +37,7 @@ function SliderRow({
   return (
     <tr className="border-b border-white/5">
       <td className="px-4 py-3 font-medium">{label}</td>
-      <td className="px-4 py-3 text-white/50">{unit}</td>
+      <td className="px-4 py-3 text-white">{unit}</td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <input
@@ -97,7 +97,7 @@ export function CapacityModelTab() {
         </button>
       </div>
 
-      <p className="mb-4 text-sm text-white/60">
+      <p className="mb-4 text-sm text-white">
         Set a revenue goal and your current funnel rates — this works backward to how many
         outbound dials that requires and how many reps it takes, given how many leads one dialer
         can realistically work in a day. -15% / -30% show what happens to headcount if Close Rate
@@ -107,7 +107,7 @@ export function CapacityModelTab() {
       <div className="overflow-x-auto rounded-lg border border-white/10 bg-[#111826]">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/10 text-left text-xs font-semibold uppercase text-white/50">
+            <tr className="border-b border-white/10 text-left text-xs font-semibold uppercase text-white">
               <th className="px-4 py-3">Metric</th>
               <th className="px-4 py-3">Unit</th>
               <th className="px-4 py-3">Your Numbers</th>
@@ -205,7 +205,7 @@ function Row({
   return (
     <tr className={`border-b border-white/5 ${highlight ? "bg-blue-500/10 font-semibold" : ""}`}>
       <td className="px-4 py-3">{label}</td>
-      <td className="px-4 py-3 text-white/50">#</td>
+      <td className="px-4 py-3 text-white">#</td>
       <td className="px-4 py-3" />
       <td className="px-4 py-3 text-right text-emerald-700">{formatStatValue(base, "number")}</td>
       <td className="px-4 py-3 text-right text-amber-700">{formatStatValue(d15, "number")}</td>

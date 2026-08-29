@@ -15,7 +15,7 @@ export default function ModelsPage() {
           type="button"
           onClick={() => setTab("financial")}
           className={`-mb-px border-b-2 px-1 pb-3 ${
-            tab === "financial" ? "border-emerald-400 text-emerald-400" : "border-transparent text-white/50"
+            tab === "financial" ? "border-emerald-400 text-emerald-400" : "border-transparent text-white"
           }`}
         >
           Financial Model
@@ -24,7 +24,7 @@ export default function ModelsPage() {
           type="button"
           onClick={() => setTab("capacity")}
           className={`-mb-px border-b-2 px-1 pb-3 ${
-            tab === "capacity" ? "border-emerald-400 text-emerald-400" : "border-transparent text-white/50"
+            tab === "capacity" ? "border-emerald-400 text-emerald-400" : "border-transparent text-white"
           }`}
         >
           Capacity Model

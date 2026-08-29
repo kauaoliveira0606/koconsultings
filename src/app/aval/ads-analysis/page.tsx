@@ -48,7 +48,7 @@ export default function AdsAnalysisPage() {
   return (
     <div>
       <h1 className="mb-2 text-2xl font-bold">Ads Analysis</h1>
-      <h2 className="mb-6 text-lg font-semibold text-white/70">Ad Performance Tracker</h2>
+      <h2 className="mb-6 text-lg font-semibold text-white">Ad Performance Tracker</h2>
 
       <StatCardGrid>
         <StatCard label="Total Spend" value={summary.totalSpend} format="currency" subtext="across all ads" />
@@ -62,7 +62,7 @@ export default function AdsAnalysisPage() {
 
       <div className="mt-8">
         <div className="mb-4 flex items-center gap-2 text-sm">
-          <span className="text-white/70">Campaign:</span>
+          <span className="text-white">Campaign:</span>
           <select
             value={campaignFilter}
             onChange={(e) => setCampaignFilter(e.target.value)}
@@ -76,7 +76,7 @@ export default function AdsAnalysisPage() {
           </select>
         </div>
 
-        <h3 className="mb-2 text-sm font-semibold text-white/70">Detailed Ad Performance</h3>
+        <h3 className="mb-2 text-sm font-semibold text-white">Detailed Ad Performance</h3>
         <DataTable
           columns={columns}
           rows={filteredRows}
@@ -104,7 +104,7 @@ export default function AdsAnalysisPage() {
           tabIndex={0}
         >
           <p className="mb-1 font-semibold text-white">Drop your Meta Ads CSV here or click to upload</p>
-          <p className="text-sm text-white/50">
+          <p className="text-sm text-white">
             Export from Ads Manager → Customize columns → Export as CSV
           </p>
           <input

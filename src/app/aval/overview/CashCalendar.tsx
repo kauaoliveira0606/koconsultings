@@ -20,7 +20,7 @@ const BUCKET_COLORS = [
 // theme, so their text needs its own contrast — light on the empty/dark
 // cell, dark everywhere the tint itself is light enough.
 const BUCKET_TEXT_COLORS = [
-  "text-white/40",
+  "text-white",
   "text-black/70",
   "text-black/70",
   "text-black/80",
@@ -76,7 +76,7 @@ export function CashCalendar() {
   return (
     <div className="rounded-lg border border-white/10 bg-[#111826] p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-white/60">
+        <p className="text-sm text-white">
           Cash collected per day, from EOD Closer + Follow Up Payment submissions. Paid/Organic/
           Unattributed split below each day is the Post Call Note cross-reference (may not sum to
           the same total — independently submitted sources; Unattributed = closed calls whose
@@ -106,7 +106,7 @@ export function CashCalendar() {
 
       <div className="overflow-x-auto">
         <div className="min-w-[640px]">
-          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-white/50">
+          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-white">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <div key={d}>{d}</div>
             ))}
@@ -146,7 +146,7 @@ export function CashCalendar() {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-2 text-xs text-white/50">
+      <div className="mt-4 flex items-center justify-end gap-2 text-xs text-white">
         <span>Less</span>
         {BUCKET_COLORS.map((color, i) => (
           <span key={i} className={`h-3 w-3 rounded-sm ${color}`} />

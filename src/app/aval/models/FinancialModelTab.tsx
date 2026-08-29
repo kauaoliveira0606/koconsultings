@@ -49,7 +49,7 @@ function SliderRow({
   return (
     <tr className="border-b border-white/5">
       <td className="px-4 py-3 font-medium">{label}</td>
-      <td className="px-4 py-3 text-white/50">{unit}</td>
+      <td className="px-4 py-3 text-white">{unit}</td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <input
@@ -130,7 +130,7 @@ export function FinancialModelTab() {
         </button>
       </div>
 
-      <p className="mb-4 text-sm text-white/60">
+      <p className="mb-4 text-sm text-white">
         Drag a slider or type a number directly. Downstream numbers calculate automatically. The
         -15% / -30% columns show what happens if every conversion rate below drops that much.
         Weekly and Monthly are projections at today&apos;s current numbers.
@@ -139,7 +139,7 @@ export function FinancialModelTab() {
       <div className="overflow-x-auto rounded-lg border border-white/10 bg-[#111826]">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/10 text-left text-xs font-semibold uppercase text-white/50">
+            <tr className="border-b border-white/10 text-left text-xs font-semibold uppercase text-white">
               <th className="px-4 py-3">Metric</th>
               <th className="px-4 py-3">Unit</th>
               <th className="px-4 py-3">Your Numbers (Daily)</th>
@@ -341,7 +341,7 @@ function ComputedRow({
   return (
     <tr className={`border-b border-white/5 ${highlight ? "bg-blue-500/10 font-semibold" : ""}`}>
       <td className="px-4 py-3">{label}</td>
-      <td className="px-4 py-3 text-white/50">{unit}</td>
+      <td className="px-4 py-3 text-white">{unit}</td>
       <td className="px-4 py-3" />
       <td className="px-4 py-3 text-right text-emerald-700">{computedCell(base, format)}</td>
       <td className="px-4 py-3 text-right text-amber-700">{computedCell(d15, format)}</td>
