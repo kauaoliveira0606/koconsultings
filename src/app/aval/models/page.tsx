@@ -10,12 +10,12 @@ export default function ModelsPage() {
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">Models</h1>
-      <div className="mb-6 flex gap-6 border-b border-black/10 text-sm font-medium">
+      <div className="mb-6 flex gap-6 border-b border-white/10 text-sm font-medium">
         <button
           type="button"
           onClick={() => setTab("financial")}
           className={`-mb-px border-b-2 px-1 pb-3 ${
-            tab === "financial" ? "border-black text-black" : "border-transparent text-black/50"
+            tab === "financial" ? "border-emerald-400 text-emerald-400" : "border-transparent text-white/50"
           }`}
         >
           Financial Model
@@ -24,7 +24,7 @@ export default function ModelsPage() {
           type="button"
           onClick={() => setTab("capacity")}
           className={`-mb-px border-b-2 px-1 pb-3 ${
-            tab === "capacity" ? "border-black text-black" : "border-transparent text-black/50"
+            tab === "capacity" ? "border-emerald-400 text-emerald-400" : "border-transparent text-white/50"
           }`}
         >
           Capacity Model

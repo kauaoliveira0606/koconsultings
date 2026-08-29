@@ -1,9 +1,6 @@
 "use client";
 
-import { StatCard } from "@/components/dashboard/StatCard";
-import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
-import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
-import { DataTable, type Column } from "@/components/dashboard/DataTable";
+import { StatCard, StatCardGrid, DashboardSection, RangeFilterBar, DataTable, type Column } from "../_components/dashboard-dark";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatDateTime, formatStatValue } from "@/lib/format";

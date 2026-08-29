@@ -8,12 +8,24 @@ import { formatStatValue } from "@/lib/format";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const BUCKET_COLORS = [
-  "bg-[#F1EEE4]", // 0 - none
+  "bg-white/5", // 0 - none
   "bg-emerald-100",
   "bg-emerald-200",
   "bg-emerald-300",
   "bg-emerald-500",
   "bg-emerald-700",
+];
+
+// Bucket cells always use a light-to-medium green ramp regardless of page
+// theme, so their text needs its own contrast — light on the empty/dark
+// cell, dark everywhere the tint itself is light enough.
+const BUCKET_TEXT_COLORS = [
+  "text-white/40",
+  "text-black/70",
+  "text-black/70",
+  "text-black/80",
+  "text-black",
+  "text-black",
 ];
 
 type CashCalendarResponse = {
@@ -62,9 +74,9 @@ export function CashCalendar() {
   const blanks = leadingBlankCount(month);
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-4">
+    <div className="rounded-lg border border-white/10 bg-[#111826] p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-black/60">
+        <p className="text-sm text-white/60">
           Cash collected per day, from EOD Closer + Follow Up Payment submissions. Paid/Organic/
           Unattributed split below each day is the Post Call Note cross-reference (may not sum to
           the same total — independently submitted sources; Unattributed = closed calls whose
@@ -74,7 +86,7 @@ export function CashCalendar() {
           <button
             type="button"
             onClick={() => setMonth((m) => shiftMonth(m, -1))}
-            className="rounded-md border border-black/10 px-2 py-1 text-sm hover:bg-black/5"
+            className="rounded-md border border-white/10 px-2 py-1 text-sm hover:bg-white/10"
           >
             ← Prev
           </button>
@@ -82,7 +94,7 @@ export function CashCalendar() {
           <button
             type="button"
             onClick={() => setMonth((m) => shiftMonth(m, 1))}
-            className="rounded-md border border-black/10 px-2 py-1 text-sm hover:bg-black/5"
+            className="rounded-md border border-white/10 px-2 py-1 text-sm hover:bg-white/10"
           >
             Next →
           </button>
@@ -94,7 +106,7 @@ export function CashCalendar() {
 
       <div className="overflow-x-auto">
         <div className="min-w-[640px]">
-          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-black/50">
+          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-white/50">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <div key={d}>{d}</div>
             ))}
@@ -110,14 +122,14 @@ export function CashCalendar() {
               return (
                 <div
                   key={date}
-                  className={`flex h-24 flex-col justify-between rounded-md border border-black/5 p-2 ${BUCKET_COLORS[bucket]}`}
+                  className={`flex h-24 flex-col justify-between rounded-md border border-white/5 p-2 ${BUCKET_COLORS[bucket]} ${BUCKET_TEXT_COLORS[bucket]}`}
                 >
                   <span className="text-xs font-semibold">{day}</span>
                   {value > 0 ? (
                     <span className="text-right text-xs font-bold">{formatStatValue(value, "currency")}</span>
                   ) : null}
                   {source && (source.paid > 0 || source.organic > 0 || source.unattributed > 0) ? (
-                    <div className="text-right text-[10px] leading-tight text-black/60">
+                    <div className="text-right text-[10px] leading-tight opacity-80">
                       {source.paid > 0 ? <div>P: {formatStatValue(source.paid, "currency")}</div> : null}
                       {source.organic > 0 ? (
                         <div>O: {formatStatValue(source.organic, "currency")}</div>
@@ -134,7 +146,7 @@ export function CashCalendar() {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-2 text-xs text-black/50">
+      <div className="mt-4 flex items-center justify-end gap-2 text-xs text-white/50">
         <span>Less</span>
         {BUCKET_COLORS.map((color, i) => (
           <span key={i} className={`h-3 w-3 rounded-sm ${color}`} />

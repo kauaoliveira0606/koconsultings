@@ -1,7 +1,6 @@
 "use client";
 
-import { StatCard } from "@/components/dashboard/StatCard";
-import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
+import { StatCard, StatCardGrid, DashboardSection } from "../_components/dashboard-dark";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
@@ -33,7 +32,7 @@ function goalLabel(entry: ScorecardEntry): string | null {
 function Group({ emoji, title, entries }: { emoji: string; title: string; entries: ScorecardEntry[] }) {
   return (
     <div className="mt-4 first:mt-0">
-      <h3 className="mb-2 text-xs font-semibold uppercase text-black/60">
+      <h3 className="mb-2 text-xs font-semibold uppercase text-white/50">
         {emoji} {title}
       </h3>
       <StatCardGrid>
@@ -68,15 +67,15 @@ export function WeeklyScorecard() {
           <Group emoji="🚩" title="Marketing Metrics" entries={data.marketingMetrics} />
           <Group emoji="📊" title="Backend" entries={data.backend} />
 
-          <div className="mt-4 rounded-lg border border-black/10 bg-white p-4">
+          <div className="mt-4 rounded-lg border border-white/10 bg-[#111826] p-4">
             <div className="mb-1 flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300">
                 ✦
               </span>
-              <span className="text-sm font-semibold">Weekly Intelligence Summary</span>
+              <span className="text-sm font-semibold text-white">Weekly Intelligence Summary</span>
             </div>
-            <p className="mb-2 text-xs text-black/40">Based on live scorecard data — rule-based, not AI-generated</p>
-            <p className="text-sm text-black/70">{data.summary}</p>
+            <p className="mb-2 text-xs text-white/40">Based on live scorecard data — rule-based, not AI-generated</p>
+            <p className="text-sm text-white/70">{data.summary}</p>
           </div>
         </>
       ) : null}

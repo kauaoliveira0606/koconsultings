@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { StatCardGrid } from "@/components/dashboard/StatCardGrid";
-import { DataTable, type Column } from "@/components/dashboard/DataTable";
+import { StatCard, StatCardGrid, DataTable, type Column } from "../_components/dashboard-dark";
 import {
   aggregateAdPerformance,
   normalizeMetaAdsRows,
@@ -50,7 +48,7 @@ export default function AdsAnalysisPage() {
   return (
     <div>
       <h1 className="mb-2 text-2xl font-bold">Ads Analysis</h1>
-      <h2 className="mb-6 text-lg font-semibold text-black/70">Ad Performance Tracker</h2>
+      <h2 className="mb-6 text-lg font-semibold text-white/70">Ad Performance Tracker</h2>
 
       <StatCardGrid>
         <StatCard label="Total Spend" value={summary.totalSpend} format="currency" subtext="across all ads" />
@@ -64,11 +62,11 @@ export default function AdsAnalysisPage() {
 
       <div className="mt-8">
         <div className="mb-4 flex items-center gap-2 text-sm">
-          <span>Campaign:</span>
+          <span className="text-white/70">Campaign:</span>
           <select
             value={campaignFilter}
             onChange={(e) => setCampaignFilter(e.target.value)}
-            className="rounded-md border border-black/10 bg-white px-2 py-1"
+            className="rounded-md border border-white/10 bg-[#111826] px-2 py-1 text-white"
           >
             {campaigns.map((c) => (
               <option key={c} value={c}>
@@ -78,7 +76,7 @@ export default function AdsAnalysisPage() {
           </select>
         </div>
 
-        <h3 className="mb-2 text-sm font-semibold">Detailed Ad Performance</h3>
+        <h3 className="mb-2 text-sm font-semibold text-white/70">Detailed Ad Performance</h3>
         <DataTable
           columns={columns}
           rows={filteredRows}
@@ -88,7 +86,7 @@ export default function AdsAnalysisPage() {
 
         <div
           className={`mt-6 flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-10 text-center ${
-            dragActive ? "border-black bg-black/5" : "border-black/20 bg-white"
+            dragActive ? "border-emerald-400 bg-emerald-500/10" : "border-white/20 bg-[#111826]"
           }`}
           onDragOver={(e) => {
             e.preventDefault();
@@ -105,8 +103,8 @@ export default function AdsAnalysisPage() {
           role="button"
           tabIndex={0}
         >
-          <p className="mb-1 font-semibold">Drop your Meta Ads CSV here or click to upload</p>
-          <p className="text-sm text-black/50">
+          <p className="mb-1 font-semibold text-white">Drop your Meta Ads CSV here or click to upload</p>
+          <p className="text-sm text-white/50">
             Export from Ads Manager → Customize columns → Export as CSV
           </p>
           <input
@@ -124,7 +122,7 @@ export default function AdsAnalysisPage() {
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="mt-4 w-full rounded-md bg-black py-3 text-sm font-semibold text-white hover:bg-black/80"
+          className="mt-4 w-full rounded-md bg-emerald-500 py-3 text-sm font-semibold text-black hover:bg-emerald-400"
         >
           Run Analysis
         </button>

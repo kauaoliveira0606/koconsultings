@@ -35,9 +35,9 @@ function SliderRow({
   onChange: (v: number) => void;
 }) {
   return (
-    <tr className="border-b border-black/5">
+    <tr className="border-b border-white/5">
       <td className="px-4 py-3 font-medium">{label}</td>
-      <td className="px-4 py-3 text-black/50">{unit}</td>
+      <td className="px-4 py-3 text-white/50">{unit}</td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <input
@@ -47,13 +47,13 @@ function SliderRow({
             step={step}
             value={value}
             onChange={(e) => onChange(Number(e.target.value))}
-            className="w-32"
+            className="w-32 accent-emerald-500"
           />
           <input
             type="number"
             value={value}
             onChange={(e) => onChange(Number(e.target.value))}
-            className="w-24 rounded-md border border-black/10 px-2 py-1 text-right"
+            className="w-24 rounded-md border border-white/10 bg-[#0A0E14] px-2 py-1 text-right text-white [color-scheme:dark]"
           />
         </div>
       </td>
@@ -81,7 +81,7 @@ export function CapacityModelTab() {
           type="button"
           onClick={() => setPeriod("weekly")}
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-            period === "weekly" ? "bg-black text-white" : "border border-black/10 bg-white"
+            period === "weekly" ? "bg-emerald-500 text-black" : "border border-white/10 bg-[#111826]"
           }`}
         >
           Weekly Goal
@@ -90,24 +90,24 @@ export function CapacityModelTab() {
           type="button"
           onClick={() => setPeriod("monthly")}
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-            period === "monthly" ? "bg-black text-white" : "border border-black/10 bg-white"
+            period === "monthly" ? "bg-emerald-500 text-black" : "border border-white/10 bg-[#111826]"
           }`}
         >
           Monthly Goal
         </button>
       </div>
 
-      <p className="mb-4 text-sm text-black/60">
+      <p className="mb-4 text-sm text-white/60">
         Set a revenue goal and your current funnel rates — this works backward to how many
         outbound dials that requires and how many reps it takes, given how many leads one dialer
         can realistically work in a day. -15% / -30% show what happens to headcount if Close Rate
         and Connection Rate both slip.
       </p>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-white/10 bg-[#111826]">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-black/10 text-left text-xs font-semibold uppercase text-black/50">
+            <tr className="border-b border-white/10 text-left text-xs font-semibold uppercase text-white/50">
               <th className="px-4 py-3">Metric</th>
               <th className="px-4 py-3">Unit</th>
               <th className="px-4 py-3">Your Numbers</th>
@@ -203,9 +203,9 @@ function Row({
   highlight?: boolean;
 }) {
   return (
-    <tr className={`border-b border-black/5 ${highlight ? "bg-blue-50 font-semibold" : ""}`}>
+    <tr className={`border-b border-white/5 ${highlight ? "bg-blue-500/10 font-semibold" : ""}`}>
       <td className="px-4 py-3">{label}</td>
-      <td className="px-4 py-3 text-black/50">#</td>
+      <td className="px-4 py-3 text-white/50">#</td>
       <td className="px-4 py-3" />
       <td className="px-4 py-3 text-right text-emerald-700">{formatStatValue(base, "number")}</td>
       <td className="px-4 py-3 text-right text-amber-700">{formatStatValue(d15, "number")}</td>

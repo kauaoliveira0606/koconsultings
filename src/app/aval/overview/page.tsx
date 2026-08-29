@@ -1,8 +1,6 @@
 "use client";
 
-import { StatCard } from "@/components/dashboard/StatCard";
-import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
-import { RangeFilterBar, defaultRangeState } from "@/components/dashboard/RangeFilterBar";
+import { StatCard, StatCardGrid, DashboardSection, RangeFilterBar, defaultRangeState } from "../_components/dashboard-dark";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
@@ -114,7 +112,7 @@ export default function OverviewPage() {
       </DashboardSection>
 
       <DashboardSection title="Yearly / Monthly Plan Split">
-        <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
+        <div className="rounded-lg border border-white/10 bg-[#111826] p-4 text-sm text-white/40">
           No monthly or yearly plans in this range.
         </div>
       </DashboardSection>
@@ -161,11 +159,11 @@ export default function OverviewPage() {
           />
         </StatCardGrid>
 
-        <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm">
-          <p className="text-black/70">
+        <div className="mt-4 rounded-lg border border-white/10 bg-[#111826] p-4 text-sm">
+          <p className="text-white/70">
             {leadSources ? (
               <>
-                <span className="font-semibold">{leadSources.pcn.matchedToLead}</span>/
+                <span className="font-semibold text-white">{leadSources.pcn.matchedToLead}</span>/
                 {leadSources.pcn.totalLogged} Post Call Note calls in this range matched a lead by
                 email ({leadSources.pcn.paidClosed} paid closes, {leadSources.pcn.organicClosed}{" "}
                 organic closes attributed above).
@@ -173,8 +171,8 @@ export default function OverviewPage() {
             ) : null}
           </p>
           {leadSources?.unattributedCount ? (
-            <p className="mt-2 text-black/50">
-              <span className="font-semibold text-black/70">
+            <p className="mt-2 text-white/50">
+              <span className="font-semibold text-white/80">
                 {formatStatValue(leadSources.unattributedCash, "currency")}
               </span>{" "}
               from {leadSources.unattributedCount} closed{" "}
@@ -204,25 +202,25 @@ function RecentChanges() {
 
   return (
     <DashboardSection title="Recent Changes — Last 3 Days">
-      <p className="mb-3 text-sm text-black/50">
+      <p className="mb-3 text-sm text-white/50">
         Whatever is logged in the Marketing Daily Metrics form&apos;s &quot;Changes Made
         Today&quot; field shows up here next to that day&apos;s actual numbers, so you can see
         what moved.
       </p>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {data?.days.map((day, i) => (
-          <div key={day.date} className="rounded-lg border border-black/10 bg-white p-4">
-            <div className="mb-2 text-xs font-semibold uppercase text-black/60">
+          <div key={day.date} className="rounded-lg border border-white/10 bg-[#111826] p-4">
+            <div className="mb-2 text-xs font-semibold uppercase text-white/50">
               {i === 0 ? "Today" : i === 1 ? "Yesterday" : ""} — {day.date}
             </div>
             {!day.hasSubmission ? (
-              <p className="mb-2 text-sm italic text-black/40">No submission for this day yet.</p>
+              <p className="mb-2 text-sm italic text-white/40">No submission for this day yet.</p>
             ) : null}
             <dl className="space-y-1 text-sm">
               {Object.entries(RECENT_CHANGES_LABELS).map(([key, label]) => (
                 <div key={key} className="flex items-center justify-between">
-                  <dt className="text-black/60">{label}</dt>
-                  <dd className="font-medium">
+                  <dt className="text-white/50">{label}</dt>
+                  <dd className="font-medium text-white">
                     {formatStatValue(day.metrics?.[key], RECENT_CHANGES_FORMATS[key])}
                   </dd>
                 </div>

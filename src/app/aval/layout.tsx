@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function AvalLayout({ children }: { children: ReactNode }) {
   return (
     <RangeProvider>
-      <div className="flex min-h-screen flex-col bg-[#F1EEE4] text-black lg:flex-row">
+      <div className="flex min-h-screen flex-col bg-[#0A0E14] text-white lg:flex-row">
         <AvalSidebar />
         <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
