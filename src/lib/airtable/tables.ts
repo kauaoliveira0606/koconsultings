@@ -281,6 +281,14 @@ export function wasClosed(row: PostCallNoteRow): boolean {
 const BRONSON_AFFILIATE_PCN_TABLE_ID = "tblXsKo89QNuRawBy";
 const BRONSON_AFFILIATE_EOD_TABLE_ID = "tblezCVnizBHKPL4Q";
 
+// Base44 + Wix affiliate-portal (team.aistorebuilder.com) payout data, one row
+// per (Date, Brand), synced daily from the portal's Supabase backend by the
+// n8n "Bronson · Base44/Wix Attribution Collector" workflow. This is the
+// "what the affiliate network actually tracked and will pay us" side of the
+// attribution rate; the Affiliate PCN table is the "what the team logged as
+// closed" side. Brand is "base44" or "wix".
+const BRONSON_AFFILIATE_PORTAL_DAILY_TABLE_ID = "tbl1Va2afCZAxj2SE";
+
 export type BronsonAffiliateEodRow = {
   id: string;
   date: string | null;
@@ -349,6 +357,34 @@ export async function getBronsonAffiliatePcn(): Promise<BronsonAffiliatePcnRow[]
       software: (f["Which software"] as string) ?? null,
       plan: (f["Plan?"] as string) ?? null,
       cpaCash: parseNumericText(f["CPA (Payout / Cash Collected)"]),
+    };
+  });
+}
+
+export type AffiliatePortalDailyRow = {
+  id: string;
+  date: string | null;
+  brand: string | null;
+  purchases: number | null;
+  signups: number | null;
+  commission: number | null;
+};
+
+export async function getAffiliatePortalDaily(): Promise<AffiliatePortalDailyRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    BRONSON_BASE_ID,
+    BRONSON_AFFILIATE_PORTAL_DAILY_TABLE_ID
+  );
+
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      date: parseDateOnly(f.Date),
+      brand: (f.Brand as string) ?? null,
+      purchases: parseNumericText(f.Purchases),
+      signups: parseNumericText(f.Signups),
+      commission: parseNumericText(f.Commission),
     };
   });
 }

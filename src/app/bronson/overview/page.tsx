@@ -24,6 +24,10 @@ type MetricsResponse = {
   upsellBookingRate: number | null;
   costPerAcquisition: number | null;
   leadToCloseRate: number | null;
+  attributionRateBase44Wix: number | null;
+  attributionRatePurchasesBase44Wix: number | null;
+  portalCashCollectedBase44Wix: number | null;
+  portalPurchasesBase44Wix: number | null;
 };
 
 type LeadSourcesResponse = {
@@ -156,6 +160,18 @@ export default function OverviewPage() {
           />
           <StatCard label="Cost Per Acquisition (CAC)" value={metrics?.costPerAcquisition} format="currency" />
           <StatCard label="Lead-to-Close Rate" value={metrics?.leadToCloseRate} format="percent" />
+          <StatCard
+            label="Attribution Rate with Base 44 and Wix"
+            value={metrics?.attributionRateBase44Wix}
+            format="percent"
+            subtext="Affiliate portal payout (base44 + wix) divided by what the team logged as closed in Affiliate PCN for the same range, valued at the standard per-plan payout when PCN's own cash figure is blank."
+          />
+          <StatCard
+            label="Attribution Rate (Purchases, Base 44 + Wix)"
+            value={metrics?.attributionRatePurchasesBase44Wix}
+            format="percent"
+            subtext="Affiliate portal purchases divided by Affiliate PCN closes. Portal purchases may include subscription rebills, so this can exceed 100%."
+          />
         </StatCardGrid>
       </DashboardSection>
 
