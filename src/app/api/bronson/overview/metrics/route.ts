@@ -45,6 +45,13 @@ const pcnCashCollected = (row: { software: string | null; plan: string | null; c
   return AFFILIATE_FLAT_PAYOUT[normalizeBrand(row.software)]?.[plan] ?? null;
 };
 
+// Portal tracking and the team's PCN logging only became reliable in Aug 2026
+// (June/July were badly under-logged), so the attribution rate ignores both
+// sides before this date regardless of the selected range.
+const ATTRIBUTION_START_DATE = "2026-08-01";
+const onOrAfterAttributionStart = (date: string | null): boolean =>
+  !!date && date >= ATTRIBUTION_START_DATE;
+
 export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
@@ -68,10 +75,13 @@ export async function GET(request: NextRequest) {
   // 100% means tracking is leaking sales; above 100% usually means portal
   // subscription rebills or the team under-logging closes that month.
   const inRangePortal = portalDaily.filter(
-    (r) => isDateInRange(r.date, range) && isBase44OrWix(r.brand)
+    (r) => isDateInRange(r.date, range) && onOrAfterAttributionStart(r.date) && isBase44OrWix(r.brand)
   );
   const inRangePcnBrands = affiliatePcn.filter(
-    (r) => isDateInRange(r.date, range) && isBase44OrWix(r.software)
+    (r) =>
+      isDateInRange(r.date, range) &&
+      onOrAfterAttributionStart(r.date) &&
+      isBase44OrWix(r.software)
   );
   const portalPurchases = sum(inRangePortal.map((r) => r.purchases));
   const portalCommission = sum(inRangePortal.map((r) => r.commission));

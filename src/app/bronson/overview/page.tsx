@@ -164,7 +164,7 @@ export default function OverviewPage() {
             label="Attribution Rate with Base 44 and Wix"
             value={metrics?.attributionRateBase44Wix}
             format="percent"
-            subtext="Affiliate portal payout (base44 + wix) divided by what the team logged as closed in Affiliate PCN for the same range, valued at the standard per-plan payout when PCN's own cash figure is blank."
+            subtext="Affiliate portal payout (base44 + wix) divided by what the team logged as closed in Affiliate PCN, valued at the standard per-plan payout when PCN's own cash figure is blank. Ignores everything before Aug 2026."
           />
           <StatCard
             label="Attribution Rate (Purchases, Base 44 + Wix)"
