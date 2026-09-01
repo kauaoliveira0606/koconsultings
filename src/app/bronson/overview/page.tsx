@@ -2,6 +2,7 @@
 
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
+import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { RangeFilterBar, defaultRangeState } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
@@ -24,9 +25,6 @@ type MetricsResponse = {
   upsellBookingRate: number | null;
   costPerAcquisition: number | null;
   leadToCloseRate: number | null;
-  attributionRateBase44Wix: number | null;
-  portalPurchasesBase44Wix: number | null;
-  pcnClosesBase44Wix: number | null;
 };
 
 type LeadSourcesResponse = {
@@ -159,13 +157,14 @@ export default function OverviewPage() {
           />
           <StatCard label="Cost Per Acquisition (CAC)" value={metrics?.costPerAcquisition} format="currency" />
           <StatCard label="Lead-to-Close Rate" value={metrics?.leadToCloseRate} format="percent" />
-          <StatCard
-            label="Attribution Rate with Base 44 and Wix"
-            value={metrics?.attributionRateBase44Wix}
-            format="percent"
-            subtext="Base 44 + Wix purchases the affiliate portal tracked, divided by the purchases the team logged as closed in Affiliate PCN, for the selected range. Ignores everything before Aug 2026."
-          />
         </StatCardGrid>
+      </DashboardSection>
+
+      <DashboardSection title="Attribution — Base 44 + Wix">
+        <AttributionSection
+          apiPath="/api/bronson/overview/attribution"
+          brandLabel="Base 44 + Wix"
+        />
       </DashboardSection>
 
       <DashboardSection title="Yearly / Monthly Plan Split">

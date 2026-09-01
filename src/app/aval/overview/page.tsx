@@ -1,6 +1,7 @@
 "use client";
 
 import { StatCard, StatCardGrid, DashboardSection, RangeFilterBar, defaultRangeState } from "../_components/dashboard-dark";
+import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
@@ -115,6 +116,14 @@ export default function OverviewPage() {
         <div className="rounded-lg border border-white/10 bg-[#111826] p-4 text-sm text-white">
           No monthly or yearly plans in this range.
         </div>
+      </DashboardSection>
+
+      <DashboardSection title="Attribution — Base 44">
+        <AttributionSection
+          apiPath="/api/aval/overview/attribution"
+          theme="dark"
+          brandLabel="Base 44"
+        />
       </DashboardSection>
 
       <DashboardSection title="Lead Sources">

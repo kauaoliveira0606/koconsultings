@@ -132,3 +132,65 @@ export async function getAvalFollowUpPayments(): Promise<AvalFollowUpPaymentRow[
     };
   });
 }
+
+// --- Base44 affiliate attribution -------------------------------------------
+// Aval's sales team also runs the AI-store-builder affiliate/CPA motion
+// (base44 only for this offer). "Affiliate PCN" is the team's own per-close
+// log — the "true revenue" side of the attribution rate. "Affiliate Portal
+// Daily" is synced daily from the affiliate portal's Supabase backend by the
+// n8n "Aval · Base44 Attribution Collector" workflow — the "what the network
+// actually tracked" side. Both are keyed by calendar date.
+const AVAL_AFFILIATE_PCN_TABLE_ID = "tblFZy89IvQ6Dcsl0";
+const AVAL_AFFILIATE_PORTAL_DAILY_TABLE_ID = "tbls35QHcDzYJmrep";
+
+export type AvalAffiliatePcnRow = {
+  id: string;
+  date: string | null;
+  brand: string | null;
+  plan: string | null;
+};
+
+export async function getAvalAffiliatePcn(): Promise<AvalAffiliatePcnRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    AVAL_BASE_ID,
+    AVAL_AFFILIATE_PCN_TABLE_ID
+  );
+
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      date: parseDateOnly(f.Date),
+      brand: (f["Which Software"] as string) ?? null,
+      plan: (f["Plan?"] as string) ?? null,
+    };
+  });
+}
+
+export type AvalAffiliatePortalDailyRow = {
+  id: string;
+  date: string | null;
+  brand: string | null;
+  purchases: number | null;
+  signups: number | null;
+  commission: number | null;
+};
+
+export async function getAvalAffiliatePortalDaily(): Promise<AvalAffiliatePortalDailyRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    AVAL_BASE_ID,
+    AVAL_AFFILIATE_PORTAL_DAILY_TABLE_ID
+  );
+
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      date: parseDateOnly(f.Date),
+      brand: (f.Brand as string) ?? null,
+      purchases: parseNumericText(f.Purchases),
+      signups: parseNumericText(f.Signups),
+      commission: parseNumericText(f.Commission),
+    };
+  });
+}
