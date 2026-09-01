@@ -7,10 +7,19 @@
  *
  * Numerator:   Purchases from "Affiliate Portal Daily" (synced from the portal).
  * Denominator: rows in the team's "Affiliate PCN" close log.
- * Both are filtered to the given brands and to on/after ATTRIBUTION_START_DATE.
+ * Both are filtered to the given brands and to on/after `dataFloor`.
+ *
+ * Two per-offer dates:
+ *  - periodsFrom: which period buckets to list (Bronson Aug 2026; Aval Sep 2026).
+ *  - dataFloor:   earliest close/purchase date that counts. The oldest bucket is
+ *    stretched back to it, so closes the team back-dates a day or two into the
+ *    previous month/week (e.g. Aval's first four closes, dated Aug 31 but logged
+ *    Sep 1) still land in the first real period instead of a throwaway bucket.
  */
 
 export const ATTRIBUTION_START_DATE = "2026-08-01";
+/** The date the portal switched Base44/Wix from monthly to weekly payouts. */
+const PORTAL_WENT_WEEKLY = "2026-09-01";
 
 export type AttributionGranularity = "month" | "week";
 
@@ -60,19 +69,25 @@ const MONTHS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+export type BuildPeriodsOptions = {
+  /** Month/week of the first listed bucket. Defaults to ATTRIBUTION_START_DATE. */
+  periodsFrom?: string;
+  /** Earliest date whose data counts; the oldest bucket stretches back to it. */
+  dataFloor?: string;
+  now?: Date;
+};
+
 /**
- * Every selectable period, newest first. Months run from `startDate`'s month to
- * the current month; weeks (Mon–Sun) run from the week containing the later of
- * `startDate` and 2026-09-01 (when the portal switched to weekly payouts) to
- * the current week. `startDate` is per-offer: Bronson tracked from Aug 2026,
- * Aval only started in Sep 2026.
+ * Every selectable period, newest first. Months run from `periodsFrom`'s month
+ * to the current month; weeks (Mon–Sun) run from the week containing the later
+ * of `periodsFrom` and the portal's weekly-payout switch to the current week.
+ * The oldest bucket's `start` is pulled back to `dataFloor`.
  */
 export function buildAttributionPeriods(
   granularity: AttributionGranularity,
-  startDate: string = ATTRIBUTION_START_DATE,
-  now: Date = new Date()
+  { periodsFrom = ATTRIBUTION_START_DATE, dataFloor = periodsFrom, now = new Date() }: BuildPeriodsOptions = {}
 ): AttributionPeriod[] {
-  const start = new Date(`${startDate}T00:00:00Z`);
+  const start = new Date(`${periodsFrom}T00:00:00Z`);
   const periods: AttributionPeriod[] = [];
 
   if (granularity === "month") {
@@ -90,40 +105,39 @@ export function buildAttributionPeriods(
       m += 1;
       if (m > 11) { m = 0; y += 1; }
     }
-    return periods.reverse();
+  } else {
+    const weeklyFrom = periodsFrom > PORTAL_WENT_WEEKLY ? periodsFrom : PORTAL_WENT_WEEKLY;
+    let weekStart = mondayOf(new Date(`${weeklyFrom}T00:00:00Z`));
+    const lastMonday = mondayOf(now);
+    while (weekStart <= lastMonday) {
+      const weekEnd = addDaysUTC(weekStart, 6);
+      periods.push({
+        key: iso(weekStart),
+        label:
+          `${MONTHS[weekStart.getUTCMonth()]} ${weekStart.getUTCDate()} – ` +
+          `${MONTHS[weekEnd.getUTCMonth()]} ${weekEnd.getUTCDate()}, ${weekEnd.getUTCFullYear()}`,
+        start: iso(weekStart),
+        end: iso(weekEnd),
+      });
+      weekStart = addDaysUTC(weekStart, 7);
+    }
   }
 
-  // weekly, from the week containing the later of startDate and the date the
-  // portal switched to weekly payouts (2026-09-01)
-  const weeklyFrom = startDate > "2026-09-01" ? startDate : "2026-09-01";
-  let weekStart = mondayOf(new Date(`${weeklyFrom}T00:00:00Z`));
-  const lastMonday = mondayOf(now);
-  while (weekStart <= lastMonday) {
-    const weekEnd = addDaysUTC(weekStart, 6);
-    const s = weekStart.getUTCDate();
-    const e = weekEnd.getUTCDate();
-    periods.push({
-      key: iso(weekStart),
-      label:
-        `${MONTHS[weekStart.getUTCMonth()]} ${s} – ` +
-        `${MONTHS[weekEnd.getUTCMonth()]} ${e}, ${weekEnd.getUTCFullYear()}`,
-      start: iso(weekStart),
-      end: iso(weekEnd),
-    });
-    weekStart = addDaysUTC(weekStart, 7);
+  // Fold a short back-dated tail into the first listed bucket — e.g. Aval's
+  // first four closes are dated Aug 31 but belong to September. Only stretch
+  // when the gap is small (≤ 10 days); never absorb a whole prior period.
+  if (periods.length > 0 && dataFloor < periods[0].start) {
+    const gapDays =
+      (Date.parse(`${periods[0].start}T00:00:00Z`) - Date.parse(`${dataFloor}T00:00:00Z`)) /
+      86_400_000;
+    if (gapDays <= 10) periods[0] = { ...periods[0], start: dataFloor };
   }
   return periods.reverse();
 }
 
-function inClosedRange(
-  date: string | null,
-  start: string,
-  end: string,
-  floor: string
-): boolean {
-  if (!date) return false;
-  const lo = start < floor ? floor : start;
-  return date >= lo && date <= end;
+function inClosedRange(date: string | null, start: string, end: string, floor: string): boolean {
+  if (!date || date < floor) return false;
+  return date >= start && date <= end;
 }
 
 export function computeAttributionBuckets(
@@ -131,7 +145,7 @@ export function computeAttributionBuckets(
   portalRows: PortalRow[],
   pcnRows: DatedBrandRow[],
   brands: string[],
-  startDate: string = ATTRIBUTION_START_DATE
+  dataFloor: string = ATTRIBUTION_START_DATE
 ): AttributionBucket[] {
   const matches = brandMatcher(brands);
   const portal = portalRows.filter((r) => matches(r.brand));
@@ -139,9 +153,9 @@ export function computeAttributionBuckets(
 
   return periods.map((p) => {
     const portalPurchases = portal
-      .filter((r) => inClosedRange(r.date, p.start, p.end, startDate))
+      .filter((r) => inClosedRange(r.date, p.start, p.end, dataFloor))
       .reduce((sum, r) => sum + (r.purchases ?? 0), 0);
-    const pcnCloses = pcn.filter((r) => inClosedRange(r.date, p.start, p.end, startDate)).length;
+    const pcnCloses = pcn.filter((r) => inClosedRange(r.date, p.start, p.end, dataFloor)).length;
     const rate = pcnCloses > 0 ? portalPurchases / pcnCloses : null;
     return { ...p, portalPurchases, pcnCloses, rate };
   });

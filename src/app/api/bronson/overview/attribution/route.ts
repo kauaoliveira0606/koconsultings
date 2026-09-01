@@ -11,7 +11,7 @@ import {
 export const revalidate = 60;
 
 const BRANDS = ["base44", "wix"];
-const START = ATTRIBUTION_START_DATE; // 2026-08-01
+const FROM = ATTRIBUTION_START_DATE; // 2026-08-01
 
 export async function GET() {
   const [portalDaily, pcn] = await Promise.all([
@@ -19,9 +19,10 @@ export async function GET() {
     getBronsonAffiliatePcn(),
   ]);
 
+  const opts = { periodsFrom: FROM, dataFloor: FROM };
   return Response.json({
     brands: BRANDS,
-    month: computeAttributionBuckets(buildAttributionPeriods("month", START), portalDaily, pcn, BRANDS, START),
-    week: computeAttributionBuckets(buildAttributionPeriods("week", START), portalDaily, pcn, BRANDS, START),
+    month: computeAttributionBuckets(buildAttributionPeriods("month", opts), portalDaily, pcn, BRANDS, FROM),
+    week: computeAttributionBuckets(buildAttributionPeriods("week", opts), portalDaily, pcn, BRANDS, FROM),
   });
 }
