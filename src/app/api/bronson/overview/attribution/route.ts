@@ -1,4 +1,5 @@
 import {
+  ATTRIBUTION_START_DATE,
   buildAttributionPeriods,
   computeAttributionBuckets,
 } from "@/lib/attribution";
@@ -10,6 +11,7 @@ import {
 export const revalidate = 60;
 
 const BRANDS = ["base44", "wix"];
+const START = ATTRIBUTION_START_DATE; // 2026-08-01
 
 export async function GET() {
   const [portalDaily, pcn] = await Promise.all([
@@ -19,7 +21,7 @@ export async function GET() {
 
   return Response.json({
     brands: BRANDS,
-    month: computeAttributionBuckets(buildAttributionPeriods("month"), portalDaily, pcn, BRANDS),
-    week: computeAttributionBuckets(buildAttributionPeriods("week"), portalDaily, pcn, BRANDS),
+    month: computeAttributionBuckets(buildAttributionPeriods("month", START), portalDaily, pcn, BRANDS, START),
+    week: computeAttributionBuckets(buildAttributionPeriods("week", START), portalDaily, pcn, BRANDS, START),
   });
 }

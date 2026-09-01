@@ -61,15 +61,18 @@ const MONTHS = [
 ];
 
 /**
- * Every selectable period, newest first. Months run from ATTRIBUTION_START_DATE's
- * month to the current month; weeks (Mon–Sun) run from the week containing
- * 2026-09-01 — when the portal switched to weekly payouts — to the current week.
+ * Every selectable period, newest first. Months run from `startDate`'s month to
+ * the current month; weeks (Mon–Sun) run from the week containing the later of
+ * `startDate` and 2026-09-01 (when the portal switched to weekly payouts) to
+ * the current week. `startDate` is per-offer: Bronson tracked from Aug 2026,
+ * Aval only started in Sep 2026.
  */
 export function buildAttributionPeriods(
   granularity: AttributionGranularity,
+  startDate: string = ATTRIBUTION_START_DATE,
   now: Date = new Date()
 ): AttributionPeriod[] {
-  const start = new Date(`${ATTRIBUTION_START_DATE}T00:00:00Z`);
+  const start = new Date(`${startDate}T00:00:00Z`);
   const periods: AttributionPeriod[] = [];
 
   if (granularity === "month") {
@@ -90,8 +93,10 @@ export function buildAttributionPeriods(
     return periods.reverse();
   }
 
-  // weekly, starting the week the portal went weekly (contains 2026-09-01)
-  let weekStart = mondayOf(new Date("2026-09-01T00:00:00Z"));
+  // weekly, from the week containing the later of startDate and the date the
+  // portal switched to weekly payouts (2026-09-01)
+  const weeklyFrom = startDate > "2026-09-01" ? startDate : "2026-09-01";
+  let weekStart = mondayOf(new Date(`${weeklyFrom}T00:00:00Z`));
   const lastMonday = mondayOf(now);
   while (weekStart <= lastMonday) {
     const weekEnd = addDaysUTC(weekStart, 6);
@@ -110,9 +115,14 @@ export function buildAttributionPeriods(
   return periods.reverse();
 }
 
-function inClosedRange(date: string | null, start: string, end: string): boolean {
+function inClosedRange(
+  date: string | null,
+  start: string,
+  end: string,
+  floor: string
+): boolean {
   if (!date) return false;
-  const lo = start < ATTRIBUTION_START_DATE ? ATTRIBUTION_START_DATE : start;
+  const lo = start < floor ? floor : start;
   return date >= lo && date <= end;
 }
 
@@ -120,7 +130,8 @@ export function computeAttributionBuckets(
   periods: AttributionPeriod[],
   portalRows: PortalRow[],
   pcnRows: DatedBrandRow[],
-  brands: string[]
+  brands: string[],
+  startDate: string = ATTRIBUTION_START_DATE
 ): AttributionBucket[] {
   const matches = brandMatcher(brands);
   const portal = portalRows.filter((r) => matches(r.brand));
@@ -128,9 +139,9 @@ export function computeAttributionBuckets(
 
   return periods.map((p) => {
     const portalPurchases = portal
-      .filter((r) => inClosedRange(r.date, p.start, p.end))
+      .filter((r) => inClosedRange(r.date, p.start, p.end, startDate))
       .reduce((sum, r) => sum + (r.purchases ?? 0), 0);
-    const pcnCloses = pcn.filter((r) => inClosedRange(r.date, p.start, p.end)).length;
+    const pcnCloses = pcn.filter((r) => inClosedRange(r.date, p.start, p.end, startDate)).length;
     const rate = pcnCloses > 0 ? portalPurchases / pcnCloses : null;
     return { ...p, portalPurchases, pcnCloses, rate };
   });
