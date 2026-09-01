@@ -31,20 +31,6 @@ const normalizeBrand = (value: string | null): string =>
 const isBase44OrWix = (value: string | null): boolean =>
   BASE44_WIX_BRANDS.has(normalizeBrand(value));
 
-// Flat affiliate payout per closed sale, from the portal's commission_rules
-// (base44/wix, monthly/yearly). The PCN table only started recording the
-// "CPA (Payout / Cash Collected)" value in Aug 2026, so for older closes we
-// fall back to this schedule to keep the cash-basis denominator complete.
-const AFFILIATE_FLAT_PAYOUT: Record<string, Record<string, number>> = {
-  base44: { monthly: 225, yearly: 275 },
-  wix: { monthly: 100, yearly: 350 },
-};
-const pcnCashCollected = (row: { software: string | null; plan: string | null; cpaCash: number | null }): number | null => {
-  if (row.cpaCash !== null) return row.cpaCash;
-  const plan = (row.plan ?? "").toLowerCase().trim();
-  return AFFILIATE_FLAT_PAYOUT[normalizeBrand(row.software)]?.[plan] ?? null;
-};
-
 // Portal tracking and the team's PCN logging only became reliable in Aug 2026
 // (June/July were badly under-logged), so the attribution rate ignores both
 // sides before this date regardless of the selected range.
@@ -69,11 +55,11 @@ export async function GET(request: NextRequest) {
   const inRangeLeads = leads.filter((l) => isDateInRange(l.createdAt, range));
   const inRangeEod = affiliateEod.filter((r) => isDateInRange(r.date, range));
 
-  // Attribution rate — Base44 + Wix. Numerator: what the affiliate portal
-  // actually tracked (and will pay) in this range. Denominator: what the team
-  // logged as closed in the Affiliate PCN table over the same range. Below
-  // 100% means tracking is leaking sales; above 100% usually means portal
-  // subscription rebills or the team under-logging closes that month.
+  // Attribution rate — Base44 + Wix. Numerator: purchases the affiliate portal
+  // actually tracked (and will pay) in this range. Denominator: purchases the
+  // team logged as closed in the Affiliate PCN table over the same range.
+  // Below 100% means tracking is leaking sales; above 100% usually means
+  // portal subscription rebills or the team under-logging closes that month.
   const inRangePortal = portalDaily.filter(
     (r) => isDateInRange(r.date, range) && onOrAfterAttributionStart(r.date) && isBase44OrWix(r.brand)
   );
@@ -84,9 +70,7 @@ export async function GET(request: NextRequest) {
       isBase44OrWix(r.software)
   );
   const portalPurchases = sum(inRangePortal.map((r) => r.purchases));
-  const portalCommission = sum(inRangePortal.map((r) => r.commission));
   const pcnCloses = inRangePcnBrands.length || null;
-  const pcnCash = sum(inRangePcnBrands.map((r) => pcnCashCollected(r)));
 
   const salesCount = sum(inRangeMarketing.map((r) => r.salesLowTicket)) ?? 0;
   const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta));
@@ -118,9 +102,8 @@ export async function GET(request: NextRequest) {
     upsellBookingRate: upsellBookingRateOf(htBooked, htPitched),
     costPerAcquisition: costPerAcquisition(adSpend, salesCount || null),
     leadToCloseRate: leadToCloseRate(salesCount || null, inRangeLeads.length || null),
-    attributionRateBase44Wix: safeDivide(portalCommission, pcnCash),
-    attributionRatePurchasesBase44Wix: safeDivide(portalPurchases, pcnCloses),
-    portalCashCollectedBase44Wix: portalCommission,
+    attributionRateBase44Wix: safeDivide(portalPurchases, pcnCloses),
     portalPurchasesBase44Wix: portalPurchases,
+    pcnClosesBase44Wix: pcnCloses,
   });
 }

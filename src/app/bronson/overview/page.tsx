@@ -25,9 +25,8 @@ type MetricsResponse = {
   costPerAcquisition: number | null;
   leadToCloseRate: number | null;
   attributionRateBase44Wix: number | null;
-  attributionRatePurchasesBase44Wix: number | null;
-  portalCashCollectedBase44Wix: number | null;
   portalPurchasesBase44Wix: number | null;
+  pcnClosesBase44Wix: number | null;
 };
 
 type LeadSourcesResponse = {
@@ -164,13 +163,7 @@ export default function OverviewPage() {
             label="Attribution Rate with Base 44 and Wix"
             value={metrics?.attributionRateBase44Wix}
             format="percent"
-            subtext="Affiliate portal payout (base44 + wix) divided by what the team logged as closed in Affiliate PCN, valued at the standard per-plan payout when PCN's own cash figure is blank. Ignores everything before Aug 2026."
-          />
-          <StatCard
-            label="Attribution Rate (Purchases, Base 44 + Wix)"
-            value={metrics?.attributionRatePurchasesBase44Wix}
-            format="percent"
-            subtext="Affiliate portal purchases divided by Affiliate PCN closes. Portal purchases may include subscription rebills, so this can exceed 100%."
+            subtext="Base 44 + Wix purchases the affiliate portal tracked, divided by the purchases the team logged as closed in Affiliate PCN, for the selected range. Ignores everything before Aug 2026."
           />
         </StatCardGrid>
       </DashboardSection>
