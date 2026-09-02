@@ -7,7 +7,6 @@ import { RangeFilterBar, defaultRangeState } from "@/components/dashboard/RangeF
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
-import { CashCalendar } from "./CashCalendar";
 import { WeeklyScorecard } from "./WeeklyScorecard";
 
 type MetricsResponse = {
@@ -246,10 +245,6 @@ export default function OverviewPage() {
             </p>
           ) : null}
         </div>
-      </DashboardSection>
-
-      <DashboardSection title="Cash Calendar">
-        <CashCalendar />
       </DashboardSection>
 
       <DashboardSection title="Leaderboard">
