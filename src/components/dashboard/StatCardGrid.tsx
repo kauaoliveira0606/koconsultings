@@ -20,7 +20,7 @@ export function DashboardSection({
   return (
     <section className="mt-8 first:mt-0">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-black/60">{title}</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{title}</h2>
         {action}
       </div>
       {children}

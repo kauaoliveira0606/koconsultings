@@ -109,7 +109,7 @@ export default function OverviewPage() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Overview</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-strong)]">Overview</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
 
@@ -156,11 +156,12 @@ export default function OverviewPage() {
         <AttributionSection
           apiPath="/api/bronson/overview/attribution"
           brandLabel="Base 44 + Wix"
+          theme="deepspace"
         />
       </DashboardSection>
 
       <DashboardSection title="Yearly / Monthly Plan Split">
-        <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
+        <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm text-[var(--text-muted)] backdrop-blur-sm">
           No monthly or yearly plans in this range.
         </div>
       </DashboardSection>
@@ -208,7 +209,7 @@ export default function OverviewPage() {
         </StatCardGrid>
 
         {crossCheck?.mismatched ? (
-          <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="mt-4 rounded-lg border border-amber-400/40 bg-amber-400/10 p-4 text-sm text-amber-200">
             <span className="font-semibold">Cross-check mismatch:</span> the Marketing Daily
             Metrics form&apos;s manually-typed opt-ins don&apos;t match the tracked lead count for
             this range — {crossCheck.details.join("; ")}. Worth checking whether the source
@@ -216,8 +217,8 @@ export default function OverviewPage() {
           </div>
         ) : null}
 
-        <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm">
-          <p className="text-black/70">
+        <div className="mt-4 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm backdrop-blur-sm">
+          <p className="text-[var(--text)]">
             {leadSources ? (
               <>
                 <span className="font-semibold">{leadSources.pcn.matchedToLead}</span>/
@@ -228,8 +229,8 @@ export default function OverviewPage() {
             ) : null}
           </p>
           {leadSources?.unattributedCount ? (
-            <p className="mt-2 text-black/50">
-              <span className="font-semibold text-black/70">
+            <p className="mt-2 text-[var(--text-muted)]">
+              <span className="font-semibold text-[var(--text)]">
                 {formatStatValue(leadSources.unattributedCash, "currency")}
               </span>{" "}
               from {leadSources.unattributedCount} closed{" "}
@@ -255,25 +256,28 @@ function RecentChanges() {
 
   return (
     <DashboardSection title="Recent Changes — Last 3 Days">
-      <p className="mb-3 text-sm text-black/50">
+      <p className="mb-3 text-sm text-[var(--text-muted)]">
         Whatever is logged in the Marketing Daily Metrics form&apos;s &quot;Changes Made
         Today&quot; field shows up here next to that day&apos;s actual numbers, so you can see
         what moved.
       </p>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {data?.days.map((day, i) => (
-          <div key={day.date} className="rounded-lg border border-black/10 bg-white p-4">
-            <div className="mb-2 text-xs font-semibold uppercase text-black/60">
+          <div
+            key={day.date}
+            className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm"
+          >
+            <div className="mb-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
               {i === 0 ? "Today" : i === 1 ? "Yesterday" : ""} — {day.date}
             </div>
             {!day.hasSubmission ? (
-              <p className="mb-2 text-sm italic text-black/40">No submission for this day yet.</p>
+              <p className="mb-2 text-sm italic text-[var(--text-muted)]">No submission for this day yet.</p>
             ) : null}
             <dl className="space-y-1 text-sm">
               {Object.entries(RECENT_CHANGES_LABELS).map(([key, label]) => (
                 <div key={key} className="flex items-center justify-between">
-                  <dt className="text-black/60">{label}</dt>
-                  <dd className="font-medium">
+                  <dt className="text-[var(--text-muted)]">{label}</dt>
+                  <dd className="font-medium text-[var(--text)]">
                     {formatStatValue(day.metrics?.[key], RECENT_CHANGES_FORMATS[key])}
                   </dd>
                 </div>

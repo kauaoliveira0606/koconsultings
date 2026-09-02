@@ -10,12 +10,12 @@ type StatCardProps = {
 
 export function StatCard({ label, value, format = "number", subtext, goal }: StatCardProps) {
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-4">
-      <div className="text-xs font-semibold uppercase tracking-wide text-black/60">{label}</div>
-      <div className="mt-2 text-2xl font-bold text-black">{formatStatValue(value, format)}</div>
-      {subtext ? <div className="mt-1 text-xs text-black/50">{subtext}</div> : null}
+    <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm">
+      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{label}</div>
+      <div className="mt-2 text-2xl font-bold text-[var(--text-strong)]">{formatStatValue(value, format)}</div>
+      {subtext ? <div className="mt-1 text-xs text-[var(--text-muted)]">{subtext}</div> : null}
       {goal !== undefined ? (
-        <div className="mt-1 text-xs text-black/50">{goal ?? "No goal set"}</div>
+        <div className="mt-1 text-xs text-[var(--text-muted)]">{goal ?? "No goal set"}</div>
       ) : null}
     </div>
   );

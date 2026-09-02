@@ -19,6 +19,54 @@
   }
 }
 
+/*
+ * Dashboard surface tokens. Light defaults here so any dashboard that
+ * doesn't opt into a theme keeps its current cream/white look; the
+ * `deepspace` theme (set via data-theme on a wrapper) repaints them for
+ * a dark blue "deep space" console.
+ */
+:root {
+  --app-bg: #f1eee4;
+  --panel-bg: #ffffff;
+  --panel-subtle: rgba(0, 0, 0, 0.03);
+  --panel-border: rgba(0, 0, 0, 0.1);
+  --text-strong: #0a0a0a;
+  --text: rgba(0, 0, 0, 0.8);
+  --text-muted: rgba(0, 0, 0, 0.55);
+  --accent: #2563eb;
+  --cell-green-bg: #d1fae5;
+  --cell-green-text: #065f46;
+  --cell-yellow-bg: #fef3c7;
+  --cell-yellow-text: #92400e;
+  --cell-red-bg: #fee2e2;
+  --cell-red-text: #991b1b;
+}
+
+[data-theme="deepspace"] {
+  --app-bg:
+    radial-gradient(1100px 620px at 12% -12%, rgba(56, 103, 214, 0.28), transparent 60%),
+    radial-gradient(900px 520px at 112% 4%, rgba(23, 86, 170, 0.22), transparent 55%),
+    radial-gradient(700px 700px at 50% 120%, rgba(37, 99, 235, 0.14), transparent 60%),
+    linear-gradient(180deg, #050912 0%, #091430 55%, #0a1a3a 100%);
+  --panel-bg: rgba(17, 32, 64, 0.55);
+  --panel-subtle: rgba(120, 160, 255, 0.07);
+  --panel-border: rgba(122, 162, 255, 0.18);
+  --text-strong: #eef3ff;
+  --text: rgba(226, 235, 255, 0.86);
+  --text-muted: rgba(188, 208, 255, 0.55);
+  --accent: #60a5fa;
+  --cell-green-bg: rgba(16, 185, 129, 0.22);
+  --cell-green-text: #6ee7b7;
+  --cell-yellow-bg: rgba(245, 190, 66, 0.2);
+  --cell-yellow-text: #fcd34d;
+  --cell-red-bg: rgba(248, 81, 96, 0.24);
+  --cell-red-text: #fca5a5;
+}
+
+[data-theme="deepspace"] ::selection {
+  background: rgba(96, 165, 250, 0.35);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

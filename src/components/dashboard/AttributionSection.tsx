@@ -34,6 +34,17 @@ const THEME = {
     muted: "text-xs text-white/50",
     value: "text-lg font-semibold font-mono text-white",
   },
+  deepspace: {
+    card: "rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm",
+    control:
+      "rounded-md border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-2 py-1 text-sm text-[var(--text-strong)]",
+    toggleOn: "bg-[var(--accent)] text-[#050912]",
+    toggleOff: "bg-[var(--panel-subtle)] text-[var(--text-muted)]",
+    rate: "text-3xl font-bold font-mono text-[var(--accent)]",
+    label: "text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]",
+    muted: "text-xs text-[var(--text-muted)]",
+    value: "text-lg font-semibold font-mono text-[var(--text-strong)]",
+  },
 } as const;
 
 export function AttributionSection({
@@ -42,7 +53,7 @@ export function AttributionSection({
   brandLabel,
 }: {
   apiPath: string;
-  theme?: "light" | "dark";
+  theme?: "light" | "dark" | "deepspace";
   brandLabel: string;
 }) {
   const t = THEME[theme];

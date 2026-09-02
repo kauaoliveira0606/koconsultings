@@ -37,29 +37,29 @@ export function RangeFilterBar({
           onClick={() => onChange({ ...value, preset })}
           className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             value.preset === preset
-              ? "bg-black text-white"
-              : "bg-white text-black/70 border border-black/10 hover:bg-black/5"
+              ? "bg-[var(--text-strong)] text-[var(--panel-bg)]"
+              : "bg-[var(--panel-bg)] text-[var(--text-muted)] border border-[var(--panel-border)] hover:bg-[var(--panel-subtle)]"
           }`}
         >
           {RANGE_PRESET_LABELS[preset]}
         </button>
       ))}
       {showCustom ? (
-        <div className="flex items-center gap-1 text-sm text-black/60">
+        <div className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
           <input
             type="date"
             value={value.customStart}
             onChange={(e) =>
               onChange({ ...value, preset: "custom", customStart: e.target.value })
             }
-            className="rounded-md border border-black/10 bg-white px-2 py-1"
+            className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-1 text-[var(--text)]"
           />
           <span>to</span>
           <input
             type="date"
             value={value.customEnd}
             onChange={(e) => onChange({ ...value, preset: "custom", customEnd: e.target.value })}
-            className="rounded-md border border-black/10 bg-white px-2 py-1"
+            className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-1 text-[var(--text)]"
           />
         </div>
       ) : null}
