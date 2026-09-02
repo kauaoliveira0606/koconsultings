@@ -89,14 +89,19 @@ export function WeeklyScorecard() {
 
         {data ? (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full table-fixed border-collapse">
+              <colgroup>
+                <col style={{ width: "148px" }} />
+                {data.dayDates.map((d) => (
+                  <col key={d} style={{ width: "92px" }} />
+                ))}
+                <col style={{ width: "104px" }} />
+                <col style={{ width: "92px" }} />
+              </colgroup>
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 w-40 bg-[var(--panel-bg)] px-2 py-1.5 text-left text-xs font-semibold uppercase text-[var(--text-muted)] backdrop-blur-sm">
+                  <th className="sticky left-0 z-10 bg-[var(--panel-bg)] px-2 py-1.5 text-left text-xs font-semibold uppercase text-[var(--text-muted)] backdrop-blur-sm">
                     Metric
-                  </th>
-                  <th className="border border-[var(--panel-border)] px-2 py-1.5 text-right text-xs font-semibold uppercase text-[var(--text-muted)]">
-                    KPI
                   </th>
                   {data.dayDates.map((d, i) => {
                     const [, m, day] = d.split("-");
@@ -112,6 +117,9 @@ export function WeeklyScorecard() {
                   })}
                   <th className="border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-2 py-1.5 text-right text-xs font-semibold text-[var(--text)]">
                     WEEK
+                  </th>
+                  <th className="border border-[var(--panel-border)] px-2 py-1.5 text-right text-xs font-semibold uppercase text-[var(--text-muted)]">
+                    KPI
                   </th>
                 </tr>
               </thead>
@@ -153,12 +161,9 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
       </tr>
       {rows.map((row) => (
         <tr key={row.key}>
-          <th className="sticky left-0 z-10 w-40 bg-[var(--panel-bg)] px-2 py-1.5 text-left align-middle backdrop-blur-sm">
+          <th className="sticky left-0 z-10 bg-[var(--panel-bg)] px-2 py-1.5 text-left align-middle backdrop-blur-sm">
             <span className="text-sm font-medium leading-tight text-[var(--text-strong)]">{row.label}</span>
           </th>
-          <td className="border border-[var(--panel-border)] px-2 py-1.5 text-right text-xs font-medium tabular-nums text-[var(--text-muted)]">
-            {kpiText(row)}
-          </td>
           {row.days.map((cell) => (
             <Cell key={cell.date} value={cell.value} status={cell.status} format={row.format} />
           ))}
@@ -171,6 +176,9 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
             }
           >
             {formatStatValue(row.week.value, row.format)}
+          </td>
+          <td className="border border-[var(--panel-border)] px-2 py-1.5 text-right text-xs font-medium tabular-nums text-[var(--text-muted)]">
+            {kpiText(row)}
           </td>
         </tr>
       ))}

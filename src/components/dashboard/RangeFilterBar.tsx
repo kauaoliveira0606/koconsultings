@@ -37,7 +37,7 @@ export function RangeFilterBar({
           onClick={() => onChange({ ...value, preset })}
           className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             value.preset === preset
-              ? "bg-[var(--text-strong)] text-[var(--panel-bg)]"
+              ? "bg-[var(--btn-active-bg)] text-[var(--btn-active-fg)]"
               : "bg-[var(--panel-bg)] text-[var(--text-muted)] border border-[var(--panel-border)] hover:bg-[var(--panel-subtle)]"
           }`}
         >

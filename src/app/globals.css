@@ -34,6 +34,8 @@
   --text: rgba(0, 0, 0, 0.8);
   --text-muted: rgba(0, 0, 0, 0.55);
   --accent: #2563eb;
+  --btn-active-bg: #0a0a0a;
+  --btn-active-fg: #ffffff;
   --cell-green-bg: #d1fae5;
   --cell-green-text: #065f46;
   --cell-yellow-bg: #fef3c7;
@@ -51,20 +53,77 @@
   --panel-bg: rgba(19, 35, 69, 0.62);
   --panel-subtle: rgba(120, 160, 255, 0.09);
   --panel-border: rgba(130, 170, 255, 0.24);
-  --text-strong: #f7faff;
-  --text: rgba(238, 244, 255, 0.98);
-  --text-muted: rgba(214, 226, 255, 0.82);
-  --accent: #7db4ff;
-  --cell-green-bg: rgba(16, 185, 129, 0.22);
-  --cell-green-text: #6ee7b7;
-  --cell-yellow-bg: rgba(245, 190, 66, 0.2);
-  --cell-yellow-text: #fcd34d;
-  --cell-red-bg: rgba(248, 81, 96, 0.24);
-  --cell-red-text: #fca5a5;
+  --text-strong: #ffffff;
+  --text: #ffffff;
+  --text-muted: #ffffff;
+  --accent: #ffffff;
+  --btn-active-bg: #ffffff;
+  --btn-active-fg: #0a1430;
+  --cell-green-bg: rgba(16, 185, 129, 0.32);
+  --cell-green-text: #ffffff;
+  --cell-yellow-bg: rgba(245, 190, 66, 0.32);
+  --cell-yellow-text: #ffffff;
+  --cell-red-bg: rgba(248, 81, 96, 0.36);
+  --cell-red-text: #ffffff;
 }
 
 [data-theme="deepspace"] ::selection {
   background: rgba(96, 165, 250, 0.35);
+}
+
+/*
+ * Safety net: many dashboard subpages (Sales Team tables, Models, Ads
+ * Analysis) hardcode light Tailwind utilities (bg-white, text-black/50,
+ * border-black/10, …). Rather than hand-convert every one, remap them to
+ * readable dark-theme values whenever they render inside a deepspace
+ * wrapper. Scoped to [data-theme="deepspace"] so the other offers are
+ * untouched.
+ */
+[data-theme="deepspace"] .bg-white {
+  background-color: var(--panel-bg) !important;
+}
+[data-theme="deepspace"] .bg-blue-50 {
+  background-color: rgba(125, 180, 255, 0.16) !important;
+}
+[data-theme="deepspace"] .text-black,
+[data-theme="deepspace"] [class*="text-black/"] {
+  color: #ffffff !important;
+}
+[data-theme="deepspace"] [class*="border-black/"],
+[data-theme="deepspace"] .border-black,
+[data-theme="deepspace"] [class*="divide-black/"] > * + * {
+  border-color: var(--panel-border) !important;
+}
+/* solid dark buttons / pills → light-blue primary on dark */
+[data-theme="deepspace"] .bg-black {
+  background-color: rgba(125, 180, 255, 0.92) !important;
+  color: #0a1430 !important;
+}
+[data-theme="deepspace"] .bg-black .text-white,
+[data-theme="deepspace"] .bg-black.text-white {
+  color: #0a1430 !important;
+}
+[data-theme="deepspace"] [class*="hover:bg-black/"]:hover {
+  background-color: rgba(125, 180, 255, 0.8) !important;
+}
+[data-theme="deepspace"] .bg-black\/5,
+[data-theme="deepspace"] .bg-black\/10,
+[data-theme="deepspace"] .bg-black\/\[0\.03\] {
+  background-color: var(--panel-subtle) !important;
+}
+[data-theme="deepspace"] input,
+[data-theme="deepspace"] select,
+[data-theme="deepspace"] textarea {
+  background-color: var(--panel-bg) !important;
+  color: #ffffff !important;
+  border-color: var(--panel-border) !important;
+}
+[data-theme="deepspace"] input::placeholder,
+[data-theme="deepspace"] textarea::placeholder {
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+[data-theme="deepspace"] option {
+  color: #0a1430;
 }
 
 body {

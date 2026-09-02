@@ -1,9 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
-import { RangeFilterBar, defaultRangeState } from "@/components/dashboard/RangeFilterBar";
+import {
+  RangeFilterBar,
+  defaultRangeState,
+  type RangeState,
+} from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
@@ -46,6 +51,14 @@ type LeadSourcesResponse = {
 };
 
 type CrossCheckResponse = { mismatched: boolean; details: string[] };
+
+type PlanSplitResponse = {
+  monthly: number;
+  yearly: number;
+  unknown: number;
+  total: number;
+  yearlyShare: number | null;
+};
 
 
 type RecentChangesResponse = {
@@ -96,14 +109,23 @@ const RECENT_CHANGES_FORMATS: Record<string, StatFormat> = {
 export default function OverviewPage() {
   const { range, setRange } = useSharedRange();
 
+  const [leadSourcesRange, setLeadSourcesRange] = useState<RangeState>(
+    defaultRangeState("last_7_days")
+  );
+  const [planRange, setPlanRange] = useState<RangeState>(defaultRangeState("last_7_days"));
+
   const { data: metrics } = useSectionData<MetricsResponse>("/api/bronson/overview/metrics", range);
   const { data: leadSources } = useSectionData<LeadSourcesResponse>(
     "/api/bronson/overview/lead-sources",
-    range
+    leadSourcesRange
   );
   const { data: crossCheck } = useSectionData<CrossCheckResponse>(
     "/api/bronson/overview/cross-check",
-    range
+    leadSourcesRange
+  );
+  const { data: planSplit } = useSectionData<PlanSplitResponse>(
+    "/api/bronson/overview/plan-split",
+    planRange
   );
 
   return (
@@ -160,13 +182,33 @@ export default function OverviewPage() {
         />
       </DashboardSection>
 
-      <DashboardSection title="Yearly / Monthly Plan Split">
-        <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm text-[var(--text-muted)] backdrop-blur-sm">
-          No monthly or yearly plans in this range.
-        </div>
+      <DashboardSection
+        title="Yearly / Monthly Plan Split"
+        action={<RangeFilterBar value={planRange} onChange={setPlanRange} />}
+      >
+        {planSplit && planSplit.total > 0 ? (
+          <StatCardGrid>
+            <StatCard label="Monthly Plans" value={planSplit.monthly} format="number" />
+            <StatCard label="Yearly Plans" value={planSplit.yearly} format="number" />
+            <StatCard label="Total Closes" value={planSplit.total} format="number" />
+            <StatCard
+              label="Yearly Share"
+              value={planSplit.yearlyShare}
+              format="percent"
+              subtext="Yearly ÷ total PCN closes"
+            />
+          </StatCardGrid>
+        ) : (
+          <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm text-[var(--text-muted)] backdrop-blur-sm">
+            No monthly or yearly plans in this range.
+          </div>
+        )}
       </DashboardSection>
 
-      <DashboardSection title="Lead Sources">
+      <DashboardSection
+        title="Lead Sources"
+        action={<RangeFilterBar value={leadSourcesRange} onChange={setLeadSourcesRange} />}
+      >
         <StatCardGrid>
           <StatCard label="Paid Leads (Tracked)" value={leadSources?.paidLeadsTracked} format="number" />
           <StatCard label="Organic Leads (Tracked)" value={leadSources?.organicLeadsTracked} format="number" />
