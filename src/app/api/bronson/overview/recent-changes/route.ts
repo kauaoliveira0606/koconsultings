@@ -26,13 +26,10 @@ export async function GET() {
         ? {
             adSpend: row.adSpendMeta,
             costPerLead: row.costPerLeadMeta,
-            optInsPaid: row.optInsPaid,
-            optInsOrganic: row.optInsOrganic,
             landingPageConnectRate: row.landingPageConnectRate,
             vslViews: row.vslViews,
             vslPlayRate: row.vslPlayRate,
             vslEngagementRate: row.vslEngagementRate,
-            emailOpenRate: row.confirmationEmailOpenRate,
             dials: row.dials,
             connectionRate: row.connectionRate,
             sales: row.salesLowTicket,
