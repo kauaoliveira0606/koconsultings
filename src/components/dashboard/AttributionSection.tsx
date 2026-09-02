@@ -47,7 +47,7 @@ export function AttributionSection({
 }) {
   const t = THEME[theme];
   const { data } = useSWR<AttributionResponse>(apiPath, fetcher);
-  const [granularity, setGranularity] = useState<AttributionGranularity>("month");
+  const [granularity, setGranularity] = useState<AttributionGranularity>("week");
   const [periodKey, setPeriodKey] = useState<string | null>(null);
 
   const buckets = data ? data[granularity] : [];
