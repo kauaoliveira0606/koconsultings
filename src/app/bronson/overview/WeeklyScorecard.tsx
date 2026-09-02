@@ -22,9 +22,10 @@ const STATUS_STYLE: Record<Exclude<CellStatus, null>, React.CSSProperties> = {
   red: { background: "var(--cell-red-bg)", color: "var(--cell-red-text)" },
 };
 
-function goalText(row: ScorecardRow): string | null {
-  if (row.goal === null || row.goalDirection === null) return null;
-  return `Goal ${formatStatValue(row.goal, row.format)}${row.goalDirection === "higher" ? "+" : " or less"}`;
+function kpiText(row: ScorecardRow): string {
+  if (row.goal === null || row.goalDirection === null) return "—";
+  const v = formatStatValue(row.goal, row.format);
+  return row.goalDirection === "higher" ? `≥ ${v}` : `≤ ${v}`;
 }
 
 function Cell({
@@ -91,8 +92,11 @@ export function WeeklyScorecard() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 bg-[var(--panel-bg)] px-2 py-1.5 text-left text-xs font-semibold uppercase text-[var(--text-muted)] backdrop-blur-sm">
+                  <th className="sticky left-0 z-10 w-40 bg-[var(--panel-bg)] px-2 py-1.5 text-left text-xs font-semibold uppercase text-[var(--text-muted)] backdrop-blur-sm">
                     Metric
+                  </th>
+                  <th className="border border-[var(--panel-border)] px-2 py-1.5 text-right text-xs font-semibold uppercase text-[var(--text-muted)]">
+                    KPI
                   </th>
                   {data.dayDates.map((d, i) => {
                     const [, m, day] = d.split("-");
@@ -141,7 +145,7 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
     <>
       <tr>
         <td
-          colSpan={9}
+          colSpan={10}
           className="sticky left-0 bg-[var(--panel-subtle)] px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
         >
           {emoji} {title}
@@ -149,10 +153,12 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
       </tr>
       {rows.map((row) => (
         <tr key={row.key}>
-          <th className="sticky left-0 z-10 bg-[var(--panel-bg)] px-2 py-1.5 text-left align-top backdrop-blur-sm">
-            <div className="text-sm font-medium text-[var(--text-strong)]">{row.label}</div>
-            {goalText(row) ? <div className="text-xs text-[var(--text-muted)]">{goalText(row)}</div> : null}
+          <th className="sticky left-0 z-10 w-40 bg-[var(--panel-bg)] px-2 py-1.5 text-left align-middle backdrop-blur-sm">
+            <span className="text-sm font-medium leading-tight text-[var(--text-strong)]">{row.label}</span>
           </th>
+          <td className="border border-[var(--panel-border)] px-2 py-1.5 text-right text-xs font-medium tabular-nums text-[var(--text-muted)]">
+            {kpiText(row)}
+          </td>
           {row.days.map((cell) => (
             <Cell key={cell.date} value={cell.value} status={cell.status} format={row.format} />
           ))}

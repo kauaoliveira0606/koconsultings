@@ -48,13 +48,13 @@
     radial-gradient(900px 520px at 112% 4%, rgba(23, 86, 170, 0.22), transparent 55%),
     radial-gradient(700px 700px at 50% 120%, rgba(37, 99, 235, 0.14), transparent 60%),
     linear-gradient(180deg, #050912 0%, #091430 55%, #0a1a3a 100%);
-  --panel-bg: rgba(17, 32, 64, 0.55);
-  --panel-subtle: rgba(120, 160, 255, 0.07);
-  --panel-border: rgba(122, 162, 255, 0.18);
-  --text-strong: #eef3ff;
-  --text: rgba(226, 235, 255, 0.86);
-  --text-muted: rgba(188, 208, 255, 0.55);
-  --accent: #60a5fa;
+  --panel-bg: rgba(19, 35, 69, 0.62);
+  --panel-subtle: rgba(120, 160, 255, 0.09);
+  --panel-border: rgba(130, 170, 255, 0.24);
+  --text-strong: #f7faff;
+  --text: rgba(238, 244, 255, 0.98);
+  --text-muted: rgba(214, 226, 255, 0.82);
+  --accent: #7db4ff;
   --cell-green-bg: rgba(16, 185, 129, 0.22);
   --cell-green-text: #6ee7b7;
   --cell-yellow-bg: rgba(245, 190, 66, 0.2);
