@@ -46,20 +46,6 @@ type ByRepResponse = {
   }[];
 };
 
-type CpaResponse = {
-  totalCpaCollected: number | null;
-  totalCpaByDay: { date: string; total: number }[];
-  records: {
-    id: string;
-    date: string | null;
-    repName: string | null;
-    leadName: string | null;
-    software: string | null;
-    plan: string | null;
-    cpaCash: number | null;
-  }[];
-};
-
 function formatMinutes(minutes: number | null): string {
   if (minutes === null || !Number.isFinite(minutes)) return "—";
   return `${minutes.toFixed(1)}m`;
@@ -77,7 +63,6 @@ export default function SalesTeamPage() {
     range
   );
   const { data: byRep } = useSectionData<ByRepResponse>("/api/bronson/sales-team/by-rep", range);
-  const { data: cpa } = useSectionData<CpaResponse>("/api/bronson/sales-team/cpa", range);
 
   const repColumns: Column<ByRepResponse["reps"][number]>[] = [
     { key: "rep", header: "Rep", render: (r) => r.rep },
@@ -127,30 +112,6 @@ export default function SalesTeamPage() {
     },
   ];
 
-  const cpaByDayColumns: Column<CpaResponse["totalCpaByDay"][number]>[] = [
-    { key: "date", header: "Date", render: (d) => d.date },
-    {
-      key: "total",
-      header: "Total CPA",
-      render: (d) => formatStatValue(d.total, "currency"),
-      align: "right",
-    },
-  ];
-
-  const cpaRecordColumns: Column<CpaResponse["records"][number]>[] = [
-    { key: "date", header: "Date", render: (r) => (r.date ? formatDateTime(r.date) : "—") },
-    { key: "rep", header: "Rep", render: (r) => r.repName ?? "Unknown" },
-    { key: "lead", header: "Lead", render: (r) => r.leadName ?? "—" },
-    { key: "software", header: "Software", render: (r) => r.software ?? "—" },
-    { key: "plan", header: "Plan", render: (r) => r.plan ?? "—" },
-    {
-      key: "cpa",
-      header: "CPA / Cash",
-      render: (r) => formatStatValue(r.cpaCash, "currency"),
-      align: "right",
-    },
-  ];
-
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -187,20 +148,6 @@ export default function SalesTeamPage() {
 
       <DashboardSection title="By Rep">
         <DataTable columns={repColumns} rows={byRep?.reps ?? []} rowKey={(r) => r.rep} />
-      </DashboardSection>
-
-      <DashboardSection title="Affiliate CPA">
-        <StatCardGrid>
-          <StatCard label="Total CPA Collected" value={cpa?.totalCpaCollected} format="currency" />
-        </StatCardGrid>
-      </DashboardSection>
-
-      <DashboardSection title="Total CPA by Day">
-        <DataTable columns={cpaByDayColumns} rows={cpa?.totalCpaByDay ?? []} rowKey={(d) => d.date} />
-      </DashboardSection>
-
-      <DashboardSection title="Affiliate PCN Records">
-        <DataTable columns={cpaRecordColumns} rows={cpa?.records ?? []} rowKey={(r) => r.id} />
       </DashboardSection>
 
       <DashboardSection title="Speed to Lead">
