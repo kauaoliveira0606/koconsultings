@@ -32,6 +32,7 @@ type MetricsResponse = {
 };
 
 type LeadSourcesResponse = {
+  totalLeadsTracked: number;
   paidLeadsTracked: number;
   organicLeadsTracked: number;
   cashCollectedPaid: number | null;
@@ -49,8 +50,6 @@ type LeadSourcesResponse = {
     organicClosed: number;
   };
 };
-
-type CrossCheckResponse = { mismatched: boolean; details: string[] };
 
 type PlanSplitResponse = {
   monthly: number;
@@ -117,10 +116,6 @@ export default function OverviewPage() {
   const { data: metrics } = useSectionData<MetricsResponse>("/api/bronson/overview/metrics", range);
   const { data: leadSources } = useSectionData<LeadSourcesResponse>(
     "/api/bronson/overview/lead-sources",
-    leadSourcesRange
-  );
-  const { data: crossCheck } = useSectionData<CrossCheckResponse>(
-    "/api/bronson/overview/cross-check",
     leadSourcesRange
   );
   const { data: planSplit } = useSectionData<PlanSplitResponse>(
@@ -210,6 +205,12 @@ export default function OverviewPage() {
         action={<RangeFilterBar value={leadSourcesRange} onChange={setLeadSourcesRange} />}
       >
         <StatCardGrid>
+          <StatCard
+            label="Total Leads (Tracked)"
+            value={leadSources?.totalLeadsTracked}
+            format="number"
+            subtext="Paid + Organic tracked leads"
+          />
           <StatCard label="Paid Leads (Tracked)" value={leadSources?.paidLeadsTracked} format="number" />
           <StatCard label="Organic Leads (Tracked)" value={leadSources?.organicLeadsTracked} format="number" />
           <StatCard
@@ -249,15 +250,6 @@ export default function OverviewPage() {
             subtext="Ad Spend ÷ Paid leads that actually closed"
           />
         </StatCardGrid>
-
-        {crossCheck?.mismatched ? (
-          <div className="mt-4 rounded-lg border border-amber-400/40 bg-amber-400/10 p-4 text-sm text-amber-200">
-            <span className="font-semibold">Cross-check mismatch:</span> the Marketing Daily
-            Metrics form&apos;s manually-typed opt-ins don&apos;t match the tracked lead count for
-            this range — {crossCheck.details.join("; ")}. Worth checking whether the source
-            tagging is firing correctly or the manual entry is stale.
-          </div>
-        ) : null}
 
         <div className="mt-4 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm backdrop-blur-sm">
           <p className="text-[var(--text)]">

@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
   const matchedToLead = inRangePcn.filter((r) => lookupSource(lookup, r.leadEmail) !== null).length;
 
   return Response.json({
+    totalLeadsTracked: paidLeads.length + organicLeads.length,
     paidLeadsTracked: paidLeads.length,
     organicLeadsTracked: organicLeads.length,
     cashCollectedPaid: merged.cashCollectedPaid,
