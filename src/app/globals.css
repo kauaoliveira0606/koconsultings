@@ -126,6 +126,49 @@
   color: #0a1430;
 }
 
+/*
+ * Opt-out island: a `.ko-light-panel` subtree inside the deepspace theme
+ * renders as a plain white card with dark text (used for the Speed to Lead
+ * tracker, which the client wants to read light-on-white). Higher
+ * specificity than the safety-net rules above, so it wins.
+ */
+[data-theme="deepspace"] .ko-light-panel {
+  --panel-bg: #f4f6fb;
+  --panel-subtle: rgba(0, 0, 0, 0.03);
+  --panel-border: rgba(0, 0, 0, 0.12);
+  --text-strong: #0a0a0a;
+  --text: rgba(0, 0, 0, 0.85);
+  --text-muted: rgba(0, 0, 0, 0.55);
+  --btn-active-bg: #0a0a0a;
+  --btn-active-fg: #ffffff;
+  --cell-green-bg: #d1fae5;
+  --cell-green-text: #065f46;
+  --cell-yellow-bg: #fef3c7;
+  --cell-yellow-text: #92400e;
+  --cell-red-bg: #fee2e2;
+  --cell-red-text: #991b1b;
+  margin-top: 2rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  padding: 0.5rem 1.25rem 1.25rem;
+  color: rgba(0, 0, 0, 0.85);
+}
+[data-theme="deepspace"] .ko-light-panel .bg-white {
+  background-color: #ffffff !important;
+}
+[data-theme="deepspace"] .ko-light-panel .text-black,
+[data-theme="deepspace"] .ko-light-panel [class*="text-black/"] {
+  color: rgba(0, 0, 0, 0.75) !important;
+}
+[data-theme="deepspace"] .ko-light-panel [class*="border-black/"],
+[data-theme="deepspace"] .ko-light-panel [class*="divide-black/"] > * + * {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+[data-theme="deepspace"] .ko-light-panel [class*="bg-black/"] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

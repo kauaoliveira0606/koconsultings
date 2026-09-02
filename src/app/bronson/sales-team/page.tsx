@@ -11,7 +11,13 @@ import { formatDateTime, formatStatValue } from "@/lib/format";
 type SpeedToLeadResponse = {
   avgSpeedToLead: number | null;
   medianSpeedToLead: number | null;
-  leadsCalled: { called: number; total: number; notYetCalled: number };
+  leadsCalled: {
+    called: number;
+    total: number;
+    notYetCalled: number;
+    calledUnder5: number;
+    under5Rate: number | null;
+  };
   leads: {
     id: string;
     name: string | null;
@@ -21,6 +27,17 @@ type SpeedToLeadResponse = {
     status: string | null;
   }[];
 };
+
+type SpeedBucket = { label: string; className: string };
+
+function speedBucket(minutesToCall: number | null, firstCallAt: string | null): SpeedBucket {
+  if (!firstCallAt || minutesToCall === null || !Number.isFinite(minutesToCall)) {
+    return { label: "Not called yet", className: "bg-black/5 text-black/50" };
+  }
+  if (minutesToCall < 5) return { label: "Under 5 min", className: "bg-green-100 text-green-800" };
+  if (minutesToCall <= 10) return { label: "5–10 min", className: "bg-amber-100 text-amber-800" };
+  return { label: "Over 10 min", className: "bg-red-100 text-red-800" };
+}
 
 type TeamTotalsResponse = {
   outboundDials: number | null;
@@ -101,14 +118,14 @@ export default function SalesTeamPage() {
     {
       key: "status",
       header: "Status",
-      render: (l) =>
-        l.firstCallAt ? (
-          l.status ?? "—"
-        ) : (
-          <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs text-black/50">
-            Not called yet
+      render: (l) => {
+        const bucket = speedBucket(l.minutesToCall, l.firstCallAt);
+        return (
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${bucket.className}`}>
+            {bucket.label}
           </span>
-        ),
+        );
+      },
     },
   ];
 
@@ -150,30 +167,48 @@ export default function SalesTeamPage() {
         <DataTable columns={repColumns} rows={byRep?.reps ?? []} rowKey={(r) => r.rep} />
       </DashboardSection>
 
-      <DashboardSection title="Speed to Lead">
-        <StatCardGrid>
-          <StatCard label="Avg. Speed to Lead" value={speedToLead?.avgSpeedToLead} format="number" />
-          <StatCard label="Median Speed to Lead" value={speedToLead?.medianSpeedToLead} format="number" />
-          <StatCard
-            label="Leads Called"
-            value={speedToLead?.leadsCalled.called}
-            format="number"
-            subtext={
-              speedToLead
-                ? `${speedToLead.leadsCalled.called}/${speedToLead.leadsCalled.total} — ${speedToLead.leadsCalled.notYetCalled} not yet called`
-                : undefined
-            }
-          />
-        </StatCardGrid>
-      </DashboardSection>
+      <div className="ko-light-panel">
+        <DashboardSection title="Speed to Lead">
+          <StatCardGrid>
+            <StatCard label="Avg. Speed to Lead" value={speedToLead?.avgSpeedToLead} format="number" />
+            <StatCard label="Median Speed to Lead" value={speedToLead?.medianSpeedToLead} format="number" />
+            <StatCard
+              label="Leads Called"
+              value={speedToLead?.leadsCalled.called}
+              format="number"
+              subtext={
+                speedToLead
+                  ? `${speedToLead.leadsCalled.called}/${speedToLead.leadsCalled.total} — ${speedToLead.leadsCalled.notYetCalled} not yet called`
+                  : undefined
+              }
+            />
+            <StatCard
+              label="Called Under 5 Min"
+              value={speedToLead?.leadsCalled.calledUnder5}
+              format="number"
+              subtext={
+                speedToLead
+                  ? `of ${speedToLead.leadsCalled.total} total opt-ins`
+                  : undefined
+              }
+            />
+            <StatCard
+              label="% Called Under 5 Min"
+              value={speedToLead?.leadsCalled.under5Rate}
+              format="percent"
+              subtext="Under-5-min calls ÷ total opt-ins"
+            />
+          </StatCardGrid>
+        </DashboardSection>
 
-      <DashboardSection title="Leads — Speed to Lead Detail">
-        <DataTable
-          columns={leadColumns}
-          rows={speedToLead?.leads ?? []}
-          rowKey={(l) => l.id}
-        />
-      </DashboardSection>
+        <DashboardSection title="Leads — Speed to Lead Detail">
+          <DataTable
+            columns={leadColumns}
+            rows={speedToLead?.leads ?? []}
+            rowKey={(l) => l.id}
+          />
+        </DashboardSection>
+      </div>
     </div>
   );
 }
