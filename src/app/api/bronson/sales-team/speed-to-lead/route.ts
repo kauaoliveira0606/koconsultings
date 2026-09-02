@@ -48,7 +48,9 @@ export async function GET(request: NextRequest) {
     .map((r) => ({
       ...r,
       everSpokeTo: !r.firstCallAt && !!normName(r.name) && spokenTo.has(normName(r.name) as string),
-    }));
+    }))
+    // newest opt-in first
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 
   return Response.json({
     avgSpeedToLead: avgSpeedToLead(inRange),
