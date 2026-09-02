@@ -91,7 +91,7 @@ export function BronsonSidebar() {
         </div>
       ) : null}
 
-      <aside className="hidden w-52 shrink-0 border-r border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm lg:block">
+      <aside className="sticky top-0 hidden h-screen w-52 shrink-0 self-start overflow-y-auto border-r border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm lg:block">
         <div className="mb-8">
           <Brand />
         </div>
