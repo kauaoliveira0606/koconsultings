@@ -25,13 +25,24 @@ type SpeedToLeadResponse = {
     firstCallAt: string | null;
     minutesToCall: number | null;
     status: string | null;
+    everSpokeTo?: boolean;
   }[];
 };
 
 type SpeedBucket = { label: string; className: string };
 
-function speedBucket(minutesToCall: number | null, firstCallAt: string | null): SpeedBucket {
+function speedBucket(lead: {
+  minutesToCall: number | null;
+  firstCallAt: string | null;
+  everSpokeTo?: boolean;
+}): SpeedBucket {
+  const { minutesToCall, firstCallAt, everSpokeTo } = lead;
   if (!firstCallAt || minutesToCall === null || !Number.isFinite(minutesToCall)) {
+    // No first-call timestamp on the Speed to Lead table — but if the lead
+    // turns up in a call log we still know they were reached.
+    if (everSpokeTo) {
+      return { label: "Called (no timestamp)", className: "bg-blue-100 text-blue-800" };
+    }
     return { label: "Not called yet", className: "bg-black/5 text-black/50" };
   }
   if (minutesToCall < 5) return { label: "Under 5 min", className: "bg-green-100 text-green-800" };
@@ -119,7 +130,7 @@ export default function SalesTeamPage() {
       key: "status",
       header: "Status",
       render: (l) => {
-        const bucket = speedBucket(l.minutesToCall, l.firstCallAt);
+        const bucket = speedBucket(l);
         return (
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${bucket.className}`}>
             {bucket.label}
