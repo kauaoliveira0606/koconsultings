@@ -51,14 +51,23 @@ function buildQueryString(params: ListParams, offset?: string): string {
 }
 
 /**
- * Fetches every record from an Airtable table, following the `offset`
- * pagination cursor until exhausted. Always runs server-side.
+ * Airtable's `offset` pagination tokens are short-lived server-side
+ * iterators (they expire after a few minutes). Next's fetch cache would
+ * happily replay a `?offset=...` page from a previous request, so a cached
+ * first page could hand us a token that Airtable has already discarded by
+ * the time we ask for the next page — Airtable then answers 422
+ * (LIST_RECORDS_ITERATOR_NOT_AVAILABLE) and the whole route 500s, leaving
+ * that dashboard section blank. To avoid it, only the first page (no
+ * offset in the URL) is cached; every follow-up page is fetched
+ * `no-store` so a single coherent iterator walk always runs fresh.
  */
-export async function airtableListAll<TFields = Record<string, unknown>>(
+const RETRYABLE_STATUSES = new Set([422, 429, 500, 502, 503, 504]);
+
+async function walkAllPages<TFields>(
   baseId: string,
   tableId: string,
-  params: ListParams = {},
-  revalidateSeconds = 60
+  params: ListParams,
+  revalidateSeconds: number
 ): Promise<AirtableRecord<TFields>[]> {
   const pat = getPat();
   const records: AirtableRecord<TFields>[] = [];
@@ -69,7 +78,9 @@ export async function airtableListAll<TFields = Record<string, unknown>>(
     const url = `${AIRTABLE_API_BASE}/${baseId}/${tableId}${qs ? `?${qs}` : ""}`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${pat}` },
-      next: { revalidate: revalidateSeconds },
+      ...(offset
+        ? { cache: "no-store" as const }
+        : { next: { revalidate: revalidateSeconds } }),
     });
 
     if (!res.ok) {
@@ -88,4 +99,27 @@ export async function airtableListAll<TFields = Record<string, unknown>>(
   } while (offset);
 
   return records;
+}
+
+/**
+ * Fetches every record from an Airtable table, following the `offset`
+ * pagination cursor until exhausted. Always runs server-side. Retries the
+ * whole walk once on a transient Airtable error (expired iterator, rate
+ * limit, 5xx) so one hiccup doesn't blank a section.
+ */
+export async function airtableListAll<TFields = Record<string, unknown>>(
+  baseId: string,
+  tableId: string,
+  params: ListParams = {},
+  revalidateSeconds = 60
+): Promise<AirtableRecord<TFields>[]> {
+  try {
+    return await walkAllPages<TFields>(baseId, tableId, params, revalidateSeconds);
+  } catch (err) {
+    if (err instanceof AirtableError && RETRYABLE_STATUSES.has(err.status)) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return walkAllPages<TFields>(baseId, tableId, params, revalidateSeconds);
+    }
+    throw err;
+  }
 }
