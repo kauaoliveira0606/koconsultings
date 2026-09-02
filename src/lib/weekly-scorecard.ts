@@ -1,5 +1,6 @@
 import type { StatFormat } from "./format";
-import type { MarketingDailyMetricRow } from "./airtable/tables";
+import type { LeadRow, MarketingDailyMetricRow } from "./airtable/tables";
+import { isOrganicSource, isPaidSource } from "./airtable/lead-source-lookup";
 import { average, roas, safeDivide, sum } from "./metrics";
 import { getGoals } from "./goals";
 
@@ -88,16 +89,31 @@ export function cellStatus(
   return "red";
 }
 
+/** What a single day's cell gets to see. */
+type DayCtx = {
+  date: string;
+  /** the Marketing Daily Metrics row for this day, if one was submitted */
+  m?: MarketingDailyMetricRow;
+  /** Paid / Organic lead counts for this day, from the Airtable Leads table */
+  paidLeads: number;
+  organicLeads: number;
+};
+
+/** What the WEEK column gets to see. */
+type WeekCtx = {
+  rows: MarketingDailyMetricRow[];
+  paidLeads: number;
+  organicLeads: number;
+};
+
 type MetricSpec = {
   key: string;
   label: string;
   format: StatFormat;
   goal: number | null;
   goalDirection: GoalDirection | null;
-  /** per-day value from that day's row */
-  day: (r: MarketingDailyMetricRow) => number | null;
-  /** week aggregate across the 7 in-week rows */
-  week: (rows: MarketingDailyMetricRow[]) => number | null;
+  day: (c: DayCtx) => number | null;
+  week: (c: WeekCtx) => number | null;
 };
 
 const totalCashOf = (r: MarketingDailyMetricRow): number | null => {
@@ -105,15 +121,21 @@ const totalCashOf = (r: MarketingDailyMetricRow): number | null => {
   return (r.cashCollectedLowTicket ?? 0) + (r.cashCollectedHighTicket ?? 0);
 };
 
+/** Wrap a Marketing-row accessor so it yields null on days with no submission. */
+const fromM =
+  (pick: (r: MarketingDailyMetricRow) => number | null) =>
+  (c: DayCtx): number | null =>
+    c.m ? pick(c.m) : null;
+
 function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
   emoji: string;
   title: string;
   metrics: MetricSpec[];
 }[] {
-  const sumOf = (pick: (r: MarketingDailyMetricRow) => number | null) => (rows: MarketingDailyMetricRow[]) =>
-    sum(rows.map(pick));
-  const avgOf = (pick: (r: MarketingDailyMetricRow) => number | null) => (rows: MarketingDailyMetricRow[]) =>
-    average(rows.map(pick));
+  const sumOf = (pick: (r: MarketingDailyMetricRow) => number | null) => (c: WeekCtx) =>
+    sum(c.rows.map(pick));
+  const avgOf = (pick: (r: MarketingDailyMetricRow) => number | null) => (c: WeekCtx) =>
+    average(c.rows.map(pick));
 
   return [
     {
@@ -126,7 +148,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: null,
           goalDirection: null,
-          day: (r) => r.adSpendMeta,
+          day: fromM((r) => r.adSpendMeta),
           week: sumOf((r) => r.adSpendMeta),
         },
         {
@@ -135,10 +157,9 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: goals.costPerLeadMeta?.max ?? null,
           goalDirection: "lower",
-          day: (r) => r.costPerLeadMeta,
-          // Cost per *paid* lead — ad spend buys paid opt-ins, not organic ones.
-          week: (rows) =>
-            safeDivide(sum(rows.map((r) => r.adSpendMeta)), sum(rows.map((r) => r.optInsPaid))),
+          day: fromM((r) => r.costPerLeadMeta),
+          // Cost per *paid* lead — ad spend buys paid leads, not organic ones.
+          week: (c) => safeDivide(sum(c.rows.map((r) => r.adSpendMeta)), c.paidLeads || null),
         },
         {
           key: "cashCollectedLowTicket",
@@ -146,7 +167,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: goals.cashCollectedLowTicket,
           goalDirection: goals.cashCollectedLowTicket === null ? null : "higher",
-          day: (r) => r.cashCollectedLowTicket,
+          day: fromM((r) => r.cashCollectedLowTicket),
           week: sumOf((r) => r.cashCollectedLowTicket),
         },
         {
@@ -155,7 +176,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.funnelConversionRate?.min ?? null,
           goalDirection: "higher",
-          day: (r) => r.funnelConversionRate,
+          day: fromM((r) => r.funnelConversionRate),
           week: avgOf((r) => r.funnelConversionRate),
         },
         {
@@ -164,8 +185,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "ratio",
           goal: goals.roasTotal?.min ?? null,
           goalDirection: "higher",
-          day: (r) => roas(totalCashOf(r), r.adSpendMeta),
-          week: (rows) => roas(sum(rows.map(totalCashOf)), sum(rows.map((r) => r.adSpendMeta))),
+          day: fromM((r) => roas(totalCashOf(r), r.adSpendMeta)),
+          week: (c) => roas(sum(c.rows.map(totalCashOf)), sum(c.rows.map((r) => r.adSpendMeta))),
         },
         {
           key: "cpaLowTicket",
@@ -173,9 +194,9 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: goals.cpaLowTicket?.max ?? null,
           goalDirection: "lower",
-          day: (r) => safeDivide(r.adSpendMeta, r.salesLowTicket),
-          week: (rows) =>
-            safeDivide(sum(rows.map((r) => r.adSpendMeta)), sum(rows.map((r) => r.salesLowTicket))),
+          day: fromM((r) => safeDivide(r.adSpendMeta, r.salesLowTicket)),
+          week: (c) =>
+            safeDivide(sum(c.rows.map((r) => r.adSpendMeta)), sum(c.rows.map((r) => r.salesLowTicket))),
         },
         {
           key: "totalCashCollected",
@@ -183,7 +204,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: goals.totalCashCollected,
           goalDirection: goals.totalCashCollected === null ? null : "higher",
-          day: totalCashOf,
+          day: fromM(totalCashOf),
           week: sumOf(totalCashOf),
         },
       ],
@@ -198,8 +219,10 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.optInsPaid,
           goalDirection: goals.optInsPaid === null ? null : "higher",
-          day: (r) => r.optInsPaid,
-          week: sumOf((r) => r.optInsPaid),
+          // Sourced from the Airtable Leads table (Source = Paid), same as
+          // the Lead Sources section — not the Marketing Daily Metrics form.
+          day: (c) => (c.paidLeads > 0 || c.m ? c.paidLeads : null),
+          week: (c) => c.paidLeads,
         },
         {
           key: "optInsOrganic",
@@ -207,8 +230,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.optInsOrganic,
           goalDirection: goals.optInsOrganic === null ? null : "higher",
-          day: (r) => r.optInsOrganic,
-          week: sumOf((r) => r.optInsOrganic),
+          day: (c) => (c.organicLeads > 0 || c.m ? c.organicLeads : null),
+          week: (c) => c.organicLeads,
         },
         {
           key: "vslViews",
@@ -216,7 +239,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.vslViews,
           goalDirection: goals.vslViews === null ? null : "higher",
-          day: (r) => r.vslViews,
+          day: fromM((r) => r.vslViews),
           week: sumOf((r) => r.vslViews),
         },
       ],
@@ -231,7 +254,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.dials,
           goalDirection: goals.dials === null ? null : "higher",
-          day: (r) => r.dials,
+          day: fromM((r) => r.dials),
           week: sumOf((r) => r.dials),
         },
         {
@@ -240,7 +263,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.salesLowTicket,
           goalDirection: goals.salesLowTicket === null ? null : "higher",
-          day: (r) => r.salesLowTicket,
+          day: fromM((r) => r.salesLowTicket),
           week: sumOf((r) => r.salesLowTicket),
         },
         {
@@ -249,7 +272,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.closeRateLowTicket?.min ?? null,
           goalDirection: "higher",
-          day: (r) => r.closeRateLowTicket,
+          day: fromM((r) => r.closeRateLowTicket),
           week: avgOf((r) => r.closeRateLowTicket),
         },
       ],
@@ -264,7 +287,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.landingPageConnectRate?.min ?? null,
           goalDirection: "higher",
-          day: (r) => r.landingPageConnectRate,
+          day: fromM((r) => r.landingPageConnectRate),
           week: avgOf((r) => r.landingPageConnectRate),
         },
         {
@@ -273,7 +296,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.optInRate?.min ?? null,
           goalDirection: "higher",
-          day: (r) => r.optInRate,
+          day: fromM((r) => r.optInRate),
           week: avgOf((r) => r.optInRate),
         },
         {
@@ -282,7 +305,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.vslPlayRate?.min ?? null,
           goalDirection: "higher",
-          day: (r) => r.vslPlayRate,
+          day: fromM((r) => r.vslPlayRate),
           week: avgOf((r) => r.vslPlayRate),
         },
         {
@@ -291,17 +314,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.vslEngagementRate?.min ?? null,
           goalDirection: "higher",
-          day: (r) => r.vslEngagementRate,
+          day: fromM((r) => r.vslEngagementRate),
           week: avgOf((r) => r.vslEngagementRate),
-        },
-        {
-          key: "confirmationEmailOpenRate",
-          label: "Confirmation Email Open Rate",
-          format: "percent",
-          goal: goals.confirmationEmailOpenRate?.min ?? null,
-          goalDirection: "higher",
-          day: (r) => r.confirmationEmailOpenRate,
-          week: avgOf((r) => r.confirmationEmailOpenRate),
         },
       ],
     },
@@ -315,7 +329,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.connectionRate?.min ?? null,
           goalDirection: "higher",
-          day: (r) => r.connectionRate,
+          day: fromM((r) => r.connectionRate),
           week: avgOf((r) => r.connectionRate),
         },
       ],
@@ -325,6 +339,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
 
 export async function buildWeeklyScorecard(
   allMarketing: MarketingDailyMetricRow[],
+  allLeads: LeadRow[],
   weekStartInput: string | null,
   now: Date = new Date()
 ): Promise<WeeklyScorecardPayload> {
@@ -334,7 +349,28 @@ export async function buildWeeklyScorecard(
   const weekEnd = dayDates[6];
 
   const byDate = new Map(allMarketing.filter((r) => r.date).map((r) => [r.date as string, r]));
-  const inWeekRows = dayDates.map((d) => byDate.get(d)).filter((r): r is MarketingDailyMetricRow => !!r);
+  const inWeekRows = dayDates
+    .map((d) => byDate.get(d))
+    .filter((r): r is MarketingDailyMetricRow => !!r);
+
+  // Per-day Paid / Organic lead counts from the Leads table (dated by Created At).
+  const paidByDate = new Map<string, number>();
+  const organicByDate = new Map<string, number>();
+  for (const lead of allLeads) {
+    if (!lead.createdAt) continue;
+    if (isPaidSource(lead.source)) {
+      paidByDate.set(lead.createdAt, (paidByDate.get(lead.createdAt) ?? 0) + 1);
+    } else if (isOrganicSource(lead.source)) {
+      organicByDate.set(lead.createdAt, (organicByDate.get(lead.createdAt) ?? 0) + 1);
+    }
+  }
+  const weekPaidLeads = dayDates.reduce((n, d) => n + (paidByDate.get(d) ?? 0), 0);
+  const weekOrganicLeads = dayDates.reduce((n, d) => n + (organicByDate.get(d) ?? 0), 0);
+  const weekCtx: WeekCtx = {
+    rows: inWeekRows,
+    paidLeads: weekPaidLeads,
+    organicLeads: weekOrganicLeads,
+  };
 
   const goals = await getGoals();
   const groups: ScorecardGroup[] = buildSpecs(goals).map((g) => ({
@@ -342,11 +378,16 @@ export async function buildWeeklyScorecard(
     title: g.title,
     rows: g.metrics.map((spec) => {
       const days: ScorecardCell[] = dayDates.map((date) => {
-        const row = byDate.get(date);
-        const value = row ? spec.day(row) : null;
+        const ctx: DayCtx = {
+          date,
+          m: byDate.get(date),
+          paidLeads: paidByDate.get(date) ?? 0,
+          organicLeads: organicByDate.get(date) ?? 0,
+        };
+        const value = spec.day(ctx);
         return { date, value, status: cellStatus(value, spec.goal, spec.goalDirection) };
       });
-      const weekValue = spec.week(inWeekRows);
+      const weekValue = spec.week(weekCtx);
       return {
         key: spec.key,
         label: spec.label,
