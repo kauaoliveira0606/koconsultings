@@ -17,7 +17,10 @@ export const BRONSON_TABLE_IDS: TableIds = {
   marketingDailyMetrics: "tblOMLyTcuhDwUZbF",
   eodDialer: "tblWm3TRktDt075ih",
   eodCloser: "tbl0xIvtCZIjemZRZ",
-  speedToLead: "tblxBgJe2hpDtzUdG",
+  // "Speed to Lead (GHL)" — fed by the n8n "Bronson · Speed to Lead
+  // (GHL → Airtable)" workflow off two GHL Power Dialer workflows.
+  // Replaces the old ad-ventur.com-fed "Speed to Lead" table (tblxBgJe2hpDtzUdG).
+  speedToLead: "tbluBr2D8A2yL20pf",
   leaderboard: "tblumrfxY24tF2D8E",
 };
 
