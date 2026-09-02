@@ -47,9 +47,6 @@ type LeadSourcesResponse = {
 
 type CrossCheckResponse = { mismatched: boolean; details: string[] };
 
-type LeaderboardResponse = {
-  rows: { id: string; name: string | null; entries: number | null }[];
-};
 
 type RecentChangesResponse = {
   days: {
@@ -106,10 +103,6 @@ export default function OverviewPage() {
   );
   const { data: crossCheck } = useSectionData<CrossCheckResponse>(
     "/api/bronson/overview/cross-check",
-    range
-  );
-  const { data: leaderboard } = useSectionData<LeaderboardResponse>(
-    "/api/bronson/overview/leaderboard",
     range
   );
 
@@ -245,27 +238,6 @@ export default function OverviewPage() {
             </p>
           ) : null}
         </div>
-      </DashboardSection>
-
-      <DashboardSection title="Leaderboard">
-        {leaderboard && leaderboard.rows.length > 0 ? (
-          <div className="rounded-lg border border-black/10 bg-white p-4">
-            <ol className="space-y-2">
-              {leaderboard.rows.map((row, i) => (
-                <li key={row.id} className="flex items-center justify-between text-sm">
-                  <span>
-                    {i + 1}. {row.name ?? "Unknown"}
-                  </span>
-                  <span className="font-semibold">{row.entries ?? "—"}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
-            No submissions in this range.
-          </div>
-        )}
       </DashboardSection>
 
       <RecentChanges />
