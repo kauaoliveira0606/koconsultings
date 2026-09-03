@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
-import { isDateInRange } from "@/lib/date-range";
+import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
 import { getPostCallNotes, getBronsonAffiliatePcn, getSpeedToLead } from "@/lib/airtable/tables";
 import { avgSpeedToLead, leadsCalledSummary, medianSpeedToLead } from "@/lib/sales-team-metrics";
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   }
 
   const inRange = rows
-    .filter((r) => isDateInRange(r.createdAt?.slice(0, 10) ?? null, range))
+    .filter((r) => isDateInRange(toEasternDateOnly(r.createdAt), range))
     .map((r) => ({
       ...r,
       everSpokeTo: !r.firstCallAt && !!normName(r.name) && spokenTo.has(normName(r.name) as string),

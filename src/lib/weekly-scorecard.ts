@@ -1,6 +1,7 @@
 import type { StatFormat } from "./format";
 import type { LeadRow, MarketingDailyMetricRow } from "./airtable/tables";
 import { isOrganicSource, isPaidSource } from "./airtable/lead-source-lookup";
+import { easternDateString } from "./date-range";
 import { average, roas, safeDivide, sum } from "./metrics";
 import { getGoals } from "./goals";
 
@@ -46,7 +47,7 @@ export function isoAddDays(iso: string, n: number): string {
 }
 
 export function todayIso(now: Date = new Date()): string {
-  return now.toISOString().slice(0, 10);
+  return easternDateString(now);
 }
 
 /** The Sunday on or before `iso` — weeks run Sunday → Saturday here. */

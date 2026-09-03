@@ -19,54 +19,82 @@ export const RANGE_PRESET_LABELS: Record<RangePreset, string> = {
 
 export type ResolvedRange = { start: string | null; end: string | null };
 
-function toIsoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/**
+ * The whole dashboard runs on US Eastern. "Today", "This Week", every
+ * bucket boundary, and every displayed timestamp are Eastern-calendar,
+ * regardless of where the server (UTC on Vercel) or the viewer sits.
+ */
+export const BUSINESS_TIME_ZONE = "America/New_York";
+
+/** `YYYY-MM-DD` for the given instant in US Eastern. */
+export function easternDateString(d: Date = new Date()): string {
+  // en-CA formats as YYYY-MM-DD
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
-function startOfDay(d: Date): Date {
-  const copy = new Date(d);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
+/** 0 = Sunday … 6 = Saturday, for the given instant in US Eastern. */
+function easternDayOfWeek(d: Date): number {
+  const wd = new Intl.DateTimeFormat("en-US", {
+    timeZone: BUSINESS_TIME_ZONE,
+    weekday: "short",
+  }).format(d);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(wd);
 }
 
-function addDays(d: Date, days: number): Date {
-  const copy = new Date(d);
-  copy.setDate(copy.getDate() + days);
-  return copy;
+/** Add (or subtract) whole days to a `YYYY-MM-DD` string. Pure calendar math. */
+export function addDaysToDateString(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+/**
+ * Normalizes any Airtable date value to the `YYYY-MM-DD` it falls on in
+ * US Eastern. A value with a time component (`...T..:..Z`) is converted;
+ * a bare `YYYY-MM-DD` (the team's manually-entered daily-log dates) is
+ * already a business day and passed through untouched.
+ */
+export function toEasternDateOnly(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.length <= 10 || !value.includes("T")) return value.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value.slice(0, 10);
+  return easternDateString(d);
 }
 
 /**
  * Resolves a preset (or custom start/end) into an inclusive [start, end]
- * ISO-date range. `null`/`null` means "all time" (no filtering).
- *
- * "This Week" starts Monday. All comparisons are done on calendar dates
- * (no timezone conversion) — callers should treat Airtable `Date` fields
- * as already being in the business's operating date, not convert them.
+ * range of Eastern calendar dates. `null`/`null` means "all time".
+ * "This Week" starts Monday (Eastern).
  */
 export function resolveRange(
   preset: RangePreset,
   custom?: { start: string; end: string },
   now: Date = new Date()
 ): ResolvedRange {
-  const today = startOfDay(now);
+  const today = easternDateString(now);
 
   switch (preset) {
     case "today":
-      return { start: toIsoDate(today), end: toIsoDate(today) };
+      return { start: today, end: today };
     case "yesterday": {
-      const y = addDays(today, -1);
-      return { start: toIsoDate(y), end: toIsoDate(y) };
+      const y = addDaysToDateString(today, -1);
+      return { start: y, end: y };
     }
     case "this_week": {
-      const dayOfWeek = today.getDay(); // 0 = Sunday
-      const daysSinceMonday = (dayOfWeek + 6) % 7;
-      const monday = addDays(today, -daysSinceMonday);
-      return { start: toIsoDate(monday), end: toIsoDate(today) };
+      const daysSinceMonday = (easternDayOfWeek(now) + 6) % 7;
+      return { start: addDaysToDateString(today, -daysSinceMonday), end: today };
     }
     case "last_7_days":
-      return { start: toIsoDate(addDays(today, -6)), end: toIsoDate(today) };
+      return { start: addDaysToDateString(today, -6), end: today };
     case "last_30_days":
-      return { start: toIsoDate(addDays(today, -29)), end: toIsoDate(today) };
+      return { start: addDaysToDateString(today, -29), end: today };
     case "all_time":
       return { start: null, end: null };
     case "custom":
