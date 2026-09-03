@@ -40,7 +40,19 @@ export async function GET(request: NextRequest) {
   const lookup = buildLeadSourceLookup(leads);
   const matchedToLead = inRangePcn.filter((r) => lookupSource(lookup, r.leadEmail) !== null).length;
 
+  // Paid / Organic cash & sales as reported directly on the Marketing
+  // Daily Metrics form (separate from the PCN-derived figures above).
+  const form = {
+    salesLtPaid: sum(inRangeMarketing.map((r) => r.salesLowTicketPaid)),
+    salesLtOrganic: sum(inRangeMarketing.map((r) => r.salesLowTicketOrganic)),
+    cashLtPaid: sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketPaid)),
+    cashLtOrganic: sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketOrganic)),
+    cashHtPaid: sum(inRangeMarketing.map((r) => r.cashCollectedHighTicketPaid)),
+    cashHtOrganic: sum(inRangeMarketing.map((r) => r.cashCollectedHighTicketOrganic)),
+  };
+
   return Response.json({
+    form,
     totalLeadsTracked: paidLeads.length + organicLeads.length,
     paidLeadsTracked: paidLeads.length,
     organicLeadsTracked: organicLeads.length,

@@ -42,6 +42,17 @@ export type MarketingDailyMetricRow = {
   optInsOrganic: number | null;
   salesLowTicket: number | null;
   cashCollectedLowTicket: number | null;
+  // Paid / Organic splits the team added to the form 2026-09-03.
+  // Organic fields fall back to (total − paid) in the getter when the
+  // form doesn't carry an explicit Organic column.
+  salesLowTicketPaid: number | null;
+  salesLowTicketOrganic: number | null;
+  cashCollectedLowTicketPaid: number | null;
+  cashCollectedLowTicketOrganic: number | null;
+  cashCollectedHighTicketPaid: number | null;
+  cashCollectedHighTicketOrganic: number | null;
+  funnelConversionRatePaid: number | null;
+  funnelConversionRateOrganic: number | null;
   adSpendMeta: number | null;
   changesMadeToday: string | null;
   costPerLeadMeta: number | null;
@@ -121,16 +132,41 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
 
     return records.map((r) => {
       const f = r.fields;
+      const salesLT = parseNumericText(
+        f["Sales - Low Ticket (Sales team)"] ?? f["Sales - Low Ticket"]
+      );
+      const salesLTPaid = parseNumericText(f["Low ticket sales (paid)"]);
+      const cashLT = parseNumericText(f["Cash Collected - Low ticket"]);
+      const cashLTPaid = parseNumericText(f["Low ticket cash collected (Paid)"]);
+      const cashHT = parseNumericText(f["Cash collected (High Ticket)"]);
+      const cashHTPaid = parseNumericText(f["High ticket cash collected (Paid)"]);
+      // Only infer Organic when a Paid figure was actually entered — a blank
+      // Paid means "not split yet", not "zero paid".
+      const minusPaid = (total: number | null, paid: number | null) =>
+        total === null || paid === null ? null : Math.max(0, total - paid);
       return {
         id: r.id,
         date: parseDateOnly(f.Date),
         dials: parseNumericText(f.Dials),
         optInsPaid: parseNumericText(f["Opt ins (Paid)"]),
         optInsOrganic: parseNumericText(f["Opt ins (Organic)"]),
-        salesLowTicket: parseNumericText(
-          f["Sales - Low Ticket (Sales team)"] ?? f["Sales - Low Ticket"]
-        ),
-        cashCollectedLowTicket: parseNumericText(f["Cash Collected - Low ticket"]),
+        salesLowTicket: salesLT,
+        cashCollectedLowTicket: cashLT,
+        salesLowTicketPaid: salesLTPaid,
+        salesLowTicketOrganic:
+          parseNumericText(f["Low ticket sales (organic)"]) ?? minusPaid(salesLT, salesLTPaid),
+        cashCollectedLowTicketPaid: cashLTPaid,
+        cashCollectedLowTicketOrganic:
+          parseNumericText(f["Low ticket cash collected (Organic)"]) ??
+          minusPaid(cashLT, cashLTPaid),
+        cashCollectedHighTicketPaid: cashHTPaid,
+        cashCollectedHighTicketOrganic:
+          parseNumericText(f["High ticket cash collected (Organic)"]) ??
+          minusPaid(cashHT, cashHTPaid),
+        funnelConversionRatePaid: parseNumericText(f["Conversion Rate (Paid)"]),
+        funnelConversionRateOrganic:
+          parseNumericText(f["Conversion Rate (Organic)"]) ??
+          parseNumericText(f["Funnel Conversion rate Organic"]),
         adSpendMeta: parseNumericText(f["Ad Spend Meta"]),
         changesMadeToday: (f["Changes Made Today"] as string) ?? null,
         costPerLeadMeta: parseNumericText(f["Cost per Lead (Meta)"]),

@@ -160,6 +160,14 @@ const dTotalCash = (c: DayCtx) => {
 };
 const dLeads = (c: DayCtx) => c.paidLeads + c.organicLeads;
 
+// --- paid / organic splits (Marketing Daily Metrics form only) ---
+const dSalesLTPaid = (c: DayCtx) => (c.m ? num(c.m.salesLowTicketPaid) : null);
+const dSalesLTOrg = (c: DayCtx) => (c.m ? num(c.m.salesLowTicketOrganic) : null);
+const dCashLTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketPaid) : null);
+const dCashLTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketOrganic) : null);
+const dCashHTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketPaid) : null);
+const dCashHTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketOrganic) : null);
+
 // --- high-ticket: Affiliate EOD (setters log it), EOD Closer as fallback ---
 const dHtBooked = (c: DayCtx) =>
   c.eod ? num(c.eod.htBooked) : c.closer ? num(c.closer.callsBooked) : null;
@@ -226,6 +234,42 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           week: wSum(dCashLT),
         },
         {
+          key: "cashLtPaid",
+          label: "↳ Cash LT (Paid)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: dCashLTPaid,
+          week: wSum(dCashLTPaid),
+        },
+        {
+          key: "cashLtOrganic",
+          label: "↳ Cash LT (Organic)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: dCashLTOrg,
+          week: wSum(dCashLTOrg),
+        },
+        {
+          key: "cashHtPaid",
+          label: "↳ Cash HT (Paid)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: dCashHTPaid,
+          week: wSum(dCashHTPaid),
+        },
+        {
+          key: "cashHtOrganic",
+          label: "↳ Cash HT (Organic)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: dCashHTOrg,
+          week: wSum(dCashHTOrg),
+        },
+        {
           key: "funnelConversionRate",
           label: "Funnel Conversion Rate",
           format: "percent",
@@ -236,6 +280,36 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
             safeDivide(
               sum(days.map(dSalesLT)),
               days.reduce((n, c) => n + dLeads(c), 0) || null
+            ),
+        },
+        {
+          key: "funnelConvPaid",
+          label: "↳ Funnel Conv. (Paid)",
+          format: "percent",
+          goal: goals.funnelConversionRate?.min ?? null,
+          goalDirection: "higher",
+          day: (c) =>
+            (c.m ? num(c.m.funnelConversionRatePaid) : null) ??
+            safeDivide(dSalesLTPaid(c), c.paidLeads || null),
+          week: (days) =>
+            safeDivide(
+              sum(days.map(dSalesLTPaid)),
+              days.reduce((n, c) => n + c.paidLeads, 0) || null
+            ),
+        },
+        {
+          key: "funnelConvOrganic",
+          label: "↳ Funnel Conv. (Organic)",
+          format: "percent",
+          goal: goals.funnelConversionRate?.min ?? null,
+          goalDirection: "higher",
+          day: (c) =>
+            (c.m ? num(c.m.funnelConversionRateOrganic) : null) ??
+            safeDivide(dSalesLTOrg(c), c.organicLeads || null),
+          week: (days) =>
+            safeDivide(
+              sum(days.map(dSalesLTOrg)),
+              days.reduce((n, c) => n + c.organicLeads, 0) || null
             ),
         },
         {
@@ -321,6 +395,24 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goalDirection: goals.salesLowTicket === null ? null : "higher",
           day: dSalesLT,
           week: wSum(dSalesLT),
+        },
+        {
+          key: "salesLtPaid",
+          label: "↳ Sales LT (Paid)",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: dSalesLTPaid,
+          week: wSum(dSalesLTPaid),
+        },
+        {
+          key: "salesLtOrganic",
+          label: "↳ Sales LT (Organic)",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: dSalesLTOrg,
+          week: wSum(dSalesLTOrg),
         },
         {
           key: "closeRateLowTicket",

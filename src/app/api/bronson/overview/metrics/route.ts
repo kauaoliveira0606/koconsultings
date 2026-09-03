@@ -38,6 +38,15 @@ export async function GET(request: NextRequest) {
       ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0)
       : null;
   const optInsPaid = sum(inRangeMarketing.map((r) => r.optInsPaid));
+
+  // Paid / Organic splits from the Marketing Daily Metrics form
+  const salesLtPaid = sum(inRangeMarketing.map((r) => r.salesLowTicketPaid));
+  const salesLtOrganic = sum(inRangeMarketing.map((r) => r.salesLowTicketOrganic));
+  const cashLtPaid = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketPaid));
+  const cashLtOrganic = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketOrganic));
+  const cashHtPaid = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicketPaid));
+  const cashHtOrganic = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicketOrganic));
+
   const pickups = sum(inRangeEod.map((r) => r.pickups));
   const dials = sum(inRangeEod.map((r) => r.outboundDials));
   const softwarePitched = sum(inRangeEod.map((r) => r.softwarePitched));
@@ -49,6 +58,12 @@ export async function GET(request: NextRequest) {
     adSpend,
     totalCashCollected,
     cashCollectedLowTicket: cashLowTicket,
+    salesLowTicketPaid: salesLtPaid,
+    salesLowTicketOrganic: salesLtOrganic,
+    cashLowTicketPaid: cashLtPaid,
+    cashLowTicketOrganic: cashLtOrganic,
+    cashHighTicketPaid: cashHtPaid,
+    cashHighTicketOrganic: cashHtOrganic,
     dials,
     pickupRate: pickupRate(pickups, dials),
     pickups,

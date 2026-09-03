@@ -19,6 +19,12 @@ type MetricsResponse = {
   adSpend: number | null;
   totalCashCollected: number | null;
   cashCollectedLowTicket: number | null;
+  salesLowTicketPaid: number | null;
+  salesLowTicketOrganic: number | null;
+  cashLowTicketPaid: number | null;
+  cashLowTicketOrganic: number | null;
+  cashHighTicketPaid: number | null;
+  cashHighTicketOrganic: number | null;
   dials: number | null;
   pickupRate: number | null;
   pickups: number | null;
@@ -49,6 +55,14 @@ type LeadSourcesResponse = {
     matchedToLead: number;
     paidClosed: number;
     organicClosed: number;
+  };
+  form: {
+    salesLtPaid: number | null;
+    salesLtOrganic: number | null;
+    cashLtPaid: number | null;
+    cashLtOrganic: number | null;
+    cashHtPaid: number | null;
+    cashHtOrganic: number | null;
   };
 };
 
@@ -164,6 +178,17 @@ export default function OverviewPage() {
         </StatCardGrid>
       </DashboardSection>
 
+      <DashboardSection title="Paid vs Organic (Marketing Form)">
+        <StatCardGrid>
+          <StatCard label="Sales LT — Paid" value={metrics?.salesLowTicketPaid} format="number" />
+          <StatCard label="Sales LT — Organic" value={metrics?.salesLowTicketOrganic} format="number" />
+          <StatCard label="Cash LT — Paid" value={metrics?.cashLowTicketPaid} format="currency" />
+          <StatCard label="Cash LT — Organic" value={metrics?.cashLowTicketOrganic} format="currency" />
+          <StatCard label="Cash HT — Paid" value={metrics?.cashHighTicketPaid} format="currency" />
+          <StatCard label="Cash HT — Organic" value={metrics?.cashHighTicketOrganic} format="currency" />
+        </StatCardGrid>
+      </DashboardSection>
+
       <DashboardSection title="Attribution — Base 44 + Wix">
         <AttributionSection
           apiPath="/api/bronson/overview/attribution"
@@ -267,6 +292,20 @@ export default function OverviewPage() {
               a lead email, so it&apos;s not counted above as Paid or Organic.
             </p>
           ) : null}
+        </div>
+
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+            As reported on the Marketing Daily Metrics form
+          </div>
+          <StatCardGrid>
+            <StatCard label="Sales LT — Paid" value={leadSources?.form.salesLtPaid} format="number" />
+            <StatCard label="Sales LT — Organic" value={leadSources?.form.salesLtOrganic} format="number" />
+            <StatCard label="Cash LT — Paid" value={leadSources?.form.cashLtPaid} format="currency" />
+            <StatCard label="Cash LT — Organic" value={leadSources?.form.cashLtOrganic} format="currency" />
+            <StatCard label="Cash HT — Paid" value={leadSources?.form.cashHtPaid} format="currency" />
+            <StatCard label="Cash HT — Organic" value={leadSources?.form.cashHtOrganic} format="currency" />
+          </StatCardGrid>
         </div>
       </DashboardSection>
 
