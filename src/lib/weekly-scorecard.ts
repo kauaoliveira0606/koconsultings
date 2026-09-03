@@ -429,14 +429,25 @@ export async function buildWeeklyScorecard(
     else if (isOrganicSource(lead.source)) organicByDate.set(d, (organicByDate.get(d) ?? 0) + 1);
   }
 
-  const dayCtxs: DayCtx[] = dayDates.map((date) => ({
-    date,
-    m: byDate.get(date),
-    eod: eodByDate.get(date),
-    closerCashHT: closerCashByDate.has(date) ? (closerCashByDate.get(date) as number) : null,
-    paidLeads: paidByDate.get(date) ?? 0,
-    organicLeads: organicByDate.get(date) ?? 0,
-  }));
+  // Today (and anything later) is still in progress — a partial day would
+  // drag the week's rates and totals off. Hold it blank until it closes;
+  // it fills in the next day. Past weeks are fully complete, nothing held.
+  const todayE = easternDateString(now);
+
+  const dayCtxs: DayCtx[] = dayDates.map((date) => {
+    if (date >= todayE) {
+      return { date, closerCashHT: null, paidLeads: 0, organicLeads: 0 };
+    }
+    return {
+      date,
+      m: byDate.get(date),
+      eod: eodByDate.get(date),
+      closerCashHT: closerCashByDate.has(date) ? (closerCashByDate.get(date) as number) : null,
+      paidLeads: paidByDate.get(date) ?? 0,
+      organicLeads: organicByDate.get(date) ?? 0,
+    };
+  });
+  const scoredDays = dayCtxs.filter((c) => c.date < todayE);
 
   const goals = await getGoals();
   const groups: ScorecardGroup[] = buildSpecs(goals).map((g) => ({
@@ -444,10 +455,10 @@ export async function buildWeeklyScorecard(
     title: g.title,
     rows: g.metrics.map((spec) => {
       const days: ScorecardCell[] = dayCtxs.map((ctx) => {
-        const value = spec.day(ctx);
+        const value = ctx.date >= todayE ? null : spec.day(ctx);
         return { date: ctx.date, value, status: cellStatus(value, spec.goal, spec.goalDirection) };
       });
-      const weekValue = spec.week(dayCtxs);
+      const weekValue = spec.week(scoredDays);
       return {
         key: spec.key,
         label: spec.label,
