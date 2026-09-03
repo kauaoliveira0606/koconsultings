@@ -64,9 +64,8 @@ type PlanSplitResponse = {
 type RecentChangesResponse = {
   days: {
     date: string;
-    hasSubmission: boolean;
-    changesMadeToday: string | null;
-    metrics: Record<string, number | null> | null;
+    changesMadeToday: string;
+    metrics: Record<string, number | null>;
   }[];
 };
 
@@ -285,37 +284,42 @@ function RecentChanges() {
   );
 
   return (
-    <DashboardSection title="Recent Changes — Last 3 Days">
+    <DashboardSection title="Recent Changes">
       <p className="mb-3 text-sm text-[var(--text-muted)]">
-        Whatever is logged in the Marketing Daily Metrics form&apos;s &quot;Changes Made
-        Today&quot; field shows up here next to that day&apos;s actual numbers, so you can see
-        what moved.
+        Each &quot;Changes Made Today&quot; note from the Marketing Daily Metrics form, with
+        that day&apos;s funnel numbers next to it so you can see how the change landed.
       </p>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {data?.days.map((day, i) => (
-          <div
-            key={day.date}
-            className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm"
-          >
-            <div className="mb-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
-              {i === 0 ? "Today" : i === 1 ? "Yesterday" : ""} — {day.date}
+      {data && data.days.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {data.days.map((day) => (
+            <div
+              key={day.date}
+              className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm"
+            >
+              <div className="mb-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
+                {day.date}
+              </div>
+              <p className="mb-3 whitespace-pre-wrap border-l-2 border-[var(--accent)] pl-3 text-sm text-[var(--text-strong)]">
+                {day.changesMadeToday}
+              </p>
+              <dl className="space-y-1 text-sm">
+                {Object.entries(RECENT_CHANGES_LABELS).map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <dt className="text-[var(--text-muted)]">{label}</dt>
+                    <dd className="font-medium text-[var(--text)]">
+                      {formatStatValue(day.metrics?.[key], RECENT_CHANGES_FORMATS[key])}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-            {!day.hasSubmission ? (
-              <p className="mb-2 text-sm italic text-[var(--text-muted)]">No submission for this day yet.</p>
-            ) : null}
-            <dl className="space-y-1 text-sm">
-              {Object.entries(RECENT_CHANGES_LABELS).map(([key, label]) => (
-                <div key={key} className="flex items-center justify-between">
-                  <dt className="text-[var(--text-muted)]">{label}</dt>
-                  <dd className="font-medium text-[var(--text)]">
-                    {formatStatValue(day.metrics?.[key], RECENT_CHANGES_FORMATS[key])}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm text-[var(--text-muted)] backdrop-blur-sm">
+          No &quot;Changes Made Today&quot; notes logged in the last 14 days.
+        </div>
+      )}
     </DashboardSection>
   );
 }
