@@ -270,21 +270,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           week: wSum(dCashHTOrg),
         },
         {
-          key: "funnelConversionRate",
-          label: "Funnel Conversion Rate",
-          format: "percent",
-          goal: goals.funnelConversionRate?.min ?? null,
-          goalDirection: "higher",
-          day: (c) => safeDivide(dSalesLT(c), dLeads(c) || null) ?? (c.m ? num(c.m.funnelConversionRate) : null),
-          week: (days) =>
-            safeDivide(
-              sum(days.map(dSalesLT)),
-              days.reduce((n, c) => n + dLeads(c), 0) || null
-            ),
-        },
-        {
           key: "funnelConvPaid",
-          label: "↳ Funnel Conv. (Paid)",
+          label: "Funnel Conversion Rate (Paid)",
           format: "percent",
           goal: goals.funnelConversionRate?.min ?? null,
           goalDirection: "higher",
@@ -299,7 +286,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
         },
         {
           key: "funnelConvOrganic",
-          label: "↳ Funnel Conv. (Organic)",
+          label: "Funnel Conversion Rate (Organic)",
           format: "percent",
           goal: goals.funnelConversionRate?.min ?? null,
           goalDirection: "higher",
@@ -492,7 +479,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
         },
         {
           key: "optInRate",
-          label: "Opt-In Rate (Opt-Ins vs Views)",
+          label: "Opt-In Rate (Paid)",
           format: "percent",
           goal: goals.optInRate?.min ?? null,
           goalDirection: "higher",
@@ -501,7 +488,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
         },
         {
           key: "vslPlayRate",
-          label: "VSL Play Rate",
+          label: "VSL Play Rate (Paid)",
           format: "percent",
           goal: goals.vslPlayRate?.min ?? null,
           goalDirection: "higher",
@@ -510,7 +497,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
         },
         {
           key: "vslEngagementRate",
-          label: "VSL Engagement Rate",
+          label: "VSL Engagement Rate (Paid)",
           format: "percent",
           goal: goals.vslEngagementRate?.min ?? null,
           goalDirection: "higher",
