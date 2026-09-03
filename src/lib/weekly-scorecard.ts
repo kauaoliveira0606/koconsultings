@@ -1,7 +1,12 @@
 import type { StatFormat } from "./format";
-import type { LeadRow, MarketingDailyMetricRow } from "./airtable/tables";
+import type {
+  BronsonAffiliateEodRow,
+  BronsonEodCloserRow,
+  LeadRow,
+  MarketingDailyMetricRow,
+} from "./airtable/tables";
 import { isOrganicSource, isPaidSource } from "./airtable/lead-source-lookup";
-import { easternDateString } from "./date-range";
+import { easternDateString, toEasternDateOnly } from "./date-range";
 import { average, roas, safeDivide, sum } from "./metrics";
 import { getGoals } from "./goals";
 
@@ -84,28 +89,61 @@ export function cellStatus(
     if (actual >= goal * 0.8) return "yellow";
     return "red";
   }
-  // lower is better
   if (actual <= goal) return "green";
   if (actual <= goal * 1.2) return "yellow";
   return "red";
 }
 
-/** What a single day's cell gets to see. */
+/** Affiliate EOD, summed across all setter rows for one day. */
+type EodDay = {
+  dials: number | null;
+  pickups: number | null;
+  pitched: number | null;
+  closed: number | null;
+  cashLowTicket: number | null;
+};
+
+/**
+ * Everything a single day's cell needs. Derived values (dials, sales, cash,
+ * close rate, …) prefer the Affiliate EOD roll-up so the team doesn't have
+ * to re-key them into the Marketing Daily Metrics form; the form value is
+ * the fallback for days with no EOD submission. Video / landing-page / ad
+ * metrics have no other source and stay form-only.
+ */
 type DayCtx = {
   date: string;
-  /** the Marketing Daily Metrics row for this day, if one was submitted */
   m?: MarketingDailyMetricRow;
-  /** Paid / Organic lead counts for this day, from the Airtable Leads table */
+  eod?: EodDay;
+  /** high-ticket cash for the day, summed from the EOD Closer table */
+  closerCashHT: number | null;
   paidLeads: number;
   organicLeads: number;
 };
 
-/** What the WEEK column gets to see. */
-type WeekCtx = {
-  rows: MarketingDailyMetricRow[];
-  paidLeads: number;
-  organicLeads: number;
+const num = (v: number | null | undefined): number | null =>
+  v === null || v === undefined || !Number.isFinite(v) ? null : v;
+
+// --- per-day component accessors (EOD-preferred, form fallback) ---
+const dAdSpend = (c: DayCtx) => (c.m ? num(c.m.adSpendMeta) : null);
+const dSalesLT = (c: DayCtx) =>
+  c.eod ? num(c.eod.closed) : c.m ? num(c.m.salesLowTicket) : null;
+const dPitched = (c: DayCtx) => (c.eod ? num(c.eod.pitched) : null);
+const dPickups = (c: DayCtx) => (c.eod ? num(c.eod.pickups) : null);
+const dDials = (c: DayCtx) => (c.eod ? num(c.eod.dials) : c.m ? num(c.m.dials) : null);
+const dCashLT = (c: DayCtx) =>
+  c.eod ? num(c.eod.cashLowTicket) : c.m ? num(c.m.cashCollectedLowTicket) : null;
+const dCashHT = (c: DayCtx) =>
+  c.closerCashHT !== null ? c.closerCashHT : c.m ? num(c.m.cashCollectedHighTicket) : null;
+const dTotalCash = (c: DayCtx) => {
+  const lt = dCashLT(c);
+  const ht = dCashHT(c);
+  if (lt === null && ht === null) return null;
+  return (lt ?? 0) + (ht ?? 0);
 };
+const dLeads = (c: DayCtx) => c.paidLeads + c.organicLeads;
+
+const wSum = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => sum(days.map(pick));
+const wAvg = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => average(days.map(pick));
 
 type MetricSpec = {
   key: string;
@@ -114,29 +152,16 @@ type MetricSpec = {
   goal: number | null;
   goalDirection: GoalDirection | null;
   day: (c: DayCtx) => number | null;
-  week: (c: WeekCtx) => number | null;
+  week: (days: DayCtx[]) => number | null;
 };
-
-const totalCashOf = (r: MarketingDailyMetricRow): number | null => {
-  if (r.cashCollectedLowTicket === null && r.cashCollectedHighTicket === null) return null;
-  return (r.cashCollectedLowTicket ?? 0) + (r.cashCollectedHighTicket ?? 0);
-};
-
-/** Wrap a Marketing-row accessor so it yields null on days with no submission. */
-const fromM =
-  (pick: (r: MarketingDailyMetricRow) => number | null) =>
-  (c: DayCtx): number | null =>
-    c.m ? pick(c.m) : null;
 
 function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
   emoji: string;
   title: string;
   metrics: MetricSpec[];
 }[] {
-  const sumOf = (pick: (r: MarketingDailyMetricRow) => number | null) => (c: WeekCtx) =>
-    sum(c.rows.map(pick));
-  const avgOf = (pick: (r: MarketingDailyMetricRow) => number | null) => (c: WeekCtx) =>
-    average(c.rows.map(pick));
+  const fromM = (pick: (r: MarketingDailyMetricRow) => number | null) => (c: DayCtx) =>
+    c.m ? num(pick(c.m)) : null;
 
   return [
     {
@@ -149,8 +174,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: null,
           goalDirection: null,
-          day: fromM((r) => r.adSpendMeta),
-          week: sumOf((r) => r.adSpendMeta),
+          day: dAdSpend,
+          week: wSum(dAdSpend),
         },
         {
           key: "costPerLeadMeta",
@@ -159,8 +184,11 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.costPerLeadMeta?.max ?? null,
           goalDirection: "lower",
           day: fromM((r) => r.costPerLeadMeta),
-          // Cost per *paid* lead — ad spend buys paid leads, not organic ones.
-          week: (c) => safeDivide(sum(c.rows.map((r) => r.adSpendMeta)), c.paidLeads || null),
+          week: (days) =>
+            safeDivide(
+              sum(days.map(dAdSpend)),
+              days.reduce((n, c) => n + c.paidLeads, 0) || null
+            ),
         },
         {
           key: "cashCollectedLowTicket",
@@ -168,8 +196,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: goals.cashCollectedLowTicket,
           goalDirection: goals.cashCollectedLowTicket === null ? null : "higher",
-          day: fromM((r) => r.cashCollectedLowTicket),
-          week: sumOf((r) => r.cashCollectedLowTicket),
+          day: dCashLT,
+          week: wSum(dCashLT),
         },
         {
           key: "funnelConversionRate",
@@ -177,8 +205,12 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.funnelConversionRate?.min ?? null,
           goalDirection: "higher",
-          day: fromM((r) => r.funnelConversionRate),
-          week: avgOf((r) => r.funnelConversionRate),
+          day: (c) => safeDivide(dSalesLT(c), dLeads(c) || null) ?? (c.m ? num(c.m.funnelConversionRate) : null),
+          week: (days) =>
+            safeDivide(
+              sum(days.map(dSalesLT)),
+              days.reduce((n, c) => n + dLeads(c), 0) || null
+            ),
         },
         {
           key: "roasTotal",
@@ -186,8 +218,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "ratio",
           goal: goals.roasTotal?.min ?? null,
           goalDirection: "higher",
-          day: fromM((r) => roas(totalCashOf(r), r.adSpendMeta)),
-          week: (c) => roas(sum(c.rows.map(totalCashOf)), sum(c.rows.map((r) => r.adSpendMeta))),
+          day: (c) => roas(dTotalCash(c), dAdSpend(c)),
+          week: (days) => roas(sum(days.map(dTotalCash)), sum(days.map(dAdSpend))),
         },
         {
           key: "cpaLowTicket",
@@ -195,9 +227,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: goals.cpaLowTicket?.max ?? null,
           goalDirection: "lower",
-          day: fromM((r) => safeDivide(r.adSpendMeta, r.salesLowTicket)),
-          week: (c) =>
-            safeDivide(sum(c.rows.map((r) => r.adSpendMeta)), sum(c.rows.map((r) => r.salesLowTicket))),
+          day: (c) => safeDivide(dAdSpend(c), dSalesLT(c)),
+          week: (days) => safeDivide(sum(days.map(dAdSpend)), sum(days.map(dSalesLT))),
         },
         {
           key: "totalCashCollected",
@@ -205,8 +236,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: goals.totalCashCollected,
           goalDirection: goals.totalCashCollected === null ? null : "higher",
-          day: fromM(totalCashOf),
-          week: sumOf(totalCashOf),
+          day: dTotalCash,
+          week: wSum(dTotalCash),
         },
       ],
     },
@@ -220,10 +251,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.optInsPaid,
           goalDirection: goals.optInsPaid === null ? null : "higher",
-          // Sourced from the Airtable Leads table (Source = Paid), same as
-          // the Lead Sources section — not the Marketing Daily Metrics form.
           day: (c) => (c.paidLeads > 0 || c.m ? c.paidLeads : null),
-          week: (c) => c.paidLeads,
+          week: (days) => days.reduce((n, c) => n + c.paidLeads, 0),
         },
         {
           key: "optInsOrganic",
@@ -232,7 +261,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.optInsOrganic,
           goalDirection: goals.optInsOrganic === null ? null : "higher",
           day: (c) => (c.organicLeads > 0 || c.m ? c.organicLeads : null),
-          week: (c) => c.organicLeads,
+          week: (days) => days.reduce((n, c) => n + c.organicLeads, 0),
         },
         {
           key: "vslViews",
@@ -241,7 +270,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.vslViews,
           goalDirection: goals.vslViews === null ? null : "higher",
           day: fromM((r) => r.vslViews),
-          week: sumOf((r) => r.vslViews),
+          week: wSum(fromM((r) => r.vslViews)),
         },
       ],
     },
@@ -255,8 +284,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.dials,
           goalDirection: goals.dials === null ? null : "higher",
-          day: fromM((r) => r.dials),
-          week: sumOf((r) => r.dials),
+          day: dDials,
+          week: wSum(dDials),
         },
         {
           key: "salesLowTicket",
@@ -264,8 +293,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.salesLowTicket,
           goalDirection: goals.salesLowTicket === null ? null : "higher",
-          day: fromM((r) => r.salesLowTicket),
-          week: sumOf((r) => r.salesLowTicket),
+          day: dSalesLT,
+          week: wSum(dSalesLT),
         },
         {
           key: "closeRateLowTicket",
@@ -273,8 +302,9 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.closeRateLowTicket?.min ?? null,
           goalDirection: "higher",
-          day: fromM((r) => r.closeRateLowTicket),
-          week: avgOf((r) => r.closeRateLowTicket),
+          day: (c) =>
+            safeDivide(dSalesLT(c), dPitched(c)) ?? (c.m ? num(c.m.closeRateLowTicket) : null),
+          week: (days) => safeDivide(sum(days.map(dSalesLT)), sum(days.map(dPitched))),
         },
       ],
     },
@@ -289,7 +319,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.landingPageConnectRate?.min ?? null,
           goalDirection: "higher",
           day: fromM((r) => r.landingPageConnectRate),
-          week: avgOf((r) => r.landingPageConnectRate),
+          week: wAvg(fromM((r) => r.landingPageConnectRate)),
         },
         {
           key: "optInRate",
@@ -298,7 +328,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.optInRate?.min ?? null,
           goalDirection: "higher",
           day: fromM((r) => r.optInRate),
-          week: avgOf((r) => r.optInRate),
+          week: wAvg(fromM((r) => r.optInRate)),
         },
         {
           key: "vslPlayRate",
@@ -307,7 +337,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.vslPlayRate?.min ?? null,
           goalDirection: "higher",
           day: fromM((r) => r.vslPlayRate),
-          week: avgOf((r) => r.vslPlayRate),
+          week: wAvg(fromM((r) => r.vslPlayRate)),
         },
         {
           key: "vslEngagementRate",
@@ -316,7 +346,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.vslEngagementRate?.min ?? null,
           goalDirection: "higher",
           day: fromM((r) => r.vslEngagementRate),
-          week: avgOf((r) => r.vslEngagementRate),
+          week: wAvg(fromM((r) => r.vslEngagementRate)),
         },
       ],
     },
@@ -330,8 +360,13 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.connectionRate?.min ?? null,
           goalDirection: "higher",
-          day: fromM((r) => r.connectionRate),
-          week: avgOf((r) => r.connectionRate),
+          day: (c) =>
+            safeDivide(dPickups(c), dLeads(c) || null) ?? (c.m ? num(c.m.connectionRate) : null),
+          week: (days) =>
+            safeDivide(
+              sum(days.map(dPickups)),
+              days.reduce((n, c) => n + dLeads(c), 0) || null
+            ),
         },
       ],
     },
@@ -341,6 +376,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
 export async function buildWeeklyScorecard(
   allMarketing: MarketingDailyMetricRow[],
   allLeads: LeadRow[],
+  allEod: BronsonAffiliateEodRow[],
+  allCloser: BronsonEodCloserRow[],
   weekStartInput: string | null,
   now: Date = new Date()
 ): Promise<WeeklyScorecardPayload> {
@@ -350,45 +387,67 @@ export async function buildWeeklyScorecard(
   const weekEnd = dayDates[6];
 
   const byDate = new Map(allMarketing.filter((r) => r.date).map((r) => [r.date as string, r]));
-  const inWeekRows = dayDates
-    .map((d) => byDate.get(d))
-    .filter((r): r is MarketingDailyMetricRow => !!r);
 
-  // Per-day Paid / Organic lead counts from the Leads table (dated by Created At).
+  // Affiliate EOD is per-setter — roll every setter's row up per day.
+  const eodByDate = new Map<string, EodDay>();
+  for (const r of allEod) {
+    const d = toEasternDateOnly(r.date);
+    if (!d) continue;
+    const cur = eodByDate.get(d) ?? {
+      dials: null,
+      pickups: null,
+      pitched: null,
+      closed: null,
+      cashLowTicket: null,
+    };
+    const add = (a: number | null, b: number | null) =>
+      a === null && b === null ? null : (a ?? 0) + (b ?? 0);
+    eodByDate.set(d, {
+      dials: add(cur.dials, num(r.outboundDials)),
+      pickups: add(cur.pickups, num(r.pickups)),
+      pitched: add(cur.pitched, num(r.softwarePitched)),
+      closed: add(cur.closed, num(r.softwareClosed)),
+      cashLowTicket: add(cur.cashLowTicket, num(r.cashCollectedAffiliate)),
+    });
+  }
+
+  // EOD Closer is per-closer too — roll high-ticket cash up per day.
+  const closerCashByDate = new Map<string, number>();
+  for (const r of allCloser) {
+    const d = toEasternDateOnly(r.date);
+    const v = num(r.cashCollectedHighTicket);
+    if (!d || v === null) continue;
+    closerCashByDate.set(d, (closerCashByDate.get(d) ?? 0) + v);
+  }
+
   const paidByDate = new Map<string, number>();
   const organicByDate = new Map<string, number>();
   for (const lead of allLeads) {
-    if (!lead.createdAt) continue;
-    if (isPaidSource(lead.source)) {
-      paidByDate.set(lead.createdAt, (paidByDate.get(lead.createdAt) ?? 0) + 1);
-    } else if (isOrganicSource(lead.source)) {
-      organicByDate.set(lead.createdAt, (organicByDate.get(lead.createdAt) ?? 0) + 1);
-    }
+    const d = toEasternDateOnly(lead.createdAt);
+    if (!d) continue;
+    if (isPaidSource(lead.source)) paidByDate.set(d, (paidByDate.get(d) ?? 0) + 1);
+    else if (isOrganicSource(lead.source)) organicByDate.set(d, (organicByDate.get(d) ?? 0) + 1);
   }
-  const weekPaidLeads = dayDates.reduce((n, d) => n + (paidByDate.get(d) ?? 0), 0);
-  const weekOrganicLeads = dayDates.reduce((n, d) => n + (organicByDate.get(d) ?? 0), 0);
-  const weekCtx: WeekCtx = {
-    rows: inWeekRows,
-    paidLeads: weekPaidLeads,
-    organicLeads: weekOrganicLeads,
-  };
+
+  const dayCtxs: DayCtx[] = dayDates.map((date) => ({
+    date,
+    m: byDate.get(date),
+    eod: eodByDate.get(date),
+    closerCashHT: closerCashByDate.has(date) ? (closerCashByDate.get(date) as number) : null,
+    paidLeads: paidByDate.get(date) ?? 0,
+    organicLeads: organicByDate.get(date) ?? 0,
+  }));
 
   const goals = await getGoals();
   const groups: ScorecardGroup[] = buildSpecs(goals).map((g) => ({
     emoji: g.emoji,
     title: g.title,
     rows: g.metrics.map((spec) => {
-      const days: ScorecardCell[] = dayDates.map((date) => {
-        const ctx: DayCtx = {
-          date,
-          m: byDate.get(date),
-          paidLeads: paidByDate.get(date) ?? 0,
-          organicLeads: organicByDate.get(date) ?? 0,
-        };
+      const days: ScorecardCell[] = dayCtxs.map((ctx) => {
         const value = spec.day(ctx);
-        return { date, value, status: cellStatus(value, spec.goal, spec.goalDirection) };
+        return { date: ctx.date, value, status: cellStatus(value, spec.goal, spec.goalDirection) };
       });
-      const weekValue = spec.week(weekCtx);
+      const weekValue = spec.week(dayCtxs);
       return {
         key: spec.key,
         label: spec.label,

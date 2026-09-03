@@ -364,6 +364,42 @@ export async function getBronsonAffiliatePcn(): Promise<BronsonAffiliatePcnRow[]
   });
 }
 
+// Bronson's high-ticket closer EOD. Sparse (only days with HT deal activity),
+// but it's the real source for high-ticket cash / revenue by day.
+const BRONSON_EOD_CLOSER_TABLE_ID = "tbl0xIvtCZIjemZRZ";
+
+export type BronsonEodCloserRow = {
+  id: string;
+  date: string | null;
+  dealsClosed: number | null;
+  offersMade: number | null;
+  callsBooked: number | null;
+  callsShowed: number | null;
+  cashCollectedHighTicket: number | null;
+  revenueHighTicket: number | null;
+};
+
+export async function getBronsonEodCloser(): Promise<BronsonEodCloserRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    BRONSON_BASE_ID,
+    BRONSON_EOD_CLOSER_TABLE_ID
+  );
+
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      date: parseDateOnly(f.Date),
+      dealsClosed: parseNumericText(f["Deals Closed"]),
+      offersMade: parseNumericText(f["Offers Made"]),
+      callsBooked: parseNumericText(f["Calls Booked"]),
+      callsShowed: parseNumericText(f["Calls Showed"]),
+      cashCollectedHighTicket: parseNumericText(f["Total Cash Collected"]),
+      revenueHighTicket: parseNumericText(f["Total Revenue"]),
+    };
+  });
+}
+
 export type AffiliatePortalDailyRow = {
   id: string;
   date: string | null;
