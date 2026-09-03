@@ -8,7 +8,7 @@ export default function ModelsPage() {
   const [tab, setTab] = useState<"financial" | "capacity">("financial");
 
   return (
-    <div>
+    <div className="ko-light-panel">
       <h1 className="mb-4 text-2xl font-bold">Models</h1>
       <div className="mb-6 flex gap-6 border-b border-black/10 text-sm font-medium">
         <button

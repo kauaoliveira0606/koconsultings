@@ -168,6 +168,22 @@
 [data-theme="deepspace"] .ko-light-panel [class*="bg-black/"] {
   background-color: rgba(0, 0, 0, 0.05) !important;
 }
+[data-theme="deepspace"] .ko-light-panel .bg-blue-50 {
+  background-color: #eff6ff !important;
+}
+[data-theme="deepspace"] .ko-light-panel .border-black {
+  border-color: rgba(0, 0, 0, 0.6) !important;
+}
+[data-theme="deepspace"] .ko-light-panel .bg-black {
+  background-color: #0a0a0a !important;
+  color: #ffffff !important;
+}
+[data-theme="deepspace"] .ko-light-panel input,
+[data-theme="deepspace"] .ko-light-panel select {
+  background-color: #ffffff !important;
+  color: #0a0a0a !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
 
 body {
   background: var(--background);
