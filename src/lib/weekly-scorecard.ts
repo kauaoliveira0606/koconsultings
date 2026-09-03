@@ -103,6 +103,14 @@ type EodDay = {
   cashLowTicket: number | null;
 };
 
+/** EOD Closer, summed across all closer rows for one day. */
+type CloserDay = {
+  callsBooked: number | null;
+  callsShowed: number | null;
+  dealsClosed: number | null;
+  cashHighTicket: number | null;
+};
+
 /**
  * Everything a single day's cell needs. Derived values (dials, sales, cash,
  * close rate, …) prefer the Affiliate EOD roll-up so the team doesn't have
@@ -114,8 +122,7 @@ type DayCtx = {
   date: string;
   m?: MarketingDailyMetricRow;
   eod?: EodDay;
-  /** high-ticket cash for the day, summed from the EOD Closer table */
-  closerCashHT: number | null;
+  closer?: CloserDay;
   paidLeads: number;
   organicLeads: number;
 };
@@ -133,7 +140,7 @@ const dDials = (c: DayCtx) => (c.eod ? num(c.eod.dials) : c.m ? num(c.m.dials) :
 const dCashLT = (c: DayCtx) =>
   c.eod ? num(c.eod.cashLowTicket) : c.m ? num(c.m.cashCollectedLowTicket) : null;
 const dCashHT = (c: DayCtx) =>
-  c.closerCashHT !== null ? c.closerCashHT : c.m ? num(c.m.cashCollectedHighTicket) : null;
+  c.closer ? num(c.closer.cashHighTicket) : c.m ? num(c.m.cashCollectedHighTicket) : null;
 const dTotalCash = (c: DayCtx) => {
   const lt = dCashLT(c);
   const ht = dCashHT(c);
@@ -141,6 +148,11 @@ const dTotalCash = (c: DayCtx) => {
   return (lt ?? 0) + (ht ?? 0);
 };
 const dLeads = (c: DayCtx) => c.paidLeads + c.organicLeads;
+
+// --- high-ticket (EOD Closer) ---
+const dHtBooked = (c: DayCtx) => (c.closer ? num(c.closer.callsBooked) : null);
+const dHtShowed = (c: DayCtx) => (c.closer ? num(c.closer.callsShowed) : null);
+const dHtClosed = (c: DayCtx) => (c.closer ? num(c.closer.dealsClosed) : null);
 
 const wSum = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => sum(days.map(pick));
 const wAvg = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => average(days.map(pick));
@@ -309,6 +321,57 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
       ],
     },
     {
+      emoji: "🎯",
+      title: "High Ticket",
+      metrics: [
+        {
+          key: "htCallsBooked",
+          label: "Calls Booked (Calendar)",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: dHtBooked,
+          week: wSum(dHtBooked),
+        },
+        {
+          key: "htCallsShowed",
+          label: "Calls Showed",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: dHtShowed,
+          week: wSum(dHtShowed),
+        },
+        {
+          key: "htShowRate",
+          label: "Show Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: (c) => safeDivide(dHtShowed(c), dHtBooked(c)),
+          week: (days) => safeDivide(sum(days.map(dHtShowed)), sum(days.map(dHtBooked))),
+        },
+        {
+          key: "htDealsClosed",
+          label: "High Ticket Deals Closed",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: dHtClosed,
+          week: wSum(dHtClosed),
+        },
+        {
+          key: "htCloseRate",
+          label: "High Ticket Close Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: (c) => safeDivide(dHtClosed(c), dHtShowed(c)),
+          week: (days) => safeDivide(sum(days.map(dHtClosed)), sum(days.map(dHtShowed))),
+        },
+      ],
+    },
+    {
       emoji: "🚩",
       title: "Marketing Metrics",
       metrics: [
@@ -411,13 +474,25 @@ export async function buildWeeklyScorecard(
     });
   }
 
-  // EOD Closer is per-closer too — roll high-ticket cash up per day.
-  const closerCashByDate = new Map<string, number>();
+  // EOD Closer is per-closer too — roll high-ticket activity up per day.
+  const closerByDate = new Map<string, CloserDay>();
   for (const r of allCloser) {
     const d = toEasternDateOnly(r.date);
-    const v = num(r.cashCollectedHighTicket);
-    if (!d || v === null) continue;
-    closerCashByDate.set(d, (closerCashByDate.get(d) ?? 0) + v);
+    if (!d) continue;
+    const cur = closerByDate.get(d) ?? {
+      callsBooked: null,
+      callsShowed: null,
+      dealsClosed: null,
+      cashHighTicket: null,
+    };
+    const add = (a: number | null, b: number | null) =>
+      a === null && b === null ? null : (a ?? 0) + (b ?? 0);
+    closerByDate.set(d, {
+      callsBooked: add(cur.callsBooked, num(r.callsBooked)),
+      callsShowed: add(cur.callsShowed, num(r.callsShowed)),
+      dealsClosed: add(cur.dealsClosed, num(r.dealsClosed)),
+      cashHighTicket: add(cur.cashHighTicket, num(r.cashCollectedHighTicket)),
+    });
   }
 
   const paidByDate = new Map<string, number>();
@@ -436,13 +511,13 @@ export async function buildWeeklyScorecard(
 
   const dayCtxs: DayCtx[] = dayDates.map((date) => {
     if (date >= todayE) {
-      return { date, closerCashHT: null, paidLeads: 0, organicLeads: 0 };
+      return { date, paidLeads: 0, organicLeads: 0 };
     }
     return {
       date,
       m: byDate.get(date),
       eod: eodByDate.get(date),
-      closerCashHT: closerCashByDate.has(date) ? (closerCashByDate.get(date) as number) : null,
+      closer: closerByDate.get(date),
       paidLeads: paidByDate.get(date) ?? 0,
       organicLeads: organicByDate.get(date) ?? 0,
     };
