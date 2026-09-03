@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
     adSpend,
     totalCashCollected,
     cashCollectedLowTicket: cashLowTicket,
+    dials,
     pickupRate: pickupRate(pickups, dials),
     pickups,
     softwarePitched,

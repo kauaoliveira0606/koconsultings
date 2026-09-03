@@ -19,6 +19,7 @@ type MetricsResponse = {
   adSpend: number | null;
   totalCashCollected: number | null;
   cashCollectedLowTicket: number | null;
+  dials: number | null;
   pickupRate: number | null;
   pickups: number | null;
   softwarePitched: number | null;
@@ -134,6 +135,7 @@ export default function OverviewPage() {
             value={metrics?.cashCollectedLowTicket}
             format="currency"
           />
+          <StatCard label="Dials" value={metrics?.dials} format="number" subtext="From Affiliate EOD" />
           <StatCard label="Pickup Rate" value={metrics?.pickupRate} format="percent" />
           <StatCard label="Pickups" value={metrics?.pickups} format="number" />
           <StatCard label="Software Pitched" value={metrics?.softwarePitched} format="number" />
