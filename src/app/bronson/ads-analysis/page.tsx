@@ -48,7 +48,7 @@ export default function AdsAnalysisPage() {
   ];
 
   return (
-    <div>
+    <div className="ko-light-panel">
       <h1 className="mb-2 text-2xl font-bold">Ads Analysis</h1>
       <h2 className="mb-6 text-lg font-semibold text-black/70">Ad Performance Tracker</h2>
 
