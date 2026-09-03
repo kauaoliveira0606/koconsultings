@@ -302,6 +302,9 @@ export type BronsonAffiliateEodRow = {
   softwareClosed: number | null;
   highTicketCallsPitched: number | null;
   newHighTicketCallsBooked: number | null;
+  highTicketCallsOnCalendar: number | null;
+  highTicketCallsShowed: number | null;
+  highTicketSetClosed: number | null;
   cashCollectedAffiliate: number | null;
   cashCollectedHighTicket: number | null;
   totalTalkTimeRaw: string | null;
@@ -325,6 +328,9 @@ export async function getBronsonAffiliateEod(): Promise<BronsonAffiliateEodRow[]
       softwareClosed: parseNumericText(f["software closed"]),
       highTicketCallsPitched: parseNumericText(f["high ticket call pitched"]),
       newHighTicketCallsBooked: parseNumericText(f["new high ticket calls booked"]),
+      highTicketCallsOnCalendar: parseNumericText(f["calls on the calendar"]),
+      highTicketCallsShowed: parseNumericText(f["calls showed"]),
+      highTicketSetClosed: parseNumericText(f["set closed"]),
       cashCollectedAffiliate: parseNumericText(f["Cash collected affiliate"]),
       cashCollectedHighTicket: parseNumericText(f["cash collected high ticket"]),
       totalTalkTimeRaw: (f["total talk time"] as string) ?? null,

@@ -101,9 +101,14 @@ type EodDay = {
   pitched: number | null;
   closed: number | null;
   cashLowTicket: number | null;
+  // high ticket — the setters log this on their Affiliate EOD
+  htBooked: number | null;
+  htShowed: number | null;
+  htClosed: number | null;
+  htCash: number | null;
 };
 
-/** EOD Closer, summed across all closer rows for one day. */
+/** EOD Closer, summed across all closer rows for one day (legacy fallback). */
 type CloserDay = {
   callsBooked: number | null;
   callsShowed: number | null;
@@ -140,7 +145,13 @@ const dDials = (c: DayCtx) => (c.eod ? num(c.eod.dials) : c.m ? num(c.m.dials) :
 const dCashLT = (c: DayCtx) =>
   c.eod ? num(c.eod.cashLowTicket) : c.m ? num(c.m.cashCollectedLowTicket) : null;
 const dCashHT = (c: DayCtx) =>
-  c.closer ? num(c.closer.cashHighTicket) : c.m ? num(c.m.cashCollectedHighTicket) : null;
+  c.eod
+    ? num(c.eod.htCash)
+    : c.closer
+      ? num(c.closer.cashHighTicket)
+      : c.m
+        ? num(c.m.cashCollectedHighTicket)
+        : null;
 const dTotalCash = (c: DayCtx) => {
   const lt = dCashLT(c);
   const ht = dCashHT(c);
@@ -149,10 +160,13 @@ const dTotalCash = (c: DayCtx) => {
 };
 const dLeads = (c: DayCtx) => c.paidLeads + c.organicLeads;
 
-// --- high-ticket (EOD Closer) ---
-const dHtBooked = (c: DayCtx) => (c.closer ? num(c.closer.callsBooked) : null);
-const dHtShowed = (c: DayCtx) => (c.closer ? num(c.closer.callsShowed) : null);
-const dHtClosed = (c: DayCtx) => (c.closer ? num(c.closer.dealsClosed) : null);
+// --- high-ticket: Affiliate EOD (setters log it), EOD Closer as fallback ---
+const dHtBooked = (c: DayCtx) =>
+  c.eod ? num(c.eod.htBooked) : c.closer ? num(c.closer.callsBooked) : null;
+const dHtShowed = (c: DayCtx) =>
+  c.eod ? num(c.eod.htShowed) : c.closer ? num(c.closer.callsShowed) : null;
+const dHtClosed = (c: DayCtx) =>
+  c.eod ? num(c.eod.htClosed) : c.closer ? num(c.closer.dealsClosed) : null;
 
 const wSum = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => sum(days.map(pick));
 const wAvg = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => average(days.map(pick));
@@ -346,8 +360,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           key: "htShowRate",
           label: "Show Rate",
           format: "percent",
-          goal: null,
-          goalDirection: null,
+          goal: goals.showRate?.min ?? null,
+          goalDirection: "higher",
           day: (c) => safeDivide(dHtShowed(c), dHtBooked(c)),
           week: (days) => safeDivide(sum(days.map(dHtShowed)), sum(days.map(dHtBooked))),
         },
@@ -364,8 +378,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           key: "htCloseRate",
           label: "High Ticket Close Rate",
           format: "percent",
-          goal: null,
-          goalDirection: null,
+          goal: goals.highTicketCloseRate?.min ?? null,
+          goalDirection: "higher",
           day: (c) => safeDivide(dHtClosed(c), dHtShowed(c)),
           week: (days) => safeDivide(sum(days.map(dHtClosed)), sum(days.map(dHtShowed))),
         },
@@ -462,6 +476,10 @@ export async function buildWeeklyScorecard(
       pitched: null,
       closed: null,
       cashLowTicket: null,
+      htBooked: null,
+      htShowed: null,
+      htClosed: null,
+      htCash: null,
     };
     const add = (a: number | null, b: number | null) =>
       a === null && b === null ? null : (a ?? 0) + (b ?? 0);
@@ -471,6 +489,10 @@ export async function buildWeeklyScorecard(
       pitched: add(cur.pitched, num(r.softwarePitched)),
       closed: add(cur.closed, num(r.softwareClosed)),
       cashLowTicket: add(cur.cashLowTicket, num(r.cashCollectedAffiliate)),
+      htBooked: add(cur.htBooked, num(r.highTicketCallsOnCalendar)),
+      htShowed: add(cur.htShowed, num(r.highTicketCallsShowed)),
+      htClosed: add(cur.htClosed, num(r.highTicketSetClosed)),
+      htCash: add(cur.htCash, num(r.cashCollectedHighTicket)),
     });
   }
 
