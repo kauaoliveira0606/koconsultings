@@ -16,7 +16,7 @@ const RangeContext = createContext<RangeContextValue | null>(null);
  * instead of resetting to a default every time the route changes.
  */
 export function RangeProvider({ children }: { children: ReactNode }) {
-  const [range, setRange] = useState<RangeState>(defaultRangeState("yesterday"));
+  const [range, setRange] = useState<RangeState>(defaultRangeState("today"));
   return <RangeContext.Provider value={{ range, setRange }}>{children}</RangeContext.Provider>;
 }
 
