@@ -314,12 +314,12 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
         },
         {
           key: "roasTotal",
-          label: "ROAS – Total",
+          label: "ROAS (Paid Cash ÷ Ad Spend)",
           format: "ratio",
           goal: goals.roasTotal?.min ?? null,
           goalDirection: "higher",
-          day: (c) => roas(dTotalCash(c), dAdSpend(c)),
-          week: (days) => roas(sum(days.map(dTotalCash)), sum(days.map(dAdSpend))),
+          day: (c) => roas(dCashLTPaid(c), dAdSpend(c)),
+          week: (days) => roas(sum(days.map(dCashLTPaid)), sum(days.map(dAdSpend))),
         },
         {
           key: "cpaLowTicket",
