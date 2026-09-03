@@ -323,12 +323,12 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
         },
         {
           key: "cpaLowTicket",
-          label: "CPA – Low Ticket",
+          label: "CPA – Low Ticket (Paid)",
           format: "currency",
           goal: goals.cpaLowTicket?.max ?? null,
           goalDirection: "lower",
-          day: (c) => safeDivide(dAdSpend(c), dSalesLT(c)),
-          week: (days) => safeDivide(sum(days.map(dAdSpend)), sum(days.map(dSalesLT))),
+          day: (c) => safeDivide(dAdSpend(c), dSalesLTPaid(c)),
+          week: (days) => safeDivide(sum(days.map(dAdSpend)), sum(days.map(dSalesLTPaid))),
         },
         {
           key: "totalCashCollected",
