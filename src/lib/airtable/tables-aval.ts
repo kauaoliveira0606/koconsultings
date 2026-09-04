@@ -3,9 +3,17 @@ import {
   createAirtableTables,
   type BronsonAffiliateEodRow,
   type BronsonEodCloserRow,
+  type SpeedToLeadRow,
   type TableIds,
 } from "./tables";
 import { parseDateOnly, parseNumericText } from "./parse";
+
+// Aval's Speed to Lead (GHL) table isn't wired yet — no Aval GHL creds.
+// Returns [] so the sales-team route renders an empty state until the
+// GHL → n8n → Airtable pipeline is built (then point this at the table id).
+export async function getAvalSpeedToLead(): Promise<SpeedToLeadRow[]> {
+  return [];
+}
 
 export const AVAL_BASE_ID = "appgEcTIxQjmtRKbP"; // "Aval Trades" base
 

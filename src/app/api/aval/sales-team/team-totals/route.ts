@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
-import { getAvalEodDialer, getAvalEodCloser, getAvalFollowUpPayments } from "@/lib/airtable/tables-aval";
+import { getAvalAffiliateEod } from "@/lib/airtable/tables-aval";
 import { parseDurationMinutes } from "@/lib/airtable/parse";
 import { pickupRate, sum } from "@/lib/metrics";
 
@@ -9,30 +9,25 @@ export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
+  const rows = await getAvalAffiliateEod();
+  const inRange = rows.filter((r) => isDateInRange(r.date, range));
 
-  const [dialer, closer, followUps] = await Promise.all([
-    getAvalEodDialer(),
-    getAvalEodCloser(),
-    getAvalFollowUpPayments(),
+  const outboundDials = sum(inRange.map((r) => r.outboundDials));
+  const pickups = sum(inRange.map((r) => r.pickups));
+  const cashCollected = sum([
+    sum(inRange.map((r) => r.cashCollectedAffiliate)),
+    sum(inRange.map((r) => r.cashCollectedHighTicket)),
   ]);
-
-  const inRangeDialer = dialer.filter((r) => isDateInRange(r.date, range));
-  const inRangeCloser = closer.filter((r) => isDateInRange(r.date, range));
-  const inRangeFollowUps = followUps.filter((r) => isDateInRange(r.date, range));
-
-  const outboundDials = sum(inRangeDialer.map((r) => r.outboundDials));
-  const pickups = sum(inRangeDialer.map((r) => r.pickups));
 
   return Response.json({
     outboundDials,
     pickups,
     pickupRate: pickupRate(pickups, outboundDials),
-    callsBooked: sum(inRangeCloser.map((r) => r.callsBooked)),
-    callsShowed: sum(inRangeCloser.map((r) => r.callsShowed)),
-    dealsClosed: sum(inRangeCloser.map((r) => r.dealsClosed)),
-    cashCollected: sum(inRangeCloser.map((r) => r.totalCashCollected)),
-    totalRevenue: sum(inRangeCloser.map((r) => r.totalRevenue)),
-    totalTalkTimeMinutes: sum(inRangeCloser.map((r) => parseDurationMinutes(r.totalTalkTimeRaw))),
-    followUpPaymentsCollected: sum(inRangeFollowUps.map((r) => r.cashCollected)),
+    softwarePitched: sum(inRange.map((r) => r.softwarePitched)),
+    totalSales: sum(inRange.map((r) => r.softwareClosed)),
+    cashCollected,
+    highTicketCallsPitched: sum(inRange.map((r) => r.highTicketCallsPitched)),
+    newHighTicketCallsBooked: sum(inRange.map((r) => r.newHighTicketCallsBooked)),
+    totalTalkTimeMinutes: sum(inRange.map((r) => parseDurationMinutes(r.totalTalkTimeRaw))),
   });
 }
