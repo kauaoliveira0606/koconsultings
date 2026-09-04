@@ -94,7 +94,7 @@ const RECENT_CHANGES_LABELS: Record<string, string> = {
   connectionRate: "Connection Rate",
   sales: "Sales",
   cashCollected: "Cash Collected",
-  closeRate: "Close Rate",
+  closeRate: "Close Rate (Affiliate)",
   funnelConversionRate: "Funnel Conv. Rate",
 };
 

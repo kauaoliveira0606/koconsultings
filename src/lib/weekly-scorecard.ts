@@ -405,10 +405,12 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
         },
         {
           key: "closeRateLowTicket",
-          label: "Close Rate – Low Ticket",
+          label: "Close Rate – Affiliate",
           format: "percent",
           goal: goals.closeRateLowTicket?.min ?? null,
           goalDirection: "higher",
+          // Affiliate EOD "software closed" ÷ "software pitched", always —
+          // form value only when a day has no Affiliate EOD submission.
           day: (c) =>
             safeDivide(dSalesLT(c), dPitched(c)) ?? (c.m ? num(c.m.closeRateLowTicket) : null),
           week: (days) => safeDivide(sum(days.map(dSalesLT)), sum(days.map(dPitched))),

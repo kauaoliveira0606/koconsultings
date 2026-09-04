@@ -17,15 +17,21 @@ export async function GET() {
   const cutoff = easternDateString(new Date(Date.now() - WINDOW_DAYS * 864e5));
   const today = easternDateString();
 
-  // Dials and pickups always come from Affiliate EOD (summed across
-  // setters) when a day has one, never the manually-typed form field.
+  // Dials, pickups, and closed/pitched always come from Affiliate EOD
+  // (summed across setters) when a day has one, never the manually-typed
+  // form fields.
   const dialsByDate = new Map<string, number>();
   const pickupsByDate = new Map<string, number>();
+  const closedByDate = new Map<string, number>();
+  const pitchedByDate = new Map<string, number>();
   for (const r of eod) {
     const d = toEasternDateOnly(r.date);
     if (!d) continue;
     if (r.outboundDials !== null) dialsByDate.set(d, (dialsByDate.get(d) ?? 0) + r.outboundDials);
     if (r.pickups !== null) pickupsByDate.set(d, (pickupsByDate.get(d) ?? 0) + r.pickups);
+    if (r.softwareClosed !== null) closedByDate.set(d, (closedByDate.get(d) ?? 0) + r.softwareClosed);
+    if (r.softwarePitched !== null)
+      pitchedByDate.set(d, (pitchedByDate.get(d) ?? 0) + r.softwarePitched);
   }
   // Total opt-ins per day from the Leads table (every tracked lead, paid + organic).
   const leadsByDate = new Map<string, number>();
@@ -52,6 +58,8 @@ export async function GET() {
       const d = toEasternDateOnly(row.date);
       const pickups = d ? pickupsByDate.get(d) : undefined;
       const optIns = d ? leadsByDate.get(d) : undefined;
+      const closed = d ? closedByDate.get(d) : undefined;
+      const pitched = d ? pitchedByDate.get(d) : undefined;
       return {
         date: d,
         changesMadeToday: row.changesMadeToday,
@@ -66,7 +74,7 @@ export async function GET() {
           connectionRate: safeDivide(pickups ?? null, optIns || null) ?? row.connectionRate,
           sales: row.salesLowTicket,
           cashCollected: row.cashCollectedLowTicket,
-          closeRate: row.closeRateLowTicket,
+          closeRate: safeDivide(closed ?? null, pitched || null) ?? row.closeRateLowTicket,
           funnelConversionRate: row.funnelConversionRate,
         },
       };
