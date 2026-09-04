@@ -158,7 +158,23 @@ const dTotalCash = (c: DayCtx) => {
   if (lt === null && ht === null) return null;
   return (lt ?? 0) + (ht ?? 0);
 };
-const dLeads = (c: DayCtx) => c.paidLeads + c.organicLeads;
+/**
+ * Effective Paid/Organic opt-in count for the day. The Leads table is the
+ * live source going forward, but it's only been tracking since the switch —
+ * on any day it has nothing, fall back to the Marketing Daily Metrics
+ * form's "Opt ins (Paid/Organic)" count, which is what was tracked before.
+ */
+const dPaidLeads = (c: DayCtx): number | null => {
+  if (c.paidLeads > 0) return c.paidLeads;
+  if (c.m) return c.m.optInsPaid ?? 0;
+  return null;
+};
+const dOrganicLeads = (c: DayCtx): number | null => {
+  if (c.organicLeads > 0) return c.organicLeads;
+  if (c.m) return c.m.optInsOrganic ?? 0;
+  return null;
+};
+const dLeads = (c: DayCtx) => (dPaidLeads(c) ?? 0) + (dOrganicLeads(c) ?? 0);
 
 // --- paid / organic splits (Marketing Daily Metrics form only) ---
 const dSalesLTPaid = (c: DayCtx) => (c.m ? num(c.m.salesLowTicketPaid) : null);
@@ -217,13 +233,13 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: goals.costPerLeadMeta?.max ?? null,
           goalDirection: "lower",
-          // Paid-lead count always comes from the Leads table, never a
-          // manually-typed number; only the ad-spend side is form-entered.
-          day: (c) => safeDivide(dAdSpend(c), c.paidLeads || null) ?? (c.m ? num(c.m.costPerLeadMeta) : null),
+          // Paid-lead count: Leads table, falling back to the Marketing
+          // Daily Metrics "Opt ins (Paid)" count on days it has nothing.
+          day: (c) => safeDivide(dAdSpend(c), dPaidLeads(c) || null) ?? (c.m ? num(c.m.costPerLeadMeta) : null),
           week: (days) =>
             safeDivide(
               sum(days.map(dAdSpend)),
-              days.reduce((n, c) => n + c.paidLeads, 0) || null
+              days.reduce((n, c) => n + (dPaidLeads(c) ?? 0), 0) || null
             ),
         },
         {
@@ -279,11 +295,11 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goalDirection: "higher",
           day: (c) =>
             (c.m ? num(c.m.funnelConversionRatePaid) : null) ??
-            safeDivide(dSalesLTPaid(c), c.paidLeads || null),
+            safeDivide(dSalesLTPaid(c), dPaidLeads(c) || null),
           week: (days) =>
             safeDivide(
               sum(days.map(dSalesLTPaid)),
-              days.reduce((n, c) => n + c.paidLeads, 0) || null
+              days.reduce((n, c) => n + (dPaidLeads(c) ?? 0), 0) || null
             ),
         },
         {
@@ -294,11 +310,11 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goalDirection: "higher",
           day: (c) =>
             (c.m ? num(c.m.funnelConversionRateOrganic) : null) ??
-            safeDivide(dSalesLTOrg(c), c.organicLeads || null),
+            safeDivide(dSalesLTOrg(c), dOrganicLeads(c) || null),
           week: (days) =>
             safeDivide(
               sum(days.map(dSalesLTOrg)),
-              days.reduce((n, c) => n + c.organicLeads, 0) || null
+              days.reduce((n, c) => n + (dOrganicLeads(c) ?? 0), 0) || null
             ),
         },
         {
@@ -340,8 +356,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.optInsPaid,
           goalDirection: goals.optInsPaid === null ? null : "higher",
-          day: (c) => (c.paidLeads > 0 || c.m ? c.paidLeads : null),
-          week: (days) => days.reduce((n, c) => n + c.paidLeads, 0),
+          day: dPaidLeads,
+          week: (days) => days.reduce((n, c) => n + (dPaidLeads(c) ?? 0), 0),
         },
         {
           key: "optInsOrganic",
@@ -349,8 +365,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "number",
           goal: goals.optInsOrganic,
           goalDirection: goals.optInsOrganic === null ? null : "higher",
-          day: (c) => (c.organicLeads > 0 || c.m ? c.organicLeads : null),
-          week: (days) => days.reduce((n, c) => n + c.organicLeads, 0),
+          day: dOrganicLeads,
+          week: (days) => days.reduce((n, c) => n + (dOrganicLeads(c) ?? 0), 0),
         },
         {
           key: "vslViews",
@@ -487,14 +503,15 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.optInRate?.min ?? null,
           goalDirection: "higher",
-          // Paid-lead count from the Leads table; VSL Views has no other
+          // Paid-lead count: Leads table, falling back to the Marketing
+          // Daily Metrics "Opt ins (Paid)" count. VSL Views has no other
           // source, so it's still the form value.
           day: (c) =>
-            safeDivide(c.paidLeads, c.m ? num(c.m.vslViews) : null) ??
+            safeDivide(dPaidLeads(c), c.m ? num(c.m.vslViews) : null) ??
             (c.m ? num(c.m.optInRate) : null),
           week: (days) =>
             safeDivide(
-              days.reduce((n, c) => n + c.paidLeads, 0),
+              days.reduce((n, c) => n + (dPaidLeads(c) ?? 0), 0),
               sum(days.map(fromM((r) => r.vslViews)))
             ),
         },
