@@ -1,5 +1,6 @@
-import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
+import { getAvalAffiliateEod, getAvalLeads, getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
 import { easternDateString, toEasternDateOnly } from "@/lib/date-range";
+import { safeDivide } from "@/lib/metrics";
 
 // Always needs live Airtable data.
 export const dynamic = "force-dynamic";
@@ -8,9 +9,31 @@ export const revalidate = 60;
 const WINDOW_DAYS = 14;
 
 export async function GET() {
-  const marketing = await getAvalMarketingDailyMetrics();
+  const [marketing, eod, leads] = await Promise.all([
+    getAvalMarketingDailyMetrics(),
+    getAvalAffiliateEod(),
+    getAvalLeads(),
+  ]);
   const cutoff = easternDateString(new Date(Date.now() - WINDOW_DAYS * 864e5));
   const today = easternDateString();
+
+  // Dials and pickups always come from Affiliate EOD (summed across
+  // setters) when a day has one, never the manually-typed form field.
+  const dialsByDate = new Map<string, number>();
+  const pickupsByDate = new Map<string, number>();
+  for (const r of eod) {
+    const d = toEasternDateOnly(r.date);
+    if (!d) continue;
+    if (r.outboundDials !== null) dialsByDate.set(d, (dialsByDate.get(d) ?? 0) + r.outboundDials);
+    if (r.pickups !== null) pickupsByDate.set(d, (pickupsByDate.get(d) ?? 0) + r.pickups);
+  }
+  // Total opt-ins per day from the Leads table (every tracked lead, paid + organic).
+  const leadsByDate = new Map<string, number>();
+  for (const l of leads) {
+    const d = toEasternDateOnly(l.createdAt);
+    if (!d) continue;
+    leadsByDate.set(d, (leadsByDate.get(d) ?? 0) + 1);
+  }
 
   // Only days the team actually left a "Changes Made Today" note, newest first.
   const days = marketing
@@ -25,24 +48,29 @@ export async function GET() {
       );
     })
     .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
-    .map((row) => ({
-      date: toEasternDateOnly(row.date),
-      changesMadeToday: row.changesMadeToday,
-      metrics: {
-        adSpend: row.adSpendMeta,
-        costPerLead: row.costPerLeadMeta,
-        landingPageConnectRate: row.landingPageConnectRate,
-        vslViews: row.vslViews,
-        vslPlayRate: row.vslPlayRate,
-        vslEngagementRate: row.vslEngagementRate,
-        dials: row.dials,
-        connectionRate: row.connectionRate,
-        sales: row.salesLowTicket,
-        cashCollected: row.cashCollectedLowTicket,
-        closeRate: row.closeRateLowTicket,
-        funnelConversionRate: row.funnelConversionRate,
-      },
-    }));
+    .map((row) => {
+      const d = toEasternDateOnly(row.date);
+      const pickups = d ? pickupsByDate.get(d) : undefined;
+      const optIns = d ? leadsByDate.get(d) : undefined;
+      return {
+        date: d,
+        changesMadeToday: row.changesMadeToday,
+        metrics: {
+          adSpend: row.adSpendMeta,
+          costPerLead: row.costPerLeadMeta,
+          landingPageConnectRate: row.landingPageConnectRate,
+          vslViews: row.vslViews,
+          vslPlayRate: row.vslPlayRate,
+          vslEngagementRate: row.vslEngagementRate,
+          dials: (d && dialsByDate.get(d)) ?? row.dials,
+          connectionRate: safeDivide(pickups ?? null, optIns || null) ?? row.connectionRate,
+          sales: row.salesLowTicket,
+          cashCollected: row.cashCollectedLowTicket,
+          closeRate: row.closeRateLowTicket,
+          funnelConversionRate: row.funnelConversionRate,
+        },
+      };
+    });
 
   return Response.json({ days });
 }
