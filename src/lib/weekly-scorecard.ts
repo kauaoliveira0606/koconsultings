@@ -217,7 +217,9 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "currency",
           goal: goals.costPerLeadMeta?.max ?? null,
           goalDirection: "lower",
-          day: fromM((r) => r.costPerLeadMeta),
+          // Paid-lead count always comes from the Leads table, never a
+          // manually-typed number; only the ad-spend side is form-entered.
+          day: (c) => safeDivide(dAdSpend(c), c.paidLeads || null) ?? (c.m ? num(c.m.costPerLeadMeta) : null),
           week: (days) =>
             safeDivide(
               sum(days.map(dAdSpend)),
@@ -483,8 +485,16 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           format: "percent",
           goal: goals.optInRate?.min ?? null,
           goalDirection: "higher",
-          day: fromM((r) => r.optInRate),
-          week: wAvg(fromM((r) => r.optInRate)),
+          // Paid-lead count from the Leads table; VSL Views has no other
+          // source, so it's still the form value.
+          day: (c) =>
+            safeDivide(c.paidLeads, c.m ? num(c.m.vslViews) : null) ??
+            (c.m ? num(c.m.optInRate) : null),
+          week: (days) =>
+            safeDivide(
+              days.reduce((n, c) => n + c.paidLeads, 0),
+              sum(days.map(fromM((r) => r.vslViews)))
+            ),
         },
         {
           key: "vslPlayRate",

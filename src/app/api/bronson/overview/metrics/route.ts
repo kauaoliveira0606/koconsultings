@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
 import { getLeads, getMarketingDailyMetrics, getBronsonAffiliateEod } from "@/lib/airtable/tables";
+import { isPaidSource } from "@/lib/airtable/lead-source-lookup";
 import {
   averageOrderValue,
   cashCollectedPerOptIn,
@@ -37,7 +38,8 @@ export async function GET(request: NextRequest) {
     cashLowTicket !== null || cashHighTicket !== null
       ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0)
       : null;
-  const optInsPaid = sum(inRangeMarketing.map((r) => r.optInsPaid));
+  // Real paid-lead count from the Leads table, not the manually-typed form field.
+  const optInsPaid = inRangeLeads.filter((l) => isPaidSource(l.source)).length || null;
 
   // Paid / Organic splits from the Marketing Daily Metrics form
   const salesLtPaid = sum(inRangeMarketing.map((r) => r.salesLowTicketPaid));
