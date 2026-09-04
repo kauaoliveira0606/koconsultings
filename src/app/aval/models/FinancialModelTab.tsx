@@ -47,9 +47,9 @@ function SliderRow({
   format?: StatFormat;
 }) {
   return (
-    <tr className="border-b border-white/5">
+    <tr className="border-b border-black/5">
       <td className="px-4 py-3 font-medium">{label}</td>
-      <td className="px-4 py-3 text-white">{unit}</td>
+      <td className="px-4 py-3 text-black/50">{unit}</td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <input
@@ -59,13 +59,13 @@ function SliderRow({
             step={step}
             value={value}
             onChange={(e) => onChange(Number(e.target.value))}
-            className="w-32 accent-emerald-500"
+            className="w-32"
           />
           <input
             type="number"
             value={value}
             onChange={(e) => onChange(Number(e.target.value))}
-            className="w-24 rounded-md border border-white/10 bg-[#0A0E14] px-2 py-1 text-right text-white [color-scheme:dark]"
+            className="w-24 rounded-md border border-black/10 px-2 py-1 text-right"
           />
         </div>
       </td>
@@ -114,7 +114,7 @@ export function FinancialModelTab() {
           type="button"
           onClick={() => set({ includeHighTicket: false })}
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-            !inputs.includeHighTicket ? "bg-emerald-500 text-black" : "border border-white/10 bg-[#111826]"
+            !inputs.includeHighTicket ? "bg-black text-white" : "border border-black/10 bg-white"
           }`}
         >
           Low Ticket
@@ -123,23 +123,23 @@ export function FinancialModelTab() {
           type="button"
           onClick={() => set({ includeHighTicket: true })}
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-            inputs.includeHighTicket ? "bg-emerald-500 text-black" : "border border-white/10 bg-[#111826]"
+            inputs.includeHighTicket ? "bg-black text-white" : "border border-black/10 bg-white"
           }`}
         >
           Low Ticket → High Ticket
         </button>
       </div>
 
-      <p className="mb-4 text-sm text-white">
+      <p className="mb-4 text-sm text-black/60">
         Drag a slider or type a number directly. Downstream numbers calculate automatically. The
         -15% / -30% columns show what happens if every conversion rate below drops that much.
         Weekly and Monthly are projections at today&apos;s current numbers.
       </p>
 
-      <div className="overflow-x-auto rounded-lg border border-white/10 bg-[#111826]">
+      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/10 text-left text-xs font-semibold uppercase text-white">
+            <tr className="border-b border-black/10 text-left text-xs font-semibold uppercase text-black/50">
               <th className="px-4 py-3">Metric</th>
               <th className="px-4 py-3">Unit</th>
               <th className="px-4 py-3">Your Numbers (Daily)</th>
@@ -339,9 +339,9 @@ function ComputedRow({
   highlight?: boolean;
 }) {
   return (
-    <tr className={`border-b border-white/5 ${highlight ? "bg-blue-500/10 font-semibold" : ""}`}>
+    <tr className={`border-b border-black/5 ${highlight ? "bg-blue-50 font-semibold" : ""}`}>
       <td className="px-4 py-3">{label}</td>
-      <td className="px-4 py-3 text-white">{unit}</td>
+      <td className="px-4 py-3 text-black/50">{unit}</td>
       <td className="px-4 py-3" />
       <td className="px-4 py-3 text-right text-emerald-700">{computedCell(base, format)}</td>
       <td className="px-4 py-3 text-right text-amber-700">{computedCell(d15, format)}</td>

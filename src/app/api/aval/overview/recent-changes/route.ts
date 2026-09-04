@@ -1,46 +1,48 @@
 import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
+import { easternDateString, toEasternDateOnly } from "@/lib/date-range";
 
+// Always needs live Airtable data.
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
-function isoDateDaysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
+const WINDOW_DAYS = 14;
 
 export async function GET() {
   const marketing = await getAvalMarketingDailyMetrics();
-  const byDate = new Map(marketing.map((r) => [r.date, r]));
+  const cutoff = easternDateString(new Date(Date.now() - WINDOW_DAYS * 864e5));
+  const today = easternDateString();
 
-  const days = [0, 1, 2].map((offset) => {
-    const date = isoDateDaysAgo(offset);
-    const row = byDate.get(date);
-    return {
-      date,
-      hasSubmission: !!row,
-      changesMadeToday: row?.changesMadeToday ?? null,
-      metrics: row
-        ? {
-            adSpend: row.adSpendMeta,
-            costPerLead: row.costPerLeadMeta,
-            optInsPaid: row.optInsPaid,
-            optInsOrganic: row.optInsOrganic,
-            landingPageConnectRate: row.landingPageConnectRate,
-            vslViews: row.vslViews,
-            vslPlayRate: row.vslPlayRate,
-            vslEngagementRate: row.vslEngagementRate,
-            emailOpenRate: row.confirmationEmailOpenRate,
-            dials: row.dials,
-            connectionRate: row.connectionRate,
-            sales: row.salesLowTicket,
-            cashCollected: row.cashCollectedLowTicket,
-            closeRate: row.closeRateLowTicket,
-            funnelConversionRate: row.funnelConversionRate,
-          }
-        : null,
-    };
-  });
+  // Only days the team actually left a "Changes Made Today" note, newest first.
+  const days = marketing
+    .filter((r) => {
+      const d = toEasternDateOnly(r.date);
+      return (
+        d !== null &&
+        d >= cutoff &&
+        d <= today &&
+        typeof r.changesMadeToday === "string" &&
+        r.changesMadeToday.trim() !== ""
+      );
+    })
+    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+    .map((row) => ({
+      date: toEasternDateOnly(row.date),
+      changesMadeToday: row.changesMadeToday,
+      metrics: {
+        adSpend: row.adSpendMeta,
+        costPerLead: row.costPerLeadMeta,
+        landingPageConnectRate: row.landingPageConnectRate,
+        vslViews: row.vslViews,
+        vslPlayRate: row.vslPlayRate,
+        vslEngagementRate: row.vslEngagementRate,
+        dials: row.dials,
+        connectionRate: row.connectionRate,
+        sales: row.salesLowTicket,
+        cashCollected: row.cashCollectedLowTicket,
+        closeRate: row.closeRateLowTicket,
+        funnelConversionRate: row.funnelConversionRate,
+      },
+    }));
 
   return Response.json({ days });
 }

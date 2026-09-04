@@ -1,5 +1,10 @@
 import { airtableListAll } from "./client";
-import { createAirtableTables, type TableIds } from "./tables";
+import {
+  createAirtableTables,
+  type BronsonAffiliateEodRow,
+  type BronsonEodCloserRow,
+  type TableIds,
+} from "./tables";
 import { parseDateOnly, parseNumericText } from "./parse";
 
 export const AVAL_BASE_ID = "appgEcTIxQjmtRKbP"; // "Aval Trades" base
@@ -24,6 +29,58 @@ export const {
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 const EOD_CLOSER_TABLE_ID = "tbl0xIvtCZIjemZRZ";
 const FOLLOW_UP_PAYMENT_TABLE_ID = "tblIv06rB4qG0msnZ";
+const AVAL_AFFILIATE_EOD_TABLE_ID = "tblMsNIo5ZbNECcSv";
+
+// Per-setter daily EOD — same shape as Bronson's Affiliate EOD, different
+// Airtable column spellings. Returns the Bronson row type so the shared
+// weekly-scorecard builder consumes it directly.
+export async function getAvalAffiliateEod(): Promise<BronsonAffiliateEodRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    AVAL_BASE_ID,
+    AVAL_AFFILIATE_EOD_TABLE_ID
+  );
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      date: parseDateOnly(f.Date),
+      repName: (f["Your Name"] as string) ?? (f.Name as string) ?? null,
+      outboundDials: parseNumericText(f["Outbound dials"]),
+      pickups: parseNumericText(f["Pick ups"]),
+      softwarePitched: parseNumericText(f["Software pitched"]),
+      softwareClosed: parseNumericText(f["Software closes"]),
+      highTicketCallsPitched: parseNumericText(f["Pitched high ticket calls"]),
+      newHighTicketCallsBooked: parseNumericText(f["New high ticket calls booked"]),
+      highTicketCallsOnCalendar: parseNumericText(f["Calls on the calendar today"]),
+      highTicketCallsShowed: parseNumericText(f["Calls showed"]),
+      highTicketSetClosed: parseNumericText(f["High ticket set closes"]),
+      cashCollectedAffiliate: parseNumericText(f["Cash collected Affiliate"]),
+      cashCollectedHighTicket: parseNumericText(f["Cash collected High Ticket"]),
+      totalTalkTimeRaw: (f["Total talk time"] as string) ?? null,
+    };
+  });
+}
+
+// High-ticket closer EOD, Bronson row shape (Aval's column names match).
+export async function getAvalEodCloserScorecard(): Promise<BronsonEodCloserRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    AVAL_BASE_ID,
+    EOD_CLOSER_TABLE_ID
+  );
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      date: parseDateOnly(f.Date),
+      dealsClosed: parseNumericText(f["Deals Closed"]),
+      offersMade: parseNumericText(f["Offers Made"]),
+      callsBooked: parseNumericText(f["Calls Booked"]),
+      callsShowed: parseNumericText(f["Calls Showed"]),
+      cashCollectedHighTicket: parseNumericText(f["Total Cash Collected"]),
+      revenueHighTicket: parseNumericText(f["Total Revenue"]),
+    };
+  });
+}
 
 export type AvalPostCallNoteRow = {
   id: string;
@@ -148,6 +205,10 @@ export type AvalAffiliatePcnRow = {
   date: string | null;
   brand: string | null;
   plan: string | null;
+  repName: string | null;
+  leadName: string | null;
+  leadEmail: string | null;
+  cpaCash: number | null;
 };
 
 export async function getAvalAffiliatePcn(): Promise<AvalAffiliatePcnRow[]> {
@@ -163,6 +224,10 @@ export async function getAvalAffiliatePcn(): Promise<AvalAffiliatePcnRow[]> {
       date: parseDateOnly(f.Date),
       brand: (f["Which Software"] as string) ?? null,
       plan: (f["Plan?"] as string) ?? null,
+      repName: (f["Your Name"] as string) ?? null,
+      leadName: (f["Lead Name"] as string) ?? null,
+      leadEmail: (f["Lead Email"] as string) ?? null,
+      cpaCash: parseNumericText(f["CPA?"]),
     };
   });
 }
