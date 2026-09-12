@@ -25,12 +25,6 @@ import {
 const GOOGLE_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSct9oGZZgENUXiPi-9V1aybXITWz9WPTE7pRw7Y-wpwbaARvQ/viewform?usp=dialog";
 
-const GOOGLE_FORM_URL_CLOSER =
-  "https://docs.google.com/forms/d/e/1FAIpQLSct9oGZZgENUXiPi-9V1aybXITWz9WPTE7pRw7Y-wpwbaARvQ/viewform?usp=dialog";
-
-const GOOGLE_FORM_URL_SECTION8 =
-  "https://docs.google.com/forms/d/e/1FAIpQLSeAySSUwPAef6ymJcBJ6JLZjloWtSPflJvkvhV6zkUKbFqasg/viewform?usp=dialog";
-
 const GOOGLE_FORM_URL_ANDY =
   "https://docs.google.com/forms/d/e/1FAIpQLSe-VuGw3guY-Ftnbx39UXdrwwoaU8kvQt-f5OrqNgvO0Uhvsg/viewform?usp=publish-editor";
 
@@ -157,7 +151,7 @@ const ROLES = [
     slug: "sdr-ecommerce",
     accent: "red",
     title: "Sales Development Representative",
-    tag: "E-Commerce Offer",
+    tag: "Ecommerce Bronson",
     formUrl: GOOGLE_FORM_URL,
     ote: "OTE $2K-$5.4K/mo",
     location: "Remote",
@@ -186,66 +180,6 @@ const ROLES = [
       "You will be getting sales training from me who has collected millions in cash and made multiple 20-30k months.",
       "Culture is hunger, obsession, and going above and beyond. You're going to be in an environment that can make you a way better version of yourself.",
       "Expectations: seven days a week. Speed to lead. Being active and responsive very quickly.",
-    ],
-    contact: "@kauaoliveirallc",
-  },
-  {
-    slug: "sdr-section8",
-    accent: "amber",
-    title: "Sales Development Representative",
-    tag: "Section 8 Offer",
-    formUrl: GOOGLE_FORM_URL_SECTION8,
-    ote: "OTE $2K-$5.5K/mo",
-    location: "Remote",
-    type: "Full-Time",
-    comp: "Commission Only",
-    blurb:
-      "You'll be selling a low-ticket software offer and booking financially qualified leads into a $7K high-ticket program. Higher lead flow than usual is coming in, and this is a role for someone who wants a ton of reps fast and is ready to get paid on both ends of the funnel.",
-    responsibilities: [
-      "Sell Base44 (a $50-$200/m software package) to inbound leads",
-      "Book qualified leads into our $7K high-ticket offer",
-      "Follow speed-to-lead and follow-up sequences daily",
-      "Track and hit daily closing KPIs on the low-ticket funnel",
-    ],
-    fullDescription: [
-      "Dialer position - Full time, commission only",
-      "Low-ticket: selling Base44 software, a $50-$200/m package that pays out $250",
-      "High-ticket: booking financially qualified leads into a $7K offer",
-      "OTE 2k-5.5k/m for setters",
-      "Higher lead flow than usual coming in",
-      "Lots of bonuses set up for performance",
-      "We value and compensate hard work heavily. This is a full-time position. Some of our reps CHOOSE to work 8+ hours. Ask yourself before you apply: is this the type of culture and standard you can commit to at the moment?",
-      "KPI's are closing at least 5 leads a day on the affiliate which is $50/month, we've seen people do around ten a day.",
-      "You will get a lot better in your skill set just because of the amount of reps that you will have that you will not see in any other offer.",
-      "The stuff is really easy. The marketing is they get access to a free course that we used to charge thousands of dollars for if they sign up for a platform software that they would have to sign up for already.",
-    ],
-    contact: "@kauaoliveirallc",
-  },
-  {
-    slug: "closer-ecommerce",
-    accent: "emerald",
-    title: "Closer",
-    tag: "E-Commerce Offer",
-    formUrl: GOOGLE_FORM_URL_CLOSER,
-    ote: "OTE $1K-$3K/mo",
-    location: "Remote",
-    type: "Part-Time",
-    comp: "Commission Only",
-    blurb:
-      "You'll be closing a $1.5K high-ticket offer for buyers who already purchased a low-ticket package from us — these leads are pre-qualified and a lot warmer than a cold funnel. This is a part-time role for someone who wants strong pay per hour worked without the full-time grind.",
-    responsibilities: [
-      "Close a $1.5K high-ticket offer inside our low-ticket-to-high-ticket e-com funnel",
-      "Work leads who already bought a package from us — no cold prospecting",
-      "Follow speed-to-lead and follow-up sequences on assigned shifts",
-      "Track and hit closing KPIs on a part-time schedule",
-    ],
-    fullDescription: [
-      "Closer position - Part time, commission only",
-      "Single ticket: $1.5K high-ticket e-com offer",
-      "OTE 1k-3k/m part-time",
-      "Low-ticket-to-high-ticket funnel — every lead has already bought a package from us before, so they're a lot warmer than the average funnel",
-      "Lots of bonuses set up for performance",
-      "We value and compensate hard work heavily. Even part-time, we expect focus and consistency during your shifts.",
     ],
     contact: "@kauaoliveirallc",
   },
