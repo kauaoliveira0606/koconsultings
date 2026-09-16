@@ -1,7 +1,7 @@
 export type RangePreset =
   | "today"
   | "yesterday"
-  | "this_week"
+  | "last_3_days"
   | "last_7_days"
   | "last_30_days"
   | "all_time"
@@ -10,7 +10,7 @@ export type RangePreset =
 export const RANGE_PRESET_LABELS: Record<RangePreset, string> = {
   today: "Today",
   yesterday: "Yesterday",
-  this_week: "This Week",
+  last_3_days: "Last 3 Days",
   last_7_days: "Last 7 Days",
   last_30_days: "Last 30 Days",
   all_time: "All Time",
@@ -20,7 +20,7 @@ export const RANGE_PRESET_LABELS: Record<RangePreset, string> = {
 export type ResolvedRange = { start: string | null; end: string | null };
 
 /**
- * The whole dashboard runs on US Eastern. "Today", "This Week", every
+ * The whole dashboard runs on US Eastern. "Today", "Last 3 Days", every
  * bucket boundary, and every displayed timestamp are Eastern-calendar,
  * regardless of where the server (UTC on Vercel) or the viewer sits.
  */
@@ -35,15 +35,6 @@ export function easternDateString(d: Date = new Date()): string {
     month: "2-digit",
     day: "2-digit",
   }).format(d);
-}
-
-/** 0 = Sunday … 6 = Saturday, for the given instant in US Eastern. */
-function easternDayOfWeek(d: Date): number {
-  const wd = new Intl.DateTimeFormat("en-US", {
-    timeZone: BUSINESS_TIME_ZONE,
-    weekday: "short",
-  }).format(d);
-  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(wd);
 }
 
 /** Add (or subtract) whole days to a `YYYY-MM-DD` string. Pure calendar math. */
@@ -71,7 +62,6 @@ export function toEasternDateOnly(value: string | null | undefined): string | nu
 /**
  * Resolves a preset (or custom start/end) into an inclusive [start, end]
  * range of Eastern calendar dates. `null`/`null` means "all time".
- * "This Week" starts Monday (Eastern).
  */
 export function resolveRange(
   preset: RangePreset,
@@ -87,10 +77,8 @@ export function resolveRange(
       const y = addDaysToDateString(today, -1);
       return { start: y, end: y };
     }
-    case "this_week": {
-      const daysSinceMonday = (easternDayOfWeek(now) + 6) % 7;
-      return { start: addDaysToDateString(today, -daysSinceMonday), end: today };
-    }
+    case "last_3_days":
+      return { start: addDaysToDateString(today, -2), end: today };
     case "last_7_days":
       return { start: addDaysToDateString(today, -6), end: today };
     case "last_30_days":

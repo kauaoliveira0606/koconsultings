@@ -5,7 +5,7 @@ import { RANGE_PRESET_LABELS, type RangePreset } from "@/lib/date-range";
 const PRESET_ORDER: RangePreset[] = [
   "today",
   "yesterday",
-  "this_week",
+  "last_3_days",
   "last_7_days",
   "last_30_days",
   "all_time",

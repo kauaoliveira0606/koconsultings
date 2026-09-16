@@ -4,7 +4,7 @@ import { resolveRange, type RangePreset, type ResolvedRange } from "./date-range
 const VALID_PRESETS: RangePreset[] = [
   "today",
   "yesterday",
-  "this_week",
+  "last_3_days",
   "last_7_days",
   "last_30_days",
   "all_time",

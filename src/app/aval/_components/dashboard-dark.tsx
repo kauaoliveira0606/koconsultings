@@ -133,7 +133,7 @@ export function DataTable<T>({
 const PRESET_ORDER: RangePreset[] = [
   "today",
   "yesterday",
-  "this_week",
+  "last_3_days",
   "last_7_days",
   "last_30_days",
   "all_time",
