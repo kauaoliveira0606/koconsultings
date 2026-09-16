@@ -21,7 +21,13 @@ type MetricsResponse = {
   cashCollectedPerOptInPaid: number | null;
   averageOrderValue: number | null;
   highTicketPitchRate: number | null;
-  upsellBookingRate: number | null;
+  highTicketCloseRate: number | null;
+  highTicketPitched: number | null;
+  highTicketClosed: number | null;
+  highTicketCallsBooked: number | null;
+  highTicketCallsShowed: number | null;
+  cashCollectedHighTicket: number | null;
+  revenueHighTicket: number | null;
   costPerAcquisition: number | null;
   leadToCloseRate: number | null;
 };
@@ -152,14 +158,33 @@ export default function OverviewPage() {
             value={metrics?.highTicketPitchRate}
             format="percent"
           />
-          <StatCard
-            label="Upsell Booking Rate (HT Booked / HT Pitched)"
-            value={metrics?.upsellBookingRate}
-            format="percent"
-          />
           <StatCard label="Cost Per Acquisition (CAC)" value={metrics?.costPerAcquisition} format="currency" />
           <StatCard label="Lead-to-Close Rate" value={metrics?.leadToCloseRate} format="percent" />
         </StatCardGrid>
+      </DashboardSection>
+
+      <DashboardSection title="High Ticket Closers">
+        <StatCardGrid>
+          <StatCard label="Calls Booked" value={metrics?.highTicketCallsBooked} format="number" />
+          <StatCard label="Calls Showed" value={metrics?.highTicketCallsShowed} format="number" />
+          <StatCard label="Pitched" value={metrics?.highTicketPitched} format="number" />
+          <StatCard label="Closed" value={metrics?.highTicketClosed} format="number" />
+          <StatCard
+            label="Close Rate (Closed / Pitched)"
+            value={metrics?.highTicketCloseRate}
+            format="percent"
+          />
+          <StatCard
+            label="Cash Collected — High Ticket"
+            value={metrics?.cashCollectedHighTicket}
+            format="currency"
+          />
+          <StatCard label="Revenue — High Ticket" value={metrics?.revenueHighTicket} format="currency" />
+        </StatCardGrid>
+        <p className="mt-3 text-sm text-black/50">
+          From the High Ticket Closers&apos; EOD log and Post Call Note, the closer&apos;s
+          per-call record — active since 2026-09-13.
+        </p>
       </DashboardSection>
 
       <DashboardSection title="Yearly / Monthly Plan Split">

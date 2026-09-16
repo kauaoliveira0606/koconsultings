@@ -5,6 +5,7 @@ import {
   getLeads,
   getMarketingDailyMetrics,
   getAffiliatePcn,
+  getPostCallNotes,
 } from "@/lib/airtable/tables-ecom-simulation";
 import {
   isPaidSource,
@@ -20,26 +21,35 @@ export const revalidate = 60;
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
-  const [leads, marketing, pcn] = await Promise.all([
+  const [leads, marketing, pcn, postCallNotes] = await Promise.all([
     getLeads(),
     getMarketingDailyMetrics(),
     getAffiliatePcn(),
+    getPostCallNotes(),
   ]);
 
   const inRangeLeads = leads.filter((l) => isDateInRange(l.createdAt, range));
   const inRangeMarketing = marketing.filter((r) => isDateInRange(r.date, range));
   const inRangePcn = pcn.filter((r) => isDateInRange(r.date, range));
   const inRangePcnClosed = inRangePcn.filter((r) => r.cpaCash !== null);
+  const inRangePostCallNotesClosed = postCallNotes
+    .filter((r) => isDateInRange(r.date, range))
+    .filter((r) => r.cashCollected !== null && r.cashCollected > 0)
+    .map((r) => ({ leadEmail: r.leadEmail, cpaCash: r.cashCollected }));
 
   const paidLeads = inRangeLeads.filter((l) => isPaidSource(l.source));
   const organicLeads = inRangeLeads.filter((l) => isOrganicSource(l.source));
   const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta));
 
-  // Cash Collected — Paid/Organic: merges each Affiliate PCN close (matched
-  // to its lead by email, dated by when the call closed) with any lead that
-  // has its own direct Cash Collected value, deduped by email so nothing
-  // gets counted twice.
-  const merged = mergeCashBySource(leads, inRangeLeads, inRangePcnClosed);
+  // Cash Collected — Paid/Organic: merges each Affiliate PCN close and each
+  // High Ticket Closer's Post Call Note close (both matched to a lead by
+  // email, dated by when the call closed) with any lead that has its own
+  // direct Cash Collected value, deduped by email so nothing gets counted
+  // twice.
+  const merged = mergeCashBySource(leads, inRangeLeads, [
+    ...inRangePcnClosed,
+    ...inRangePostCallNotesClosed,
+  ]);
 
   const lookup = buildLeadSourceLookup(leads);
   const matchedToLead = inRangePcn.filter((r) => lookupSource(lookup, r.leadEmail) !== null).length;

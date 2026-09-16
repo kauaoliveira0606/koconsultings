@@ -44,6 +44,36 @@ type CpaResponse = {
   }[];
 };
 
+type HighTicketClosersResponse = {
+  callsBooked: number | null;
+  callsShowed: number | null;
+  offersMade: number | null;
+  dealsClosed: number | null;
+  cashCollected: number | null;
+  totalRevenue: number | null;
+  pitched: number;
+  closed: number;
+  closeRate: number | null;
+  closers: {
+    closer: string;
+    callsBooked: number | null;
+    callsShowed: number | null;
+    dealsClosed: number | null;
+    cashCollected: number | null;
+  }[];
+  records: {
+    id: string;
+    date: string | null;
+    repName: string | null;
+    leadName: string | null;
+    source: string | null;
+    callOutcome: string | null;
+    offerPitched: string | null;
+    cashCollected: number | null;
+    totalRevenue: number | null;
+  }[];
+};
+
 function formatMinutes(minutes: number | null): string {
   if (minutes === null || !Number.isFinite(minutes)) return "—";
   return `${minutes.toFixed(1)}m`;
@@ -58,6 +88,10 @@ export default function SalesTeamPage() {
   );
   const { data: byRep } = useSectionData<ByRepResponse>("/api/ecom-simulation/sales-team/by-rep", range);
   const { data: cpa } = useSectionData<CpaResponse>("/api/ecom-simulation/sales-team/cpa", range);
+  const { data: highTicket } = useSectionData<HighTicketClosersResponse>(
+    "/api/ecom-simulation/sales-team/high-ticket-closers",
+    range
+  );
 
   const repColumns: Column<ByRepResponse["reps"][number]>[] = [
     { key: "rep", header: "Rep", render: (r) => r.rep },
@@ -108,6 +142,49 @@ export default function SalesTeamPage() {
     },
   ];
 
+  const closerColumns: Column<HighTicketClosersResponse["closers"][number]>[] = [
+    { key: "closer", header: "Closer", render: (c) => c.closer },
+    {
+      key: "callsBooked",
+      header: "Calls Booked",
+      render: (c) => formatStatValue(c.callsBooked),
+      align: "right",
+    },
+    {
+      key: "callsShowed",
+      header: "Calls Showed",
+      render: (c) => formatStatValue(c.callsShowed),
+      align: "right",
+    },
+    {
+      key: "dealsClosed",
+      header: "Deals Closed",
+      render: (c) => formatStatValue(c.dealsClosed),
+      align: "right",
+    },
+    {
+      key: "cashCollected",
+      header: "Cash Collected",
+      render: (c) => formatStatValue(c.cashCollected, "currency"),
+      align: "right",
+    },
+  ];
+
+  const postCallNoteColumns: Column<HighTicketClosersResponse["records"][number]>[] = [
+    { key: "date", header: "Date", render: (r) => (r.date ? formatDateTime(r.date) : "—") },
+    { key: "rep", header: "Setter", render: (r) => r.repName ?? "Unknown" },
+    { key: "lead", header: "Lead", render: (r) => r.leadName ?? "—" },
+    { key: "source", header: "Source", render: (r) => r.source ?? "—" },
+    { key: "outcome", header: "Call Outcome", render: (r) => r.callOutcome ?? "—" },
+    { key: "offer", header: "Offer Pitched/Closed", render: (r) => r.offerPitched ?? "—" },
+    {
+      key: "cash",
+      header: "Cash Collected",
+      render: (r) => formatStatValue(r.cashCollected, "currency"),
+      align: "right",
+    },
+  ];
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -148,6 +225,34 @@ export default function SalesTeamPage() {
 
       <DashboardSection title="Affiliate PCN Records">
         <DataTable columns={cpaRecordColumns} rows={cpa?.records ?? []} rowKey={(r) => r.id} />
+      </DashboardSection>
+
+      <DashboardSection title="High Ticket Closers">
+        <StatCardGrid>
+          <StatCard label="Calls Booked" value={highTicket?.callsBooked} format="number" />
+          <StatCard label="Calls Showed" value={highTicket?.callsShowed} format="number" />
+          <StatCard label="Offers Made" value={highTicket?.offersMade} format="number" />
+          <StatCard label="Deals Closed" value={highTicket?.dealsClosed} format="number" />
+          <StatCard
+            label="Close Rate (Closed / Pitched)"
+            value={highTicket?.closeRate}
+            format="percent"
+          />
+          <StatCard label="Cash Collected" value={highTicket?.cashCollected} format="currency" />
+          <StatCard label="Total Revenue" value={highTicket?.totalRevenue} format="currency" />
+        </StatCardGrid>
+      </DashboardSection>
+
+      <DashboardSection title="By Closer">
+        <DataTable columns={closerColumns} rows={highTicket?.closers ?? []} rowKey={(c) => c.closer} />
+      </DashboardSection>
+
+      <DashboardSection title="Post Call Note Records">
+        <DataTable
+          columns={postCallNoteColumns}
+          rows={highTicket?.records ?? []}
+          rowKey={(r) => r.id}
+        />
       </DashboardSection>
     </div>
   );
