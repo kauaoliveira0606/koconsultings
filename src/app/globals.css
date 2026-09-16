@@ -165,6 +165,19 @@
 }
 
 /*
+ * Opt-out island: the Models page's own tables lean on red/orange/green
+ * semantic colors to show downside scenarios, which read poorly against a
+ * purple-tinted card. `.ko-neutral-panel` repaints panels back to plain
+ * dark neutral within that subtree — same opt-out idea as
+ * `.ko-light-panel` above, just dark instead of light.
+ */
+[data-theme="violet"] .ko-neutral-panel {
+  --panel-bg: #131313;
+  --panel-subtle: rgba(255, 255, 255, 0.06);
+  --panel-border: rgba(255, 255, 255, 0.12);
+}
+
+/*
  * Safety net: many dashboard subpages (Sales Team tables, Models, Ads
  * Analysis) hardcode light Tailwind utilities (bg-white, text-black/50,
  * border-black/10, …). Rather than hand-convert every one, remap them to

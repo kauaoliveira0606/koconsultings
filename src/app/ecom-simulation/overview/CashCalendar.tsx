@@ -16,6 +16,29 @@ const BUCKET_COLORS = [
   "bg-emerald-700",
 ];
 
+// The heat-map buckets go from a near-black "no data" tile up through light
+// mint greens to a dark green — a single text color can't stay readable
+// across that whole range, and the theme's blanket text-black→white remap
+// (globals.css) makes it worse by forcing white even onto the light green
+// tiles. Pairing each bucket with its own explicit (non-remapped) text
+// color keeps every tile readable regardless of theme.
+const BUCKET_TEXT_COLORS = [
+  "text-white",
+  "text-slate-900",
+  "text-slate-900",
+  "text-slate-900",
+  "text-white",
+  "text-white",
+];
+const BUCKET_SUBTEXT_COLORS = [
+  "text-white/70",
+  "text-slate-900/60",
+  "text-slate-900/60",
+  "text-slate-900/60",
+  "text-white/70",
+  "text-white/70",
+];
+
 type CashCalendarResponse = {
   byDay: Record<string, number>;
   total: number;
@@ -110,14 +133,14 @@ export function CashCalendar() {
               return (
                 <div
                   key={date}
-                  className={`flex h-24 flex-col justify-between rounded-md border border-black/5 p-2 ${BUCKET_COLORS[bucket]}`}
+                  className={`flex h-24 flex-col justify-between rounded-md border border-black/5 p-2 ${BUCKET_COLORS[bucket]} ${BUCKET_TEXT_COLORS[bucket]}`}
                 >
                   <span className="text-xs font-semibold">{day}</span>
                   {value > 0 ? (
                     <span className="text-right text-xs font-bold">{formatStatValue(value, "currency")}</span>
                   ) : null}
                   {source && (source.paid > 0 || source.organic > 0 || source.unattributed > 0) ? (
-                    <div className="text-right text-[10px] leading-tight text-black/60">
+                    <div className={`text-right text-[10px] leading-tight ${BUCKET_SUBTEXT_COLORS[bucket]}`}>
                       {source.paid > 0 ? <div>P: {formatStatValue(source.paid, "currency")}</div> : null}
                       {source.organic > 0 ? (
                         <div>O: {formatStatValue(source.organic, "currency")}</div>
