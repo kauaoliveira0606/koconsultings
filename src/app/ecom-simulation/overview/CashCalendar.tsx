@@ -8,7 +8,7 @@ import { formatStatValue } from "@/lib/format";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const BUCKET_COLORS = [
-  "bg-[#F1EEE4]", // 0 - none
+  "bg-[var(--panel-subtle)]", // 0 - none
   "bg-emerald-100",
   "bg-emerald-200",
   "bg-emerald-300",

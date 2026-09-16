@@ -72,50 +72,96 @@
 }
 
 /*
- * `violet` theme (Ecom Simulation): stays light like the default theme —
- * same cream/white background, same black body text — it just swaps the
- * accent color from black to purple so this offer reads as visually
- * distinct from the others at a glance.
+ * `violet` theme (Ecom Simulation): a dark purple-and-black background,
+ * same structure as `deepspace` above (radial glows over a dark linear
+ * gradient) but shifted to a purple palette instead of blue, so this offer
+ * reads as visually distinct from Bronson/Aval at a glance.
  */
 [data-theme="violet"] {
-  --accent: #7c3aed;
-  --btn-active-bg: #7c3aed;
+  --app-bg:
+    radial-gradient(1100px 620px at 12% -12%, rgba(168, 85, 247, 0.32), transparent 60%),
+    radial-gradient(900px 520px at 112% 4%, rgba(109, 40, 217, 0.26), transparent 55%),
+    radial-gradient(700px 700px at 50% 120%, rgba(147, 51, 234, 0.18), transparent 60%),
+    linear-gradient(180deg, #07030d 0%, #170b2e 55%, #241041 100%);
+  --panel-bg: rgba(43, 21, 71, 0.62);
+  --panel-subtle: rgba(196, 130, 255, 0.09);
+  --panel-border: rgba(196, 130, 255, 0.24);
+  --text-strong: #ffffff;
+  --text: #ffffff;
+  --text-muted: #ffffff;
+  --accent: #d8b4fe;
+  --btn-active-bg: #a855f7;
   --btn-active-fg: #ffffff;
+  --cell-green-bg: rgba(16, 185, 129, 0.32);
+  --cell-green-text: #ffffff;
+  --cell-yellow-bg: rgba(245, 190, 66, 0.32);
+  --cell-yellow-text: #ffffff;
+  --cell-red-bg: rgba(248, 81, 96, 0.36);
+  --cell-red-text: #ffffff;
+}
+
+[data-theme="violet"] ::selection {
+  background: rgba(196, 130, 255, 0.35);
 }
 
 /*
- * Ecom Simulation's own components hardcode bg-black/border-black for
- * active/selected accents (sidebar nav, model toggles, upload button,
- * active tab, highlighted rows) rather than using var(--accent) directly
- * the way Bronson/Aval do. Remapping those utility classes here repaints
- * every one of them purple at once. Scoped to [data-theme="violet"] so the
- * other offers are untouched; plain text/border opacity utilities
- * (text-black/50, border-black/10, …) are left alone so the rest of the
- * page stays neutral instead of turning fully purple.
+ * Same safety-net idea as deepspace above, purple-shifted: Ecom Simulation's
+ * pages hardcode light Tailwind utilities (bg-white, text-black/50,
+ * bg-black, …) rather than using the theme variables directly, so remap
+ * them here instead of hand-converting every file. Scoped to
+ * [data-theme="violet"] so Bronson/Aval are untouched.
  */
-[data-theme="violet"] .bg-black {
-  background-color: var(--accent) !important;
-}
-[data-theme="violet"] [class*="hover:bg-black/"]:hover {
-  background-color: rgba(124, 58, 237, 0.75) !important;
-}
-[data-theme="violet"] .border-black {
-  border-color: var(--accent) !important;
-}
-[data-theme="violet"] .border-black.text-black {
-  color: var(--accent) !important;
-}
-[data-theme="violet"] .bg-black\/5 {
-  background-color: rgba(124, 58, 237, 0.08) !important;
+[data-theme="violet"] .bg-white {
+  background-color: var(--panel-bg) !important;
 }
 [data-theme="violet"] .bg-blue-50 {
-  background-color: rgba(124, 58, 237, 0.08) !important;
+  background-color: rgba(196, 130, 255, 0.18) !important;
 }
 [data-theme="violet"] .bg-indigo-100 {
-  background-color: rgba(124, 58, 237, 0.16) !important;
+  background-color: rgba(196, 130, 255, 0.22) !important;
 }
 [data-theme="violet"] .text-indigo-600 {
-  color: var(--accent) !important;
+  color: #ffffff !important;
+}
+[data-theme="violet"] .text-black,
+[data-theme="violet"] [class*="text-black/"] {
+  color: #ffffff !important;
+}
+[data-theme="violet"] [class*="border-black/"],
+[data-theme="violet"] .border-black,
+[data-theme="violet"] [class*="divide-black/"] > * + * {
+  border-color: var(--panel-border) !important;
+}
+/* solid dark buttons / pills → light purple primary on dark */
+[data-theme="violet"] .bg-black {
+  background-color: rgba(216, 180, 254, 0.92) !important;
+  color: #241041 !important;
+}
+[data-theme="violet"] .bg-black .text-white,
+[data-theme="violet"] .bg-black.text-white {
+  color: #241041 !important;
+}
+[data-theme="violet"] [class*="hover:bg-black/"]:hover {
+  background-color: rgba(216, 180, 254, 0.8) !important;
+}
+[data-theme="violet"] .bg-black\/5,
+[data-theme="violet"] .bg-black\/10,
+[data-theme="violet"] .bg-black\/\[0\.03\] {
+  background-color: var(--panel-subtle) !important;
+}
+[data-theme="violet"] input,
+[data-theme="violet"] select,
+[data-theme="violet"] textarea {
+  background-color: var(--panel-bg) !important;
+  color: #ffffff !important;
+  border-color: var(--panel-border) !important;
+}
+[data-theme="violet"] input::placeholder,
+[data-theme="violet"] textarea::placeholder {
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+[data-theme="violet"] option {
+  color: #241041;
 }
 
 /*

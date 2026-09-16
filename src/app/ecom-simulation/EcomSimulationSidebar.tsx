@@ -53,7 +53,7 @@ export function EcomSimulationSidebar() {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-black/10 bg-[#F1EEE4] p-4 lg:hidden">
+      <div className="flex items-center justify-between border-b border-black/10 bg-[var(--panel-bg)] p-4 backdrop-blur-sm lg:hidden">
         <Brand />
         <button
           type="button"
@@ -70,7 +70,7 @@ export function EcomSimulationSidebar() {
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <aside className="absolute left-0 top-0 flex h-full w-64 flex-col gap-8 bg-[#F1EEE4] p-4 shadow-xl">
+          <aside className="absolute left-0 top-0 flex h-full w-64 flex-col gap-8 bg-[var(--panel-bg)] p-4 shadow-xl backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <Brand />
               <button
@@ -89,7 +89,7 @@ export function EcomSimulationSidebar() {
         </div>
       ) : null}
 
-      <aside className="hidden w-52 shrink-0 border-r border-black/10 bg-[#F1EEE4] p-4 lg:block">
+      <aside className="hidden w-52 shrink-0 border-r border-black/10 bg-[var(--panel-bg)] p-4 backdrop-blur-sm lg:block">
         <div className="mb-8">
           <Brand />
         </div>
