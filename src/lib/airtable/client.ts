@@ -130,11 +130,21 @@ async function walkAllPagesWithRetry(
  * limit, which triggers the retry above to redo the *entire* walk. Caching
  * the assembled result here (not the raw fetch, which would replay expired
  * offset tokens — see walkAllPages above) means only the first route to ask
- * for a given table in a 30s window actually talks to Airtable; everyone
+ * for a given table in this window actually talks to Airtable; everyone
  * else gets it from Next's shared Data Cache.
+ *
+ * 5 minutes, not 30s: this data changes a few times a day at most (manual
+ * form submissions, daily syncs), so a short TTL bought almost nothing on
+ * freshness while still forcing a full multi-page Airtable walk (the slow
+ * part) on the first visit after every expiry — which is most visits, since
+ * real usage is "check the dashboard occasionally," not "hammer it every 30
+ * seconds." Next serves the stale cached value immediately and revalidates
+ * in the background once a cached entry is stale, so this doesn't cost
+ * correctness — it just means an Airtable change can take up to 5 minutes
+ * to show up instead of 30 seconds.
  */
 const cachedWalkAllPages = unstable_cache(walkAllPagesWithRetry, ["airtable-list-all"], {
-  revalidate: 30,
+  revalidate: 300,
 });
 
 /**
