@@ -25,7 +25,6 @@ export async function getAvalGoals(): Promise<GoalsConfig> {
     optInRate: null,
     vslPlayRate: null,
     vslEngagementRate: null,
-    confirmationEmailOpenRate: null,
     connectionRate: null,
   };
 }

@@ -1,17 +1,25 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
-import { getMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
+import { getMarketingDailyMetrics, getLeads, getAffiliateEod } from "@/lib/airtable/tables-ecom-simulation";
+import { isPaidSource, isOrganicSource } from "@/lib/airtable/lead-source-lookup";
 import { getGoals } from "@/lib/goals";
-import { average, costPerLead, roas, sum } from "@/lib/metrics";
+import { average, costPerLead, roas, safeDivide, sum } from "@/lib/metrics";
 import { generateWeeklySummary, type ScorecardMetric } from "@/lib/weekly-summary-rules";
 
 export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
-  const [marketing, goals] = await Promise.all([getMarketingDailyMetrics(), getGoals()]);
+  const [marketing, leads, affiliateEod, goals] = await Promise.all([
+    getMarketingDailyMetrics(),
+    getLeads(),
+    getAffiliateEod(),
+    getGoals(),
+  ]);
   const rows = marketing.filter((r) => isDateInRange(r.date, range));
+  const inRangeLeads = leads.filter((l) => isDateInRange(l.createdAt, range));
+  const inRangeEod = affiliateEod.filter((r) => isDateInRange(r.date, range));
 
   const adSpendMeta = sum(rows.map((r) => r.adSpendMeta));
   const cashCollectedLowTicket = sum(rows.map((r) => r.cashCollectedLowTicket));
@@ -20,18 +28,23 @@ export async function GET(request: NextRequest) {
     cashCollectedLowTicket !== null || cashCollectedHighTicket !== null
       ? (cashCollectedLowTicket ?? 0) + (cashCollectedHighTicket ?? 0)
       : null;
-  const optInsPaid = sum(rows.map((r) => r.optInsPaid));
-  const optInsOrganic = sum(rows.map((r) => r.optInsOrganic));
+  // Opt-ins, dials, connection rate and close rate now come from the real
+  // Leads/Affiliate EOD tables instead of the Marketing Daily Metrics form's
+  // manually-typed fields.
+  const optInsPaid = inRangeLeads.filter((l) => isPaidSource(l.source)).length || null;
+  const optInsOrganic = inRangeLeads.filter((l) => isOrganicSource(l.source)).length || null;
   const vslViews = sum(rows.map((r) => r.vslViews));
-  const dials = sum(rows.map((r) => r.dials));
+  const dials = sum(inRangeEod.map((r) => r.outboundDials));
+  const pickups = sum(inRangeEod.map((r) => r.pickups));
+  const softwarePitched = sum(inRangeEod.map((r) => r.softwarePitched));
+  const softwareClosed = sum(inRangeEod.map((r) => r.softwareClosed));
   const salesLowTicket = sum(rows.map((r) => r.salesLowTicket));
-  const closeRateLowTicket = average(rows.map((r) => r.closeRateLowTicket));
+  const closeRateLowTicket = safeDivide(softwareClosed, softwarePitched || null);
   const landingPageConnectRate = average(rows.map((r) => r.landingPageConnectRate));
   const optInRate = average(rows.map((r) => r.optInRate));
   const vslPlayRate = average(rows.map((r) => r.vslPlayRate));
   const vslEngagementRate = average(rows.map((r) => r.vslEngagementRate));
-  const confirmationEmailOpenRate = average(rows.map((r) => r.confirmationEmailOpenRate));
-  const connectionRate = average(rows.map((r) => r.connectionRate));
+  const connectionRate = safeDivide(pickups, (optInsPaid ?? 0) + (optInsOrganic ?? 0) || null);
   const funnelConversionRate = average(rows.map((r) => r.funnelConversionRate));
   const costPerLeadMeta = costPerLead(adSpendMeta, (optInsPaid ?? 0) + (optInsOrganic ?? 0) || null);
   const roasTotal = roas(totalCashCollected, adSpendMeta);
@@ -63,7 +76,6 @@ export async function GET(request: NextRequest) {
     { key: "optInRate", label: "Opt In Rate (Opt Ins vs Views)", actual: optInRate, goal: goals.optInRate?.min ?? null, higherIsBetter: true, format: "percent" as const },
     { key: "vslPlayRate", label: "VSL Play Rate", actual: vslPlayRate, goal: goals.vslPlayRate?.min ?? null, higherIsBetter: true, format: "percent" as const },
     { key: "vslEngagementRate", label: "VSL Engagement Rate", actual: vslEngagementRate, goal: goals.vslEngagementRate?.min ?? null, higherIsBetter: true, format: "percent" as const },
-    { key: "confirmationEmailOpenRate", label: "Confirmation Email Open Rate", actual: confirmationEmailOpenRate, goal: goals.confirmationEmailOpenRate?.min ?? null, higherIsBetter: true, format: "percent" as const },
   ];
 
   const backend = [

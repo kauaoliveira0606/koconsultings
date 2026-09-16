@@ -62,7 +62,7 @@ type RecentChangesResponse = {
     date: string;
     hasSubmission: boolean;
     changesMadeToday: string | null;
-    metrics: Record<string, number | null> | null;
+    metrics: Record<string, number | null>;
   }[];
 };
 
@@ -75,7 +75,6 @@ const RECENT_CHANGES_LABELS: Record<string, string> = {
   vslViews: "VSL Views",
   vslPlayRate: "VSL Play Rate",
   vslEngagementRate: "VSL Engagement",
-  emailOpenRate: "Email Open Rate",
   dials: "Dials",
   connectionRate: "Connection Rate",
   sales: "Sales",
@@ -93,7 +92,6 @@ const RECENT_CHANGES_FORMATS: Record<string, StatFormat> = {
   vslViews: "number",
   vslPlayRate: "percent",
   vslEngagementRate: "percent",
-  emailOpenRate: "percent",
   dials: "number",
   connectionRate: "percent",
   sales: "number",

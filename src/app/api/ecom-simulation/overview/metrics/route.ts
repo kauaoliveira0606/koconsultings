@@ -10,6 +10,7 @@ import {
   wasPitched,
   wasClosed,
 } from "@/lib/airtable/tables-ecom-simulation";
+import { isPaidSource } from "@/lib/airtable/lead-source-lookup";
 import {
   averageOrderValue,
   cashCollectedPerOptIn,
@@ -51,7 +52,8 @@ export async function GET(request: NextRequest) {
     cashLowTicket !== null || cashHighTicketForm !== null || cashHighTicketCloser !== null
       ? (cashLowTicket ?? 0) + (cashHighTicketForm ?? 0) + (cashHighTicketCloser ?? 0)
       : null;
-  const optInsPaid = sum(inRangeMarketing.map((r) => r.optInsPaid));
+  // Real paid opt-in count from the Leads table, not the manually-typed form field.
+  const optInsPaid = inRangeLeads.filter((l) => isPaidSource(l.source)).length || null;
   const pickups = sum(inRangeEod.map((r) => r.pickups));
   const dials = sum(inRangeEod.map((r) => r.outboundDials));
   const softwarePitched = sum(inRangeEod.map((r) => r.softwarePitched));

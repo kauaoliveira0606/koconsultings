@@ -17,7 +17,6 @@ export type GoalsConfig = {
   optInRate: { min: number } | null;
   vslPlayRate: { min: number } | null;
   vslEngagementRate: { min: number } | null;
-  confirmationEmailOpenRate: { min: number } | null;
   connectionRate: { min: number } | null;
   showRate?: { min: number } | null;
   highTicketCloseRate?: { min: number } | null;
@@ -49,7 +48,6 @@ export async function getGoals(): Promise<GoalsConfig> {
     optInRate: { min: 0.3 },
     vslPlayRate: { min: 0.7 },
     vslEngagementRate: { min: 0.4 },
-    confirmationEmailOpenRate: { min: 0.4 },
     connectionRate: { min: 0.2 },
     showRate: { min: 0.7 },
     highTicketCloseRate: { min: 0.3 },
