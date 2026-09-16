@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 
 export class AirtableError extends Error {
@@ -101,11 +103,43 @@ async function walkAllPages<TFields>(
   return records;
 }
 
+async function walkAllPagesWithRetry(
+  baseId: string,
+  tableId: string,
+  params: ListParams,
+  revalidateSeconds: number
+): Promise<AirtableRecord<unknown>[]> {
+  try {
+    return await walkAllPages(baseId, tableId, params, revalidateSeconds);
+  } catch (err) {
+    if (err instanceof AirtableError && RETRYABLE_STATUSES.has(err.status)) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return walkAllPages(baseId, tableId, params, revalidateSeconds);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Every dashboard tab fires several API routes in parallel (metrics,
+ * lead-sources, cash-calendar, ...), and most of them need the same
+ * underlying table (Leads, Marketing Daily Metrics, ...) — without sharing
+ * a cache, each route independently re-walks the whole table (many
+ * sequential paginated requests for a 1000+ row table), and enough of those
+ * walks running at once can blow past Airtable's 5 req/sec-per-base rate
+ * limit, which triggers the retry above to redo the *entire* walk. Caching
+ * the assembled result here (not the raw fetch, which would replay expired
+ * offset tokens — see walkAllPages above) means only the first route to ask
+ * for a given table in a 30s window actually talks to Airtable; everyone
+ * else gets it from Next's shared Data Cache.
+ */
+const cachedWalkAllPages = unstable_cache(walkAllPagesWithRetry, ["airtable-list-all"], {
+  revalidate: 30,
+});
+
 /**
  * Fetches every record from an Airtable table, following the `offset`
- * pagination cursor until exhausted. Always runs server-side. Retries the
- * whole walk once on a transient Airtable error (expired iterator, rate
- * limit, 5xx) so one hiccup doesn't blank a section.
+ * pagination cursor until exhausted. Always runs server-side.
  */
 export async function airtableListAll<TFields = Record<string, unknown>>(
   baseId: string,
@@ -113,13 +147,6 @@ export async function airtableListAll<TFields = Record<string, unknown>>(
   params: ListParams = {},
   revalidateSeconds = 60
 ): Promise<AirtableRecord<TFields>[]> {
-  try {
-    return await walkAllPages<TFields>(baseId, tableId, params, revalidateSeconds);
-  } catch (err) {
-    if (err instanceof AirtableError && RETRYABLE_STATUSES.has(err.status)) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      return walkAllPages<TFields>(baseId, tableId, params, revalidateSeconds);
-    }
-    throw err;
-  }
+  const records = await cachedWalkAllPages(baseId, tableId, params, revalidateSeconds);
+  return records as AirtableRecord<TFields>[];
 }
