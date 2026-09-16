@@ -72,6 +72,53 @@
 }
 
 /*
+ * `violet` theme (Ecom Simulation): stays light like the default theme —
+ * same cream/white background, same black body text — it just swaps the
+ * accent color from black to purple so this offer reads as visually
+ * distinct from the others at a glance.
+ */
+[data-theme="violet"] {
+  --accent: #7c3aed;
+  --btn-active-bg: #7c3aed;
+  --btn-active-fg: #ffffff;
+}
+
+/*
+ * Ecom Simulation's own components hardcode bg-black/border-black for
+ * active/selected accents (sidebar nav, model toggles, upload button,
+ * active tab, highlighted rows) rather than using var(--accent) directly
+ * the way Bronson/Aval do. Remapping those utility classes here repaints
+ * every one of them purple at once. Scoped to [data-theme="violet"] so the
+ * other offers are untouched; plain text/border opacity utilities
+ * (text-black/50, border-black/10, …) are left alone so the rest of the
+ * page stays neutral instead of turning fully purple.
+ */
+[data-theme="violet"] .bg-black {
+  background-color: var(--accent) !important;
+}
+[data-theme="violet"] [class*="hover:bg-black/"]:hover {
+  background-color: rgba(124, 58, 237, 0.75) !important;
+}
+[data-theme="violet"] .border-black {
+  border-color: var(--accent) !important;
+}
+[data-theme="violet"] .border-black.text-black {
+  color: var(--accent) !important;
+}
+[data-theme="violet"] .bg-black\/5 {
+  background-color: rgba(124, 58, 237, 0.08) !important;
+}
+[data-theme="violet"] .bg-blue-50 {
+  background-color: rgba(124, 58, 237, 0.08) !important;
+}
+[data-theme="violet"] .bg-indigo-100 {
+  background-color: rgba(124, 58, 237, 0.16) !important;
+}
+[data-theme="violet"] .text-indigo-600 {
+  color: var(--accent) !important;
+}
+
+/*
  * Safety net: many dashboard subpages (Sales Team tables, Models, Ads
  * Analysis) hardcode light Tailwind utilities (bg-white, text-black/50,
  * border-black/10, …). Rather than hand-convert every one, remap them to
