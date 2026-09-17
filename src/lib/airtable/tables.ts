@@ -145,9 +145,18 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
       const salesLT = parseNumericText(
         f["Sales - Low Ticket (Sales team)"] ?? f["Sales - Low Ticket"]
       );
-      const salesLTPaid = parseNumericText(f["Low ticket sales (paid)"]);
+      // Aval's fields are worded/ordered differently ("Sales - Low Ticket
+      // (Paid)" / "Cash collected - Low ticket (Paid)") than Bronson/Ecom
+      // Simulation's ("Low ticket sales (paid)" / "Low ticket cash
+      // collected (Paid)") — check both so this generic parser covers
+      // every offer's actual column.
+      const salesLTPaid = parseNumericText(
+        f["Low ticket sales (paid)"] ?? f["Sales - Low Ticket (Paid)"]
+      );
       const cashLT = parseNumericText(f["Cash Collected - Low ticket"]);
-      const cashLTPaid = parseNumericText(f["Low ticket cash collected (Paid)"]);
+      const cashLTPaid = parseNumericText(
+        f["Low ticket cash collected (Paid)"] ?? f["Cash collected - Low ticket (Paid)"]
+      );
       const cashHT = parseNumericText(f["Cash collected (High Ticket)"]);
       // Aval's field is spelled/named differently ("high Ticket Cash
       // (Paid)") than Bronson/Ecom Simulation's ("High ticket cash

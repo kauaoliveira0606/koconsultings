@@ -88,8 +88,23 @@ export async function GET(request: NextRequest) {
 
   const highTicketPitched = inRangePostCallNotes.filter(wasHighTicketPitched).length;
   const highTicketClosed = inRangePostCallNotes.filter(wasClosed).length;
-  const highTicketCallsBooked = sum(inRangeCloser.map((r) => r.callsBooked));
-  const highTicketCallsShowed = sum(inRangeCloser.map((r) => r.callsShowed));
+  // EOD Closer is the source of record for booked/showed, but the closer
+  // doesn't always submit it same-day — fall back to Affiliate EOD's own
+  // booking/show fields (setters log these directly) for any day EOD
+  // Closer has nothing, same preferred-source idea as the cash figure
+  // above, so a stale closer form doesn't blank out this week's numbers.
+  const htBookedDates = new Set([
+    ...inRangeCloser.filter((r) => r.date).map((r) => r.date as string),
+    ...inRangeEod.filter((r) => r.date).map((r) => r.date as string),
+  ]);
+  const highTicketCallsBooked = sumPreferringDatedSources(htBookedDates, [
+    sumByDate(inRangeCloser, (r) => r.date, (r) => r.callsBooked),
+    sumByDate(inRangeEod, (r) => r.date, (r) => r.newHighTicketCallsBooked),
+  ]);
+  const highTicketCallsShowed = sumPreferringDatedSources(htBookedDates, [
+    sumByDate(inRangeCloser, (r) => r.date, (r) => r.callsShowed),
+    sumByDate(inRangeEod, (r) => r.date, (r) => r.highTicketCallsShowed),
+  ]);
 
   // Tier 1 keystone: the single number that captures show rate, close rate,
   // average price, and collections all at once for the high-ticket side.
