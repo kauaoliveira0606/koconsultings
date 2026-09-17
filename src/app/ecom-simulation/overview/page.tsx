@@ -474,7 +474,7 @@ export default function OverviewPage() {
             label="CAC — High Ticket (Paid)"
             value={metrics?.cacHighTicketPaid}
             format="currency"
-            subtext="Ad Spend ÷ paid HT deals closed. Not tracked yet — every HT close so far has been organic, and there's no paid-vs-organic HT deal count field yet."
+            subtext="Ad Spend ÷ High Ticket Closes (Paid). No paid HT deal has closed yet, so this stays blank until one does."
           />
           <StatCard
             label="Cost Per Call (HT)"

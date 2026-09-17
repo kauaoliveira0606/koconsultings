@@ -155,9 +155,6 @@ export async function GET(request: NextRequest) {
     refundDollars !== null || chargebackDollars !== null
       ? (refundDollars ?? 0) + (chargebackDollars ?? 0)
       : null;
-  // No High Ticket Paid/Organic *deal count* field exists on this offer's
-  // form (only Bronson/Aval got one) — stays null rather than a fabricated
-  // number.
   const highTicketDealsClosedPaid = sum(inRangeMarketing.map((r) => r.highTicketDealsClosedPaid));
 
   return Response.json({
