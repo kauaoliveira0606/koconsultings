@@ -103,20 +103,31 @@ async function walkAllPages<TFields>(
   return records;
 }
 
+// A single 300ms retry survives one transient blip, but a cold cache means
+// every dashboard tab's ~7 parallel routes independently miss at once, all
+// walking overlapping tables at the same instant — that thundering herd can
+// blow past Airtable's 5 req/sec limit repeatedly, not just once. Backing
+// off across a few attempts gives the rate-limit window time to actually
+// clear instead of retrying once into the same collision.
+const RETRY_DELAYS_MS = [300, 800, 1800];
+
 async function walkAllPagesWithRetry(
   baseId: string,
   tableId: string,
   params: ListParams,
   revalidateSeconds: number
 ): Promise<AirtableRecord<unknown>[]> {
-  try {
-    return await walkAllPages(baseId, tableId, params, revalidateSeconds);
-  } catch (err) {
-    if (err instanceof AirtableError && RETRYABLE_STATUSES.has(err.status)) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      return walkAllPages(baseId, tableId, params, revalidateSeconds);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await walkAllPages(baseId, tableId, params, revalidateSeconds);
+    } catch (err) {
+      const canRetry =
+        err instanceof AirtableError &&
+        RETRYABLE_STATUSES.has(err.status) &&
+        attempt < RETRY_DELAYS_MS.length;
+      if (!canRetry) throw err;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
     }
-    throw err;
   }
 }
 
