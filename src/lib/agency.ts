@@ -29,29 +29,31 @@ export type DailyOfferRow = {
 
 type MarketingRowLike = {
   date: string | null;
+  cashCollectedLowTicket: number | null;
   cashCollectedLowTicketPaid: number | null;
-  cashCollectedLowTicketOrganic: number | null;
   cashCollectedHighTicketPaid: number | null;
   adSpendMeta: number | null;
 };
 
 /**
- * Merges the Marketing Daily Metrics form's Low Ticket Paid/Organic split
- * with the offer's real (preferred-source-blended) High Ticket cash per
- * day. Only the form tracks a Paid/Organic split for High Ticket — a day
- * with no explicit Paid figure there is treated as fully Organic, which
- * matches current reality across every offer (no paid HT deal has closed
- * yet anywhere) rather than being left unattributed.
+ * Merges the Marketing Daily Metrics form's Low/High Ticket cash with the
+ * offer's real (preferred-source-blended) High Ticket cash per day. Only
+ * an explicit Paid figure ever gets typed into the form — Organic is
+ * whatever's left of that day's TOTAL cash after subtracting Paid, and a
+ * day with no Paid figure at all is treated as fully Organic (rather than
+ * dropped) so a day's cash is never silently lost just because the split
+ * wasn't recorded. This matches current reality across every offer (no
+ * paid High Ticket deal has closed yet anywhere).
  */
 export function buildDailyOfferRows(
   marketing: MarketingRowLike[],
   htCashByDayBlended: Map<string, number>
 ): DailyOfferRow[] {
-  const ltPaidByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedLowTicketPaid);
-  const ltOrganicByDay = sumByDate(
+  const ltTotalByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedLowTicket);
+  const ltPaidTypedByDay = sumByDate(
     marketing,
     (r) => r.date,
-    (r) => r.cashCollectedLowTicketOrganic
+    (r) => r.cashCollectedLowTicketPaid
   );
   const htPaidTypedByDay = sumByDate(
     marketing,
@@ -61,8 +63,7 @@ export function buildDailyOfferRows(
   const adSpendByDay = sumByDate(marketing, (r) => r.date, (r) => r.adSpendMeta);
 
   const dates = new Set<string>([
-    ...ltPaidByDay.keys(),
-    ...ltOrganicByDay.keys(),
+    ...ltTotalByDay.keys(),
     ...htPaidTypedByDay.keys(),
     ...adSpendByDay.keys(),
     ...htCashByDayBlended.keys(),
@@ -70,12 +71,14 @@ export function buildDailyOfferRows(
 
   const rows: DailyOfferRow[] = [];
   for (const date of dates) {
+    const ltTotal = ltTotalByDay.get(date) ?? 0;
+    const ltPaid = Math.min(ltPaidTypedByDay.get(date) ?? 0, ltTotal);
     const htTotal = htCashByDayBlended.get(date) ?? 0;
     const htPaid = Math.min(htPaidTypedByDay.get(date) ?? 0, htTotal);
     rows.push({
       date,
-      ltCashPaid: ltPaidByDay.get(date) ?? 0,
-      ltCashOrganic: ltOrganicByDay.get(date) ?? 0,
+      ltCashPaid: ltPaid,
+      ltCashOrganic: Math.max(0, ltTotal - ltPaid),
       htCashPaid: htPaid,
       htCashOrganic: Math.max(0, htTotal - htPaid),
       adSpend: adSpendByDay.get(date) ?? 0,
