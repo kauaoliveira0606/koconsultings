@@ -21,6 +21,8 @@ import {
   pitchRate as pitchRateOf,
   safeDivide,
   sum,
+  sumByDate,
+  sumPreferringDatedSources,
 } from "@/lib/metrics";
 
 export const revalidate = 60;
@@ -45,12 +47,27 @@ export async function GET(request: NextRequest) {
   const salesCount = sum(inRangeMarketing.map((r) => r.salesLowTicket)) ?? 0;
   const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta));
   const cashLowTicket = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicket));
-  const cashHighTicketForm = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicket));
-  const cashHighTicketCloser = sum(inRangeCloser.map((r) => r.cashCollectedHighTicket));
   const revenueHighTicket = sum(inRangeCloser.map((r) => r.revenueHighTicket));
+  // Real high-ticket cash by day: EOD Closer first (the confirmed real
+  // source for this offer's high-ticket motion — see
+  // tables-ecom-simulation.ts), Affiliate EOD's own high-ticket field as
+  // fallback (always 0 today, but future-proofs this if that motion ever
+  // gets used), and the Marketing Daily Metrics form as a last resort — so
+  // a day never gets its cash counted twice across sources, and never goes
+  // missing just because one source has nothing for it.
+  const htCashDates = new Set([
+    ...inRangeMarketing.filter((r) => r.date).map((r) => r.date as string),
+    ...inRangeEod.filter((r) => r.date).map((r) => r.date as string),
+    ...inRangeCloser.filter((r) => r.date).map((r) => r.date as string),
+  ]);
+  const cashHighTicket = sumPreferringDatedSources(htCashDates, [
+    sumByDate(inRangeCloser, (r) => r.date, (r) => r.cashCollectedHighTicket),
+    sumByDate(inRangeEod, (r) => r.date, (r) => r.cashCollectedHighTicket),
+    sumByDate(inRangeMarketing, (r) => r.date, (r) => r.cashCollectedHighTicket),
+  ]);
   const totalCashCollected =
-    cashLowTicket !== null || cashHighTicketForm !== null || cashHighTicketCloser !== null
-      ? (cashLowTicket ?? 0) + (cashHighTicketForm ?? 0) + (cashHighTicketCloser ?? 0)
+    cashLowTicket !== null || cashHighTicket !== null
+      ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0)
       : null;
   // Real paid opt-in count from the Leads table, not the manually-typed form field.
   const optInsPaid = inRangeLeads.filter((l) => isPaidSource(l.source)).length || null;
@@ -82,7 +99,7 @@ export async function GET(request: NextRequest) {
     highTicketClosed,
     highTicketCallsBooked,
     highTicketCallsShowed,
-    cashCollectedHighTicket: cashHighTicketCloser,
+    cashCollectedHighTicket: cashHighTicket,
     revenueHighTicket,
     costPerAcquisition: costPerAcquisition(adSpend, salesCount || null),
     leadToCloseRate: leadToCloseRate(salesCount || null, inRangeLeads.length || null),

@@ -69,4 +69,48 @@ export function median(values: (number | null)[]): number | null {
   return present.length % 2 === 0 ? (present[mid - 1] + present[mid]) / 2 : present[mid];
 }
 
+/**
+ * Sums a per-day amount (e.g. high-ticket cash) across a set of dates,
+ * preferring the first source that has ANY record for a given day — even a
+ * $0 one — and only falling through to the next source for days the
+ * earlier one is completely silent on. Prevents double-counting when two
+ * sources both log the same day, and stops a day with real activity from
+ * being invisible just because a later/weaker source (typically a
+ * manually-typed form field) never got filled in for it. Same preference
+ * order the Weekly Scorecard already uses per-day, applied here to a whole
+ * range so Overview totals agree with it.
+ */
+export function sumPreferringDatedSources(
+  dates: Iterable<string>,
+  sources: Map<string, number>[]
+): number | null {
+  let total = 0;
+  let any = false;
+  for (const date of dates) {
+    for (const source of sources) {
+      if (source.has(date)) {
+        total += source.get(date)!;
+        any = true;
+        break;
+      }
+    }
+  }
+  return any ? total : null;
+}
+
+/** Sums a numeric field across rows into a Map keyed by date, skipping rows with no date. */
+export function sumByDate<T>(
+  rows: T[],
+  getDate: (row: T) => string | null,
+  getValue: (row: T) => number | null
+): Map<string, number> {
+  const byDate = new Map<string, number>();
+  for (const row of rows) {
+    const date = getDate(row);
+    if (!date) continue;
+    byDate.set(date, (byDate.get(date) ?? 0) + (getValue(row) ?? 0));
+  }
+  return byDate;
+}
+
 export { safeDivide };

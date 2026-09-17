@@ -1,7 +1,12 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
-import { getAvalLeads, getAvalMarketingDailyMetrics, getAvalAffiliateEod } from "@/lib/airtable/tables-aval";
+import {
+  getAvalLeads,
+  getAvalMarketingDailyMetrics,
+  getAvalAffiliateEod,
+  getAvalEodCloserScorecard,
+} from "@/lib/airtable/tables-aval";
 import { isPaidSource } from "@/lib/airtable/lead-source-lookup";
 import {
   averageOrderValue,
@@ -12,6 +17,8 @@ import {
   pickupRate,
   pitchRate as pitchRateOf,
   sum,
+  sumByDate,
+  sumPreferringDatedSources,
   upsellBookingRate as upsellBookingRateOf,
 } from "@/lib/metrics";
 
@@ -20,20 +27,37 @@ export const revalidate = 60;
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
-  const [marketing, leads, affiliateEod] = await Promise.all([
+  const [marketing, leads, affiliateEod, eodCloser] = await Promise.all([
     getAvalMarketingDailyMetrics(),
     getAvalLeads(),
     getAvalAffiliateEod(),
+    getAvalEodCloserScorecard(),
   ]);
 
   const inRangeMarketing = marketing.filter((r) => isDateInRange(r.date, range));
   const inRangeLeads = leads.filter((l) => isDateInRange(l.createdAt, range));
   const inRangeEod = affiliateEod.filter((r) => isDateInRange(r.date, range));
+  const inRangeCloser = eodCloser.filter((r) => isDateInRange(r.date, range));
 
   const salesCount = sum(inRangeMarketing.map((r) => r.salesLowTicket)) ?? 0;
   const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta));
   const cashLowTicket = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicket));
-  const cashHighTicket = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicket));
+  // Real high-ticket cash by day: Affiliate EOD first (the setters log it
+  // directly), EOD Closer as fallback for days EOD has nothing, and the
+  // Marketing Daily Metrics form's manually-typed value only as a last
+  // resort. Aval's form never actually has this field filled in, so before
+  // this fix every bit of high-ticket cash was silently missing from Total
+  // Cash Collected — same preference the Weekly Scorecard already uses.
+  const htCashDates = new Set([
+    ...inRangeMarketing.filter((r) => r.date).map((r) => r.date as string),
+    ...inRangeEod.filter((r) => r.date).map((r) => r.date as string),
+    ...inRangeCloser.filter((r) => r.date).map((r) => r.date as string),
+  ]);
+  const cashHighTicket = sumPreferringDatedSources(htCashDates, [
+    sumByDate(inRangeEod, (r) => r.date, (r) => r.cashCollectedHighTicket),
+    sumByDate(inRangeCloser, (r) => r.date, (r) => r.cashCollectedHighTicket),
+    sumByDate(inRangeMarketing, (r) => r.date, (r) => r.cashCollectedHighTicket),
+  ]);
   const totalCashCollected =
     cashLowTicket !== null || cashHighTicket !== null
       ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0)

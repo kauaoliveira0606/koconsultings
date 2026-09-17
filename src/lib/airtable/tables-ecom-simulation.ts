@@ -43,6 +43,16 @@ export type AffiliateEodRow = {
   totalTalkTimeRaw: string | null;
   yearlyPlans: number | null;
   monthlyPlans: number | null;
+  // Setters' own high-ticket fields on this table — always 0 in practice
+  // (the real high-ticket motion runs through EOD Closer/Post Call Note
+  // instead, see below), but parsed anyway so nothing silently goes missing
+  // if that ever changes, and so this row shape matches Bronson/Aval's for
+  // the shared Weekly Scorecard builder.
+  highTicketCallsPitched: number | null;
+  newHighTicketCallsBooked: number | null;
+  highTicketCallsOnCalendar: number | null;
+  highTicketCallsShowed: number | null;
+  highTicketSetClosed: number | null;
 };
 
 export async function getAffiliateEod(): Promise<AffiliateEodRow[]> {
@@ -66,6 +76,11 @@ export async function getAffiliateEod(): Promise<AffiliateEodRow[]> {
       totalTalkTimeRaw: (f["total talk time"] as string) ?? null,
       yearlyPlans: parseNumericText(f["How many yearly plans"]),
       monthlyPlans: parseNumericText(f["How many monthly plans"]),
+      highTicketCallsPitched: parseNumericText(f["high ticket call pitched"]),
+      newHighTicketCallsBooked: parseNumericText(f["new high ticket calls booked"]),
+      highTicketCallsOnCalendar: parseNumericText(f["calls on the calendar"]),
+      highTicketCallsShowed: parseNumericText(f["calls showed"]),
+      highTicketSetClosed: parseNumericText(f["set closed"]),
     };
   });
 }
