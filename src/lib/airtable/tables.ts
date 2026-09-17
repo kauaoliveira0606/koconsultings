@@ -160,6 +160,13 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
       // Paid means "not split yet", not "zero paid".
       const minusPaid = (total: number | null, paid: number | null) =>
         total === null || paid === null ? null : Math.max(0, total - paid);
+      // Unlike the form's other percent fields (native Airtable percent
+      // type, always a 0–1 fraction), "Conversion Rate (Paid)/(Organic)" is
+      // free text and the team types whole percents into it ("25" meaning
+      // 25%, not 2500%). A genuine fraction is never > 1, so this is a safe
+      // one-way normalization regardless of which convention a given row
+      // used.
+      const asFraction = (v: number | null) => (v !== null && v > 1 ? v / 100 : v);
       return {
         id: r.id,
         date: parseDateOnly(f.Date),
@@ -179,10 +186,11 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         cashCollectedHighTicketOrganic:
           parseNumericText(f["High ticket cash collected (Organic)"]) ??
           minusPaid(cashHT, cashHTPaid),
-        funnelConversionRatePaid: parseNumericText(f["Conversion Rate (Paid)"]),
-        funnelConversionRateOrganic:
+        funnelConversionRatePaid: asFraction(parseNumericText(f["Conversion Rate (Paid)"])),
+        funnelConversionRateOrganic: asFraction(
           parseNumericText(f["Conversion Rate (Organic)"]) ??
-          parseNumericText(f["Funnel Conversion rate Organic"]),
+            parseNumericText(f["Funnel Conversion rate Organic"])
+        ),
         adSpendMeta: parseNumericText(f["Ad Spend Meta"]),
         changesMadeToday: (f["Changes Made Today"] as string) ?? null,
         costPerLeadMeta: parseNumericText(f["Cost per Lead (Meta)"]),

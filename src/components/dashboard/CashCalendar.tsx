@@ -18,10 +18,10 @@ const BUCKET_COLORS = [
 
 // The heat-map buckets go from a near-black "no data" tile up through light
 // mint greens to a dark green — a single text color can't stay readable
-// across that whole range, and the theme's blanket text-black→white remap
-// (globals.css) makes it worse by forcing white even onto the light green
-// tiles. Pairing each bucket with its own explicit (non-remapped) text
-// color keeps every tile readable regardless of theme.
+// across that whole range, and the deepspace/violet themes' blanket
+// text-black→white remap makes it worse by forcing white even onto the
+// light green tiles. Pairing each bucket with its own explicit
+// (non-remapped) text color keeps every tile readable regardless of theme.
 const BUCKET_TEXT_COLORS = [
   "text-white",
   "text-slate-900",
@@ -71,12 +71,10 @@ function leadingBlankCount(month: string): number {
   return firstDay;
 }
 
-export function CashCalendar() {
+/** Shared Cash Calendar. Pass the offer's cash-calendar API path. */
+export function CashCalendar({ apiPath }: { apiPath: string }) {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const { data } = useSWR<CashCalendarResponse>(
-    `/api/ecom-simulation/overview/cash-calendar?month=${month}`,
-    fetcher
-  );
+  const { data } = useSWR<CashCalendarResponse>(`${apiPath}?month=${month}`, fetcher);
 
   const byDay = data?.byDay ?? {};
   const bySourceDay = data?.bySourceDay ?? {};
@@ -85,9 +83,9 @@ export function CashCalendar() {
   const blanks = leadingBlankCount(month);
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-4">
+    <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-black/60">
+        <p className="text-sm text-[var(--text-muted)]">
           Cash collected per day, from Marketing Daily Metrics submissions. Paid/Organic/
           Unattributed split below each day is the Affiliate PCN cross-reference (may not sum to
           the same total — independently submitted sources; Unattributed = closed calls whose
@@ -97,19 +95,19 @@ export function CashCalendar() {
           <button
             type="button"
             onClick={() => setMonth((m) => shiftMonth(m, -1))}
-            className="rounded-md border border-black/10 px-2 py-1 text-sm hover:bg-black/5"
+            className="rounded-md border border-[var(--panel-border)] px-2 py-1 text-sm text-[var(--text)] hover:bg-[var(--panel-subtle)]"
           >
             ← Prev
           </button>
-          <span className="text-sm font-semibold">{monthLabel(month)}</span>
+          <span className="text-sm font-semibold text-[var(--text-strong)]">{monthLabel(month)}</span>
           <button
             type="button"
             onClick={() => setMonth((m) => shiftMonth(m, 1))}
-            className="rounded-md border border-black/10 px-2 py-1 text-sm hover:bg-black/5"
+            className="rounded-md border border-[var(--panel-border)] px-2 py-1 text-sm text-[var(--text)] hover:bg-[var(--panel-subtle)]"
           >
             Next →
           </button>
-          <span className="text-sm font-semibold">
+          <span className="text-sm font-semibold text-[var(--text-strong)]">
             Month total: {formatStatValue(data?.total ?? null, "currency")}
           </span>
         </div>
@@ -117,7 +115,7 @@ export function CashCalendar() {
 
       <div className="overflow-x-auto">
         <div className="min-w-[640px]">
-          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-black/50">
+          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-[var(--text-muted)]">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <div key={d}>{d}</div>
             ))}
@@ -133,7 +131,7 @@ export function CashCalendar() {
               return (
                 <div
                   key={date}
-                  className={`flex h-24 flex-col justify-between rounded-md border border-black/5 p-2 ${BUCKET_COLORS[bucket]} ${BUCKET_TEXT_COLORS[bucket]}`}
+                  className={`flex h-24 flex-col justify-between rounded-md border border-[var(--panel-border)] p-2 ${BUCKET_COLORS[bucket]} ${BUCKET_TEXT_COLORS[bucket]}`}
                 >
                   <span className="text-xs font-semibold">{day}</span>
                   {value > 0 ? (
@@ -157,7 +155,7 @@ export function CashCalendar() {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-2 text-xs text-black/50">
+      <div className="mt-4 flex items-center justify-end gap-2 text-xs text-[var(--text-muted)]">
         <span>Less</span>
         {BUCKET_COLORS.map((color, i) => (
           <span key={i} className={`h-3 w-3 rounded-sm ${color}`} />

@@ -8,7 +8,7 @@ import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
 import { cellStatus, type GoalDirection } from "@/lib/weekly-scorecard";
 import type { GoalsConfig } from "@/lib/goals";
-import { CashCalendar } from "./CashCalendar";
+import { CashCalendar } from "@/components/dashboard/CashCalendar";
 import { WeeklyScorecard } from "./WeeklyScorecard";
 
 type MetricsResponse = {
@@ -605,7 +605,7 @@ export default function OverviewPage() {
       <WeeklyScorecard />
 
       <DashboardSection title="Cash Calendar">
-        <CashCalendar />
+        <CashCalendar apiPath="/api/ecom-simulation/overview/cash-calendar" />
       </DashboardSection>
     </div>
   );
