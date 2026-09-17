@@ -1,24 +1,11 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
-import {
-  getMarketingDailyMetrics as getBronsonMarketingDailyMetrics,
-  getBronsonAffiliateEod,
-  getBronsonEodCloser,
-} from "@/lib/airtable/tables";
-import {
-  getAvalMarketingDailyMetrics,
-  getAvalAffiliateEod,
-  getAvalEodCloserScorecard,
-} from "@/lib/airtable/tables-aval";
-import {
-  getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics,
-  getAffiliateEod as getEcomSimAffiliateEod,
-  getEodCloser as getEcomSimEodCloser,
-} from "@/lib/airtable/tables-ecom-simulation";
+import { getMarketingDailyMetrics as getBronsonMarketingDailyMetrics } from "@/lib/airtable/tables";
+import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
+import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
 import {
   buildDailyOfferRows,
-  blendHtCashByDay,
   sumCash,
   sumAdSpend,
   sumSalesTeamPayout,
@@ -44,38 +31,20 @@ function clientSummary(rows: DailyOfferRow[]) {
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
-  const [
-    bronsonMarketing,
-    bronsonEod,
-    bronsonCloser,
-    avalMarketing,
-    avalEod,
-    avalCloser,
-    ecomMarketing,
-    ecomEod,
-    ecomCloser,
-  ] = await Promise.all([
+  const [bronsonMarketing, avalMarketing, ecomMarketing] = await Promise.all([
     getBronsonMarketingDailyMetrics(),
-    getBronsonAffiliateEod(),
-    getBronsonEodCloser(),
     getAvalMarketingDailyMetrics(),
-    getAvalAffiliateEod(),
-    getAvalEodCloserScorecard(),
     getEcomSimMarketingDailyMetrics(),
-    getEcomSimAffiliateEod(),
-    getEcomSimEodCloser(),
   ]);
 
-  // Bronson & Aval prefer Affiliate EOD over EOD Closer for real HT cash;
-  // Ecom Simulation prefers EOD Closer over Affiliate EOD — same order as
-  // each offer's own /overview/metrics route.
-  const bronsonHtByDay = blendHtCashByDay(bronsonMarketing, [bronsonEod, bronsonCloser]);
-  const avalHtByDay = blendHtCashByDay(avalMarketing, [avalEod, avalCloser]);
-  const ecomHtByDay = blendHtCashByDay(ecomMarketing, [ecomCloser, ecomEod]);
-
-  const bronsonAllRows = buildDailyOfferRows(bronsonMarketing, bronsonHtByDay);
-  const avalAllRows = buildDailyOfferRows(avalMarketing, avalHtByDay);
-  const ecomAllRows = buildDailyOfferRows(ecomMarketing, ecomHtByDay);
+  // Everything — cash, ad spend, Paid/Organic splits — comes straight from
+  // each offer's Marketing Daily Metrics table, per the client. No EOD
+  // Closer / Affiliate EOD blending here (unlike each offer's own
+  // /overview/metrics route, which does blend those in for a more complete
+  // real-time picture).
+  const bronsonAllRows = buildDailyOfferRows(bronsonMarketing);
+  const avalAllRows = buildDailyOfferRows(avalMarketing);
+  const ecomAllRows = buildDailyOfferRows(ecomMarketing);
 
   const bronsonRows = bronsonAllRows.filter((r) => isDateInRange(r.date, range));
   const avalRows = avalAllRows.filter((r) => isDateInRange(r.date, range));

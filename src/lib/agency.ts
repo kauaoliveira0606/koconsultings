@@ -31,30 +31,28 @@ type MarketingRowLike = {
   date: string | null;
   cashCollectedLowTicket: number | null;
   cashCollectedLowTicketPaid: number | null;
+  cashCollectedHighTicket: number | null;
   cashCollectedHighTicketPaid: number | null;
   adSpendMeta: number | null;
 };
 
 /**
- * Merges the Marketing Daily Metrics form's Low/High Ticket cash with the
- * offer's real (preferred-source-blended) High Ticket cash per day. Only
- * an explicit Paid figure ever gets typed into the form — Organic is
- * whatever's left of that day's TOTAL cash after subtracting Paid, and a
- * day with no Paid figure at all is treated as fully Organic (rather than
- * dropped) so a day's cash is never silently lost just because the split
- * wasn't recorded. This matches current reality across every offer (no
- * paid High Ticket deal has closed yet anywhere).
+ * Everything here comes straight from the Marketing Daily Metrics table —
+ * no EOD Closer / Affiliate EOD blending, per the client. Only an explicit
+ * Paid figure ever gets typed into the form — Organic is whatever's left
+ * of that day's TOTAL cash (Low or High Ticket) after subtracting Paid,
+ * and a day with no Paid figure at all is treated as fully Organic (rather
+ * than dropped) so a day's cash is never silently lost just because the
+ * split wasn't recorded.
  */
-export function buildDailyOfferRows(
-  marketing: MarketingRowLike[],
-  htCashByDayBlended: Map<string, number>
-): DailyOfferRow[] {
+export function buildDailyOfferRows(marketing: MarketingRowLike[]): DailyOfferRow[] {
   const ltTotalByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedLowTicket);
   const ltPaidTypedByDay = sumByDate(
     marketing,
     (r) => r.date,
     (r) => r.cashCollectedLowTicketPaid
   );
+  const htTotalByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedHighTicket);
   const htPaidTypedByDay = sumByDate(
     marketing,
     (r) => r.date,
@@ -64,16 +62,15 @@ export function buildDailyOfferRows(
 
   const dates = new Set<string>([
     ...ltTotalByDay.keys(),
-    ...htPaidTypedByDay.keys(),
+    ...htTotalByDay.keys(),
     ...adSpendByDay.keys(),
-    ...htCashByDayBlended.keys(),
   ]);
 
   const rows: DailyOfferRow[] = [];
   for (const date of dates) {
     const ltTotal = ltTotalByDay.get(date) ?? 0;
     const ltPaid = Math.min(ltPaidTypedByDay.get(date) ?? 0, ltTotal);
-    const htTotal = htCashByDayBlended.get(date) ?? 0;
+    const htTotal = htTotalByDay.get(date) ?? 0;
     const htPaid = Math.min(htPaidTypedByDay.get(date) ?? 0, htTotal);
     rows.push({
       date,
@@ -188,36 +185,4 @@ function sumMapValues(map: Map<string, number>): number {
   let total = 0;
   for (const v of map.values()) total += v;
   return total;
-}
-
-export type HtCashRow = { date: string | null; cashCollectedHighTicket: number | null };
-
-/**
- * Same preferred-source blend each offer's own Overview page already uses
- * for real High Ticket cash: the first source in priority order that has
- * ANY record for a day wins, falling through only for days it's silent on.
- */
-export function blendHtCashByDay(
-  marketing: HtCashRow[],
-  sourcesInPriorityOrder: HtCashRow[][]
-): Map<string, number> {
-  const dates = new Set<string>();
-  for (const r of marketing) if (r.date) dates.add(r.date);
-  for (const source of sourcesInPriorityOrder) for (const r of source) if (r.date) dates.add(r.date);
-
-  const maps = sourcesInPriorityOrder.map((source) =>
-    sumByDate(source, (r) => r.date, (r) => r.cashCollectedHighTicket)
-  );
-  maps.push(sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedHighTicket));
-
-  const result = new Map<string, number>();
-  for (const date of dates) {
-    for (const map of maps) {
-      if (map.has(date)) {
-        result.set(date, map.get(date)!);
-        break;
-      }
-    }
-  }
-  return result;
 }
