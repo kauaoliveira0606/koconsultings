@@ -73,10 +73,15 @@ export function buildDailyOfferRows(marketing: MarketingRowLike[]): DailyOfferRo
 
   const rows: DailyOfferRow[] = [];
   for (const date of dates) {
-    const ltTotal = ltTotalByDay.get(date) ?? 0;
-    const ltPaid = Math.min(ltPaidTypedByDay.get(date) ?? 0, ltTotal);
-    const htTotal = htTotalByDay.get(date) ?? 0;
-    const htPaid = Math.min(htPaidTypedByDay.get(date) ?? 0, htTotal);
+    // The typed Paid figure is real cash regardless of whether the Total
+    // field was ever filled in for that day — some offers' teams only type
+    // the Paid split and leave Total blank. Total is a FLOOR, never a cap:
+    // if Paid alone exceeds it (or Total is blank), Total is treated as at
+    // least Paid, so real typed cash is never clamped down to 0.
+    const ltPaid = ltPaidTypedByDay.get(date) ?? 0;
+    const ltTotal = Math.max(ltTotalByDay.get(date) ?? 0, ltPaid);
+    const htPaid = htPaidTypedByDay.get(date) ?? 0;
+    const htTotal = Math.max(htTotalByDay.get(date) ?? 0, htPaid);
     rows.push({
       date,
       ltCashPaid: ltPaid,
