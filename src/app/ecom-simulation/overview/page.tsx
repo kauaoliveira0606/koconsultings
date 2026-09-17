@@ -10,7 +10,7 @@ import {
 } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
-import { formatStatValue, type StatFormat } from "@/lib/format";
+import { formatStatValue } from "@/lib/format";
 import { CashCalendar } from "./CashCalendar";
 import { WeeklyScorecard } from "./WeeklyScorecard";
 
@@ -73,44 +73,8 @@ type LeaderboardResponse = {
 type RecentChangesResponse = {
   days: {
     date: string;
-    hasSubmission: boolean;
-    changesMadeToday: string | null;
-    metrics: Record<string, number | null>;
+    changesMadeToday: string;
   }[];
-};
-
-const RECENT_CHANGES_LABELS: Record<string, string> = {
-  adSpend: "Ad Spend",
-  costPerLead: "Cost / Lead",
-  optInsPaid: "Opt-ins (Paid)",
-  optInsOrganic: "Opt-ins (Organic)",
-  landingPageConnectRate: "LP Connect Rate",
-  vslViews: "VSL Views",
-  vslPlayRate: "VSL Play Rate",
-  vslEngagementRate: "VSL Engagement",
-  dials: "Dials",
-  connectionRate: "Connection Rate",
-  sales: "Sales",
-  cashCollected: "Cash Collected",
-  closeRate: "Close Rate",
-  funnelConversionRate: "Funnel Conv. Rate",
-};
-
-const RECENT_CHANGES_FORMATS: Record<string, StatFormat> = {
-  adSpend: "currency",
-  costPerLead: "currency",
-  optInsPaid: "number",
-  optInsOrganic: "number",
-  landingPageConnectRate: "percent",
-  vslViews: "number",
-  vslPlayRate: "percent",
-  vslEngagementRate: "percent",
-  dials: "number",
-  connectionRate: "percent",
-  sales: "number",
-  cashCollected: "currency",
-  closeRate: "percent",
-  funnelConversionRate: "percent",
 };
 
 export default function OverviewPage() {
@@ -340,34 +304,26 @@ function RecentChanges() {
   );
 
   return (
-    <DashboardSection title="Recent Changes — Last 3 Days">
+    <DashboardSection title="Recent Changes">
       <p className="mb-3 text-sm text-black/50">
-        Whatever is logged in the Marketing Daily Metrics form&apos;s &quot;Changes Made
-        Today&quot; field shows up here next to that day&apos;s actual numbers, so you can see
-        what moved.
+        Each &quot;Changes Made Today&quot; note from the Marketing Daily Metrics form.
       </p>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {data?.days.map((day, i) => (
-          <div key={day.date} className="rounded-lg border border-black/10 bg-white p-4">
-            <div className="mb-2 text-xs font-semibold uppercase text-black/60">
-              {i === 0 ? "Today" : i === 1 ? "Yesterday" : ""} — {day.date}
+      {data && data.days.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {data.days.map((day) => (
+            <div key={day.date} className="rounded-lg border border-black/10 bg-white p-4">
+              <div className="mb-2 text-xs font-semibold uppercase text-black/60">{day.date}</div>
+              <p className="whitespace-pre-wrap border-l-2 border-[var(--accent)] pl-3 text-sm">
+                {day.changesMadeToday}
+              </p>
             </div>
-            {!day.hasSubmission ? (
-              <p className="mb-2 text-sm italic text-black/40">No submission for this day yet.</p>
-            ) : null}
-            <dl className="space-y-1 text-sm">
-              {Object.entries(RECENT_CHANGES_LABELS).map(([key, label]) => (
-                <div key={key} className="flex items-center justify-between">
-                  <dt className="text-black/60">{label}</dt>
-                  <dd className="font-medium">
-                    {formatStatValue(day.metrics?.[key], RECENT_CHANGES_FORMATS[key])}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
+          No &quot;Changes Made Today&quot; notes logged in the last 14 days.
+        </div>
+      )}
     </DashboardSection>
   );
 }

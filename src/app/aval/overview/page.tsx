@@ -11,7 +11,7 @@ import {
 } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
-import { formatStatValue, type StatFormat } from "@/lib/format";
+import { formatStatValue } from "@/lib/format";
 import { WeeklyScorecard } from "./WeeklyScorecard";
 
 type MetricsResponse = {
@@ -79,38 +79,7 @@ type RecentChangesResponse = {
   days: {
     date: string;
     changesMadeToday: string;
-    metrics: Record<string, number | null>;
   }[];
-};
-
-const RECENT_CHANGES_LABELS: Record<string, string> = {
-  adSpend: "Ad Spend",
-  costPerLead: "Cost / Lead",
-  landingPageConnectRate: "LP Connect Rate",
-  vslViews: "VSL Views",
-  vslPlayRate: "VSL Play Rate (Paid)",
-  vslEngagementRate: "VSL Engagement (Paid)",
-  dials: "Dials",
-  connectionRate: "Connection Rate",
-  sales: "Sales",
-  cashCollected: "Cash Collected",
-  closeRate: "Close Rate (Affiliate)",
-  funnelConversionRate: "Funnel Conv. Rate",
-};
-
-const RECENT_CHANGES_FORMATS: Record<string, StatFormat> = {
-  adSpend: "currency",
-  costPerLead: "currency",
-  landingPageConnectRate: "percent",
-  vslViews: "number",
-  vslPlayRate: "percent",
-  vslEngagementRate: "percent",
-  dials: "number",
-  connectionRate: "percent",
-  sales: "number",
-  cashCollected: "currency",
-  closeRate: "percent",
-  funnelConversionRate: "percent",
 };
 
 export default function OverviewPage() {
@@ -325,8 +294,7 @@ function RecentChanges() {
   return (
     <DashboardSection title="Recent Changes">
       <p className="mb-3 text-sm text-[var(--text-muted)]">
-        Each &quot;Changes Made Today&quot; note from the Marketing Daily Metrics form, with
-        that day&apos;s funnel numbers next to it so you can see how the change landed.
+        Each &quot;Changes Made Today&quot; note from the Marketing Daily Metrics form.
       </p>
       {data && data.days.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -338,19 +306,9 @@ function RecentChanges() {
               <div className="mb-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
                 {day.date}
               </div>
-              <p className="mb-3 whitespace-pre-wrap border-l-2 border-[var(--accent)] pl-3 text-sm text-[var(--text-strong)]">
+              <p className="whitespace-pre-wrap border-l-2 border-[var(--accent)] pl-3 text-sm text-[var(--text-strong)]">
                 {day.changesMadeToday}
               </p>
-              <dl className="space-y-1 text-sm">
-                {Object.entries(RECENT_CHANGES_LABELS).map(([key, label]) => (
-                  <div key={key} className="flex items-center justify-between">
-                    <dt className="text-[var(--text-muted)]">{label}</dt>
-                    <dd className="font-medium text-[var(--text)]">
-                      {formatStatValue(day.metrics?.[key], RECENT_CHANGES_FORMATS[key])}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
             </div>
           ))}
         </div>
