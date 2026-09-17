@@ -14,24 +14,32 @@ import { WeeklyScorecard } from "./WeeklyScorecard";
 type MetricsResponse = {
   totalCashCollected: number | null;
   collectedPerBookedCallHT: number | null;
+  cashCollectedPerOptInPaid: number | null;
   netCash: number | null;
+  lowTicketCommission: number | null;
+  highTicketCommission: number | null;
   adsActive: boolean;
 
   cashCollectedLowTicket: number | null;
   cashCollectedHighTicket: number | null;
+  cashCollectedHighTicketPaid: number | null;
+  cashCollectedHighTicketOrganic: number | null;
   adSpend: number | null;
 
   optInsPaid: number | null;
   optInsOrganic: number | null;
   landingPageConnectRate: number | null;
   optInRate: number | null;
+  costPerLeadPaid: number | null;
 
   pickups: number | null;
   pickupRate: number | null;
   softwarePitched: number | null;
   pitchRate: number | null;
   sales: number | null;
-  averageOrderValue: number | null;
+  averageOrderValueLowTicket: number | null;
+  averageOrderValueHighTicket: number | null;
+  closeRateLowTicket: number | null;
   connectionRate: number | null;
 
   highTicketCallsBooked: number | null;
@@ -40,12 +48,13 @@ type MetricsResponse = {
   highTicketPitched: number | null;
   highTicketClosed: number | null;
   highTicketCloseRate: number | null;
+  highTicketBookingRateFromLowTicket: number | null;
   highTicketPitchRate: number | null;
   revenueHighTicket: number | null;
 
-  costPerAcquisition: number | null;
+  cacLowTicketPaid: number | null;
+  cacHighTicketPaid: number | null;
   leadToCloseRate: number | null;
-  cashCollectedPerOptInPaid: number | null;
   costPerCallHT: number | null;
   avgDaysToClose: number | null;
 
@@ -65,8 +74,6 @@ type LeadSourcesResponse = {
   unattributedCount: number;
   adSpend: number | null;
   paidRoas: number | null;
-  costPerPaidLead: number | null;
-  costPerAcquisitionPaid: number | null;
   pcn: {
     totalLogged: number;
     matchedToLead: number;
@@ -74,8 +81,6 @@ type LeadSourcesResponse = {
     organicClosed: number;
   };
 };
-
-type CrossCheckResponse = { mismatched: boolean; details: string[] };
 
 type PlanSplitResponse = {
   monthly: number;
@@ -127,10 +132,6 @@ export default function OverviewPage() {
     "/api/ecom-simulation/overview/lead-sources",
     range
   );
-  const { data: crossCheck } = useSectionData<CrossCheckResponse>(
-    "/api/ecom-simulation/overview/cross-check",
-    range
-  );
   const { data: planSplit } = useSectionData<PlanSplitResponse>(
     "/api/ecom-simulation/overview/plan-split",
     range
@@ -146,15 +147,6 @@ export default function OverviewPage() {
         <h1 className="text-2xl font-bold">Overview</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
-
-      {crossCheck?.mismatched ? (
-        <div className="mb-6 rounded-lg border-2 border-red-400 bg-red-50 p-4 text-sm text-red-900">
-          <span className="font-bold uppercase tracking-wide">⚠ Data integrity mismatch:</span>{" "}
-          the Marketing Daily Metrics form&apos;s manually-typed opt-ins don&apos;t match the
-          tracked lead count for this range — {crossCheck.details.join("; ")}. Worth checking
-          whether the source tagging is firing correctly or the manual entry is stale.
-        </div>
-      ) : null}
 
       {/* TIER 1 — KEYSTONE METRICS: the four numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">
@@ -180,15 +172,29 @@ export default function OverviewPage() {
             value={metrics?.cashCollectedPerOptInPaid}
             format="currency"
             size="lg"
-            subtext="Front-end keystone: Total Cash Collected ÷ Paid Opt-Ins."
+            subtext="Front-end keystone: Cash Collected — Low Ticket (Paid) ÷ Paid Opt-Ins."
           />
           <StatCard
             label="Net Cash"
             value={metrics?.netCash}
             format="currency"
             size="lg"
-            subtext="Total Cash Collected − Ad Spend. Affiliate commission payouts aren't tracked in Airtable yet, so this is before commissions."
+            subtext="Cash Collected − Ad Spend − commissions (10%/20% weekday/weekend on Low Ticket, flat 15% on High Ticket)."
           />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
+          <span>
+            Low Ticket commission this range:{" "}
+            <span className="font-semibold text-[var(--text)]">
+              {formatStatValue(metrics?.lowTicketCommission, "currency")}
+            </span>
+          </span>
+          <span>
+            High Ticket commission this range:{" "}
+            <span className="font-semibold text-[var(--text)]">
+              {formatStatValue(metrics?.highTicketCommission, "currency")}
+            </span>
+          </span>
         </div>
       </DashboardSection>
 
@@ -212,6 +218,18 @@ export default function OverviewPage() {
             value={metrics?.revenueHighTicket}
             format="currency"
             subtext="Booked revenue including payment plans not yet fully collected — reference only, Cash Collected HT is the real number."
+          />
+          <StatCard
+            label="Cash Collected — High Ticket (Paid)"
+            value={metrics?.cashCollectedHighTicketPaid}
+            format="currency"
+            subtext="From the Marketing Daily Metrics form — logged daily. No paid HT deal has closed yet, so this is $0 until one does."
+          />
+          <StatCard
+            label="Cash Collected — High Ticket (Organic)"
+            value={metrics?.cashCollectedHighTicketOrganic}
+            format="currency"
+            subtext="From the Marketing Daily Metrics form — every HT deal so far has come from organic."
           />
           <StatCard
             label="Cash Collected — Paid"
@@ -264,11 +282,11 @@ export default function OverviewPage() {
           />
           <StatCard
             label="Cost Per Lead (Paid)"
-            value={leadSources?.costPerPaidLead}
+            value={metrics?.costPerLeadPaid}
             format="currency"
             override={!adsActive ? notActive : undefined}
-            subtext="Ad Spend ÷ tracked Paid leads."
-            status={adsActive ? kpiStatus(leadSources?.costPerPaidLead, goals?.costPerLeadMeta?.max, "lower") : null}
+            subtext="Straight from the Marketing Daily Metrics form — no calculation needed."
+            status={adsActive ? kpiStatus(metrics?.costPerLeadPaid, goals?.costPerLeadMeta?.max, "lower") : null}
             goal={adsActive ? kpiLabel(goals?.costPerLeadMeta?.max, "lower", "currency") : null}
           />
           <StatCard
@@ -321,18 +339,24 @@ export default function OverviewPage() {
             goal={kpiLabel(goals?.salesLowTicket, "higher", "number")}
           />
           <StatCard
-            label="Close Rate — Affiliate"
-            value={metrics?.leadToCloseRate}
+            label="Close Rate — Low Ticket"
+            value={metrics?.closeRateLowTicket}
             format="percent"
-            subtext="Low-ticket sales ÷ tracked leads."
-            status={kpiStatus(metrics?.leadToCloseRate, goals?.closeRateLowTicket?.min, "higher")}
+            subtext="Software Closed ÷ Software Pitched."
+            status={kpiStatus(metrics?.closeRateLowTicket, goals?.closeRateLowTicket?.min, "higher")}
             goal={kpiLabel(goals?.closeRateLowTicket?.min, "higher", "percent")}
           />
           <StatCard
-            label="Average Order Value (AOV)"
-            value={metrics?.averageOrderValue}
+            label="AOV — Low Ticket"
+            value={metrics?.averageOrderValueLowTicket}
             format="currency"
-            subtext="Total Cash Collected ÷ Sales."
+            subtext="Cash Collected — Low Ticket ÷ Sales."
+          />
+          <StatCard
+            label="AOV — High Ticket"
+            value={metrics?.averageOrderValueHighTicket}
+            format="currency"
+            subtext="Cash Collected — High Ticket ÷ HT Deals Closed."
           />
           <StatCard
             label="Connection Rate"
@@ -384,7 +408,7 @@ export default function OverviewPage() {
             label="Close Rate (HT)"
             value={metrics?.highTicketCloseRate}
             format="percent"
-            subtext="Closed ÷ Pitched."
+            subtext="Classic tracking: HT Deals Closed ÷ Calls Showed."
             status={kpiStatus(metrics?.highTicketCloseRate, goals?.highTicketCloseRate?.min, "higher")}
             goal={kpiLabel(goals?.highTicketCloseRate?.min, "higher", "percent")}
           />
@@ -393,6 +417,12 @@ export default function OverviewPage() {
             value={metrics?.highTicketPitchRate}
             format="percent"
             subtext="HT Pitched ÷ Low-Ticket Sales — the upsell-into-HT rate."
+          />
+          <StatCard
+            label="HT Booking Rate (from LT)"
+            value={metrics?.highTicketBookingRateFromLowTicket}
+            format="percent"
+            subtext="New HT calls booked today ÷ Low-Ticket Sales."
           />
         </StatCardGrid>
 
@@ -425,20 +455,19 @@ export default function OverviewPage() {
       <DashboardSection title="Unit Economics">
         <StatCardGrid>
           <StatCard
-            label="CAC (Cost Per Acquisition)"
-            value={metrics?.costPerAcquisition}
+            label="CAC — Low Ticket (Paid)"
+            value={metrics?.cacLowTicketPaid}
             format="currency"
             override={!adsActive ? notActive : undefined}
-            subtext="Ad Spend ÷ Low-Ticket Sales."
-            status={adsActive ? kpiStatus(metrics?.costPerAcquisition, goals?.cpaLowTicket?.max, "lower") : null}
+            subtext="Ad Spend ÷ Low-Ticket Sales (Paid). Organic isn't shown — CAC is inherently a paid-acquisition metric."
+            status={adsActive ? kpiStatus(metrics?.cacLowTicketPaid, goals?.cpaLowTicket?.max, "lower") : null}
             goal={adsActive ? kpiLabel(goals?.cpaLowTicket?.max, "lower", "currency") : null}
           />
           <StatCard
-            label="CPA — Paid"
-            value={leadSources?.costPerAcquisitionPaid}
+            label="CAC — High Ticket (Paid)"
+            value={metrics?.cacHighTicketPaid}
             format="currency"
-            override={!adsActive ? notActive : undefined}
-            subtext="Ad Spend ÷ Paid leads that actually closed."
+            subtext="Ad Spend ÷ paid HT deals closed. Not tracked yet — every HT close so far has been organic, and there's no paid-vs-organic HT deal count field yet."
           />
           <StatCard
             label="Cost Per Call (HT)"

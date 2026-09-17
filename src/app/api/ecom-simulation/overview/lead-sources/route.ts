@@ -14,7 +14,7 @@ import {
   buildLeadSourceLookup,
   lookupSource,
 } from "@/lib/airtable/lead-source-lookup";
-import { roas, costPerLead, costPerAcquisition, sum } from "@/lib/metrics";
+import { roas, sum } from "@/lib/metrics";
 
 export const revalidate = 60;
 
@@ -63,8 +63,6 @@ export async function GET(request: NextRequest) {
     unattributedCount: merged.unattributedCount,
     adSpend,
     paidRoas: roas(merged.cashCollectedPaid, adSpend),
-    costPerPaidLead: costPerLead(adSpend, paidLeads.length || null),
-    costPerAcquisitionPaid: costPerAcquisition(adSpend, merged.paidClosedCount || null),
     pcn: {
       totalLogged: inRangePcn.length,
       matchedToLead,

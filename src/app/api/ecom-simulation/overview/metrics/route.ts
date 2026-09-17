@@ -12,22 +12,15 @@ import {
   wasClosed,
 } from "@/lib/airtable/tables-ecom-simulation";
 import { isPaidSource, normalizeEmail } from "@/lib/airtable/lead-source-lookup";
-import {
-  average,
-  averageOrderValue,
-  cashCollectedPerOptIn,
-  costPerAcquisition,
-  highTicketPitchRate as highTicketPitchRateOf,
-  leadToCloseRate,
-  pickupRate,
-  pitchRate as pitchRateOf,
-  safeDivide,
-  sum,
-  sumByDate,
-  sumPreferringDatedSources,
-} from "@/lib/metrics";
+import { average, pickupRate, safeDivide, sum, sumByDate, sumPreferringDatedSources } from "@/lib/metrics";
 
 export const revalidate = 60;
+
+/** Sun/Sat get the 20% affiliate commission rate; Mon–Fri get 10%. */
+function isWeekendDate(dateStr: string): boolean {
+  const day = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
 
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
@@ -50,6 +43,7 @@ export async function GET(request: NextRequest) {
   const inRangePcn = affiliatePcn.filter((r) => isDateInRange(r.date, range));
 
   const salesCount = sum(inRangeMarketing.map((r) => r.salesLowTicket)) ?? 0;
+  const salesLowTicketPaid = sum(inRangeMarketing.map((r) => r.salesLowTicketPaid));
   const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta));
   // Ads only started running partway through this data and have since
   // paused — a $0/range isn't a tracking bug, it means no paid spend
@@ -57,6 +51,11 @@ export async function GET(request: NextRequest) {
   // this flag so the UI can show "Not Active" instead of a misleading $0.00.
   const adsActive = (adSpend ?? 0) > 0;
   const cashLowTicket = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicket));
+  const cashLowTicketPaid = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketPaid));
+  const cashHighTicketPaidForm = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicketPaid));
+  const cashHighTicketOrganicForm = sum(
+    inRangeMarketing.map((r) => r.cashCollectedHighTicketOrganic)
+  );
   const revenueHighTicket = sum(inRangeCloser.map((r) => r.revenueHighTicket));
   // Real high-ticket cash by day: EOD Closer first (the confirmed real
   // source for this offer's high-ticket motion — see
@@ -79,13 +78,17 @@ export async function GET(request: NextRequest) {
     cashLowTicket !== null || cashHighTicket !== null
       ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0)
       : null;
-  // Real paid opt-in count from the Leads table, not the manually-typed form field.
+  // Real paid opt-in count from the Leads table, not the manually-typed form
+  // field — the form's own opt-in count is disregarded entirely per the
+  // client, the Leads table is the single source of truth here.
   const optInsPaid = inRangeLeads.filter((l) => isPaidSource(l.source)).length || null;
   const optInsOrganic =
     inRangeLeads.length - (inRangeLeads.filter((l) => isPaidSource(l.source)).length || 0);
   const pickups = sum(inRangeEod.map((r) => r.pickups));
   const dials = sum(inRangeEod.map((r) => r.outboundDials));
   const softwarePitched = sum(inRangeEod.map((r) => r.softwarePitched));
+  const softwareClosed = sum(inRangeEod.map((r) => r.softwareClosed));
+  const newHighTicketCallsBooked = sum(inRangeEod.map((r) => r.newHighTicketCallsBooked));
 
   const highTicketPitched = inRangePostCallNotes.filter(wasPitched).length;
   const highTicketClosed = inRangePostCallNotes.filter(wasClosed).length;
@@ -96,9 +99,20 @@ export async function GET(request: NextRequest) {
   // average price, and collections all at once for the high-ticket side.
   const collectedPerBookedCallHT = safeDivide(cashHighTicket, highTicketCallsBooked || null);
 
-  // No affiliate-commission field exists in Airtable yet, so Net Cash is
-  // Cash Collected minus Ad Spend only — the fallback the spec calls for.
-  const netCash = totalCashCollected !== null ? totalCashCollected - (adSpend ?? 0) : null;
+  // Net Cash: Cash Collected − Ad Spend − affiliate/closer/setter
+  // commissions. Low-ticket affiliate commission is 10% on weekdays, 20% on
+  // Sat/Sun (keyed off the day the Marketing Daily Metrics form logged the
+  // cash for); high-ticket is a flat 15% regardless of day.
+  const lowTicketCommission = sum(
+    inRangeMarketing.map((r) => {
+      if (r.date === null || r.cashCollectedLowTicket === null) return null;
+      return r.cashCollectedLowTicket * (isWeekendDate(r.date) ? 0.2 : 0.1);
+    })
+  );
+  const highTicketCommission = cashHighTicket !== null ? cashHighTicket * 0.15 : null;
+  const totalCommissions = (lowTicketCommission ?? 0) + (highTicketCommission ?? 0);
+  const netCash =
+    totalCashCollected !== null ? totalCashCollected - (adSpend ?? 0) - totalCommissions : null;
 
   const costPerCallHT = adsActive ? safeDivide(adSpend, highTicketCallsBooked || null) : null;
 
@@ -135,12 +149,19 @@ export async function GET(request: NextRequest) {
     // Tier 1 — Keystone
     totalCashCollected,
     collectedPerBookedCallHT,
+    // Front-end keystone: Cash Collected — Low Ticket (Paid) ÷ Paid Opt-Ins,
+    // not total cash — this is specifically the paid front-end's efficiency.
+    cashCollectedPerOptInPaid: safeDivide(cashLowTicketPaid, optInsPaid),
     netCash,
+    lowTicketCommission,
+    highTicketCommission,
     adsActive,
 
     // Tier 2 — Revenue breakdown
     cashCollectedLowTicket: cashLowTicket,
     cashCollectedHighTicket: cashHighTicket,
+    cashCollectedHighTicketPaid: cashHighTicketPaidForm,
+    cashCollectedHighTicketOrganic: cashHighTicketOrganicForm,
     adSpend,
 
     // Tier 3 — Acquisition
@@ -148,14 +169,18 @@ export async function GET(request: NextRequest) {
     optInsOrganic,
     landingPageConnectRate: average(inRangeMarketing.map((r) => r.landingPageConnectRate)),
     optInRate: average(inRangeMarketing.map((r) => r.optInRate)),
+    // Straight from the form's own field — no need to (re)calculate it.
+    costPerLeadPaid: average(inRangeMarketing.map((r) => r.costPerLeadMeta)),
 
     // Tier 4 — Front-end conversion
     pickups,
     pickupRate: pickupRate(pickups, dials),
     softwarePitched,
-    pitchRate: pitchRateOf(softwarePitched, pickups),
+    pitchRate: safeDivide(softwarePitched, pickups),
     sales: salesCount,
-    averageOrderValue: averageOrderValue(totalCashCollected, salesCount || null),
+    averageOrderValueLowTicket: safeDivide(cashLowTicket, salesCount || null),
+    averageOrderValueHighTicket: safeDivide(cashHighTicket, highTicketClosed || null),
+    closeRateLowTicket: safeDivide(softwareClosed, softwarePitched || null),
     connectionRate: safeDivide(pickups, (optInsPaid ?? 0) + optInsOrganic || null),
 
     // Tier 5 — High-ticket backend
@@ -164,15 +189,22 @@ export async function GET(request: NextRequest) {
     highTicketShowRate: safeDivide(highTicketCallsShowed, highTicketCallsBooked || null),
     highTicketPitched,
     highTicketClosed,
-    highTicketCloseRate: safeDivide(highTicketClosed, highTicketPitched || null),
-    highTicketPitchRate: highTicketPitchRateOf(highTicketPitched, salesCount || null),
+    // Classic HT tracking: deals closed ÷ calls SHOWN, not pitched.
+    highTicketCloseRate: safeDivide(highTicketClosed, highTicketCallsShowed || null),
+    // New high-ticket calls booked (today) ÷ low-ticket sales — the
+    // upsell-into-HT booking rate.
+    highTicketBookingRateFromLowTicket: safeDivide(newHighTicketCallsBooked, salesCount || null),
+    highTicketPitchRate: safeDivide(highTicketPitched, salesCount || null),
     revenueHighTicket,
 
-    // Tier 6 — Unit economics
-    costPerAcquisition: costPerAcquisition(adSpend, salesCount || null),
-    leadToCloseRate: leadToCloseRate(salesCount || null, inRangeLeads.length || null),
-    cashCollectedPerOptInPaid: cashCollectedPerOptIn(totalCashCollected, optInsPaid),
+    // Tier 6 — Unit economics (paid only — CAC is inherently a paid concept)
+    cacLowTicketPaid: adsActive ? safeDivide(adSpend, salesLowTicketPaid || null) : null,
+    // No paid-vs-organic HT *deal count* field exists yet (only the cash
+    // split above) — every HT close has been organic so far, so this stays
+    // null rather than a fabricated number until that count is tracked.
+    cacHighTicketPaid: null,
     costPerCallHT,
+    leadToCloseRate: safeDivide(salesCount || null, inRangeLeads.length || null),
     avgDaysToClose,
 
     // Tier 7 — Funnel / marketing health (diagnostic)
