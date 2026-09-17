@@ -25,7 +25,7 @@ function normName(raw: string | null | undefined): string | null {
 // shared table cache in airtable/client.ts, re-parsing that whole table (and
 // re-running the name-matching below) on every request was the slow part
 // even with the table itself cached. Caching this route's own small computed
-// result per date range removes that repeated cost. Same 300s freshness
+// result per date range removes that repeated cost. Same 60s freshness
 // window as everything else — see airtable/client.ts for why that's safe.
 const computeSpeedToLead = unstable_cache(
   async (range: ResolvedRange) => {
@@ -67,7 +67,7 @@ const computeSpeedToLead = unstable_cache(
     };
   },
   ["bronson-speed-to-lead-computed"],
-  { revalidate: 300 }
+  { revalidate: 60 }
 );
 
 export async function GET(request: NextRequest) {

@@ -144,18 +144,21 @@ async function walkAllPagesWithRetry(
  * for a given table in this window actually talks to Airtable; everyone
  * else gets it from Next's shared Data Cache.
  *
- * 5 minutes, not 30s: this data changes a few times a day at most (manual
- * form submissions, daily syncs), so a short TTL bought almost nothing on
- * freshness while still forcing a full multi-page Airtable walk (the slow
- * part) on the first visit after every expiry — which is most visits, since
- * real usage is "check the dashboard occasionally," not "hammer it every 30
- * seconds." Next serves the stale cached value immediately and revalidates
- * in the background once a cached entry is stale, so this doesn't cost
- * correctness — it just means an Airtable change can take up to 5 minutes
- * to show up instead of 30 seconds.
+ * 60 seconds: it's not just new records — the team goes back and corrects
+ * historical rows too (a setter's data logged wrong on an earlier day, then
+ * fixed later), and that correction needs to actually show up without
+ * anyone having to know a cache exists. This cache doesn't distinguish new
+ * vs. edited rows either way — a fresh table walk always reflects
+ * whatever's in Airtable *right now*, edits included — so the only thing
+ * this window controls is how long a correction can take to appear. Next
+ * serves the stale cached value immediately and revalidates in the
+ * background once a cached entry goes stale, so this doesn't cost
+ * correctness, only recency — 60s keeps that recency tight while still
+ * giving the parallel-request burst on every page load a real window to
+ * share one Airtable walk instead of each route re-fetching independently.
  */
 const cachedWalkAllPages = unstable_cache(walkAllPagesWithRetry, ["airtable-list-all"], {
-  revalidate: 300,
+  revalidate: 60,
 });
 
 /**
