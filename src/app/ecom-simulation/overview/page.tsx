@@ -66,10 +66,6 @@ type PlanSplitResponse = {
   yearlyShare: number | null;
 };
 
-type LeaderboardResponse = {
-  rows: { id: string; name: string | null; entries: number | null }[];
-};
-
 type RecentChangesResponse = {
   days: {
     date: string;
@@ -91,10 +87,6 @@ export default function OverviewPage() {
   );
   const { data: crossCheck } = useSectionData<CrossCheckResponse>(
     "/api/ecom-simulation/overview/cross-check",
-    range
-  );
-  const { data: leaderboard } = useSectionData<LeaderboardResponse>(
-    "/api/ecom-simulation/overview/leaderboard",
     range
   );
   const { data: planSplit } = useSectionData<PlanSplitResponse>(
@@ -267,27 +259,6 @@ export default function OverviewPage() {
 
       <DashboardSection title="Cash Calendar">
         <CashCalendar />
-      </DashboardSection>
-
-      <DashboardSection title="Leaderboard">
-        {leaderboard && leaderboard.rows.length > 0 ? (
-          <div className="rounded-lg border border-black/10 bg-white p-4">
-            <ol className="space-y-2">
-              {leaderboard.rows.map((row, i) => (
-                <li key={row.id} className="flex items-center justify-between text-sm">
-                  <span>
-                    {i + 1}. {row.name ?? "Unknown"}
-                  </span>
-                  <span className="font-semibold">{row.entries ?? "—"}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
-            No submissions in this range.
-          </div>
-        )}
       </DashboardSection>
 
       <RecentChanges />

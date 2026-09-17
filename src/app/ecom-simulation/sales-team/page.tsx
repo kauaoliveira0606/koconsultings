@@ -44,6 +44,10 @@ type CpaResponse = {
   }[];
 };
 
+type LeaderboardResponse = {
+  rows: { id: string; name: string | null; entries: number | null }[];
+};
+
 type HighTicketClosersResponse = {
   callsBooked: number | null;
   callsShowed: number | null;
@@ -90,6 +94,10 @@ export default function SalesTeamPage() {
   const { data: cpa } = useSectionData<CpaResponse>("/api/ecom-simulation/sales-team/cpa", range);
   const { data: highTicket } = useSectionData<HighTicketClosersResponse>(
     "/api/ecom-simulation/sales-team/high-ticket-closers",
+    range
+  );
+  const { data: leaderboard } = useSectionData<LeaderboardResponse>(
+    "/api/ecom-simulation/sales-team/leaderboard",
     range
   );
 
@@ -253,6 +261,27 @@ export default function SalesTeamPage() {
           rows={highTicket?.records ?? []}
           rowKey={(r) => r.id}
         />
+      </DashboardSection>
+
+      <DashboardSection title="Leaderboard">
+        {leaderboard && leaderboard.rows.length > 0 ? (
+          <div className="rounded-lg border border-black/10 bg-white p-4">
+            <ol className="space-y-2">
+              {leaderboard.rows.map((row, i) => (
+                <li key={row.id} className="flex items-center justify-between text-sm">
+                  <span>
+                    {i + 1}. {row.name ?? "Unknown"}
+                  </span>
+                  <span className="font-semibold">{row.entries ?? "—"}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
+            No submissions in this range.
+          </div>
+        )}
       </DashboardSection>
     </div>
   );
