@@ -7,6 +7,9 @@
 import { isDateInRange, type ResolvedRange } from "./date-range";
 import { sumByDate } from "./metrics";
 
+/** Data before this date is out of scope for the agency rollup entirely, per the client. */
+export const AGENCY_DATA_START = "2026-09-01";
+
 /** Sun/Sat get the 20% affiliate commission rate; Mon–Fri get 10%. Same rule every offer already uses. */
 function isWeekendDate(dateStr: string): boolean {
   const day = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
@@ -43,9 +46,11 @@ type MarketingRowLike = {
  * of that day's TOTAL cash (Low or High Ticket) after subtracting Paid,
  * and a day with no Paid figure at all is treated as fully Organic (rather
  * than dropped) so a day's cash is never silently lost just because the
- * split wasn't recorded.
+ * split wasn't recorded. Anything before `AGENCY_DATA_START` is dropped
+ * entirely — August and earlier is out of scope for this rollup.
  */
 export function buildDailyOfferRows(marketing: MarketingRowLike[]): DailyOfferRow[] {
+  marketing = marketing.filter((r) => r.date !== null && r.date >= AGENCY_DATA_START);
   const ltTotalByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedLowTicket);
   const ltPaidTypedByDay = sumByDate(
     marketing,
