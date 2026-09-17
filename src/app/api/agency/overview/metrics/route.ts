@@ -16,9 +16,9 @@ import {
   getAffiliateEod as getEcomSimAffiliateEod,
   getEodCloser as getEcomSimEodCloser,
 } from "@/lib/airtable/tables-ecom-simulation";
-import { sumByDate, sumPreferringDatedSources } from "@/lib/metrics";
 import {
   buildDailyOfferRows,
+  blendHtCashByDay,
   sumCash,
   sumAdSpend,
   sumSalesTeamPayout,
@@ -30,34 +30,6 @@ import {
 } from "@/lib/agency";
 
 export const revalidate = 60;
-
-type HtCashRow = { date: string | null; cashCollectedHighTicket: number | null };
-
-/** Same preferred-source blend each offer's own Overview page already uses for real High Ticket cash. */
-function blendHtCashByDay(
-  marketing: HtCashRow[],
-  sourcesInPriorityOrder: HtCashRow[][]
-): Map<string, number> {
-  const dates = new Set<string>();
-  for (const r of marketing) if (r.date) dates.add(r.date);
-  for (const source of sourcesInPriorityOrder) for (const r of source) if (r.date) dates.add(r.date);
-
-  const maps = sourcesInPriorityOrder.map((source) =>
-    sumByDate(source, (r) => r.date, (r) => r.cashCollectedHighTicket)
-  );
-  maps.push(sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedHighTicket));
-
-  const result = new Map<string, number>();
-  for (const date of dates) {
-    for (const map of maps) {
-      if (map.has(date)) {
-        result.set(date, map.get(date)!);
-        break;
-      }
-    }
-  }
-  return result;
-}
 
 function clientSummary(rows: DailyOfferRow[]) {
   const { paid, organic } = sumSalesTeamPayout(rows);

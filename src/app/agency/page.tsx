@@ -3,6 +3,7 @@
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { CashVsSpendChart } from "@/components/dashboard/CashVsSpendChart";
+import { AgencyCashCalendar } from "@/components/dashboard/AgencyCashCalendar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue } from "@/lib/format";
@@ -187,6 +188,13 @@ export default function AgencyPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+          Cash Calendar
+        </h2>
+        <AgencyCashCalendar />
       </div>
     </div>
   );

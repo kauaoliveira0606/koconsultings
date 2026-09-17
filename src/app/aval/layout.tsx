@@ -6,7 +6,7 @@ import { RangeProvider } from "@/lib/range-context";
 export const metadata: Metadata = {
   title: "Aval",
   description: "Aval dashboard",
-  icons: { icon: [] },
+  icons: { icon: "/icon.png" },
   openGraph: { images: [] },
   twitter: { images: [] },
 };

@@ -87,7 +87,7 @@ export function buildDailyOfferRows(
   return rows;
 }
 
-function cash(r: DailyOfferRow): number {
+export function cash(r: DailyOfferRow): number {
   return r.ltCashPaid + r.ltCashOrganic + r.htCashPaid + r.htCashOrganic;
 }
 
@@ -116,19 +116,34 @@ export function profit(rows: DailyOfferRow[]): number {
   return sumCash(rows) - sumAdSpend(rows) - (paid + organic);
 }
 
-/** Bronson: 50% agency share of Paid profit (after ad spend + sales team), plus 20% of Organic top-line cash. */
-export function bronsonAgencyProfit(rows: DailyOfferRow[]): number {
-  const cashPaid = rows.reduce((t, r) => t + r.ltCashPaid + r.htCashPaid, 0);
-  const cashOrganic = rows.reduce((t, r) => t + r.ltCashOrganic + r.htCashOrganic, 0);
-  const adSpend = sumAdSpend(rows);
-  const { paid: payoutPaid } = sumSalesTeamPayout(rows);
-  const paidProfit = cashPaid - adSpend - payoutPaid;
-  return 0.5 * paidProfit + 0.2 * cashOrganic;
+/** Bronson: 50% agency share of Paid profit (after ad spend + sales team), plus 20% of Organic top-line cash — per day. */
+export function bronsonAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const cashPaid = r.ltCashPaid + r.htCashPaid;
+    const cashOrganic = r.ltCashOrganic + r.htCashOrganic;
+    const { paid: payoutPaid } = sumSalesTeamPayout([r]);
+    const paidProfit = cashPaid - r.adSpend - payoutPaid;
+    map.set(r.date, 0.5 * paidProfit + 0.2 * cashOrganic);
+  }
+  return map;
 }
 
-/** Aval: flat 11.5% of top-line cash, minus ad spend — no sales team deduction. */
+export function bronsonAgencyProfit(rows: DailyOfferRow[]): number {
+  return sumMapValues(bronsonAgencyProfitByDay(rows));
+}
+
+/** Aval: flat 11.5% of top-line cash, minus ad spend — no sales team deduction — per day. */
+export function avalAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    map.set(r.date, 0.115 * cash(r) - r.adSpend);
+  }
+  return map;
+}
+
 export function avalAgencyProfit(rows: DailyOfferRow[]): number {
-  return 0.115 * sumCash(rows) - sumAdSpend(rows);
+  return sumMapValues(avalAgencyProfitByDay(rows));
 }
 
 /**
@@ -137,19 +152,17 @@ export function avalAgencyProfit(rows: DailyOfferRow[]): number {
  * $100k — the whole month's cash re-rates at the higher tier, not just the
  * amount above $100k. `allRows` must be unfiltered by date range (every
  * row this offer has ever logged) so a month's tier is judged on its full
- * total even when the dashboard is viewing a narrower range within it;
- * only the portion of that month's rows inside `range` contributes dollars.
+ * total even when only a narrower slice of it is being summed.
  */
-export function ecomSimAgencyProfit(allRows: DailyOfferRow[], range: ResolvedRange): number {
+export function ecomSimAgencyProfitByDay(allRows: DailyOfferRow[]): Map<string, number> {
   const monthCash = new Map<string, number>();
   for (const r of allRows) {
     const month = r.date.slice(0, 7);
     monthCash.set(month, (monthCash.get(month) ?? 0) + cash(r));
   }
 
-  let agencyProfit = 0;
+  const map = new Map<string, number>();
   for (const r of allRows) {
-    if (!isDateInRange(r.date, range)) continue;
     const month = r.date.slice(0, 7);
     const tierHit = (monthCash.get(month) ?? 0) > 100_000;
     const rateOrganic = tierHit ? 0.35 : 0.175;
@@ -157,7 +170,54 @@ export function ecomSimAgencyProfit(allRows: DailyOfferRow[], range: ResolvedRan
     const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
     const organicProfit = r.ltCashOrganic + r.htCashOrganic - payoutOrganic;
     const paidProfit = r.ltCashPaid + r.htCashPaid - r.adSpend - payoutPaid;
-    agencyProfit += rateOrganic * organicProfit + ratePaid * paidProfit;
+    map.set(r.date, rateOrganic * organicProfit + ratePaid * paidProfit);
   }
-  return agencyProfit;
+  return map;
+}
+
+/** `allRows` unfiltered (see above); only rows inside `range` are summed into the total. */
+export function ecomSimAgencyProfit(allRows: DailyOfferRow[], range: ResolvedRange): number {
+  let total = 0;
+  for (const [date, value] of ecomSimAgencyProfitByDay(allRows)) {
+    if (isDateInRange(date, range)) total += value;
+  }
+  return total;
+}
+
+function sumMapValues(map: Map<string, number>): number {
+  let total = 0;
+  for (const v of map.values()) total += v;
+  return total;
+}
+
+export type HtCashRow = { date: string | null; cashCollectedHighTicket: number | null };
+
+/**
+ * Same preferred-source blend each offer's own Overview page already uses
+ * for real High Ticket cash: the first source in priority order that has
+ * ANY record for a day wins, falling through only for days it's silent on.
+ */
+export function blendHtCashByDay(
+  marketing: HtCashRow[],
+  sourcesInPriorityOrder: HtCashRow[][]
+): Map<string, number> {
+  const dates = new Set<string>();
+  for (const r of marketing) if (r.date) dates.add(r.date);
+  for (const source of sourcesInPriorityOrder) for (const r of source) if (r.date) dates.add(r.date);
+
+  const maps = sourcesInPriorityOrder.map((source) =>
+    sumByDate(source, (r) => r.date, (r) => r.cashCollectedHighTicket)
+  );
+  maps.push(sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedHighTicket));
+
+  const result = new Map<string, number>();
+  for (const date of dates) {
+    for (const map of maps) {
+      if (map.has(date)) {
+        result.set(date, map.get(date)!);
+        break;
+      }
+    }
+  }
+  return result;
 }

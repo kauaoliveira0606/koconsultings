@@ -6,7 +6,7 @@ import { RangeProvider } from "@/lib/range-context";
 export const metadata: Metadata = {
   title: "Bronson",
   description: "Bronson dashboard",
-  icons: { icon: [] },
+  icons: { icon: "/icon.png" },
   openGraph: { images: [] },
   twitter: { images: [] },
 };

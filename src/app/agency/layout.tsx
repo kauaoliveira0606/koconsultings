@@ -5,7 +5,7 @@ import { RangeProvider } from "@/lib/range-context";
 export const metadata: Metadata = {
   title: "Agency",
   description: "KOconsultings agency dashboard",
-  icons: { icon: [] },
+  icons: { icon: "/icon.png" },
   openGraph: { images: [] },
   twitter: { images: [] },
 };

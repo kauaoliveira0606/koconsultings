@@ -6,7 +6,7 @@ import { RangeProvider } from "@/lib/range-context";
 export const metadata: Metadata = {
   title: "Ecom Simulation",
   description: "Ecom Simulation dashboard",
-  icons: { icon: [] },
+  icons: { icon: "/icon.png" },
   openGraph: { images: [] },
   twitter: { images: [] },
 };
