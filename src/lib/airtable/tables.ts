@@ -154,7 +154,7 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
           f["Sales - Low Ticket (Paid)"] ??
           f["Low Ticket Sales (Paid)"]
       );
-      const cashLT = parseNumericText(f["Cash Collected - Low ticket"]);
+      const cashLTRaw = parseNumericText(f["Cash Collected - Low ticket"]);
       // Same story: Bronson "Low ticket cash collected (Paid)", Aval "Cash
       // collected - Low ticket (Paid)", Ecom Simulation "Cash Low ticket
       // (Paid)".
@@ -163,9 +163,10 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
           f["Cash collected - Low ticket (Paid)"] ??
           f["Cash Low ticket (Paid)"]
       );
+      const cashLTOrganicExplicit = parseNumericText(f["Low ticket cash collected (Organic)"]);
       // Bronson "Cash collected (High Ticket)", Aval "High Ticket Cash
       // Collected", Ecom Simulation "High ticket cash collected".
-      const cashHT = parseNumericText(
+      const cashHTRaw = parseNumericText(
         f["Cash collected (High Ticket)"] ??
           f["High Ticket Cash Collected"] ??
           f["High ticket cash collected"]
@@ -177,10 +178,23 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
       const cashHTPaid = parseNumericText(
         f["High ticket cash collected (Paid)"] ?? f["high Ticket Cash (Paid)"]
       );
+      const cashHTOrganicExplicit = parseNumericText(f["High ticket cash collected (Organic)"]);
       // Only infer Organic when a Paid figure was actually entered — a blank
       // Paid means "not split yet", not "zero paid".
       const minusPaid = (total: number | null, paid: number | null) =>
         total === null || paid === null ? null : Math.max(0, total - paid);
+      // Bronson stopped filling in the combined Total column starting
+      // 2026-09 and now only types the Paid/Organic split directly — so
+      // Total is a FLOOR, not the sole source: if it's blank but Paid
+      // and/or explicit Organic were typed, the total is reconstructed
+      // from those instead of silently reading as "no cash collected."
+      const reconcileTotal = (
+        raw: number | null,
+        paid: number | null,
+        organicExplicit: number | null
+      ) => raw ?? (paid !== null || organicExplicit !== null ? (paid ?? 0) + (organicExplicit ?? 0) : null);
+      const cashLT = reconcileTotal(cashLTRaw, cashLTPaid, cashLTOrganicExplicit);
+      const cashHT = reconcileTotal(cashHTRaw, cashHTPaid, cashHTOrganicExplicit);
       // Unlike the form's other percent fields (native Airtable percent
       // type, always a 0–1 fraction), "Conversion Rate (Paid)/(Organic)" is
       // free text and the team types whole percents into it ("25" meaning
@@ -201,13 +215,9 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
           parseNumericText(f["Low ticket sales (Organic)"] ?? f["Low ticket sales (organic)"]) ??
           minusPaid(salesLT, salesLTPaid),
         cashCollectedLowTicketPaid: cashLTPaid,
-        cashCollectedLowTicketOrganic:
-          parseNumericText(f["Low ticket cash collected (Organic)"]) ??
-          minusPaid(cashLT, cashLTPaid),
+        cashCollectedLowTicketOrganic: cashLTOrganicExplicit ?? minusPaid(cashLT, cashLTPaid),
         cashCollectedHighTicketPaid: cashHTPaid,
-        cashCollectedHighTicketOrganic:
-          parseNumericText(f["High ticket cash collected (Organic)"]) ??
-          minusPaid(cashHT, cashHTPaid),
+        cashCollectedHighTicketOrganic: cashHTOrganicExplicit ?? minusPaid(cashHT, cashHTPaid),
         funnelConversionRatePaid: asFraction(parseNumericText(f["Conversion Rate (Paid)"])),
         funnelConversionRateOrganic: asFraction(
           parseNumericText(f["Conversion Rate (Organic)"]) ??
