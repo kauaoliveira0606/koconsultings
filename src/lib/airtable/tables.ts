@@ -70,6 +70,16 @@ export type MarketingDailyMetricRow = {
   callsBooked: number | null;
   callsShowed: number | null;
   highTicketDealsClosed: number | null;
+  // Split of the same "deals closed" count, added 2026-09 alongside the
+  // refund/chargeback fields below. No Organic counterpart field exists —
+  // it's not needed since High Ticket Deals Closed (total) already covers it.
+  highTicketDealsClosedPaid: number | null;
+  // Added 2026-09 on every offer's Marketing Daily Metrics table so refund/
+  // chargeback rate can finally be tracked instead of just noted as missing.
+  refundCount: number | null;
+  refundDollars: number | null;
+  chargebackCount: number | null;
+  chargebackDollars: number | null;
 };
 
 export type EodDialerRow = {
@@ -139,7 +149,13 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
       const cashLT = parseNumericText(f["Cash Collected - Low ticket"]);
       const cashLTPaid = parseNumericText(f["Low ticket cash collected (Paid)"]);
       const cashHT = parseNumericText(f["Cash collected (High Ticket)"]);
-      const cashHTPaid = parseNumericText(f["High ticket cash collected (Paid)"]);
+      // Aval's field is spelled/named differently ("high Ticket Cash
+      // (Paid)") than Bronson/Ecom Simulation's ("High ticket cash
+      // collected (Paid)") — check both so this generic parser covers
+      // every offer's actual column.
+      const cashHTPaid = parseNumericText(
+        f["High ticket cash collected (Paid)"] ?? f["high Ticket Cash (Paid)"]
+      );
       // Only infer Organic when a Paid figure was actually entered — a blank
       // Paid means "not split yet", not "zero paid".
       const minusPaid = (total: number | null, paid: number | null) =>
@@ -186,6 +202,15 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         callsBooked: parseNumericText(f["Calls booked (On calendar)"]),
         callsShowed: parseNumericText(f["Calls Showed"]),
         highTicketDealsClosed: parseNumericText(f["High Ticket Deals Closed"]),
+        // Bronson calls it "High Ticket Deals Closed (Paid)", Aval calls it
+        // "High Ticket Closed (Paid)" — same idea, different column name.
+        highTicketDealsClosedPaid: parseNumericText(
+          f["High Ticket Deals Closed (Paid)"] ?? f["High Ticket Closed (Paid)"]
+        ),
+        refundCount: parseNumericText(f["Refund count"]),
+        refundDollars: parseNumericText(f["Refund dollars"]),
+        chargebackCount: parseNumericText(f["Chargebacks"]),
+        chargebackDollars: parseNumericText(f["Chargebacks dollars"]),
       };
     });
   }

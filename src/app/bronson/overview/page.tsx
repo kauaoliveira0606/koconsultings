@@ -35,7 +35,14 @@ type MetricsResponse = {
   highTicketPitchRate: number | null;
   upsellBookingRate: number | null;
   costPerAcquisition: number | null;
+  cacHighTicketPaid: number | null;
   leadToCloseRate: number | null;
+  refundCount: number | null;
+  refundDollars: number | null;
+  chargebackCount: number | null;
+  chargebackDollars: number | null;
+  refundChargebackDollars: number | null;
+  refundChargebackRate: number | null;
 };
 
 type LeadSourcesResponse = {
@@ -143,6 +150,12 @@ export default function OverviewPage() {
             format="percent"
           />
           <StatCard label="Cost Per Acquisition (CAC)" value={metrics?.costPerAcquisition} format="currency" />
+          <StatCard
+            label="CAC — High Ticket (Paid)"
+            value={metrics?.cacHighTicketPaid}
+            format="currency"
+            subtext="Ad Spend ÷ High Ticket Deals Closed (Paid)."
+          />
           <StatCard label="Lead-to-Close Rate" value={metrics?.leadToCloseRate} format="percent" />
         </StatCardGrid>
       </DashboardSection>
@@ -156,6 +169,25 @@ export default function OverviewPage() {
           <StatCard label="Cash HT — Paid" value={metrics?.cashHighTicketPaid} format="currency" />
           <StatCard label="Cash HT — Organic" value={metrics?.cashHighTicketOrganic} format="currency" />
         </StatCardGrid>
+      </DashboardSection>
+
+      <DashboardSection title="Refund / Chargeback">
+        <StatCardGrid>
+          <StatCard
+            label="Refund / Chargeback Rate"
+            value={metrics?.refundChargebackRate}
+            format="percent"
+            subtext="(Refund $ + Chargeback $) ÷ Total Cash Collected."
+          />
+          <StatCard label="Refund Count" value={metrics?.refundCount} format="number" />
+          <StatCard label="Refund Dollars" value={metrics?.refundDollars} format="currency" />
+          <StatCard label="Chargeback Count" value={metrics?.chargebackCount} format="number" />
+          <StatCard label="Chargeback Dollars" value={metrics?.chargebackDollars} format="currency" />
+        </StatCardGrid>
+        <p className="mt-3 text-sm text-[var(--text-muted)]">
+          From the Marketing Daily Metrics form — tracked starting 2026-09, so ranges before that
+          will show no data.
+        </p>
       </DashboardSection>
 
       <DashboardSection title="Attribution — Base 44 + Wix">

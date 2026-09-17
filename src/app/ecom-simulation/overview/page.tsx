@@ -63,6 +63,13 @@ type MetricsResponse = {
   vslEngagementRate: number | null;
   funnelConversionRatePaid: number | null;
   funnelConversionRateOrganic: number | null;
+
+  refundCount: number | null;
+  refundDollars: number | null;
+  chargebackCount: number | null;
+  chargebackDollars: number | null;
+  refundChargebackDollars: number | null;
+  refundChargebackRate: number | null;
 };
 
 type LeadSourcesResponse = {
@@ -572,11 +579,25 @@ export default function OverviewPage() {
           ) : null}
         </div>
 
-        <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm text-black/60">
-          <span className="font-semibold text-black/80">Refund / Chargeback Rate:</span> not
-          tracked yet — no refund or chargeback field exists in Airtable for this offer's payment
-          plans. Add one to Post Call Note or Follow Up Payment to unlock this metric.
-        </div>
+      </DashboardSection>
+
+      <DashboardSection title="Refund / Chargeback">
+        <StatCardGrid>
+          <StatCard
+            label="Refund / Chargeback Rate"
+            value={metrics?.refundChargebackRate}
+            format="percent"
+            subtext="(Refund $ + Chargeback $) ÷ Total Cash Collected. Protects against the illusion of healthy cash collected."
+          />
+          <StatCard label="Refund Count" value={metrics?.refundCount} format="number" />
+          <StatCard label="Refund Dollars" value={metrics?.refundDollars} format="currency" />
+          <StatCard label="Chargeback Count" value={metrics?.chargebackCount} format="number" />
+          <StatCard label="Chargeback Dollars" value={metrics?.chargebackDollars} format="currency" />
+        </StatCardGrid>
+        <p className="mt-3 text-sm text-black/50">
+          From the Marketing Daily Metrics form — tracked starting 2026-09, so ranges before that
+          will show no data.
+        </p>
       </DashboardSection>
 
       <RecentChanges />

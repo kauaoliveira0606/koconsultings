@@ -145,6 +145,21 @@ export async function GET(request: NextRequest) {
   }
   const avgDaysToClose = average(closeLags);
 
+  // Refund / Chargeback — added to the form 2026-09, so this only has data
+  // from that point forward.
+  const refundCount = sum(inRangeMarketing.map((r) => r.refundCount));
+  const refundDollars = sum(inRangeMarketing.map((r) => r.refundDollars));
+  const chargebackCount = sum(inRangeMarketing.map((r) => r.chargebackCount));
+  const chargebackDollars = sum(inRangeMarketing.map((r) => r.chargebackDollars));
+  const refundChargebackDollars =
+    refundDollars !== null || chargebackDollars !== null
+      ? (refundDollars ?? 0) + (chargebackDollars ?? 0)
+      : null;
+  // No High Ticket Paid/Organic *deal count* field exists on this offer's
+  // form (only Bronson/Aval got one) — stays null rather than a fabricated
+  // number.
+  const highTicketDealsClosedPaid = sum(inRangeMarketing.map((r) => r.highTicketDealsClosedPaid));
+
   return Response.json({
     // Tier 1 — Keystone
     totalCashCollected,
@@ -199,10 +214,7 @@ export async function GET(request: NextRequest) {
 
     // Tier 6 — Unit economics (paid only — CAC is inherently a paid concept)
     cacLowTicketPaid: adsActive ? safeDivide(adSpend, salesLowTicketPaid || null) : null,
-    // No paid-vs-organic HT *deal count* field exists yet (only the cash
-    // split above) — every HT close has been organic so far, so this stays
-    // null rather than a fabricated number until that count is tracked.
-    cacHighTicketPaid: null,
+    cacHighTicketPaid: safeDivide(adSpend, highTicketDealsClosedPaid || null),
     costPerCallHT,
     leadToCloseRate: safeDivide(salesCount || null, inRangeLeads.length || null),
     avgDaysToClose,
@@ -215,5 +227,12 @@ export async function GET(request: NextRequest) {
     funnelConversionRateOrganic: average(
       inRangeMarketing.map((r) => r.funnelConversionRateOrganic)
     ),
+
+    refundCount,
+    refundDollars,
+    chargebackCount,
+    chargebackDollars,
+    refundChargebackDollars,
+    refundChargebackRate: safeDivide(refundChargebackDollars, totalCashCollected),
   });
 }

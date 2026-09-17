@@ -16,6 +16,7 @@ import {
   leadToCloseRate,
   pickupRate,
   pitchRate as pitchRateOf,
+  safeDivide,
   sum,
   sumByDate,
   sumPreferringDatedSources,
@@ -79,6 +80,18 @@ export async function GET(request: NextRequest) {
   const htPitched = sum(inRangeEod.map((r) => r.highTicketCallsPitched));
   const htBooked = sum(inRangeEod.map((r) => r.newHighTicketCallsBooked));
 
+  // Refund / Chargeback — added to the form 2026-09, so this only has data
+  // from that point forward.
+  const refundCount = sum(inRangeMarketing.map((r) => r.refundCount));
+  const refundDollars = sum(inRangeMarketing.map((r) => r.refundDollars));
+  const chargebackCount = sum(inRangeMarketing.map((r) => r.chargebackCount));
+  const chargebackDollars = sum(inRangeMarketing.map((r) => r.chargebackDollars));
+  const refundChargebackDollars =
+    refundDollars !== null || chargebackDollars !== null
+      ? (refundDollars ?? 0) + (chargebackDollars ?? 0)
+      : null;
+  const highTicketDealsClosedPaid = sum(inRangeMarketing.map((r) => r.highTicketDealsClosedPaid));
+
   return Response.json({
     sales: salesCount,
     adSpend,
@@ -100,6 +113,14 @@ export async function GET(request: NextRequest) {
     highTicketPitchRate: highTicketPitchRateOf(htPitched, salesCount || null),
     upsellBookingRate: upsellBookingRateOf(htBooked, htPitched),
     costPerAcquisition: costPerAcquisition(adSpend, salesCount || null),
+    cacHighTicketPaid: safeDivide(adSpend, highTicketDealsClosedPaid || null),
     leadToCloseRate: leadToCloseRate(salesCount || null, inRangeLeads.length || null),
+
+    refundCount,
+    refundDollars,
+    chargebackCount,
+    chargebackDollars,
+    refundChargebackDollars,
+    refundChargebackRate: safeDivide(refundChargebackDollars, totalCashCollected),
   });
 }
