@@ -64,6 +64,10 @@ type HighTicketClosersResponse = {
     callsShowed: number | null;
     dealsClosed: number | null;
     cashCollected: number | null;
+    pitched: number;
+    closed: number;
+    closeRate: number | null;
+    collectedPerBookedCall: number | null;
   }[];
   records: {
     id: string;
@@ -165,6 +169,34 @@ export default function SalesTeamPage() {
       align: "right",
     },
     {
+      key: "showRate",
+      header: "Show Rate",
+      render: (c) =>
+        formatStatValue(
+          c.callsBooked ? (c.callsShowed ?? 0) / c.callsBooked : null,
+          "percent"
+        ),
+      align: "right",
+    },
+    {
+      key: "pitched",
+      header: "Pitched",
+      render: (c) => formatStatValue(c.pitched),
+      align: "right",
+    },
+    {
+      key: "closed",
+      header: "Closed",
+      render: (c) => formatStatValue(c.closed),
+      align: "right",
+    },
+    {
+      key: "closeRate",
+      header: "Close Rate",
+      render: (c) => formatStatValue(c.closeRate, "percent"),
+      align: "right",
+    },
+    {
       key: "dealsClosed",
       header: "Deals Closed",
       render: (c) => formatStatValue(c.dealsClosed),
@@ -174,6 +206,12 @@ export default function SalesTeamPage() {
       key: "cashCollected",
       header: "Cash Collected",
       render: (c) => formatStatValue(c.cashCollected, "currency"),
+      align: "right",
+    },
+    {
+      key: "collectedPerBookedCall",
+      header: "$ / Booked Call",
+      render: (c) => formatStatValue(c.collectedPerBookedCall, "currency"),
       align: "right",
     },
   ];

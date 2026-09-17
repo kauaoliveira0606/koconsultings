@@ -1,40 +1,59 @@
 "use client";
 
-import { useState } from "react";
-import { StatCard } from "@/components/dashboard/StatCard";
+import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
-import {
-  RangeFilterBar,
-  defaultRangeState,
-  type RangeState,
-} from "@/components/dashboard/RangeFilterBar";
+import { RangeFilterBar, defaultRangeState } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
-import { formatStatValue } from "@/lib/format";
+import { formatStatValue, type StatFormat } from "@/lib/format";
+import { cellStatus, type GoalDirection } from "@/lib/weekly-scorecard";
+import type { GoalsConfig } from "@/lib/goals";
 import { CashCalendar } from "./CashCalendar";
 import { WeeklyScorecard } from "./WeeklyScorecard";
 
 type MetricsResponse = {
-  sales: number | null;
-  adSpend: number | null;
   totalCashCollected: number | null;
+  collectedPerBookedCallHT: number | null;
+  netCash: number | null;
+  adsActive: boolean;
+
   cashCollectedLowTicket: number | null;
-  pickupRate: number | null;
+  cashCollectedHighTicket: number | null;
+  adSpend: number | null;
+
+  optInsPaid: number | null;
+  optInsOrganic: number | null;
+  landingPageConnectRate: number | null;
+  optInRate: number | null;
+
   pickups: number | null;
+  pickupRate: number | null;
   softwarePitched: number | null;
   pitchRate: number | null;
-  cashCollectedPerOptInPaid: number | null;
+  sales: number | null;
   averageOrderValue: number | null;
-  highTicketPitchRate: number | null;
-  highTicketCloseRate: number | null;
-  highTicketPitched: number | null;
-  highTicketClosed: number | null;
+  connectionRate: number | null;
+
   highTicketCallsBooked: number | null;
   highTicketCallsShowed: number | null;
-  cashCollectedHighTicket: number | null;
+  highTicketShowRate: number | null;
+  highTicketPitched: number | null;
+  highTicketClosed: number | null;
+  highTicketCloseRate: number | null;
+  highTicketPitchRate: number | null;
   revenueHighTicket: number | null;
+
   costPerAcquisition: number | null;
   leadToCloseRate: number | null;
+  cashCollectedPerOptInPaid: number | null;
+  costPerCallHT: number | null;
+  avgDaysToClose: number | null;
+
+  vslViews: number | null;
+  vslPlayRate: number | null;
+  vslEngagementRate: number | null;
+  funnelConversionRatePaid: number | null;
+  funnelConversionRateOrganic: number | null;
 };
 
 type LeadSourcesResponse = {
@@ -73,9 +92,32 @@ type RecentChangesResponse = {
   }[];
 };
 
+// --- KPI helpers: same green/yellow/red scale the Weekly Scorecard uses, so
+// a target set once in lib/goals.ts lights up consistently everywhere. A
+// metric with no goal defined yet just shows nothing extra — never a fake
+// target.
+function kpiStatus(
+  actual: number | null | undefined,
+  goal: number | null | undefined,
+  direction: GoalDirection | null
+): StatCardStatus {
+  if (goal === null || goal === undefined || direction === null || actual === undefined) {
+    return null;
+  }
+  return cellStatus(actual ?? null, goal, direction);
+}
+
+function kpiLabel(
+  goal: number | null | undefined,
+  direction: GoalDirection | null,
+  format: StatFormat
+): string | null {
+  if (goal === null || goal === undefined || direction === null) return null;
+  return `${direction === "higher" ? "≥" : "≤"} ${formatStatValue(goal, format)}`;
+}
+
 export default function OverviewPage() {
   const { range, setRange } = useSharedRange();
-  const [planRange, setPlanRange] = useState<RangeState>(defaultRangeState("last_7_days"));
 
   const { data: metrics } = useSectionData<MetricsResponse>(
     "/api/ecom-simulation/overview/metrics",
@@ -91,8 +133,12 @@ export default function OverviewPage() {
   );
   const { data: planSplit } = useSectionData<PlanSplitResponse>(
     "/api/ecom-simulation/overview/plan-split",
-    planRange
+    range
   );
+  const { data: goals } = useSectionData<GoalsConfig>("/api/ecom-simulation/goals", range);
+
+  const adsActive = metrics?.adsActive ?? false;
+  const notActive = "Not Active";
 
   return (
     <div>
@@ -101,137 +147,377 @@ export default function OverviewPage() {
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
 
-      <DashboardSection title="Metrics">
-        <StatCardGrid>
-          <StatCard label="Sales" value={metrics?.sales} format="number" />
-          <StatCard label="Ad Spend" value={metrics?.adSpend} format="currency" />
-          <StatCard label="Total Cash Collected" value={metrics?.totalCashCollected} format="currency" />
+      {crossCheck?.mismatched ? (
+        <div className="mb-6 rounded-lg border-2 border-red-400 bg-red-50 p-4 text-sm text-red-900">
+          <span className="font-bold uppercase tracking-wide">⚠ Data integrity mismatch:</span>{" "}
+          the Marketing Daily Metrics form&apos;s manually-typed opt-ins don&apos;t match the
+          tracked lead count for this range — {crossCheck.details.join("; ")}. Worth checking
+          whether the source tagging is firing correctly or the manual entry is stale.
+        </div>
+      ) : null}
+
+      {/* TIER 1 — KEYSTONE METRICS: the four numbers that answer "scale or pull the brake" */}
+      <DashboardSection title="Keystone Metrics">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Cash Collected - Low Ticket"
-            value={metrics?.cashCollectedLowTicket}
+            label="Total Cash Collected"
+            value={metrics?.totalCashCollected}
             format="currency"
-          />
-          <StatCard label="Pickup Rate" value={metrics?.pickupRate} format="percent" />
-          <StatCard label="Pickups" value={metrics?.pickups} format="number" />
-          <StatCard label="Software Pitched" value={metrics?.softwarePitched} format="number" />
-          <StatCard
-            label="Pitch Rate (Software Pitched / Pickups)"
-            value={metrics?.pitchRate}
-            format="percent"
+            size="lg"
+            subtext="Cash actually collected, not revenue booked — payment plans that never fully collect don't count here."
+            status={kpiStatus(metrics?.totalCashCollected, goals?.totalCashCollected, "higher")}
+            goal={kpiLabel(goals?.totalCashCollected, "higher", "currency")}
           />
           <StatCard
-            label="Cash Collected Per Opt-In (Paid)"
+            label="Collected $ / Booked Call (HT)"
+            value={metrics?.collectedPerBookedCallHT}
+            format="currency"
+            size="lg"
+            subtext="Cash Collected (HT) ÷ Calls Booked. One number for show rate, close rate, price, and collections combined — climbing means scale, dropping means diagnose."
+          />
+          <StatCard
+            label="Cash Collected / Opt-In (Paid)"
             value={metrics?.cashCollectedPerOptInPaid}
             format="currency"
+            size="lg"
+            subtext="Front-end keystone: Total Cash Collected ÷ Paid Opt-Ins."
           />
-          <StatCard label="Average Order Value (AOV)" value={metrics?.averageOrderValue} format="currency" />
           <StatCard
-            label="High Ticket Pitch Rate (HT Pitched / Sales)"
-            value={metrics?.highTicketPitchRate}
-            format="percent"
+            label="Net Cash"
+            value={metrics?.netCash}
+            format="currency"
+            size="lg"
+            subtext="Total Cash Collected − Ad Spend. Affiliate commission payouts aren't tracked in Airtable yet, so this is before commissions."
           />
-          <StatCard label="Cost Per Acquisition (CAC)" value={metrics?.costPerAcquisition} format="currency" />
-          <StatCard label="Lead-to-Close Rate" value={metrics?.leadToCloseRate} format="percent" />
-        </StatCardGrid>
+        </div>
       </DashboardSection>
 
-      <DashboardSection title="High Ticket Closers">
+      {/* TIER 2 — REVENUE BREAKDOWN */}
+      <DashboardSection title="Revenue Breakdown">
         <StatCardGrid>
-          <StatCard label="Calls Booked" value={metrics?.highTicketCallsBooked} format="number" />
-          <StatCard label="Calls Showed" value={metrics?.highTicketCallsShowed} format="number" />
-          <StatCard label="Pitched" value={metrics?.highTicketPitched} format="number" />
-          <StatCard label="Closed" value={metrics?.highTicketClosed} format="number" />
           <StatCard
-            label="Close Rate (Closed / Pitched)"
-            value={metrics?.highTicketCloseRate}
-            format="percent"
+            label="Cash Collected — Low Ticket"
+            value={metrics?.cashCollectedLowTicket}
+            format="currency"
+            subtext="Software front-end cash collected."
           />
           <StatCard
             label="Cash Collected — High Ticket"
             value={metrics?.cashCollectedHighTicket}
             format="currency"
+            subtext="Real closer cash, preferred over the form-typed value."
           />
-          <StatCard label="Revenue — High Ticket" value={metrics?.revenueHighTicket} format="currency" />
-        </StatCardGrid>
-        <p className="mt-3 text-sm text-black/50">
-          From the High Ticket Closers&apos; EOD log and Post Call Note, the closer&apos;s
-          per-call record — active since 2026-09-13.
-        </p>
-      </DashboardSection>
-
-      <DashboardSection
-        title="Yearly / Monthly Plan Split"
-        action={<RangeFilterBar value={planRange} onChange={setPlanRange} />}
-      >
-        {planSplit && planSplit.total > 0 ? (
-          <StatCardGrid>
-            <StatCard label="Monthly Plans" value={planSplit.monthly} format="number" />
-            <StatCard label="Yearly Plans" value={planSplit.yearly} format="number" />
-            <StatCard label="Total Closes" value={planSplit.total} format="number" />
-            <StatCard
-              label="Yearly Share"
-              value={planSplit.yearlyShare}
-              format="percent"
-              subtext="Yearly ÷ total PCN closes"
-            />
-          </StatCardGrid>
-        ) : (
-          <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
-            No monthly or yearly plans in this range.
-          </div>
-        )}
-      </DashboardSection>
-
-      <DashboardSection title="Lead Sources">
-        <StatCardGrid>
-          <StatCard label="Paid Leads (Tracked)" value={leadSources?.paidLeadsTracked} format="number" />
-          <StatCard label="Organic Leads (Tracked)" value={leadSources?.organicLeadsTracked} format="number" />
+          <StatCard
+            label="Revenue — High Ticket"
+            value={metrics?.revenueHighTicket}
+            format="currency"
+            subtext="Booked revenue including payment plans not yet fully collected — reference only, Cash Collected HT is the real number."
+          />
           <StatCard
             label="Cash Collected — Paid"
             value={leadSources?.cashCollectedPaid}
             format="currency"
-            subtext="Affiliate PCN closes matched to a lead by email, plus any lead's own Cash Collected value"
+            subtext="Closes matched to a Paid-source lead by email, plus any lead's own Cash Collected value."
           />
           <StatCard
             label="Cash Collected — Organic"
             value={leadSources?.cashCollectedOrganic}
             format="currency"
-            subtext="Affiliate PCN closes matched to a lead by email, plus any lead's own Cash Collected value"
+            subtext="Closes matched to an Organic-source lead by email, plus any lead's own Cash Collected value."
           />
           <StatCard
             label="Ad Spend"
-            value={leadSources?.adSpend}
+            value={metrics?.adSpend}
             format="currency"
-            subtext="From Marketing Daily Metrics (Ad Spend Meta)"
+            subtext="From Marketing Daily Metrics (Ad Spend Meta). $0.00 here is a real number — it means no paid spend ran in this range."
           />
           <StatCard
             label="Paid ROAS"
             value={leadSources?.paidRoas}
             format="ratio"
-            subtext="Cash (Paid) ÷ Ad Spend"
+            override={!adsActive ? notActive : undefined}
+            subtext="Cash Collected (Paid) ÷ Ad Spend."
+            status={adsActive ? kpiStatus(leadSources?.paidRoas, goals?.roasTotal?.min, "higher") : null}
+            goal={adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null}
+          />
+        </StatCardGrid>
+      </DashboardSection>
+
+      {/* TIER 3 — ACQUISITION & LEAD FLOW */}
+      <DashboardSection title="Acquisition & Lead Flow">
+        <StatCardGrid>
+          <StatCard
+            label="Opt-Ins (Paid)"
+            value={metrics?.optInsPaid}
+            format="number"
+            subtext="Real count from the Leads table, source = Paid."
+            status={kpiStatus(metrics?.optInsPaid, goals?.optInsPaid, "higher")}
+            goal={kpiLabel(goals?.optInsPaid, "higher", "number")}
           />
           <StatCard
-            label="Cost Per Paid Lead"
+            label="Opt-Ins (Organic)"
+            value={metrics?.optInsOrganic}
+            format="number"
+            subtext="Real count from the Leads table, source = Organic."
+            status={kpiStatus(metrics?.optInsOrganic, goals?.optInsOrganic, "higher")}
+            goal={kpiLabel(goals?.optInsOrganic, "higher", "number")}
+          />
+          <StatCard
+            label="Cost Per Lead (Paid)"
             value={leadSources?.costPerPaidLead}
             format="currency"
-            subtext="Ad Spend ÷ tracked Paid leads"
+            override={!adsActive ? notActive : undefined}
+            subtext="Ad Spend ÷ tracked Paid leads."
+            status={adsActive ? kpiStatus(leadSources?.costPerPaidLead, goals?.costPerLeadMeta?.max, "lower") : null}
+            goal={adsActive ? kpiLabel(goals?.costPerLeadMeta?.max, "lower", "currency") : null}
+          />
+          <StatCard
+            label="Landing Page Connect Rate"
+            value={metrics?.landingPageConnectRate}
+            format="percent"
+            subtext="From the Marketing Daily Metrics form, averaged across days in range."
+            status={kpiStatus(metrics?.landingPageConnectRate, goals?.landingPageConnectRate?.min, "higher")}
+            goal={kpiLabel(goals?.landingPageConnectRate?.min, "higher", "percent")}
+          />
+          <StatCard
+            label="Opt-In Rate (Paid)"
+            value={metrics?.optInRate}
+            format="percent"
+            subtext="Opt-ins ÷ landing page views, from the form."
+            status={kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher")}
+            goal={kpiLabel(goals?.optInRate?.min, "higher", "percent")}
+          />
+        </StatCardGrid>
+      </DashboardSection>
+
+      {/* TIER 4 — FRONT-END SALES CONVERSION */}
+      <DashboardSection title="Front-End Sales Conversion">
+        <StatCardGrid>
+          <StatCard label="Pickups" value={metrics?.pickups} format="number" subtext="Affiliate EOD, summed across setters." />
+          <StatCard
+            label="Pickup Rate"
+            value={metrics?.pickupRate}
+            format="percent"
+            subtext="Pickups ÷ Dials."
+          />
+          <StatCard
+            label="Software Pitched"
+            value={metrics?.softwarePitched}
+            format="number"
+            subtext="Low-ticket software pitches, from Affiliate EOD."
+          />
+          <StatCard
+            label="Pitch Rate"
+            value={metrics?.pitchRate}
+            format="percent"
+            subtext="Software Pitched ÷ Pickups."
+          />
+          <StatCard
+            label="Sales — Low Ticket"
+            value={metrics?.sales}
+            format="number"
+            subtext="From Marketing Daily Metrics."
+            status={kpiStatus(metrics?.sales, goals?.salesLowTicket, "higher")}
+            goal={kpiLabel(goals?.salesLowTicket, "higher", "number")}
+          />
+          <StatCard
+            label="Close Rate — Affiliate"
+            value={metrics?.leadToCloseRate}
+            format="percent"
+            subtext="Low-ticket sales ÷ tracked leads."
+            status={kpiStatus(metrics?.leadToCloseRate, goals?.closeRateLowTicket?.min, "higher")}
+            goal={kpiLabel(goals?.closeRateLowTicket?.min, "higher", "percent")}
+          />
+          <StatCard
+            label="Average Order Value (AOV)"
+            value={metrics?.averageOrderValue}
+            format="currency"
+            subtext="Total Cash Collected ÷ Sales."
+          />
+          <StatCard
+            label="Connection Rate"
+            value={metrics?.connectionRate}
+            format="percent"
+            subtext="Pickups ÷ Opt-Ins."
+            status={kpiStatus(metrics?.connectionRate, goals?.connectionRate?.min, "higher")}
+            goal={kpiLabel(goals?.connectionRate?.min, "higher", "percent")}
+          />
+        </StatCardGrid>
+      </DashboardSection>
+
+      {/* TIER 5 — HIGH-TICKET BACKEND */}
+      <DashboardSection title="High-Ticket Backend">
+        <StatCardGrid>
+          <StatCard
+            label="Calls Booked"
+            value={metrics?.highTicketCallsBooked}
+            format="number"
+            subtext="From the High Ticket Closer's EOD log."
+          />
+          <StatCard
+            label="Calls Showed"
+            value={metrics?.highTicketCallsShowed}
+            format="number"
+            subtext="From the High Ticket Closer's EOD log."
+          />
+          <StatCard
+            label="Show Rate"
+            value={metrics?.highTicketShowRate}
+            format="percent"
+            subtext="Calls Showed ÷ Calls Booked."
+            status={kpiStatus(metrics?.highTicketShowRate, goals?.showRate?.min, "higher")}
+            goal={kpiLabel(goals?.showRate?.min, "higher", "percent")}
+          />
+          <StatCard
+            label="Pitched (HT)"
+            value={metrics?.highTicketPitched}
+            format="number"
+            subtext="From Post Call Note — offer pitched, not a no-show/no-pitch."
+          />
+          <StatCard
+            label="Closed (HT)"
+            value={metrics?.highTicketClosed}
+            format="number"
+            subtext="From Post Call Note — outcome Closed (PIF) or Payment Plan."
+          />
+          <StatCard
+            label="Close Rate (HT)"
+            value={metrics?.highTicketCloseRate}
+            format="percent"
+            subtext="Closed ÷ Pitched."
+            status={kpiStatus(metrics?.highTicketCloseRate, goals?.highTicketCloseRate?.min, "higher")}
+            goal={kpiLabel(goals?.highTicketCloseRate?.min, "higher", "percent")}
+          />
+          <StatCard
+            label="High Ticket Pitch Rate"
+            value={metrics?.highTicketPitchRate}
+            format="percent"
+            subtext="HT Pitched ÷ Low-Ticket Sales — the upsell-into-HT rate."
+          />
+        </StatCardGrid>
+
+        {/* Yearly / Monthly Plan Split — de-emphasized sub-section, global range now */}
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
+            Yearly / Monthly Plan Split
+          </div>
+          {planSplit && planSplit.total > 0 ? (
+            <StatCardGrid>
+              <StatCard label="Monthly Plans" value={planSplit.monthly} format="number" subtext="Affiliate PCN, Plan? = Monthly." />
+              <StatCard label="Yearly Plans" value={planSplit.yearly} format="number" subtext="Affiliate PCN, Plan? = Yearly." />
+              <StatCard label="Total Closes" value={planSplit.total} format="number" subtext="Monthly + Yearly + unclassified." />
+              <StatCard
+                label="Yearly Share"
+                value={planSplit.yearlyShare}
+                format="percent"
+                subtext="Yearly ÷ total PCN closes."
+              />
+            </StatCardGrid>
+          ) : (
+            <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
+              No monthly or yearly plans in this range.
+            </div>
+          )}
+        </div>
+      </DashboardSection>
+
+      {/* TIER 6 — UNIT ECONOMICS */}
+      <DashboardSection title="Unit Economics">
+        <StatCardGrid>
+          <StatCard
+            label="CAC (Cost Per Acquisition)"
+            value={metrics?.costPerAcquisition}
+            format="currency"
+            override={!adsActive ? notActive : undefined}
+            subtext="Ad Spend ÷ Low-Ticket Sales."
+            status={adsActive ? kpiStatus(metrics?.costPerAcquisition, goals?.cpaLowTicket?.max, "lower") : null}
+            goal={adsActive ? kpiLabel(goals?.cpaLowTicket?.max, "lower", "currency") : null}
           />
           <StatCard
             label="CPA — Paid"
             value={leadSources?.costPerAcquisitionPaid}
             format="currency"
-            subtext="Ad Spend ÷ Paid leads that actually closed"
+            override={!adsActive ? notActive : undefined}
+            subtext="Ad Spend ÷ Paid leads that actually closed."
+          />
+          <StatCard
+            label="Cost Per Call (HT)"
+            value={metrics?.costPerCallHT}
+            format="currency"
+            override={!adsActive ? notActive : undefined}
+            subtext="Ad Spend ÷ HT Calls Booked — efficiency of booking a call, before you even look at close rate."
+          />
+          <StatCard
+            label="Lead-to-Close Rate"
+            value={metrics?.leadToCloseRate}
+            format="percent"
+            subtext="Low-ticket sales ÷ tracked leads."
+          />
+          <StatCard
+            label="Time to Close (avg)"
+            value={metrics?.avgDaysToClose}
+            format="number"
+            subtext="Average days from opt-in to the call that collected their cash. Stretching out means cash flow is tighter than it looks."
+          />
+          <StatCard
+            label="Cash Collected / Opt-In (Paid)"
+            value={metrics?.cashCollectedPerOptInPaid}
+            format="currency"
+            subtext="Reference — also shown as a Tier 1 keystone above."
           />
         </StatCardGrid>
+      </DashboardSection>
 
-        {crossCheck?.mismatched ? (
-          <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-            <span className="font-semibold">Cross-check mismatch:</span> the Marketing Daily
-            Metrics form&apos;s manually-typed opt-ins don&apos;t match the tracked lead count for
-            this range — {crossCheck.details.join("; ")}. Worth checking whether the source
-            tagging is firing correctly or the manual entry is stale.
-          </div>
-        ) : null}
+      {/* TIER 7 — FUNNEL & MARKETING HEALTH (diagnostic only) */}
+      <DashboardSection title="Funnel & Marketing Health — Diagnostic Only">
+        <p className="mb-3 text-sm text-black/50">
+          Check this tier when something upstream breaks — not part of the daily glance.
+        </p>
+        <StatCardGrid>
+          <StatCard
+            label="VSL Views"
+            value={metrics?.vslViews}
+            format="number"
+            status={kpiStatus(metrics?.vslViews, goals?.vslViews, "higher")}
+            goal={kpiLabel(goals?.vslViews, "higher", "number")}
+          />
+          <StatCard
+            label="VSL Play Rate (Paid)"
+            value={metrics?.vslPlayRate}
+            format="percent"
+            status={kpiStatus(metrics?.vslPlayRate, goals?.vslPlayRate?.min, "higher")}
+            goal={kpiLabel(goals?.vslPlayRate?.min, "higher", "percent")}
+          />
+          <StatCard
+            label="VSL Engagement Rate (Paid)"
+            value={metrics?.vslEngagementRate}
+            format="percent"
+            status={kpiStatus(metrics?.vslEngagementRate, goals?.vslEngagementRate?.min, "higher")}
+            goal={kpiLabel(goals?.vslEngagementRate?.min, "higher", "percent")}
+          />
+          <StatCard
+            label="Funnel Conversion Rate (Paid)"
+            value={metrics?.funnelConversionRatePaid}
+            format="percent"
+            status={kpiStatus(metrics?.funnelConversionRatePaid, goals?.funnelConversionRate?.min, "higher")}
+            goal={kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent")}
+          />
+          <StatCard
+            label="Funnel Conversion Rate (Organic)"
+            value={metrics?.funnelConversionRateOrganic}
+            format="percent"
+            status={kpiStatus(metrics?.funnelConversionRateOrganic, goals?.funnelConversionRate?.min, "higher")}
+            goal={kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent")}
+          />
+        </StatCardGrid>
+      </DashboardSection>
+
+      {/* Lead Sources detail — attribution + cross-check detail live here */}
+      <DashboardSection title="Lead Sources — Attribution Detail">
+        <StatCardGrid>
+          <StatCard label="Paid Leads (Tracked)" value={leadSources?.paidLeadsTracked} format="number" />
+          <StatCard label="Organic Leads (Tracked)" value={leadSources?.organicLeadsTracked} format="number" />
+        </StatCardGrid>
 
         <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm">
           <p className="text-black/70">
@@ -250,20 +536,27 @@ export default function OverviewPage() {
                 {formatStatValue(leadSources.unattributedCash, "currency")}
               </span>{" "}
               from {leadSources.unattributedCount} closed{" "}
-              {leadSources.unattributedCount === 1 ? "call" : "calls"} couldn&apos;t be matched to
-              a lead email, so it&apos;s not counted above as Paid or Organic.
+              {leadSources.unattributedCount === 1 ? "call" : "calls"}{" "}
+              couldn&apos;t be matched to a lead email, so it&apos;s not counted above as Paid or
+              Organic.
             </p>
           ) : null}
         </div>
-      </DashboardSection>
 
-      <DashboardSection title="Cash Calendar">
-        <CashCalendar />
+        <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm text-black/60">
+          <span className="font-semibold text-black/80">Refund / Chargeback Rate:</span> not
+          tracked yet — no refund or chargeback field exists in Airtable for this offer's payment
+          plans. Add one to Post Call Note or Follow Up Payment to unlock this metric.
+        </div>
       </DashboardSection>
 
       <RecentChanges />
 
       <WeeklyScorecard />
+
+      <DashboardSection title="Cash Calendar">
+        <CashCalendar />
+      </DashboardSection>
     </div>
   );
 }

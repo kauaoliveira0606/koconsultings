@@ -29,14 +29,46 @@ export async function GET(request: NextRequest) {
     byCloser.get(closer)!.push(row);
   }
 
+  // Post Call Note has no closer-identity field of its own (only "Setters
+  // Full Name" — the setter who booked the call, not who took it), so
+  // pitched/closed can only be attributed to a specific closer on days
+  // exactly one closer logged an EOD Closer entry. Ambiguous days (more
+  // than one closer active, or none) fall into "Unknown" rather than
+  // guessing.
+  const closerNamesByDate = new Map<string, Set<string>>();
+  for (const row of inRangeEod) {
+    if (!row.date) continue;
+    if (!closerNamesByDate.has(row.date)) closerNamesByDate.set(row.date, new Set());
+    closerNamesByDate.get(row.date)!.add(row.closerName ?? "Unknown");
+  }
+  const pitchedByCloser = new Map<string, number>();
+  const closedByCloser = new Map<string, number>();
+  for (const r of inRangePcn) {
+    if (!r.date) continue;
+    const names = closerNamesByDate.get(r.date);
+    const attributeTo = names && names.size === 1 ? [...names][0] : "Unknown";
+    if (wasPitched(r)) pitchedByCloser.set(attributeTo, (pitchedByCloser.get(attributeTo) ?? 0) + 1);
+    if (wasClosed(r)) closedByCloser.set(attributeTo, (closedByCloser.get(attributeTo) ?? 0) + 1);
+  }
+
   const closers = Array.from(byCloser.entries())
-    .map(([closer, rows]) => ({
-      closer,
-      callsBooked: sum(rows.map((r) => r.callsBooked)),
-      callsShowed: sum(rows.map((r) => r.callsShowed)),
-      dealsClosed: sum(rows.map((r) => r.dealsClosed)),
-      cashCollected: sum(rows.map((r) => r.cashCollectedHighTicket)),
-    }))
+    .map(([closer, rows]) => {
+      const callsBooked = sum(rows.map((r) => r.callsBooked));
+      const cashCollected = sum(rows.map((r) => r.cashCollectedHighTicket));
+      const closerPitched = pitchedByCloser.get(closer) ?? 0;
+      const closerClosed = closedByCloser.get(closer) ?? 0;
+      return {
+        closer,
+        callsBooked,
+        callsShowed: sum(rows.map((r) => r.callsShowed)),
+        dealsClosed: sum(rows.map((r) => r.dealsClosed)),
+        cashCollected,
+        pitched: closerPitched,
+        closed: closerClosed,
+        closeRate: safeDivide(closerClosed, closerPitched || null),
+        collectedPerBookedCall: safeDivide(cashCollected, callsBooked || null),
+      };
+    })
     .sort((a, b) => (b.cashCollected ?? 0) - (a.cashCollected ?? 0));
 
   return Response.json({
