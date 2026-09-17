@@ -1,8 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
-import { RangeFilterBar, defaultRangeState } from "@/components/dashboard/RangeFilterBar";
+import {
+  RangeFilterBar,
+  defaultRangeState,
+  type RangeState,
+} from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
@@ -53,6 +58,14 @@ type LeadSourcesResponse = {
 
 type CrossCheckResponse = { mismatched: boolean; details: string[] };
 
+type PlanSplitResponse = {
+  monthly: number;
+  yearly: number;
+  unknown: number;
+  total: number;
+  yearlyShare: number | null;
+};
+
 type LeaderboardResponse = {
   rows: { id: string; name: string | null; entries: number | null }[];
 };
@@ -102,6 +115,7 @@ const RECENT_CHANGES_FORMATS: Record<string, StatFormat> = {
 
 export default function OverviewPage() {
   const { range, setRange } = useSharedRange();
+  const [planRange, setPlanRange] = useState<RangeState>(defaultRangeState("last_7_days"));
 
   const { data: metrics } = useSectionData<MetricsResponse>(
     "/api/ecom-simulation/overview/metrics",
@@ -118,6 +132,10 @@ export default function OverviewPage() {
   const { data: leaderboard } = useSectionData<LeaderboardResponse>(
     "/api/ecom-simulation/overview/leaderboard",
     range
+  );
+  const { data: planSplit } = useSectionData<PlanSplitResponse>(
+    "/api/ecom-simulation/overview/plan-split",
+    planRange
   );
 
   return (
@@ -185,10 +203,27 @@ export default function OverviewPage() {
         </p>
       </DashboardSection>
 
-      <DashboardSection title="Yearly / Monthly Plan Split">
-        <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
-          No monthly or yearly plans in this range.
-        </div>
+      <DashboardSection
+        title="Yearly / Monthly Plan Split"
+        action={<RangeFilterBar value={planRange} onChange={setPlanRange} />}
+      >
+        {planSplit && planSplit.total > 0 ? (
+          <StatCardGrid>
+            <StatCard label="Monthly Plans" value={planSplit.monthly} format="number" />
+            <StatCard label="Yearly Plans" value={planSplit.yearly} format="number" />
+            <StatCard label="Total Closes" value={planSplit.total} format="number" />
+            <StatCard
+              label="Yearly Share"
+              value={planSplit.yearlyShare}
+              format="percent"
+              subtext="Yearly ÷ total PCN closes"
+            />
+          </StatCardGrid>
+        ) : (
+          <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
+            No monthly or yearly plans in this range.
+          </div>
+        )}
       </DashboardSection>
 
       <DashboardSection title="Lead Sources">
