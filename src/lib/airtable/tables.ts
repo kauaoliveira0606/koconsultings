@@ -145,19 +145,31 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
       const salesLT = parseNumericText(
         f["Sales - Low Ticket (Sales team)"] ?? f["Sales - Low Ticket"]
       );
-      // Aval's fields are worded/ordered differently ("Sales - Low Ticket
-      // (Paid)" / "Cash collected - Low ticket (Paid)") than Bronson/Ecom
-      // Simulation's ("Low ticket sales (paid)" / "Low ticket cash
-      // collected (Paid)") — check both so this generic parser covers
-      // every offer's actual column.
+      // Each offer's base worded/cased this column differently: Bronson
+      // "Low ticket sales (paid)", Aval "Sales - Low Ticket (Paid)", Ecom
+      // Simulation "Low Ticket Sales (Paid)" — check all three so this
+      // generic parser covers every offer's actual column.
       const salesLTPaid = parseNumericText(
-        f["Low ticket sales (paid)"] ?? f["Sales - Low Ticket (Paid)"]
+        f["Low ticket sales (paid)"] ??
+          f["Sales - Low Ticket (Paid)"] ??
+          f["Low Ticket Sales (Paid)"]
       );
       const cashLT = parseNumericText(f["Cash Collected - Low ticket"]);
+      // Same story: Bronson "Low ticket cash collected (Paid)", Aval "Cash
+      // collected - Low ticket (Paid)", Ecom Simulation "Cash Low ticket
+      // (Paid)".
       const cashLTPaid = parseNumericText(
-        f["Low ticket cash collected (Paid)"] ?? f["Cash collected - Low ticket (Paid)"]
+        f["Low ticket cash collected (Paid)"] ??
+          f["Cash collected - Low ticket (Paid)"] ??
+          f["Cash Low ticket (Paid)"]
       );
-      const cashHT = parseNumericText(f["Cash collected (High Ticket)"]);
+      // Bronson "Cash collected (High Ticket)", Aval "High Ticket Cash
+      // Collected", Ecom Simulation "High ticket cash collected".
+      const cashHT = parseNumericText(
+        f["Cash collected (High Ticket)"] ??
+          f["High Ticket Cash Collected"] ??
+          f["High ticket cash collected"]
+      );
       // Aval's field is spelled/named differently ("high Ticket Cash
       // (Paid)") than Bronson/Ecom Simulation's ("High ticket cash
       // collected (Paid)") — check both so this generic parser covers
@@ -186,7 +198,8 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         cashCollectedLowTicket: cashLT,
         salesLowTicketPaid: salesLTPaid,
         salesLowTicketOrganic:
-          parseNumericText(f["Low ticket sales (organic)"]) ?? minusPaid(salesLT, salesLTPaid),
+          parseNumericText(f["Low ticket sales (Organic)"] ?? f["Low ticket sales (organic)"]) ??
+          minusPaid(salesLT, salesLTPaid),
         cashCollectedLowTicketPaid: cashLTPaid,
         cashCollectedLowTicketOrganic:
           parseNumericText(f["Low ticket cash collected (Organic)"]) ??
@@ -214,7 +227,7 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         ),
         closeRateLowTicket: parseNumericText(f["Close rate - Low ticket"]),
         funnelConversionRate: parseNumericText(f["Funnel Conversion rate (Lt Sales/opt ins)"]),
-        cashCollectedHighTicket: parseNumericText(f["Cash collected (High Ticket)"]),
+        cashCollectedHighTicket: cashHT,
         revenueHighTicket: parseNumericText(f["Revenue (High Ticket)"]),
         callsBooked: parseNumericText(f["Calls booked (On calendar)"]),
         callsShowed: parseNumericText(f["Calls Showed"]),
