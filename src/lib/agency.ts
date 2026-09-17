@@ -34,60 +34,72 @@ type MarketingRowLike = {
   date: string | null;
   cashCollectedLowTicket: number | null;
   cashCollectedLowTicketPaid: number | null;
+  cashCollectedLowTicketOrganic: number | null;
   cashCollectedHighTicket: number | null;
   cashCollectedHighTicketPaid: number | null;
+  cashCollectedHighTicketOrganic: number | null;
   adSpendMeta: number | null;
 };
 
 /**
  * Everything here comes straight from the Marketing Daily Metrics table —
- * no EOD Closer / Affiliate EOD blending, per the client. Only an explicit
- * Paid figure ever gets typed into the form — Organic is whatever's left
- * of that day's TOTAL cash (Low or High Ticket) after subtracting Paid,
- * and a day with no Paid figure at all is treated as fully Organic (rather
- * than dropped) so a day's cash is never silently lost just because the
- * split wasn't recorded. Anything before `AGENCY_DATA_START` is dropped
- * entirely — August and earlier is out of scope for this rollup.
+ * no EOD Closer / Affiliate EOD blending, per the client. Different
+ * offers' teams fill this form in differently: Bronson types an explicit
+ * Paid figure AND an explicit Organic figure and never touches the Total
+ * field; Aval/Ecom Simulation type the Total and only occasionally split
+ * out Paid. Deriving Organic as (Total − Paid) — as this used to do —
+ * silently zeroed out Bronson's real organic cash every single day,
+ * since its Total was always blank.
+ *
+ * So Paid is trusted as typed, and Organic is whichever is bigger: the
+ * explicit Organic figure, or (Total − Paid) — covering an offer that
+ * only ever fills in Total. This way neither a missing Total nor a
+ * missing explicit Organic field can make real cash disappear. Anything
+ * before `AGENCY_DATA_START` is dropped entirely — August and earlier is
+ * out of scope for this rollup.
  */
 export function buildDailyOfferRows(marketing: MarketingRowLike[]): DailyOfferRow[] {
   marketing = marketing.filter((r) => r.date !== null && r.date >= AGENCY_DATA_START);
   const ltTotalByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedLowTicket);
-  const ltPaidTypedByDay = sumByDate(
+  const ltPaidByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedLowTicketPaid);
+  const ltOrganicByDay = sumByDate(
     marketing,
     (r) => r.date,
-    (r) => r.cashCollectedLowTicketPaid
+    (r) => r.cashCollectedLowTicketOrganic
   );
   const htTotalByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedHighTicket);
-  const htPaidTypedByDay = sumByDate(
+  const htPaidByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedHighTicketPaid);
+  const htOrganicByDay = sumByDate(
     marketing,
     (r) => r.date,
-    (r) => r.cashCollectedHighTicketPaid
+    (r) => r.cashCollectedHighTicketOrganic
   );
   const adSpendByDay = sumByDate(marketing, (r) => r.date, (r) => r.adSpendMeta);
 
   const dates = new Set<string>([
     ...ltTotalByDay.keys(),
+    ...ltPaidByDay.keys(),
+    ...ltOrganicByDay.keys(),
     ...htTotalByDay.keys(),
+    ...htPaidByDay.keys(),
+    ...htOrganicByDay.keys(),
     ...adSpendByDay.keys(),
   ]);
 
   const rows: DailyOfferRow[] = [];
   for (const date of dates) {
-    // The typed Paid figure is real cash regardless of whether the Total
-    // field was ever filled in for that day — some offers' teams only type
-    // the Paid split and leave Total blank. Total is a FLOOR, never a cap:
-    // if Paid alone exceeds it (or Total is blank), Total is treated as at
-    // least Paid, so real typed cash is never clamped down to 0.
-    const ltPaid = ltPaidTypedByDay.get(date) ?? 0;
-    const ltTotal = Math.max(ltTotalByDay.get(date) ?? 0, ltPaid);
-    const htPaid = htPaidTypedByDay.get(date) ?? 0;
-    const htTotal = Math.max(htTotalByDay.get(date) ?? 0, htPaid);
+    const ltPaid = ltPaidByDay.get(date) ?? 0;
+    const ltImpliedOrganic = Math.max(0, (ltTotalByDay.get(date) ?? 0) - ltPaid);
+    const ltOrganic = Math.max(ltOrganicByDay.get(date) ?? 0, ltImpliedOrganic);
+    const htPaid = htPaidByDay.get(date) ?? 0;
+    const htImpliedOrganic = Math.max(0, (htTotalByDay.get(date) ?? 0) - htPaid);
+    const htOrganic = Math.max(htOrganicByDay.get(date) ?? 0, htImpliedOrganic);
     rows.push({
       date,
       ltCashPaid: ltPaid,
-      ltCashOrganic: Math.max(0, ltTotal - ltPaid),
+      ltCashOrganic: ltOrganic,
       htCashPaid: htPaid,
-      htCashOrganic: Math.max(0, htTotal - htPaid),
+      htCashOrganic: htOrganic,
       adSpend: adSpendByDay.get(date) ?? 0,
     });
   }
