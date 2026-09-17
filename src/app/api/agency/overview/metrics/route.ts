@@ -64,8 +64,11 @@ export async function GET(request: NextRequest) {
   const totalSalesTeamPayout =
     bronson.salesTeamPayout + aval.salesTeamPayout + ecomSimulation.salesTeamPayout;
   const totalAgencyProfit = bronson.agencyProfit + aval.agencyProfit + ecomSimulation.agencyProfit;
-  // Sales manager takes 5% of total agency profit; the rest is personal take-home.
-  const salesManagerCut = totalAgencyProfit * 0.05;
+  // Sales manager gets 5% of Net Cash (not Agency Profit) on Bronson and
+  // Andy only — no cut on Aval at all. Paid personally out of the agency
+  // owner's own take-home, so it's subtracted from My Profit, not spread
+  // across the total Agency Profit line.
+  const salesManagerCut = 0.05 * (bronson.profit + ecomSimulation.profit);
   const myProfit = totalAgencyProfit - salesManagerCut;
 
   const byDayMap = new Map<string, { cash: number; adSpend: number }>();

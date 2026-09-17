@@ -117,10 +117,18 @@ export function sumSalesTeamPayout(rows: DailyOfferRow[]): { paid: number; organ
   return { paid, organic };
 }
 
-/** Generic client P&L, same shape as every offer's own "Net Cash" stat. */
+/** Generic client P&L per day, same shape as every offer's own "Net Cash" stat. */
+export function profitByDay(rows: DailyOfferRow[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const { paid, organic } = sumSalesTeamPayout([r]);
+    map.set(r.date, cash(r) - r.adSpend - (paid + organic));
+  }
+  return map;
+}
+
 export function profit(rows: DailyOfferRow[]): number {
-  const { paid, organic } = sumSalesTeamPayout(rows);
-  return sumCash(rows) - sumAdSpend(rows) - (paid + organic);
+  return sumMapValues(profitByDay(rows));
 }
 
 /** Bronson: 50% agency share of Paid profit (after ad spend + sales team), plus 20% of Organic top-line cash — per day. */

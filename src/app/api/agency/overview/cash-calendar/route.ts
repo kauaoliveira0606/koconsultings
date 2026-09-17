@@ -8,6 +8,7 @@ import {
   bronsonAgencyProfitByDay,
   avalAgencyProfitByDay,
   ecomSimAgencyProfitByDay,
+  profitByDay,
   type DailyOfferRow,
 } from "@/lib/agency";
 
@@ -48,6 +49,10 @@ export async function GET(request: NextRequest) {
   const bronsonCashByDay = cashByDay(bronsonRows);
   const avalCashByDay = cashByDay(avalRows);
   const ecomCashByDay = cashByDay(ecomRows);
+  // Sales manager's 5% cut is on Net Cash, Bronson and Andy only — no cut
+  // on Aval — same rule as the top-level stat cards, applied per day.
+  const bronsonProfitByDay = profitByDay(bronsonRows);
+  const ecomProfitByDay = profitByDay(ecomRows);
 
   const dates = new Set<string>(
     [...bronsonRows, ...avalRows, ...ecomRows].map((r) => r.date).filter((d) => d.startsWith(month))
@@ -65,6 +70,7 @@ export async function GET(request: NextRequest) {
 
   let monthAgencyProfit = 0;
   let monthTotalCash = 0;
+  let monthSalesManagerCut = 0;
 
   for (const date of dates) {
     const byClient = {
@@ -75,12 +81,14 @@ export async function GET(request: NextRequest) {
     const agencyProfit = byClient.bronson + byClient.aval + byClient.ecomSimulation;
     const totalCash =
       (bronsonCashByDay.get(date) ?? 0) + (avalCashByDay.get(date) ?? 0) + (ecomCashByDay.get(date) ?? 0);
-    // Sales manager takes 5% of agency profit — same split as the top-level stat cards, applied per day.
-    const myProfit = agencyProfit * 0.95;
+    const salesManagerCut =
+      0.05 * ((bronsonProfitByDay.get(date) ?? 0) + (ecomProfitByDay.get(date) ?? 0));
+    const myProfit = agencyProfit - salesManagerCut;
 
     byDay[date] = { agencyProfit, totalCash, myProfit, byClient };
     monthAgencyProfit += agencyProfit;
     monthTotalCash += totalCash;
+    monthSalesManagerCut += salesManagerCut;
   }
 
   return Response.json({
@@ -88,7 +96,7 @@ export async function GET(request: NextRequest) {
     monthTotal: {
       agencyProfit: monthAgencyProfit,
       totalCash: monthTotalCash,
-      myProfit: monthAgencyProfit * 0.95,
+      myProfit: monthAgencyProfit - monthSalesManagerCut,
     },
   });
 }

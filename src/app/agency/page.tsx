@@ -123,7 +123,7 @@ export default function AgencyPage() {
           label="Sales Manager Cut"
           value={data?.salesManagerCut}
           format="currency"
-          subtext="5% of total Agency Profit."
+          subtext="5% of Net Cash on Bronson and Andy only — no cut on Aval. Comes out of your own take-home."
         />
       </div>
 
