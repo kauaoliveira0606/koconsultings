@@ -23,6 +23,5 @@ export async function GET(request: NextRequest) {
   return Response.json({
     totalCpaCollected: sum(inRange.map((r) => r.cpaCash)),
     totalCpaByDay,
-    records: inRange,
   });
 }

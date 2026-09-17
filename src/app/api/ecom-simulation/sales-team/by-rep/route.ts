@@ -2,11 +2,11 @@ import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
 import { getAffiliateEod } from "@/lib/airtable/tables-ecom-simulation";
-import { parseDurationMinutes } from "@/lib/airtable/parse";
-import { pickupRate, sum } from "@/lib/metrics";
+import { sum } from "@/lib/metrics";
 
 export const revalidate = 60;
 
+/** Per-rep leaderboard, ranked by total cash collected. */
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
   const rows = await getAffiliateEod();
@@ -20,23 +20,19 @@ export async function GET(request: NextRequest) {
   }
 
   const reps = Array.from(byRep.entries()).map(([rep, repRows]) => {
-    const outboundDials = sum(repRows.map((r) => r.outboundDials));
-    const pickups = sum(repRows.map((r) => r.pickups));
+    const lowTicketCashCollected = sum(repRows.map((r) => r.cashCollectedLowTicket));
+    const highTicketCashCollected = sum(repRows.map((r) => r.cashCollectedHighTicket));
     return {
       rep,
-      outboundDials,
-      pickups,
-      pickupRate: pickupRate(pickups, outboundDials),
-      totalSales: sum(repRows.map((r) => r.softwareClosed)),
-      cashCollected: sum([
-        sum(repRows.map((r) => r.cashCollectedLowTicket)),
-        sum(repRows.map((r) => r.cashCollectedHighTicket)),
-      ]),
-      totalTalkTimeMinutes: sum(repRows.map((r) => parseDurationMinutes(r.totalTalkTimeRaw))),
+      totalCashCollected: sum([lowTicketCashCollected, highTicketCashCollected]),
+      lowTicketCashCollected,
+      highTicketCashCollected,
+      lowTicketSales: sum(repRows.map((r) => r.softwareClosed)),
+      highTicketSales: sum(repRows.map((r) => r.highTicketSetClosed)),
     };
   });
 
-  reps.sort((a, b) => (b.cashCollected ?? 0) - (a.cashCollected ?? 0));
+  reps.sort((a, b) => (b.totalCashCollected ?? 0) - (a.totalCashCollected ?? 0));
 
   return Response.json({ reps });
 }

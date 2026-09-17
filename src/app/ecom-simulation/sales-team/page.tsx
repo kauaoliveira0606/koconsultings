@@ -21,31 +21,17 @@ type TeamTotalsResponse = {
 type ByRepResponse = {
   reps: {
     rep: string;
-    outboundDials: number | null;
-    pickups: number | null;
-    pickupRate: number | null;
-    totalSales: number | null;
-    cashCollected: number | null;
-    totalTalkTimeMinutes: number | null;
+    totalCashCollected: number | null;
+    lowTicketCashCollected: number | null;
+    highTicketCashCollected: number | null;
+    lowTicketSales: number | null;
+    highTicketSales: number | null;
   }[];
 };
 
 type CpaResponse = {
   totalCpaCollected: number | null;
   totalCpaByDay: { date: string; total: number }[];
-  records: {
-    id: string;
-    date: string | null;
-    repName: string | null;
-    leadName: string | null;
-    software: string | null;
-    plan: string | null;
-    cpaCash: number | null;
-  }[];
-};
-
-type LeaderboardResponse = {
-  rows: { id: string; name: string | null; entries: number | null }[];
 };
 
 type HighTicketClosersResponse = {
@@ -100,32 +86,37 @@ export default function SalesTeamPage() {
     "/api/ecom-simulation/sales-team/high-ticket-closers",
     range
   );
-  const { data: leaderboard } = useSectionData<LeaderboardResponse>(
-    "/api/ecom-simulation/sales-team/leaderboard",
-    range
-  );
 
-  const repColumns: Column<ByRepResponse["reps"][number]>[] = [
+  const leaderboardColumns: Column<ByRepResponse["reps"][number]>[] = [
     { key: "rep", header: "Rep", render: (r) => r.rep },
-    { key: "dials", header: "Outbound Dials", render: (r) => formatStatValue(r.outboundDials), align: "right" },
-    { key: "pickups", header: "Pickups", render: (r) => formatStatValue(r.pickups), align: "right" },
     {
-      key: "pickupRate",
-      header: "Pickup Rate",
-      render: (r) => formatStatValue(r.pickupRate, "percent"),
-      align: "right",
-    },
-    { key: "sales", header: "Sales", render: (r) => formatStatValue(r.totalSales), align: "right" },
-    {
-      key: "cashCollected",
-      header: "Cash Collected",
-      render: (r) => formatStatValue(r.cashCollected, "currency"),
+      key: "totalCashCollected",
+      header: "Total Cash Collected",
+      render: (r) => formatStatValue(r.totalCashCollected, "currency"),
       align: "right",
     },
     {
-      key: "talkTime",
-      header: "Total Talk Time",
-      render: (r) => formatMinutes(r.totalTalkTimeMinutes),
+      key: "lowTicketCashCollected",
+      header: "Low-Ticket Cash Collected",
+      render: (r) => formatStatValue(r.lowTicketCashCollected, "currency"),
+      align: "right",
+    },
+    {
+      key: "highTicketCashCollected",
+      header: "High-Ticket Cash Collected",
+      render: (r) => formatStatValue(r.highTicketCashCollected, "currency"),
+      align: "right",
+    },
+    {
+      key: "lowTicketSales",
+      header: "Low-Ticket Sales",
+      render: (r) => formatStatValue(r.lowTicketSales),
+      align: "right",
+    },
+    {
+      key: "highTicketSales",
+      header: "High-Ticket Sales",
+      render: (r) => formatStatValue(r.highTicketSales),
       align: "right",
     },
   ];
@@ -136,20 +127,6 @@ export default function SalesTeamPage() {
       key: "total",
       header: "Total CPA",
       render: (d) => formatStatValue(d.total, "currency"),
-      align: "right",
-    },
-  ];
-
-  const cpaRecordColumns: Column<CpaResponse["records"][number]>[] = [
-    { key: "date", header: "Date", render: (r) => (r.date ? formatDateTime(r.date) : "—") },
-    { key: "rep", header: "Rep", render: (r) => r.repName ?? "Unknown" },
-    { key: "lead", header: "Lead", render: (r) => r.leadName ?? "—" },
-    { key: "software", header: "Software", render: (r) => r.software ?? "—" },
-    { key: "plan", header: "Plan", render: (r) => r.plan ?? "—" },
-    {
-      key: "cpa",
-      header: "CPA / Cash",
-      render: (r) => formatStatValue(r.cpaCash, "currency"),
       align: "right",
     },
   ];
@@ -255,8 +232,8 @@ export default function SalesTeamPage() {
         </StatCardGrid>
       </DashboardSection>
 
-      <DashboardSection title="By Rep">
-        <DataTable columns={repColumns} rows={byRep?.reps ?? []} rowKey={(r) => r.rep} />
+      <DashboardSection title="Leaderboard">
+        <DataTable columns={leaderboardColumns} rows={byRep?.reps ?? []} rowKey={(r) => r.rep} />
       </DashboardSection>
 
       <DashboardSection title="Affiliate CPA">
@@ -267,10 +244,6 @@ export default function SalesTeamPage() {
 
       <DashboardSection title="Total CPA by Day">
         <DataTable columns={cpaByDayColumns} rows={cpa?.totalCpaByDay ?? []} rowKey={(d) => d.date} />
-      </DashboardSection>
-
-      <DashboardSection title="Affiliate PCN Records">
-        <DataTable columns={cpaRecordColumns} rows={cpa?.records ?? []} rowKey={(r) => r.id} />
       </DashboardSection>
 
       <DashboardSection title="High Ticket Closers">
@@ -299,27 +272,6 @@ export default function SalesTeamPage() {
           rows={highTicket?.records ?? []}
           rowKey={(r) => r.id}
         />
-      </DashboardSection>
-
-      <DashboardSection title="Leaderboard">
-        {leaderboard && leaderboard.rows.length > 0 ? (
-          <div className="rounded-lg border border-black/10 bg-white p-4">
-            <ol className="space-y-2">
-              {leaderboard.rows.map((row, i) => (
-                <li key={row.id} className="flex items-center justify-between text-sm">
-                  <span>
-                    {i + 1}. {row.name ?? "Unknown"}
-                  </span>
-                  <span className="font-semibold">{row.entries ?? "—"}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-black/50">
-            No submissions in this range.
-          </div>
-        )}
       </DashboardSection>
     </div>
   );
