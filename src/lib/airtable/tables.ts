@@ -142,7 +142,7 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
 
     return records.map((r) => {
       const f = r.fields;
-      const salesLT = parseNumericText(
+      const salesLTRaw = parseNumericText(
         f["Sales - Low Ticket (Sales team)"] ?? f["Sales - Low Ticket"]
       );
       // Each offer's base worded/cased this column differently: Bronson
@@ -153,6 +153,9 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         f["Low ticket sales (paid)"] ??
           f["Sales - Low Ticket (Paid)"] ??
           f["Low Ticket Sales (Paid)"]
+      );
+      const salesLTOrganicExplicit = parseNumericText(
+        f["Low ticket sales (Organic)"] ?? f["Low ticket sales (organic)"]
       );
       const cashLTRaw = parseNumericText(f["Cash Collected - Low ticket"]);
       // Same story: Bronson "Low ticket cash collected (Paid)", Aval "Cash
@@ -195,6 +198,7 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
       ) => raw ?? (paid !== null || organicExplicit !== null ? (paid ?? 0) + (organicExplicit ?? 0) : null);
       const cashLT = reconcileTotal(cashLTRaw, cashLTPaid, cashLTOrganicExplicit);
       const cashHT = reconcileTotal(cashHTRaw, cashHTPaid, cashHTOrganicExplicit);
+      const salesLT = reconcileTotal(salesLTRaw, salesLTPaid, salesLTOrganicExplicit);
       // Unlike the form's other percent fields (native Airtable percent
       // type, always a 0–1 fraction), "Conversion Rate (Paid)/(Organic)" is
       // free text and the team types whole percents into it ("25" meaning
@@ -211,9 +215,7 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         salesLowTicket: salesLT,
         cashCollectedLowTicket: cashLT,
         salesLowTicketPaid: salesLTPaid,
-        salesLowTicketOrganic:
-          parseNumericText(f["Low ticket sales (Organic)"] ?? f["Low ticket sales (organic)"]) ??
-          minusPaid(salesLT, salesLTPaid),
+        salesLowTicketOrganic: salesLTOrganicExplicit ?? minusPaid(salesLT, salesLTPaid),
         cashCollectedLowTicketPaid: cashLTPaid,
         cashCollectedLowTicketOrganic: cashLTOrganicExplicit ?? minusPaid(cashLT, cashLTPaid),
         cashCollectedHighTicketPaid: cashHTPaid,
