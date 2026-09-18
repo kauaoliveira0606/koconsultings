@@ -4,6 +4,8 @@ export type RangePreset =
   | "last_3_days"
   | "last_7_days"
   | "last_30_days"
+  | "this_month"
+  | "last_month"
   | "all_time"
   | "custom";
 
@@ -13,6 +15,8 @@ export const RANGE_PRESET_LABELS: Record<RangePreset, string> = {
   last_3_days: "Last 3 Days",
   last_7_days: "Last 7 Days",
   last_30_days: "Last 30 Days",
+  this_month: "This Month",
+  last_month: "Last Month",
   all_time: "All Time",
   custom: "Custom",
 };
@@ -59,6 +63,13 @@ export function toEasternDateOnly(value: string | null | undefined): string | nu
   return easternDateString(d);
 }
 
+/** Full calendar month (first through last day) for a `YYYY-MM` string. */
+function monthBounds(month: string): ResolvedRange {
+  const [y, m] = month.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return { start: `${month}-01`, end: `${month}-${String(lastDay).padStart(2, "0")}` };
+}
+
 /**
  * Resolves a preset (or custom start/end) into an inclusive [start, end]
  * range of Eastern calendar dates. `null`/`null` means "all time".
@@ -83,6 +94,10 @@ export function resolveRange(
       return { start: addDaysToDateString(today, -6), end: today };
     case "last_30_days":
       return { start: addDaysToDateString(today, -29), end: today };
+    case "this_month":
+      return monthBounds(today.slice(0, 7));
+    case "last_month":
+      return monthBounds(addDaysToDateString(`${today.slice(0, 7)}-01`, -1).slice(0, 7));
     case "all_time":
       return { start: null, end: null };
     case "custom":

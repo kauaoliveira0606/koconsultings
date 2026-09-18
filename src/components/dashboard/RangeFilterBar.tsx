@@ -8,6 +8,8 @@ const PRESET_ORDER: RangePreset[] = [
   "last_3_days",
   "last_7_days",
   "last_30_days",
+  "this_month",
+  "last_month",
   "all_time",
 ];
 
