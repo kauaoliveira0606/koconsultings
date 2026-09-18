@@ -54,22 +54,11 @@ export async function GET(request: NextRequest) {
   const cashHighTicketOrganicForm = sum(
     inRangeMarketing.map((r) => r.cashCollectedHighTicketOrganic)
   );
-  const revenueHighTicket = sum(inRangeCloser.map((r) => r.revenueHighTicket));
-  // Real high-ticket cash by day: Affiliate EOD first (the setters log it
-  // directly), EOD Closer as fallback for days EOD has nothing, and the
-  // Marketing Daily Metrics form's manually-typed value only as a last
-  // resort — so a day never gets its cash counted twice across sources,
-  // and never goes missing just because one source has nothing for it.
-  const htCashDates = new Set([
-    ...inRangeMarketing.filter((r) => r.date).map((r) => r.date as string),
-    ...inRangeEod.filter((r) => r.date).map((r) => r.date as string),
-    ...inRangeCloser.filter((r) => r.date).map((r) => r.date as string),
-  ]);
-  const cashHighTicket = sumPreferringDatedSources(htCashDates, [
-    sumByDate(inRangeEod, (r) => r.date, (r) => r.cashCollectedHighTicket),
-    sumByDate(inRangeCloser, (r) => r.date, (r) => r.cashCollectedHighTicket),
-    sumByDate(inRangeMarketing, (r) => r.date, (r) => r.cashCollectedHighTicket),
-  ]);
+  // Cash Collected and Revenue come exclusively from the Marketing Daily
+  // Metrics form, per the client — no blending in Affiliate EOD or EOD
+  // Closer even though those tables also log a high-ticket cash figure.
+  const revenueHighTicket = sum(inRangeMarketing.map((r) => r.revenueHighTicket));
+  const cashHighTicket = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicket));
   const totalCashCollected =
     cashLowTicket !== null || cashHighTicket !== null
       ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0)

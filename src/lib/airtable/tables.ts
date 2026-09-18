@@ -238,7 +238,12 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         closeRateLowTicket: parseNumericText(f["Close rate - Low ticket"]),
         funnelConversionRate: parseNumericText(f["Funnel Conversion rate (Lt Sales/opt ins)"]),
         cashCollectedHighTicket: cashHT,
-        revenueHighTicket: parseNumericText(f["Revenue (High Ticket)"]),
+        // Bronson "Revenue (High Ticket)", Aval "High TIcket Revenue" (sic —
+        // that's the actual Airtable field name, typo and all), Ecom
+        // Simulation "High ticket revenue".
+        revenueHighTicket: parseNumericText(
+          f["Revenue (High Ticket)"] ?? f["High TIcket Revenue"] ?? f["High ticket revenue"]
+        ),
         callsBooked: parseNumericText(f["Calls booked (On calendar)"]),
         callsShowed: parseNumericText(f["Calls Showed"]),
         highTicketDealsClosed: parseNumericText(f["High Ticket Deals Closed"]),

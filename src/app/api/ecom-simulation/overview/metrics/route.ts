@@ -12,7 +12,7 @@ import {
   wasClosed,
 } from "@/lib/airtable/tables-ecom-simulation";
 import { isPaidSource, normalizeEmail } from "@/lib/airtable/lead-source-lookup";
-import { average, pickupRate, safeDivide, sum, sumByDate, sumPreferringDatedSources } from "@/lib/metrics";
+import { average, pickupRate, safeDivide, sum } from "@/lib/metrics";
 
 export const revalidate = 60;
 
@@ -56,24 +56,11 @@ export async function GET(request: NextRequest) {
   const cashHighTicketOrganicForm = sum(
     inRangeMarketing.map((r) => r.cashCollectedHighTicketOrganic)
   );
-  const revenueHighTicket = sum(inRangeCloser.map((r) => r.revenueHighTicket));
-  // Real high-ticket cash by day: EOD Closer first (the confirmed real
-  // source for this offer's high-ticket motion — see
-  // tables-ecom-simulation.ts), Affiliate EOD's own high-ticket field as
-  // fallback (always 0 today, but future-proofs this if that motion ever
-  // gets used), and the Marketing Daily Metrics form as a last resort — so
-  // a day never gets its cash counted twice across sources, and never goes
-  // missing just because one source has nothing for it.
-  const htCashDates = new Set([
-    ...inRangeMarketing.filter((r) => r.date).map((r) => r.date as string),
-    ...inRangeEod.filter((r) => r.date).map((r) => r.date as string),
-    ...inRangeCloser.filter((r) => r.date).map((r) => r.date as string),
-  ]);
-  const cashHighTicket = sumPreferringDatedSources(htCashDates, [
-    sumByDate(inRangeCloser, (r) => r.date, (r) => r.cashCollectedHighTicket),
-    sumByDate(inRangeEod, (r) => r.date, (r) => r.cashCollectedHighTicket),
-    sumByDate(inRangeMarketing, (r) => r.date, (r) => r.cashCollectedHighTicket),
-  ]);
+  // Cash Collected and Revenue come exclusively from the Marketing Daily
+  // Metrics form, per the client — no blending in Affiliate EOD or EOD
+  // Closer even though those tables also log a high-ticket cash figure.
+  const revenueHighTicket = sum(inRangeMarketing.map((r) => r.revenueHighTicket));
+  const cashHighTicket = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicket));
   const totalCashCollected =
     cashLowTicket !== null || cashHighTicket !== null
       ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0)

@@ -1,10 +1,5 @@
 import type { NextRequest } from "next/server";
-import {
-  getMarketingDailyMetrics,
-  getLeads,
-  getBronsonAffiliatePcn,
-  getBronsonEodCloser,
-} from "@/lib/airtable/tables";
+import { getMarketingDailyMetrics, getLeads, getBronsonAffiliatePcn } from "@/lib/airtable/tables";
 import { filterByMonth, getCashByDay, monthTotal } from "@/lib/cash-calendar";
 import { cashBySourceByDay } from "@/lib/airtable/lead-source-lookup";
 
@@ -16,22 +11,15 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "month query param (YYYY-MM) is required" }, { status: 400 });
   }
 
-  const [marketing, leads, pcn, eodCloser] = await Promise.all([
+  const [marketing, leads, pcn] = await Promise.all([
     getMarketingDailyMetrics(),
     getLeads(),
     getBronsonAffiliatePcn(),
-    getBronsonEodCloser(),
   ]);
 
+  // Cash Collected comes exclusively from the Marketing Daily Metrics form,
+  // per the client — no layering in EOD Closer's own cash figure.
   const byDay = filterByMonth(getCashByDay(marketing), month);
-
-  // The High Ticket Closer's cash doesn't always come through the Marketing
-  // Daily Metrics form, so layer EOD Closer's real cash on top for any day
-  // it has one — same preferred-source idea as the metrics route.
-  for (const row of eodCloser) {
-    if (!row.date || !row.date.startsWith(month) || !row.cashCollectedHighTicket) continue;
-    byDay[row.date] = (byDay[row.date] ?? 0) + row.cashCollectedHighTicket;
-  }
 
   // Post Call Note has no lead-email field on this offer, so only Affiliate
   // PCN closes can be matched to a lead for the Paid/Organic split.

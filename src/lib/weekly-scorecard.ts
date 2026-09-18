@@ -142,16 +142,11 @@ const dSalesLT = (c: DayCtx) =>
 const dPitched = (c: DayCtx) => (c.eod ? num(c.eod.pitched) : null);
 const dPickups = (c: DayCtx) => (c.eod ? num(c.eod.pickups) : null);
 const dDials = (c: DayCtx) => (c.eod ? num(c.eod.dials) : c.m ? num(c.m.dials) : null);
-const dCashLT = (c: DayCtx) =>
-  c.eod ? num(c.eod.cashLowTicket) : c.m ? num(c.m.cashCollectedLowTicket) : null;
-const dCashHT = (c: DayCtx) =>
-  c.eod
-    ? num(c.eod.htCash)
-    : c.closer
-      ? num(c.closer.cashHighTicket)
-      : c.m
-        ? num(c.m.cashCollectedHighTicket)
-        : null;
+// Cash Collected comes exclusively from the Marketing Daily Metrics form,
+// per the client — no blending in Affiliate EOD or EOD Closer even though
+// those tables also log a cash figure.
+const dCashLT = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicket) : null);
+const dCashHT = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicket) : null);
 const dTotalCash = (c: DayCtx) => {
   const lt = dCashLT(c);
   const ht = dCashHT(c);

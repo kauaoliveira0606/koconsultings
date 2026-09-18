@@ -4,7 +4,6 @@ import {
   getLeads,
   getAffiliatePcn,
   getPostCallNotes,
-  getEodCloser,
 } from "@/lib/airtable/tables-ecom-simulation";
 import { filterByMonth, getCashByDay, monthTotal } from "@/lib/cash-calendar";
 import { cashBySourceByDay } from "@/lib/airtable/lead-source-lookup";
@@ -17,22 +16,16 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "month query param (YYYY-MM) is required" }, { status: 400 });
   }
 
-  const [marketing, leads, pcn, postCallNotes, eodCloser] = await Promise.all([
+  const [marketing, leads, pcn, postCallNotes] = await Promise.all([
     getMarketingDailyMetrics(),
     getLeads(),
     getAffiliatePcn(),
     getPostCallNotes(),
-    getEodCloser(),
   ]);
 
+  // Cash Collected comes exclusively from the Marketing Daily Metrics form,
+  // per the client — no layering in EOD Closer's own cash figure.
   const byDay = filterByMonth(getCashByDay(marketing), month);
-
-  // The High Ticket Closers' cash doesn't come through the Marketing Daily
-  // Metrics form, so it's layered on top of the marketing-based total here.
-  for (const row of eodCloser) {
-    if (!row.date || !row.date.startsWith(month) || !row.cashCollectedHighTicket) continue;
-    byDay[row.date] = (byDay[row.date] ?? 0) + row.cashCollectedHighTicket;
-  }
 
   const postCallNoteClosed = postCallNotes
     .filter((r) => r.cashCollected !== null && r.cashCollected > 0)
