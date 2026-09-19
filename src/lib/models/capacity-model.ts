@@ -22,6 +22,7 @@ export function computeCapacityModel(inputs: CapacityModelInputs) {
   const dealsPerRep = repsNeededRoundUp > 0 ? dealsNeeded / repsNeededRoundUp : 0;
   const revenuePerRep = repsNeededRoundUp > 0 ? inputs.revenueGoal / repsNeededRoundUp : 0;
   const adSpendNeeded = leadsRequired * inputs.costPerLead;
+  const profitAfterAdSpend = inputs.revenueGoal - adSpendNeeded;
 
   return {
     dealsNeeded,
@@ -34,6 +35,7 @@ export function computeCapacityModel(inputs: CapacityModelInputs) {
     dealsPerRep,
     revenuePerRep,
     adSpendNeeded,
+    profitAfterAdSpend,
   };
 }
 

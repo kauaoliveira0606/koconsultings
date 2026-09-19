@@ -211,6 +211,7 @@ export function CapacityModelTab() {
               onChange={(v) => set({ costPerLead: v })}
             />
             <Row label={`Ad Spend Needed (${period === "weekly" ? "Weekly" : "Monthly"})`} unit="$" format="currency" base={scenarios.base.adSpendNeeded} d15={scenarios.d15.adSpendNeeded} d30={scenarios.d30.adSpendNeeded} highlight />
+            <Row label={`Profit After Ad Spend (${period === "weekly" ? "Weekly" : "Monthly"})`} unit="$" format="currency" base={scenarios.base.profitAfterAdSpend} d15={scenarios.d15.profitAfterAdSpend} d30={scenarios.d30.profitAfterAdSpend} highlight />
           </tbody>
         </table>
       </div>
