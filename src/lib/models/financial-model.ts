@@ -1,89 +1,107 @@
 export type FinancialModelInputs = {
-  monthlyAdSpend: number;
-  costPerLead: number;
-  reps: number; // full-cycle reps (headcount)
-  contactsPerRepPerDay: number;
-  workingDaysPerMonth: number;
-  connectRate: number; // fraction 0-1
+  // Step 1
+  revenueTarget: number; // per month
+  aov: number; // low-ticket AOV
+  // Step 2
   closeRate: number; // fraction 0-1, first call
   attributionRate: number; // fraction 0-1: share of closed deals we actually get paid on
-  aov: number; // low-ticket AOV
-  salesCommissionRate: number; // fraction 0-1, of attributed gross revenue
+  // Step 3
+  connectRate: number; // fraction 0-1
+  // Step 4
+  costPerLead: number;
+  // Step 5
+  contactsPerRepPerDay: number;
+  workingDaysPerMonth: number;
+  // Step 7
+  salesCommissionRate: number; // fraction 0-1, of Revenue Target
   repBaseSalary: number; // per rep, per month
-  deliveryCostPerDeal: number; // per attributed (paid) deal
+  deliveryCostPerSale: number;
   fixedMonthlyExpenses: number;
 };
+
+export type CapacityCheck = "OK" | "UNDERSTAFFED";
 
 const ratio = (num: number, den: number) => (den > 0 ? num / den : 0);
 
 export function computeFinancialModel(inputs: FinancialModelInputs) {
-  // Ad spend & lead generation
-  const leadsGenerated = ratio(inputs.monthlyAdSpend, inputs.costPerLead);
+  // Step 1: revenue target -> deals required
+  const dealsRequired = ratio(inputs.revenueTarget, inputs.aov);
 
-  // Rep capacity & connect
-  const totalConnectedCallCapacity =
-    inputs.reps * inputs.contactsPerRepPerDay * inputs.workingDaysPerMonth;
-  const actualConnectedCalls = Math.min(
-    leadsGenerated * inputs.connectRate,
-    totalConnectedCallCapacity
+  // Step 2: deals required -> connected calls required
+  const connectedCallsRequired = ratio(
+    dealsRequired,
+    inputs.closeRate * inputs.attributionRate
   );
 
-  // Conversion
-  const dealsClosed = actualConnectedCalls * inputs.closeRate;
-  const attributedDeals = dealsClosed * inputs.attributionRate;
+  // Step 3: connected calls -> leads required
+  const leadsRequired = ratio(connectedCallsRequired, inputs.connectRate);
 
-  // Revenue
-  const grossRevenue = attributedDeals * inputs.aov;
-  const lostRevenue = (dealsClosed - attributedDeals) * inputs.aov;
+  // Step 4: leads -> ad spend required
+  const adSpendRequired = leadsRequired * inputs.costPerLead;
 
-  // Costs
-  const adSpend = inputs.monthlyAdSpend;
-  const salesCommission = grossRevenue * inputs.salesCommissionRate;
-  const totalRepBaseSalary = inputs.reps * inputs.repBaseSalary;
-  const totalDeliveryCost = attributedDeals * inputs.deliveryCostPerDeal;
+  // Step 5: deals -> reps required
+  const dealsPerRepPerMonth =
+    inputs.contactsPerRepPerDay *
+    inputs.workingDaysPerMonth *
+    inputs.closeRate *
+    inputs.attributionRate;
+  const repsRequired = ratio(dealsRequired, dealsPerRepPerMonth);
+  // Epsilon so float noise (e.g. 2.0000000001) doesn't round a whole number of reps up.
+  const repsRequiredRoundUp = Math.ceil(repsRequired - 1e-9);
+
+  // Step 6: validate capacity
+  const totalConnectedCallCapacity =
+    repsRequiredRoundUp * inputs.contactsPerRepPerDay * inputs.workingDaysPerMonth;
+  const capacityCheck: CapacityCheck =
+    totalConnectedCallCapacity >= connectedCallsRequired - 1e-9 ? "OK" : "UNDERSTAFFED";
+
+  // Step 7: costs
+  const adSpend = adSpendRequired;
+  const salesCommission = inputs.revenueTarget * inputs.salesCommissionRate;
+  const totalRepBaseSalary = repsRequiredRoundUp * inputs.repBaseSalary;
+  const totalDeliveryCost = dealsRequired * inputs.deliveryCostPerSale;
   const fixedExpenses = inputs.fixedMonthlyExpenses;
   const totalCosts =
     adSpend + salesCommission + totalRepBaseSalary + totalDeliveryCost + fixedExpenses;
 
-  // Profit & ROAS
+  // Step 8: profit
+  const grossRevenue = dealsRequired * inputs.attributionRate * inputs.aov;
   const netProfit = grossRevenue - totalCosts;
   const roas = ratio(grossRevenue, adSpend);
   const profitMargin = ratio(netProfit, grossRevenue);
-  const cpa = ratio(adSpend, attributedDeals);
-  const revenuePerRep = ratio(grossRevenue, inputs.reps);
-  const dealsPerRep = ratio(attributedDeals, inputs.reps);
+  const cpa = ratio(adSpend, dealsRequired * inputs.attributionRate);
 
-  // Break-even sensitivity
+  // Step 9: break-even sensitivity
   const nonAdCosts = salesCommission + totalRepBaseSalary + totalDeliveryCost + fixedExpenses;
-  // Max ad spend the revenue can carry, spread over the leads it buys.
-  const maxTolerableCpl = ratio(grossRevenue - nonAdCosts, leadsGenerated);
+  const maxTolerableCpl = ratio(grossRevenue - nonAdCosts, leadsRequired);
   const minimumCloseRate = ratio(
     totalCosts,
-    actualConnectedCalls * inputs.attributionRate * inputs.aov
+    connectedCallsRequired * inputs.attributionRate * inputs.aov
   );
-  const minimumAttributionRate = ratio(totalCosts, dealsClosed * inputs.aov);
-  const minimumAov = ratio(totalCosts, attributedDeals);
+  const minimumAttributionRate = ratio(totalCosts, dealsRequired * inputs.aov);
+  const minimumAov = ratio(totalCosts, dealsRequired * inputs.attributionRate);
 
   return {
-    leadsGenerated,
+    dealsRequired,
+    connectedCallsRequired,
+    leadsRequired,
+    adSpendRequired,
+    dealsPerRepPerMonth,
+    repsRequired,
+    repsRequiredRoundUp,
     totalConnectedCallCapacity,
-    actualConnectedCalls,
-    dealsClosed,
-    attributedDeals,
-    grossRevenue,
-    lostRevenue,
+    capacityCheck,
     adSpend,
     salesCommission,
     totalRepBaseSalary,
     totalDeliveryCost,
     fixedExpenses,
     totalCosts,
+    grossRevenue,
     netProfit,
     roas,
     profitMargin,
     cpa,
-    revenuePerRep,
-    dealsPerRep,
     maxTolerableCpl,
     minimumCloseRate,
     minimumAttributionRate,
@@ -94,7 +112,7 @@ export function computeFinancialModel(inputs: FinancialModelInputs) {
 /**
  * Downside scenarios degrade the conversion rates (connect, close, attribution)
  * by `factor` and inflate Cost Per Lead by the complementary amount (factor 0.85
- * -> rates x0.85, CPL x1.15). Spend, headcount, AOV and costs are left untouched.
+ * -> rates x0.85, CPL x1.15). The revenue target, AOV and costs are left untouched.
  */
 export function applyDownside(
   inputs: FinancialModelInputs,
