@@ -43,8 +43,8 @@ export type MarketingDailyMetricRow = {
   salesLowTicket: number | null;
   cashCollectedLowTicket: number | null;
   // Paid / Organic splits the team added to the form 2026-09-03.
-  // Organic fields fall back to (total − paid) in the getter when the
-  // form doesn't carry an explicit Organic column.
+  // The cash fields are reconciled in the getter so Paid + Organic always
+  // equals the Total (see splitCash) — nothing is left unattributed.
   salesLowTicketPaid: number | null;
   salesLowTicketOrganic: number | null;
   cashCollectedLowTicketPaid: number | null;
@@ -182,22 +182,41 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         f["High ticket cash collected (Paid)"] ?? f["high Ticket Cash (Paid)"]
       );
       const cashHTOrganicExplicit = parseNumericText(f["High ticket cash collected (Organic)"]);
-      // Only infer Organic when a Paid figure was actually entered — a blank
-      // Paid means "not split yet", not "zero paid".
+      // Bronson stopped filling in the combined Total column starting
+      // 2026-09 and only types the Paid/Organic split; Aval/Ecom Simulation
+      // type the Total and only occasionally split out Paid. So neither
+      // side is authoritative on its own — cash must never fall out of the
+      // Paid + Organic rows just because one column was left blank:
+      //   Paid    = as typed (blank = $0 paid)
+      //   Organic = the bigger of the typed Organic and (Total − Paid)
+      //   Total   = Paid + Organic, so it can never sit below its own parts
+      // Matches the Agency rollup (lib/agency.ts). A day with no cash figure
+      // in any of the three columns stays null (no data), not $0.
+      const splitCash = (
+        total: number | null,
+        paid: number | null,
+        organicExplicit: number | null
+      ) => {
+        if (total === null && paid === null && organicExplicit === null) {
+          return { total: null, paid: null, organic: null };
+        }
+        const p = paid ?? 0;
+        const organic = Math.max(organicExplicit ?? 0, (total ?? 0) - p, 0);
+        return { total: p + organic, paid: p, organic };
+      };
+      const cashLTSplit = splitCash(cashLTRaw, cashLTPaid, cashLTOrganicExplicit);
+      const cashHTSplit = splitCash(cashHTRaw, cashHTPaid, cashHTOrganicExplicit);
+      const cashLT = cashLTSplit.total;
+      const cashHT = cashHTSplit.total;
+      // Sales counts keep the older rule: Total is a floor, rebuilt from
+      // Paid/Organic when blank; Organic is only inferred once Paid is typed.
       const minusPaid = (total: number | null, paid: number | null) =>
         total === null || paid === null ? null : Math.max(0, total - paid);
-      // Bronson stopped filling in the combined Total column starting
-      // 2026-09 and now only types the Paid/Organic split directly — so
-      // Total is a FLOOR, not the sole source: if it's blank but Paid
-      // and/or explicit Organic were typed, the total is reconstructed
-      // from those instead of silently reading as "no cash collected."
       const reconcileTotal = (
         raw: number | null,
         paid: number | null,
         organicExplicit: number | null
       ) => raw ?? (paid !== null || organicExplicit !== null ? (paid ?? 0) + (organicExplicit ?? 0) : null);
-      const cashLT = reconcileTotal(cashLTRaw, cashLTPaid, cashLTOrganicExplicit);
-      const cashHT = reconcileTotal(cashHTRaw, cashHTPaid, cashHTOrganicExplicit);
       const salesLT = reconcileTotal(salesLTRaw, salesLTPaid, salesLTOrganicExplicit);
       // Unlike the form's other percent fields (native Airtable percent
       // type, always a 0–1 fraction), "Conversion Rate (Paid)/(Organic)" is
@@ -216,10 +235,10 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         cashCollectedLowTicket: cashLT,
         salesLowTicketPaid: salesLTPaid,
         salesLowTicketOrganic: salesLTOrganicExplicit ?? minusPaid(salesLT, salesLTPaid),
-        cashCollectedLowTicketPaid: cashLTPaid,
-        cashCollectedLowTicketOrganic: cashLTOrganicExplicit ?? minusPaid(cashLT, cashLTPaid),
-        cashCollectedHighTicketPaid: cashHTPaid,
-        cashCollectedHighTicketOrganic: cashHTOrganicExplicit ?? minusPaid(cashHT, cashHTPaid),
+        cashCollectedLowTicketPaid: cashLTSplit.paid,
+        cashCollectedLowTicketOrganic: cashLTSplit.organic,
+        cashCollectedHighTicketPaid: cashHTSplit.paid,
+        cashCollectedHighTicketOrganic: cashHTSplit.organic,
         funnelConversionRatePaid: asFraction(parseNumericText(f["Conversion Rate (Paid)"])),
         funnelConversionRateOrganic: asFraction(
           parseNumericText(f["Conversion Rate (Organic)"]) ??
