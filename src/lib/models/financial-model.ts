@@ -1,68 +1,100 @@
 export type FinancialModelInputs = {
-  adSpend: number;
+  monthlyAdSpend: number;
   costPerLead: number;
-  connectionRate: number; // fraction 0-1
-  closeRate: number; // fraction 0-1
-  attributionRate: number; // fraction 0-1
-  avgCashPerSale: number;
-  includeHighTicket: boolean;
-  ltToHtRate: number; // fraction 0-1
-  htAov: number;
+  reps: number; // full-cycle reps (headcount)
+  contactsPerRepPerDay: number;
+  workingDaysPerMonth: number;
+  connectRate: number; // fraction 0-1
+  closeRate: number; // fraction 0-1, first call
+  attributionRate: number; // fraction 0-1: share of closed deals we actually get paid on
+  aov: number; // low-ticket AOV
+  salesCommissionRate: number; // fraction 0-1, of attributed gross revenue
+  repBaseSalary: number; // per rep, per month
+  deliveryCostPerDeal: number; // per attributed (paid) deal
+  fixedMonthlyExpenses: number;
 };
 
-export type FinancialModelRow = {
-  key: string;
-  label: string;
-  value: number;
-};
+const ratio = (num: number, den: number) => (den > 0 ? num / den : 0);
 
-export const WEEKLY_MULTIPLIER = 7;
-export const MONTHLY_MULTIPLIER = 30;
+export function computeFinancialModel(inputs: FinancialModelInputs) {
+  // Ad spend & lead generation
+  const leadsGenerated = ratio(inputs.monthlyAdSpend, inputs.costPerLead);
 
-function computeCore(inputs: FinancialModelInputs) {
-  const optIns = inputs.costPerLead > 0 ? inputs.adSpend / inputs.costPerLead : 0;
-  const pickups = optIns * inputs.connectionRate;
-  const sales = pickups * inputs.closeRate;
-  const attributedSales = sales * inputs.attributionRate;
-  const lowTicketCashCollected = attributedSales * inputs.avgCashPerSale;
+  // Rep capacity & connect
+  const totalConnectedCallCapacity =
+    inputs.reps * inputs.contactsPerRepPerDay * inputs.workingDaysPerMonth;
+  const actualConnectedCalls = Math.min(
+    leadsGenerated * inputs.connectRate,
+    totalConnectedCallCapacity
+  );
 
-  let highTicketBookings = 0;
-  let highTicketCashCollected = 0;
-  if (inputs.includeHighTicket) {
-    highTicketBookings = sales * inputs.ltToHtRate;
-    highTicketCashCollected = highTicketBookings * inputs.htAov;
-  }
+  // Conversion
+  const dealsClosed = actualConnectedCalls * inputs.closeRate;
+  const attributedDeals = dealsClosed * inputs.attributionRate;
 
-  const totalCashCollected = lowTicketCashCollected + highTicketCashCollected;
-  const roas = inputs.adSpend > 0 ? totalCashCollected / inputs.adSpend : 0;
-  const netProfit = totalCashCollected - inputs.adSpend;
+  // Revenue
+  const grossRevenue = attributedDeals * inputs.aov;
+  const lostRevenue = (dealsClosed - attributedDeals) * inputs.aov;
+
+  // Costs
+  const adSpend = inputs.monthlyAdSpend;
+  const salesCommission = grossRevenue * inputs.salesCommissionRate;
+  const totalRepBaseSalary = inputs.reps * inputs.repBaseSalary;
+  const totalDeliveryCost = attributedDeals * inputs.deliveryCostPerDeal;
+  const fixedExpenses = inputs.fixedMonthlyExpenses;
+  const totalCosts =
+    adSpend + salesCommission + totalRepBaseSalary + totalDeliveryCost + fixedExpenses;
+
+  // Profit & ROAS
+  const netProfit = grossRevenue - totalCosts;
+  const roas = ratio(grossRevenue, adSpend);
+  const profitMargin = ratio(netProfit, grossRevenue);
+  const cpa = ratio(adSpend, attributedDeals);
+  const revenuePerRep = ratio(grossRevenue, inputs.reps);
+  const dealsPerRep = ratio(attributedDeals, inputs.reps);
+
+  // Break-even sensitivity
+  const nonAdCosts = salesCommission + totalRepBaseSalary + totalDeliveryCost + fixedExpenses;
+  // Max ad spend the revenue can carry, spread over the leads it buys.
+  const maxTolerableCpl = ratio(grossRevenue - nonAdCosts, leadsGenerated);
+  const minimumCloseRate = ratio(
+    totalCosts,
+    actualConnectedCalls * inputs.attributionRate * inputs.aov
+  );
+  const minimumAttributionRate = ratio(totalCosts, dealsClosed * inputs.aov);
+  const minimumAov = ratio(totalCosts, attributedDeals);
 
   return {
-    optIns,
-    pickups,
-    sales,
-    attributedSales,
-    lowTicketCashCollected,
-    highTicketBookings,
-    highTicketCashCollected,
-    totalCashCollected,
-    roas,
+    leadsGenerated,
+    totalConnectedCallCapacity,
+    actualConnectedCalls,
+    dealsClosed,
+    attributedDeals,
+    grossRevenue,
+    lostRevenue,
+    adSpend,
+    salesCommission,
+    totalRepBaseSalary,
+    totalDeliveryCost,
+    fixedExpenses,
+    totalCosts,
     netProfit,
+    roas,
+    profitMargin,
+    cpa,
+    revenuePerRep,
+    dealsPerRep,
+    maxTolerableCpl,
+    minimumCloseRate,
+    minimumAttributionRate,
+    minimumAov,
   };
 }
 
-export function computeFinancialModel(inputs: FinancialModelInputs) {
-  return computeCore(inputs);
-}
-
 /**
- * Downside scenarios degrade conversion rates (connection, close,
- * attribution, LT->HT) by `factor`, and inflate Cost Per Lead by the
- * complementary amount (e.g. factor 0.85 -> rates x0.85, cost per lead
- * x1.15) — reverse-engineered from the reference dashboard's exact
- * screenshot numbers (Ad Spend $5000/Cost Per Lead $50 -> -15% Cost Per
- * Lead $57, -30% -> $65). Ad spend and avg-cash-per-sale/HT AOV are
- * left untouched.
+ * Downside scenarios degrade the conversion rates (connect, close, attribution)
+ * by `factor` and inflate Cost Per Lead by the complementary amount (factor 0.85
+ * -> rates x0.85, CPL x1.15). Spend, headcount, AOV and costs are left untouched.
  */
 export function applyDownside(
   inputs: FinancialModelInputs,
@@ -71,13 +103,8 @@ export function applyDownside(
   return {
     ...inputs,
     costPerLead: inputs.costPerLead * (2 - factor),
-    connectionRate: inputs.connectionRate * factor,
+    connectRate: inputs.connectRate * factor,
     closeRate: inputs.closeRate * factor,
     attributionRate: inputs.attributionRate * factor,
-    ltToHtRate: inputs.ltToHtRate * factor,
   };
-}
-
-export function projectPeriod(dailyValue: number, multiplier: number): number {
-  return dailyValue * multiplier;
 }
