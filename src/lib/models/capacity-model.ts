@@ -1,5 +1,5 @@
-/** Fixed model constant, not a user input: how many leads (dials) one dialer works per day. */
-export const LEADS_PER_DIALER_PER_DAY = 30;
+/** Fixed model constant, not a user input: how many leads (dials) one rep works per day. */
+export const LEADS_PER_REP_PER_DAY = 30;
 
 export type CapacityModelInputs = {
   revenueGoal: number;
@@ -7,23 +7,33 @@ export type CapacityModelInputs = {
   closeRate: number; // fraction 0-1
   connectionRate: number; // fraction 0-1
   workingDays: number;
+  costPerLead: number;
 };
 
 export function computeCapacityModel(inputs: CapacityModelInputs) {
-  const salesNeeded = inputs.aov > 0 ? inputs.revenueGoal / inputs.aov : 0;
-  const pickupsNeeded = inputs.closeRate > 0 ? salesNeeded / inputs.closeRate : 0;
-  const dialsNeeded = inputs.connectionRate > 0 ? pickupsNeeded / inputs.connectionRate : 0;
-  const dialsNeededPerDay = inputs.workingDays > 0 ? dialsNeeded / inputs.workingDays : 0;
-  const dialersNeededExact = dialsNeededPerDay / LEADS_PER_DIALER_PER_DAY;
-  const dialersNeededRoundUp = Math.ceil(dialersNeededExact);
+  const dealsNeeded = inputs.aov > 0 ? inputs.revenueGoal / inputs.aov : 0;
+  const leadToDealRate = inputs.connectionRate * inputs.closeRate;
+  const pickupsNeeded = inputs.closeRate > 0 ? dealsNeeded / inputs.closeRate : 0;
+  const leadsRequired = leadToDealRate > 0 ? dealsNeeded / leadToDealRate : 0;
+  const leadsRequiredPerDay = inputs.workingDays > 0 ? leadsRequired / inputs.workingDays : 0;
+  const repsNeededExact = leadsRequiredPerDay / LEADS_PER_REP_PER_DAY;
+  const repsNeededRoundUp = Math.ceil(repsNeededExact);
+  // Per-rep output is measured against the reps you'd actually have to hire.
+  const dealsPerRep = repsNeededRoundUp > 0 ? dealsNeeded / repsNeededRoundUp : 0;
+  const revenuePerRep = repsNeededRoundUp > 0 ? inputs.revenueGoal / repsNeededRoundUp : 0;
+  const adSpendNeeded = leadsRequired * inputs.costPerLead;
 
   return {
-    salesNeeded,
+    dealsNeeded,
+    leadToDealRate,
     pickupsNeeded,
-    dialsNeeded,
-    dialsNeededPerDay,
-    dialersNeededExact,
-    dialersNeededRoundUp,
+    leadsRequired,
+    leadsRequiredPerDay,
+    repsNeededExact,
+    repsNeededRoundUp,
+    dealsPerRep,
+    revenuePerRep,
+    adSpendNeeded,
   };
 }
 
@@ -36,5 +46,51 @@ export function applyCapacityDownside(
     ...inputs,
     closeRate: inputs.closeRate * factor,
     connectionRate: inputs.connectionRate * factor,
+  };
+}
+
+export type HighTicketAscensionInputs = {
+  bookingRate: number; // fraction 0-1: low-ticket closes that book a high-ticket call
+  showRate: number; // fraction 0-1
+  closeRate: number; // fraction 0-1: high-ticket close rate
+  aov: number;
+  slotsPerCloserPerDay: number;
+};
+
+/** Low-ticket closes come from the capacity model's Deals Needed. */
+export function computeHighTicketAscension(
+  lowTicketCloses: number,
+  workingDays: number,
+  inputs: HighTicketAscensionInputs
+) {
+  const callsBooked = lowTicketCloses * inputs.bookingRate;
+  const callsShowed = callsBooked * inputs.showRate;
+  const dealsClosed = callsShowed * inputs.closeRate;
+  const extraCash = dealsClosed * inputs.aov;
+  const callsBookedPerDay = workingDays > 0 ? callsBooked / workingDays : 0;
+  const closersNeededExact =
+    inputs.slotsPerCloserPerDay > 0 ? callsBookedPerDay / inputs.slotsPerCloserPerDay : 0;
+  const closersNeededRoundUp = Math.ceil(closersNeededExact);
+
+  return {
+    callsBooked,
+    callsShowed,
+    dealsClosed,
+    extraCash,
+    callsBookedPerDay,
+    closersNeededExact,
+    closersNeededRoundUp,
+  };
+}
+
+/** Downside scenarios degrade Show Rate and High Ticket Close Rate. */
+export function applyHighTicketDownside(
+  inputs: HighTicketAscensionInputs,
+  factor: 0.85 | 0.7
+): HighTicketAscensionInputs {
+  return {
+    ...inputs,
+    showRate: inputs.showRate * factor,
+    closeRate: inputs.closeRate * factor,
   };
 }
