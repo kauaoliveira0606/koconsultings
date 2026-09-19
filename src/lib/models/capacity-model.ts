@@ -1,10 +1,12 @@
+/** Fixed model constant, not a user input: how many leads (dials) one dialer works per day. */
+export const LEADS_PER_DIALER_PER_DAY = 30;
+
 export type CapacityModelInputs = {
   revenueGoal: number;
   aov: number;
   closeRate: number; // fraction 0-1
   connectionRate: number; // fraction 0-1
   workingDays: number;
-  dialers: number; // headcount we have (input)
 };
 
 export function computeCapacityModel(inputs: CapacityModelInputs) {
@@ -12,15 +14,16 @@ export function computeCapacityModel(inputs: CapacityModelInputs) {
   const pickupsNeeded = inputs.closeRate > 0 ? salesNeeded / inputs.closeRate : 0;
   const dialsNeeded = inputs.connectionRate > 0 ? pickupsNeeded / inputs.connectionRate : 0;
   const dialsNeededPerDay = inputs.workingDays > 0 ? dialsNeeded / inputs.workingDays : 0;
-  // Output, not an input: what the funnel rates force each dialer to work per day.
-  const leadsPerDialerPerDay = inputs.dialers > 0 ? dialsNeededPerDay / inputs.dialers : 0;
+  const dialersNeededExact = dialsNeededPerDay / LEADS_PER_DIALER_PER_DAY;
+  const dialersNeededRoundUp = Math.ceil(dialersNeededExact);
 
   return {
     salesNeeded,
     pickupsNeeded,
     dialsNeeded,
     dialsNeededPerDay,
-    leadsPerDialerPerDay,
+    dialersNeededExact,
+    dialersNeededRoundUp,
   };
 }
 

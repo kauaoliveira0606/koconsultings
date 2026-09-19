@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   applyCapacityDownside,
   computeCapacityModel,
+  LEADS_PER_DIALER_PER_DAY,
   type CapacityModelInputs,
 } from "@/lib/models/capacity-model";
 import { formatStatValue } from "@/lib/format";
@@ -14,7 +15,6 @@ const DEFAULT_INPUTS: CapacityModelInputs = {
   closeRate: 0.2,
   connectionRate: 0.4,
   workingDays: 22,
-  dialers: 4,
 };
 
 function SliderRow({
@@ -98,10 +98,9 @@ export function CapacityModelTab() {
       </div>
 
       <p className="mb-4 text-sm text-black/60">
-        Set a revenue goal, your current funnel rates, and how many dialers you have — this works
-        backward to how many outbound dials that requires and how many leads each dialer has to
-        work per day to hit it. -15% / -30% show how much heavier that load gets if Close Rate
-        and Connection Rate both slip.
+        Set a revenue goal and your current funnel rates — this works backward to how many
+        outbound dials that requires and how many dialers you need to hit it. -15% / -30% show how
+        much bigger the team has to be if Close Rate and Connection Rate both slip.
       </p>
 
       <div className="overflow-x-auto rounded-lg border border-black/10 bg-white">
@@ -171,16 +170,9 @@ export function CapacityModelTab() {
               onChange={(v) => set({ workingDays: v })}
             />
             <Row label="Outbound Dials Needed / Day" base={scenarios.base.dialsNeededPerDay} d15={scenarios.d15.dialsNeededPerDay} d30={scenarios.d30.dialsNeededPerDay} />
-            <SliderRow
-              label="Number of Dialers"
-              unit="#"
-              value={inputs.dialers}
-              min={1}
-              max={50}
-              step={1}
-              onChange={(v) => set({ dialers: v })}
-            />
-            <Row label="Leads (Dials) per Dialer / Day" base={scenarios.base.leadsPerDialerPerDay} d15={scenarios.d15.leadsPerDialerPerDay} d30={scenarios.d30.leadsPerDialerPerDay} highlight />
+            <Row label="Leads (Dials) per Dialer / Day" base={LEADS_PER_DIALER_PER_DAY} d15={LEADS_PER_DIALER_PER_DAY} d30={LEADS_PER_DIALER_PER_DAY} />
+            <Row label="Dialers Needed (exact)" base={scenarios.base.dialersNeededExact} d15={scenarios.d15.dialersNeededExact} d30={scenarios.d30.dialersNeededExact} highlight />
+            <Row label="Dialers Needed (round up)" base={scenarios.base.dialersNeededRoundUp} d15={scenarios.d15.dialersNeededRoundUp} d30={scenarios.d30.dialersNeededRoundUp} highlight />
           </tbody>
         </table>
       </div>
