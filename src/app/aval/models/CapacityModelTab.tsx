@@ -8,6 +8,7 @@ import {
   computeHighTicketAscension,
   type HighTicketAscensionInputs,
   computeCapacityModel,
+  computeCombinedResults,
   LEADS_PER_REP_PER_DAY,
   type CapacityModelInputs,
 } from "@/lib/models/capacity-model";
@@ -128,6 +129,12 @@ export function CapacityModelTab() {
       d30: at(scenarios.d30, applyHighTicketDownside(ht, 0.7)),
     };
   }, [scenarios, ht, inputs.workingDays]);
+
+  const combined = useMemo(() => {
+    const at = (k: "base" | "d15" | "d30") =>
+      computeCombinedResults(inputs.revenueGoal, ascension[k].extraCash, scenarios[k].adSpendNeeded);
+    return { base: at("base"), d15: at("d15"), d30: at("d30") };
+  }, [inputs.revenueGoal, ascension, scenarios]);
 
   const set = (patch: Partial<CapacityModelInputs>) => setInputs((prev) => ({ ...prev, ...patch }));
   const setHtInput = (patch: Partial<HighTicketAscensionInputs>) =>
@@ -314,6 +321,25 @@ export function CapacityModelTab() {
             <Row label="High Ticket Calls Booked / Day" base={ascension.base.callsBookedPerDay} d15={ascension.d15.callsBookedPerDay} d30={ascension.d30.callsBookedPerDay} />
             <Row label="Closers Needed (exact)" base={ascension.base.closersNeededExact} d15={ascension.d15.closersNeededExact} d30={ascension.d30.closersNeededExact} highlight />
             <Row label="Closers Needed (round up)" base={ascension.base.closersNeededRoundUp} d15={ascension.d15.closersNeededRoundUp} d30={ascension.d30.closersNeededRoundUp} highlight />
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="mb-1 mt-10 text-lg font-bold">Total Cash &amp; Profitability</h2>
+      <p className="mb-4 text-sm text-black/60">
+        Both funnels together, after the ad spend needed to generate the lead volume.
+      </p>
+
+      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white">
+        <table className="w-full text-sm">
+          <TableHead />
+          <tbody>
+            <Row label={`Cash from Low-Ticket Funnel (${period === "weekly" ? "Weekly" : "Monthly"})`} unit="$" format="currency" base={inputs.revenueGoal} d15={inputs.revenueGoal} d30={inputs.revenueGoal} />
+            <Row label={`Cash from High Ticket Ascension (${period === "weekly" ? "Weekly" : "Monthly"})`} unit="$" format="currency" base={ascension.base.extraCash} d15={ascension.d15.extraCash} d30={ascension.d30.extraCash} />
+            <Row label="Combined Cash" unit="$" format="currency" base={combined.base.combinedCash} d15={combined.d15.combinedCash} d30={combined.d30.combinedCash} highlight />
+            <Row label="Ad Spend Needed" unit="$" format="currency" base={scenarios.base.adSpendNeeded} d15={scenarios.d15.adSpendNeeded} d30={scenarios.d30.adSpendNeeded} />
+            <Row label="Actual Profit (Combined Cash − Ad Spend)" unit="$" format="currency" base={combined.base.profit} d15={combined.d15.profit} d30={combined.d30.profit} highlight />
+            <Row label="Profit Margin" unit="%" format="percent" base={combined.base.profitMargin} d15={combined.d15.profitMargin} d30={combined.d30.profitMargin} highlight />
           </tbody>
         </table>
       </div>

@@ -96,3 +96,15 @@ export function applyHighTicketDownside(
     closeRate: inputs.closeRate * factor,
   };
 }
+
+/** Rolls both funnels up: low-ticket cash is the revenue goal, high-ticket is the ascension's extra cash. */
+export function computeCombinedResults(
+  lowTicketCash: number,
+  highTicketCash: number,
+  adSpend: number
+) {
+  const combinedCash = lowTicketCash + highTicketCash;
+  const profit = combinedCash - adSpend;
+  const profitMargin = combinedCash > 0 ? profit / combinedCash : 0;
+  return { combinedCash, profit, profitMargin };
+}
