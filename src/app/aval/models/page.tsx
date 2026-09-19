@@ -1,11 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useHydrated, usePersistedState } from "@/lib/use-persisted-state";
 import { FinancialModelTab } from "./FinancialModelTab";
 import { CapacityModelTab } from "./CapacityModelTab";
 
+// Renders only after hydration so the remembered tab (and the numbers inside it)
+// can be read from storage without mismatching the server-rendered HTML.
 export default function ModelsPage() {
-  const [tab, setTab] = useState<"financial" | "capacity">("financial");
+  const hydrated = useHydrated();
+  return hydrated ? <ModelsPageContent /> : null;
+}
+
+function ModelsPageContent() {
+  const [tab, setTab] = usePersistedState<"financial" | "capacity">(
+    `models-tab:${usePathname()}`,
+    "financial"
+  );
 
   return (
     <div className="ko-light-panel">

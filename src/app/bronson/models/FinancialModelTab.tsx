@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { usePathname } from "next/navigation";
 import {
   applyDownside,
   computeFinancialModel,
@@ -10,6 +11,7 @@ import {
   type FinancialModelInputs,
 } from "@/lib/models/financial-model";
 import { formatStatValue, type StatFormat } from "@/lib/format";
+import { usePersistedState } from "@/lib/use-persisted-state";
 
 const DEFAULT_INPUTS: FinancialModelInputs = {
   adSpend: 5000,
@@ -93,7 +95,10 @@ function computedCell(value: number, format: StatFormat): string {
 }
 
 export function FinancialModelTab() {
-  const [inputs, setInputs] = useState<FinancialModelInputs>(DEFAULT_INPUTS);
+  const [inputs, setInputs] = usePersistedState<FinancialModelInputs>(
+    `financial-model:${usePathname()}:inputs`,
+    DEFAULT_INPUTS
+  );
 
   const downside15Inputs = useMemo(() => applyDownside(inputs, 0.85), [inputs]);
   const downside30Inputs = useMemo(() => applyDownside(inputs, 0.7), [inputs]);

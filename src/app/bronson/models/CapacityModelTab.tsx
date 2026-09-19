@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import {
   applyCapacityDownside,
@@ -13,6 +13,7 @@ import {
   type CapacityModelInputs,
 } from "@/lib/models/capacity-model";
 import { formatStatValue, type StatFormat } from "@/lib/format";
+import { usePersistedState } from "@/lib/use-persisted-state";
 
 const DEFAULT_HT_INPUTS: HighTicketAscensionInputs = {
   bookingRate: 0.25,
@@ -30,38 +31,6 @@ const DEFAULT_INPUTS: CapacityModelInputs = {
   workingDays: 22,
   costPerLead: 10,
 };
-
-/**
- * useState that survives a page refresh. Storage is per dashboard (keyed by path)
- * so Bronson, Aval and EcomSimulation don't overwrite each other. This tab only
- * mounts client-side after the Capacity tab is clicked, so reading storage in the
- * initializer can't cause a hydration mismatch.
- */
-function usePersistedState<T>(key: string, initial: T): [T, Dispatch<SetStateAction<T>>] {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw === null) return initial;
-      const parsed: unknown = JSON.parse(raw);
-      if (typeof initial === "object" && initial !== null) {
-        return parsed && typeof parsed === "object" ? { ...initial, ...parsed } : initial;
-      }
-      return typeof parsed === typeof initial ? (parsed as T) : initial;
-    } catch {
-      return initial;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      // Storage blocked or full: the model still works, it just won't persist.
-    }
-  }, [key, value]);
-
-  return [value, setValue];
-}
 
 function SliderRow({
   label,
