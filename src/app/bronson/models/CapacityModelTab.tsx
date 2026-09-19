@@ -28,6 +28,7 @@ const DEFAULT_INPUTS: CapacityModelInputs = {
   aov: 300,
   closeRate: 0.2,
   connectionRate: 0.4,
+  attributionRate: 0.85,
   workingDays: 22,
   costPerLead: 10,
 };
@@ -142,8 +143,9 @@ export function CapacityModelTab() {
       <p className="mb-4 text-sm text-black/60">
         Set a revenue goal and your current funnel rates — this works backward to how many leads
         you need to close, how many reps that takes, what each rep produces, and the ad spend
-        needed to generate that lead volume. -15% / -30% show what happens if Close Rate and
-        Connection Rate both slip.
+        needed to generate that lead volume. Attribution Rate is the share of low-ticket sales you
+        actually get paid on, so it raises the deals you have to close. -15% / -30% show what
+        happens if Close Rate, Connection Rate and Attribution Rate all slip.
       </p>
 
       <div className="overflow-x-auto rounded-lg border border-black/10 bg-white">
@@ -168,7 +170,17 @@ export function CapacityModelTab() {
               step={10}
               onChange={(v) => set({ aov: v })}
             />
-            <Row label="Deals Needed" base={scenarios.base.dealsNeeded} d15={scenarios.d15.dealsNeeded} d30={scenarios.d30.dealsNeeded} />
+            <Row label="Paid Deals Needed (Revenue Goal ÷ AOV)" base={scenarios.base.paidDealsNeeded} d15={scenarios.d15.paidDealsNeeded} d30={scenarios.d30.paidDealsNeeded} />
+            <SliderRow
+              label="Attribution Rate (Share We Get Paid On)"
+              unit="%"
+              value={inputs.attributionRate * 100}
+              min={0}
+              max={100}
+              step={1}
+              onChange={(v) => set({ attributionRate: v / 100 })}
+            />
+            <Row label="Deals Needed to Close (After Attribution)" base={scenarios.base.dealsNeeded} d15={scenarios.d15.dealsNeeded} d30={scenarios.d30.dealsNeeded} highlight />
             <SliderRow
               label="Close Rate"
               unit="%"
@@ -237,7 +249,7 @@ export function CapacityModelTab() {
         <table className="w-full text-sm">
           <TableHead />
           <tbody>
-            <Row label="Low-Ticket Closes (from Deals Needed above)" base={scenarios.base.dealsNeeded} d15={scenarios.d15.dealsNeeded} d30={scenarios.d30.dealsNeeded} />
+            <Row label="Low-Ticket Closes (Deals Needed to Close above)" base={scenarios.base.dealsNeeded} d15={scenarios.d15.dealsNeeded} d30={scenarios.d30.dealsNeeded} />
             <SliderRow
               label="Low-Ticket Close → High-Ticket Booking Rate"
               unit="%"

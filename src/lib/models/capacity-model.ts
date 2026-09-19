@@ -6,12 +6,16 @@ export type CapacityModelInputs = {
   aov: number;
   closeRate: number; // fraction 0-1
   connectionRate: number; // fraction 0-1
+  attributionRate: number; // fraction 0-1: share of low-ticket sales we actually get paid on
   workingDays: number;
   costPerLead: number;
 };
 
 export function computeCapacityModel(inputs: CapacityModelInputs) {
-  const dealsNeeded = inputs.aov > 0 ? inputs.revenueGoal / inputs.aov : 0;
+  // Revenue Goal is what we get paid. Only `attributionRate` of closed sales pay
+  // out, so we have to close more deals than the goal alone implies.
+  const paidDealsNeeded = inputs.aov > 0 ? inputs.revenueGoal / inputs.aov : 0;
+  const dealsNeeded = inputs.attributionRate > 0 ? paidDealsNeeded / inputs.attributionRate : 0;
   const leadToDealRate = inputs.connectionRate * inputs.closeRate;
   const pickupsNeeded = inputs.closeRate > 0 ? dealsNeeded / inputs.closeRate : 0;
   const leadsRequired = leadToDealRate > 0 ? dealsNeeded / leadToDealRate : 0;
@@ -25,6 +29,7 @@ export function computeCapacityModel(inputs: CapacityModelInputs) {
   const profitAfterAdSpend = inputs.revenueGoal - adSpendNeeded;
 
   return {
+    paidDealsNeeded,
     dealsNeeded,
     leadToDealRate,
     pickupsNeeded,
@@ -39,7 +44,7 @@ export function computeCapacityModel(inputs: CapacityModelInputs) {
   };
 }
 
-/** Downside scenarios here only degrade Close Rate and Connection Rate. */
+/** Downside scenarios degrade Close Rate, Connection Rate and Attribution Rate. */
 export function applyCapacityDownside(
   inputs: CapacityModelInputs,
   factor: 0.85 | 0.7
@@ -48,6 +53,7 @@ export function applyCapacityDownside(
     ...inputs,
     closeRate: inputs.closeRate * factor,
     connectionRate: inputs.connectionRate * factor,
+    attributionRate: inputs.attributionRate * factor,
   };
 }
 
