@@ -12,16 +12,23 @@ import { usePersistedState } from "@/lib/use-persisted-state";
 
 const DEFAULT_INPUTS: FinancialModelInputs = {
   revenueTarget: 100000,
-  aov: 500,
-  closeRate: 0.2,
+  htAov: 5000,
+  upsellCloseRate: 0.2,
+  upsellContactRate: 0.65,
+  activationRate: 0.4,
   attributionRate: 0.85,
+  closeRate: 0.2,
   connectRate: 0.55,
   costPerLead: 10,
   contactsPerRepPerDay: 30,
   workingDaysPerMonth: 22,
-  salesCommissionRate: 0.1,
+  upsellCallsPerRepPerDay: 10,
+  ltAov: 500,
+  ltCommissionRate: 0.1,
+  htCommissionRate: 0.1,
   repBaseSalary: 0,
-  deliveryCostPerSale: 0,
+  ltDeliveryCost: 0,
+  htDeliveryCost: 0,
   fixedMonthlyExpenses: 0,
 };
 
@@ -123,11 +130,25 @@ function ComputedRow({
   );
 }
 
-function CapacityCheckRow({ base, d15, d30 }: { base: string; d15: string; d30: string }) {
+function CheckRow({
+  label,
+  unit,
+  good,
+  base,
+  d15,
+  d30,
+}: {
+  label: string;
+  unit: string;
+  good: string;
+  base: string;
+  d15: string;
+  d30: string;
+}) {
   const cell = (value: string) => (
     <td
       className={`px-4 py-3 text-right font-semibold ${
-        value === "OK" ? "text-emerald-700" : "text-red-700"
+        value === good ? "text-emerald-700" : "text-red-700"
       }`}
     >
       {value}
@@ -135,8 +156,8 @@ function CapacityCheckRow({ base, d15, d30 }: { base: string; d15: string; d30: 
   );
   return (
     <tr className="border-b border-black/5">
-      <td className="px-4 py-3">Capacity Check</td>
-      <td className="px-4 py-3 text-black/50">OK / UNDERSTAFFED</td>
+      <td className="px-4 py-3">{label}</td>
+      <td className="px-4 py-3 text-black/50">{unit}</td>
       <td className="px-4 py-3" />
       {cell(base)}
       {cell(d15)}
@@ -146,10 +167,10 @@ function CapacityCheckRow({ base, d15, d30 }: { base: string; d15: string; d30: 
 }
 
 export function FinancialModelTab() {
-  // "-v3": the model was rebuilt (revenue target drives everything), so numbers saved
+  // "-v4": the model was rebuilt (low-ticket to high-ticket ascension), so numbers saved
   // by earlier versions must not carry over.
   const [inputs, setInputs] = usePersistedState<FinancialModelInputs>(
-    `financial-model-v3:${usePathname()}:inputs`,
+    `financial-model-v4:${usePathname()}:inputs`,
     DEFAULT_INPUTS
   );
 
@@ -167,11 +188,66 @@ export function FinancialModelTab() {
 
   const set = (patch: Partial<FinancialModelInputs>) => setInputs((prev) => ({ ...prev, ...patch }));
 
+  // A percent input row whose Base / -15% / -30% columns show the degraded rate.
+  const rateRow = (
+    label: string,
+    key:
+      | "upsellCloseRate"
+      | "upsellContactRate"
+      | "activationRate"
+      | "attributionRate"
+      | "closeRate"
+      | "connectRate"
+  ) => (
+    <SliderRow
+      label={label}
+      unit="%"
+      value={inputs[key] * 100}
+      min={0}
+      max={100}
+      step={1}
+      onChange={(v) => set({ [key]: v / 100 })}
+      format="percent"
+      scenarioValues={{ base: inputs[key], d15: d15Inputs[key], d30: d30Inputs[key] }}
+    />
+  );
+
+  // A plain (non-degraded) input row.
+  const inputRow = (
+    label: string,
+    unit: string,
+    key: Exclude<
+      keyof FinancialModelInputs,
+      | "upsellCloseRate"
+      | "upsellContactRate"
+      | "activationRate"
+      | "attributionRate"
+      | "closeRate"
+      | "connectRate"
+      | "costPerLead"
+      | "ltCommissionRate"
+      | "htCommissionRate"
+    >,
+    min: number,
+    max: number,
+    step: number
+  ) => (
+    <SliderRow
+      label={label}
+      unit={unit}
+      value={inputs[key]}
+      min={min}
+      max={max}
+      step={step}
+      onChange={(v) => set({ [key]: v })}
+    />
+  );
+
   // A computed row: pulls the same key from all three scenarios.
   const row = (
     label: string,
     unit: string,
-    key: Exclude<keyof typeof r.base, "capacityCheck">,
+    key: Exclude<keyof typeof r.base, "revenueCheck" | "selfLiquidationCheck">,
     format: StatFormat,
     highlight?: boolean
   ) => (
@@ -188,12 +264,13 @@ export function FinancialModelTab() {
 
   return (
     <div>
+      <h2 className="mb-1 text-lg font-bold">Low-Ticket to High-Ticket Ascension</h2>
       <p className="mb-4 text-sm text-black/60">
-        Low-ticket model, all numbers per month. Set a revenue target and your funnel rates — this
-        works backward to the deals, calls, leads, ad spend and reps it takes, then the costs and
-        profit. Drag a slider or type a number directly. The -15% / -30% columns show what happens
-        if Connect Rate, Close Rate and Attribution Rate drop that much and Cost Per Lead rises by
-        the same amount.
+        All numbers per month. Set a total revenue target and your funnel rates — this works
+        backward to the high-ticket and low-ticket deals, calls, leads, ad spend and reps it takes,
+        then the costs, profit and break-evens. Drag a slider or type a number directly. The -15% /
+        -30% columns show what happens if every conversion rate drops that much and Cost Per Lead
+        rises by the same amount.
       </p>
 
       <div className="overflow-x-auto rounded-lg border border-black/10 bg-white">
@@ -210,78 +287,26 @@ export function FinancialModelTab() {
           </thead>
           <tbody>
             <SectionRow title="Step 1: Revenue Target → Deals Required" />
-            <SliderRow
-              label="Revenue Target"
-              unit="$"
-              value={inputs.revenueTarget}
-              min={0}
-              max={1000000}
-              step={1000}
-              onChange={(v) => set({ revenueTarget: v })}
-            />
-            <SliderRow
-              label="Low-Ticket AOV"
-              unit="$"
-              value={inputs.aov}
-              min={0}
-              max={5000}
-              step={10}
-              onChange={(v) => set({ aov: v })}
-            />
-            {row("Deals Required", "#", "dealsRequired", "number", true)}
+            {inputRow("Total Revenue Target", "$", "revenueTarget", 0, 1000000, 1000)}
+            {inputRow("High-Ticket AOV", "$", "htAov", 0, 50000, 100)}
+            {row("High-Ticket Deals Required", "#", "htDealsRequired", "number", true)}
 
-            <SectionRow title="Step 2: Deals Required → Connected Calls Required" />
-            <SliderRow
-              label="Close Rate (First Call)"
-              unit="%"
-              value={inputs.closeRate * 100}
-              min={0}
-              max={100}
-              step={1}
-              onChange={(v) => set({ closeRate: v / 100 })}
-              format="percent"
-              scenarioValues={{
-                base: inputs.closeRate,
-                d15: d15Inputs.closeRate,
-                d30: d30Inputs.closeRate,
-              }}
-            />
-            <SliderRow
-              label="Attribution Rate (Share of Closed Deals We Get Paid On)"
-              unit="%"
-              value={inputs.attributionRate * 100}
-              min={0}
-              max={100}
-              step={1}
-              onChange={(v) => set({ attributionRate: v / 100 })}
-              format="percent"
-              scenarioValues={{
-                base: inputs.attributionRate,
-                d15: d15Inputs.attributionRate,
-                d30: d30Inputs.attributionRate,
-              }}
-            />
+            <SectionRow title="Step 2: High-Ticket Deals → Low-Ticket Deals Required" />
+            {rateRow("Upsell Close Rate", "upsellCloseRate")}
+            {rateRow("Upsell Contact Rate", "upsellContactRate")}
+            {rateRow("Activation Rate", "activationRate")}
+            {rateRow("Attribution Rate (Share of Deals We Get Paid On)", "attributionRate")}
+            {row("Low-Ticket Deals Required", "#", "ltDealsRequired", "number", true)}
+
+            <SectionRow title="Step 3: Low-Ticket Deals → Connected Calls Required" />
+            {rateRow("Close Rate (First Call)", "closeRate")}
             {row("Connected Calls Required", "#", "connectedCallsRequired", "number", true)}
 
-            <SectionRow title="Step 3: Connected Calls → Leads Required" />
-            <SliderRow
-              label="Connect Rate (Share of Leads Reached by Phone)"
-              unit="%"
-              value={inputs.connectRate * 100}
-              min={0}
-              max={100}
-              step={1}
-              onChange={(v) => set({ connectRate: v / 100 })}
-              format="percent"
-              scenarioValues={{
-                base: inputs.connectRate,
-                d15: d15Inputs.connectRate,
-                d30: d30Inputs.connectRate,
-              }}
-            />
+            <SectionRow title="Step 4: Connected Calls → Leads Required" />
+            {rateRow("Connect Rate (Share of Leads Reached by Phone)", "connectRate")}
             {row("Leads Required", "#", "leadsRequired", "number", true)}
 
-            <SectionRow title="Step 4: Leads Required → Ad Spend Required" />
+            <SectionRow title="Step 5: Leads Required → Ad Spend Required" />
             <SliderRow
               label="Cost Per Lead (CPL)"
               unit="$"
@@ -299,88 +324,65 @@ export function FinancialModelTab() {
             />
             {row("Ad Spend Required", "$", "adSpendRequired", "currency", true)}
 
-            <SectionRow title="Step 5: Deals Required → Reps Required" />
-            <SliderRow
-              label="Contacts Per Rep Per Day"
-              unit="#"
-              value={inputs.contactsPerRepPerDay}
-              min={0}
-              max={200}
-              step={1}
-              onChange={(v) => set({ contactsPerRepPerDay: v })}
-            />
-            <SliderRow
-              label="Working Days Per Month"
-              unit="#"
-              value={inputs.workingDaysPerMonth}
-              min={1}
-              max={31}
-              step={1}
-              onChange={(v) => set({ workingDaysPerMonth: v })}
-            />
-            {row("Deals Per Rep Per Month", "#", "dealsPerRepPerMonth", "number")}
-            {row("Reps Required", "#", "repsRequired", "number", true)}
-            {row("Reps Required (Rounded Up)", "#", "repsRequiredRoundUp", "number", true)}
+            <SectionRow title="Step 6: Deals Required → Reps Required" />
+            {inputRow("Contacts Per Rep Per Day", "#", "contactsPerRepPerDay", 0, 200, 1)}
+            {inputRow("Working Days Per Month", "#", "workingDaysPerMonth", 1, 31, 1)}
+            {row("Front-End Deals Per Rep Per Month", "#", "frontEndDealsPerRepPerMonth", "number")}
+            {row("Front-End Reps Required", "#", "frontEndRepsRequired", "number", true)}
+            {inputRow("Upsell Calls Per Rep Per Day", "#", "upsellCallsPerRepPerDay", 0, 100, 1)}
+            {row("Upsell Deals Per Rep Per Month", "#", "upsellDealsPerRepPerMonth", "number")}
+            {row("Backend Reps Required", "#", "backendRepsRequired", "number", true)}
 
-            <SectionRow title="Step 6: Validate Capacity" />
-            {row("Total Connected Call Capacity", "#", "totalConnectedCallCapacity", "number")}
-            <CapacityCheckRow base={r.base.capacityCheck} d15={r.d15.capacityCheck} d30={r.d30.capacityCheck} />
+            <SectionRow title="Step 7: Revenue Breakdown" />
+            {inputRow("Low-Ticket AOV", "$", "ltAov", 0, 5000, 10)}
+            {row("Low-Ticket Revenue (Attributed)", "$", "ltRevenue", "currency")}
+            {row("High-Ticket Revenue", "$", "htRevenue", "currency")}
+            {row("Total Gross Revenue", "$", "totalGrossRevenue", "currency", true)}
+            <CheckRow label="Revenue Check" unit="OK / SHORTFALL" good="OK" base={r.base.revenueCheck} d15={r.d15.revenueCheck} d30={r.d30.revenueCheck} />
 
-            <SectionRow title="Step 7: Costs" />
-            {row("Ad Spend (from Step 4)", "$", "adSpend", "currency")}
+            <SectionRow title="Step 8: Costs" />
+            {row("Ad Spend (from Step 5)", "$", "adSpend", "currency")}
             <SliderRow
-              label="Sales Commission"
+              label="Low-Ticket Commission"
               unit="%"
-              value={inputs.salesCommissionRate * 100}
+              value={inputs.ltCommissionRate * 100}
               min={0}
               max={100}
               step={0.5}
-              onChange={(v) => set({ salesCommissionRate: v / 100 })}
+              onChange={(v) => set({ ltCommissionRate: v / 100 })}
             />
-            {row("Sales Commission", "$", "salesCommission", "currency")}
             <SliderRow
-              label="Rep Base Salary (Per Rep Per Month)"
-              unit="$"
-              value={inputs.repBaseSalary}
+              label="High-Ticket Commission"
+              unit="%"
+              value={inputs.htCommissionRate * 100}
               min={0}
-              max={20000}
-              step={100}
-              onChange={(v) => set({ repBaseSalary: v })}
+              max={100}
+              step={0.5}
+              onChange={(v) => set({ htCommissionRate: v / 100 })}
             />
+            {row("Total Commission", "$", "totalCommission", "currency")}
+            {inputRow("Rep Base Salary (Per Rep Per Month)", "$", "repBaseSalary", 0, 20000, 100)}
             {row("Total Rep Base Salary", "$", "totalRepBaseSalary", "currency")}
-            <SliderRow
-              label="Delivery Cost Per Sale"
-              unit="$"
-              value={inputs.deliveryCostPerSale}
-              min={0}
-              max={2000}
-              step={5}
-              onChange={(v) => set({ deliveryCostPerSale: v })}
-            />
+            {inputRow("Delivery Cost Per Low-Ticket Sale", "$", "ltDeliveryCost", 0, 2000, 5)}
+            {inputRow("Delivery Cost Per High-Ticket Sale", "$", "htDeliveryCost", 0, 10000, 25)}
             {row("Total Delivery Cost", "$", "totalDeliveryCost", "currency")}
-            <SliderRow
-              label="Fixed Monthly Expenses"
-              unit="$"
-              value={inputs.fixedMonthlyExpenses}
-              min={0}
-              max={100000}
-              step={100}
-              onChange={(v) => set({ fixedMonthlyExpenses: v })}
-            />
+            {inputRow("Fixed Monthly Expenses", "$", "fixedMonthlyExpenses", 0, 100000, 100)}
             {row("Total Costs", "$", "totalCosts", "currency", true)}
 
-            <SectionRow title="Step 8: Profit" />
-            {row("Gross Revenue (Attributed)", "$", "grossRevenue", "currency")}
+            <SectionRow title="Step 9: Profit & Self-Liquidation" />
             {row("Net Profit", "$", "netProfit", "currency", true)}
             {row("ROAS", "x", "roas", "ratio", true)}
             {row("Profit Margin", "%", "profitMargin", "percent", true)}
-            {row("CPA", "$", "cpa", "currency")}
+            <CheckRow label="Self-Liquidation Check" unit="YES / NO" good="YES" base={r.base.selfLiquidationCheck} d15={r.d15.selfLiquidationCheck} d30={r.d30.selfLiquidationCheck} />
+            {row("LT Revenue / Ad Spend Ratio", "x", "ltRevenueToAdSpend", "ratio")}
+            {row("Blended CPA", "$", "blendedCpa", "currency")}
+            {row("HT Deal Rate (% of LT Buyers)", "%", "htDealRate", "percent")}
 
-            <SectionRow title="Step 9: Break-Even Sensitivity" />
-            {row("Max Tolerable CPL", "$", "maxTolerableCpl", "currency")}
-            {row("Minimum Close Rate", "%", "minimumCloseRate", "percent")}
+            <SectionRow title="Step 10: Break-Even Sensitivity" />
+            {row("Minimum Activation Rate", "%", "minimumActivationRate", "percent")}
+            {row("Minimum Upsell Close Rate", "%", "minimumUpsellCloseRate", "percent")}
+            {row("Minimum High-Ticket AOV", "$", "minimumHtAov", "currency")}
             {row("Minimum Attribution Rate", "%", "minimumAttributionRate", "percent")}
-            {row("Minimum AOV", "$", "minimumAov", "currency")}
           </tbody>
         </table>
       </div>
