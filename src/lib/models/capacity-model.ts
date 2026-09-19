@@ -4,7 +4,7 @@ export type CapacityModelInputs = {
   closeRate: number; // fraction 0-1
   connectionRate: number; // fraction 0-1
   workingDays: number;
-  dialsPerRepPerDay: number;
+  dialers: number; // headcount we have (input)
 };
 
 export function computeCapacityModel(inputs: CapacityModelInputs) {
@@ -12,17 +12,15 @@ export function computeCapacityModel(inputs: CapacityModelInputs) {
   const pickupsNeeded = inputs.closeRate > 0 ? salesNeeded / inputs.closeRate : 0;
   const dialsNeeded = inputs.connectionRate > 0 ? pickupsNeeded / inputs.connectionRate : 0;
   const dialsNeededPerDay = inputs.workingDays > 0 ? dialsNeeded / inputs.workingDays : 0;
-  const repsNeededExact =
-    inputs.dialsPerRepPerDay > 0 ? dialsNeededPerDay / inputs.dialsPerRepPerDay : 0;
-  const repsNeededRoundUp = Math.ceil(repsNeededExact);
+  // Output, not an input: what the funnel rates force each dialer to work per day.
+  const leadsPerDialerPerDay = inputs.dialers > 0 ? dialsNeededPerDay / inputs.dialers : 0;
 
   return {
     salesNeeded,
     pickupsNeeded,
     dialsNeeded,
     dialsNeededPerDay,
-    repsNeededExact,
-    repsNeededRoundUp,
+    leadsPerDialerPerDay,
   };
 }
 

@@ -14,7 +14,7 @@ const DEFAULT_INPUTS: CapacityModelInputs = {
   closeRate: 0.2,
   connectionRate: 0.4,
   workingDays: 22,
-  dialsPerRepPerDay: 30,
+  dialers: 4,
 };
 
 function SliderRow({
@@ -98,9 +98,9 @@ export function CapacityModelTab() {
       </div>
 
       <p className="mb-4 text-sm text-black/60">
-        Set a revenue goal and your current funnel rates — this works backward to how many
-        outbound dials that requires and how many reps it takes, given how many leads one dialer
-        can realistically work in a day. -15% / -30% show what happens to headcount if Close Rate
+        Set a revenue goal, your current funnel rates, and how many dialers you have — this works
+        backward to how many outbound dials that requires and how many leads each dialer has to
+        work per day to hit it. -15% / -30% show how much heavier that load gets if Close Rate
         and Connection Rate both slip.
       </p>
 
@@ -172,16 +172,15 @@ export function CapacityModelTab() {
             />
             <Row label="Outbound Dials Needed / Day" base={scenarios.base.dialsNeededPerDay} d15={scenarios.d15.dialsNeededPerDay} d30={scenarios.d30.dialsNeededPerDay} />
             <SliderRow
-              label="Leads (Dials) per Diater / Day"
+              label="Number of Dialers"
               unit="#"
-              value={inputs.dialsPerRepPerDay}
+              value={inputs.dialers}
               min={1}
-              max={200}
+              max={50}
               step={1}
-              onChange={(v) => set({ dialsPerRepPerDay: v })}
+              onChange={(v) => set({ dialers: v })}
             />
-            <Row label="Reps Needed (exact)" base={scenarios.base.repsNeededExact} d15={scenarios.d15.repsNeededExact} d30={scenarios.d30.repsNeededExact} highlight />
-            <Row label="Reps Needed (round up)" base={scenarios.base.repsNeededRoundUp} d15={scenarios.d15.repsNeededRoundUp} d30={scenarios.d30.repsNeededRoundUp} highlight />
+            <Row label="Leads (Dials) per Dialer / Day" base={scenarios.base.leadsPerDialerPerDay} d15={scenarios.d15.leadsPerDialerPerDay} d30={scenarios.d30.leadsPerDialerPerDay} highlight />
           </tbody>
         </table>
       </div>
