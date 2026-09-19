@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { usePathname } from "next/navigation";
 import {
   applyCapacityDownside,
   applyHighTicketDownside,
@@ -28,6 +29,38 @@ const DEFAULT_INPUTS: CapacityModelInputs = {
   workingDays: 22,
   costPerLead: 10,
 };
+
+/**
+ * useState that survives a page refresh. Storage is per dashboard (keyed by path)
+ * so Bronson, Aval and EcomSimulation don't overwrite each other. This tab only
+ * mounts client-side after the Capacity tab is clicked, so reading storage in the
+ * initializer can't cause a hydration mismatch.
+ */
+function usePersistedState<T>(key: string, initial: T): [T, Dispatch<SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw === null) return initial;
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof initial === "object" && initial !== null) {
+        return parsed && typeof parsed === "object" ? { ...initial, ...parsed } : initial;
+      }
+      return typeof parsed === typeof initial ? (parsed as T) : initial;
+    } catch {
+      return initial;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Storage blocked or full: the model still works, it just won't persist.
+    }
+  }, [key, value]);
+
+  return [value, setValue];
+}
 
 function SliderRow({
   label,
@@ -74,9 +107,10 @@ function SliderRow({
 }
 
 export function CapacityModelTab() {
-  const [period, setPeriod] = useState<"weekly" | "monthly">("monthly");
-  const [inputs, setInputs] = useState<CapacityModelInputs>(DEFAULT_INPUTS);
-  const [ht, setHt] = useState<HighTicketAscensionInputs>(DEFAULT_HT_INPUTS);
+  const storageKey = `capacity-model:${usePathname()}`;
+  const [period, setPeriod] = usePersistedState<"weekly" | "monthly">(`${storageKey}:period`, "monthly");
+  const [inputs, setInputs] = usePersistedState<CapacityModelInputs>(`${storageKey}:inputs`, DEFAULT_INPUTS);
+  const [ht, setHt] = usePersistedState<HighTicketAscensionInputs>(`${storageKey}:ht`, DEFAULT_HT_INPUTS);
 
   const scenarios = useMemo(() => {
     const base = computeCapacityModel(inputs);
