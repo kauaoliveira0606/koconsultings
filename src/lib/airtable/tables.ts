@@ -394,6 +394,37 @@ export async function getPostCallNotes(): Promise<PostCallNoteRow[]> {
   });
 }
 
+// One row per lead per Eastern-time day with a 1+ minute phone conversation,
+// written hourly by the n8n "Bronson · Connected Calls Collector (GHL →
+// Airtable)" workflow. Source comes from the lead's GHL tag ("Base44 Paid" /
+// "Base44 Organic"), which the two opt-in workflows apply on entry — so only
+// leads who opted in after 2026-09-19 can appear here.
+const CONNECTED_CALLS_TABLE_ID = "tblvKz06oPjczAk0p";
+
+export type ConnectedCallRow = {
+  id: string;
+  date: string | null;
+  contactId: string | null;
+  source: string | null;
+  callsOverOneMin: number | null;
+};
+
+export async function getConnectedCalls(): Promise<ConnectedCallRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    BRONSON_BASE_ID,
+    CONNECTED_CALLS_TABLE_ID
+  );
+
+  return records.map((r) => ({
+    id: r.id,
+    date: parseDateOnly(r.fields.Date),
+    contactId: (r.fields["Contact ID"] as string) ?? null,
+    source: (r.fields.Source as string) ?? null,
+    callsOverOneMin:
+      typeof r.fields["Calls Over 1 Min"] === "number" ? r.fields["Calls Over 1 Min"] : null,
+  }));
+}
+
 export function wasPitched(row: PostCallNoteRow): boolean {
   return !!row.offerPitched && row.offerPitched !== "No Pitch/No Show";
 }
