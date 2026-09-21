@@ -1,5 +1,5 @@
 import { airtableListAll } from "./client";
-import { createAirtableTables, type TableIds } from "./tables";
+import { createAirtableTables, type ConnectedCallRow, type TableIds } from "./tables";
 import { parseDateOnly, parseNumericText } from "./parse";
 
 export const ECOM_SIMULATION_BASE_ID = "appgcEYqudlGfqBjE"; // "Andy - Ecom" base
@@ -23,6 +23,27 @@ export const {
   getSpeedToLead,
   getLeaderboard,
 } = createAirtableTables(ECOM_SIMULATION_BASE_ID, ECOM_SIMULATION_TABLE_IDS);
+
+// One row per lead per Eastern-time day with a 1+ minute answered Close call,
+// written hourly by the n8n "Andy · Connected Calls Collector (Close →
+// Airtable)" workflow (c6RkToEbY71oyI8i). Source comes from the Close lead's
+// "Tags" custom field ("Paid" / "Organic"), applied by Zapier on opt-in.
+const CONNECTED_CALLS_TABLE_ID = "tbl1cLhrVqg8aIEgG";
+
+export async function getConnectedCalls(): Promise<ConnectedCallRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    ECOM_SIMULATION_BASE_ID,
+    CONNECTED_CALLS_TABLE_ID
+  );
+  return records.map((r) => ({
+    id: r.id,
+    date: parseDateOnly(r.fields.Date),
+    contactId: (r.fields["Contact ID"] as string) ?? null,
+    source: (r.fields.Source as string) ?? null,
+    callsOverOneMin:
+      typeof r.fields["Calls Over 1 Min"] === "number" ? r.fields["Calls Over 1 Min"] : null,
+  }));
+}
 
 // This offer's sales team runs an affiliate/CPA motion instead of Bronson's
 // direct-dial motion, so its actual activity lives in these two tables rather
