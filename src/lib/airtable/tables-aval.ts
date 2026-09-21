@@ -3,6 +3,7 @@ import {
   createAirtableTables,
   type BronsonAffiliateEodRow,
   type BronsonEodCloserRow,
+  type ConnectedCallRow,
   type SpeedToLeadRow,
   type TableIds,
 } from "./tables";
@@ -33,6 +34,27 @@ export const {
   getMarketingDailyMetrics: getAvalMarketingDailyMetrics,
   getEodDialer: getAvalEodDialer,
 } = createAirtableTables(AVAL_BASE_ID, AVAL_TABLE_IDS);
+
+// One row per lead per Eastern-time day with a 1+ minute GHL phone call,
+// written hourly by the n8n "Aval · Connected Calls Collector (GHL →
+// Airtable)" workflow (kpvIOAUdpMNL2myW). Source comes from the lead's GHL
+// tag ("paid" / "organic"), applied by Zapier on opt-in.
+const AVAL_CONNECTED_CALLS_TABLE_ID = "tbl9glaXKhORUZKe9";
+
+export async function getAvalConnectedCalls(): Promise<ConnectedCallRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    AVAL_BASE_ID,
+    AVAL_CONNECTED_CALLS_TABLE_ID
+  );
+  return records.map((r) => ({
+    id: r.id,
+    date: parseDateOnly(r.fields.Date),
+    contactId: (r.fields["Contact ID"] as string) ?? null,
+    source: (r.fields.Source as string) ?? null,
+    callsOverOneMin:
+      typeof r.fields["Calls Over 1 Min"] === "number" ? r.fields["Calls Over 1 Min"] : null,
+  }));
+}
 
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 const EOD_CLOSER_TABLE_ID = "tbl0xIvtCZIjemZRZ";

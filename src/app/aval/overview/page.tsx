@@ -90,6 +90,22 @@ type LeadSourcesResponse = {
   };
 };
 
+type ConnectionRateResponse = {
+  trackingStart: string;
+  paid: { optIns: number; connected: number; rate: number | null };
+  organic: { optIns: number; connected: number; rate: number | null };
+};
+
+function connectionSubtext(
+  data: ConnectionRateResponse | undefined,
+  source: "paid" | "organic"
+): string {
+  const base = `Leads tagged "${source}" with a 1+ min call ÷ ${source} opt-ins.`;
+  if (!data) return base;
+  const { connected, optIns } = data[source];
+  return `${connected} of ${optIns} opt-ins. ${base} Tracked since ${data.trackingStart}.`;
+}
+
 type PlanSplitResponse = {
   monthly: number;
   yearly: number;
@@ -135,6 +151,10 @@ export default function OverviewPage() {
   const { data: metrics } = useSectionData<MetricsResponse>("/api/aval/overview/metrics", range);
   const { data: leadSources } = useSectionData<LeadSourcesResponse>(
     "/api/aval/overview/lead-sources",
+    range
+  );
+  const { data: connectionRate } = useSectionData<ConnectionRateResponse>(
+    "/api/aval/overview/connection-rate",
     range
   );
   const { data: planSplit } = useSectionData<PlanSplitResponse>(
@@ -370,6 +390,18 @@ export default function OverviewPage() {
             subtext="Pickups ÷ Opt-Ins."
             status={kpiStatus(metrics?.connectionRate, goals?.connectionRate?.min, "higher")}
             goal={kpiLabel(goals?.connectionRate?.min, "higher", "percent")}
+          />
+          <StatCard
+            label="Connection Rate (Paid)"
+            value={connectionRate?.paid.rate}
+            format="percent"
+            subtext={connectionSubtext(connectionRate, "paid")}
+          />
+          <StatCard
+            label="Connection Rate (Organic)"
+            value={connectionRate?.organic.rate}
+            format="percent"
+            subtext={connectionSubtext(connectionRate, "organic")}
           />
         </StatCardGrid>
       </DashboardSection>
