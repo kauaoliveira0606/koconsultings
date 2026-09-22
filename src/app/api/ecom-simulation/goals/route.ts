@@ -1,7 +1,7 @@
-import { getGoals } from "@/lib/goals";
+import { getEcomSimulationGoals } from "@/lib/goals-ecom-simulation";
 
 export const revalidate = 3600;
 
 export async function GET() {
-  return Response.json(await getGoals());
+  return Response.json(await getEcomSimulationGoals());
 }

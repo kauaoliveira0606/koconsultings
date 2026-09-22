@@ -23,10 +23,11 @@ export type GoalsConfig = {
 };
 
 /**
- * Hardcoded defaults matching the reference dashboard's screenshot.
- * Isolated behind this function so swapping to an Airtable-backed or
- * config-file source later is a one-function change, not a UI rewrite.
- * TODO: confirm real target numbers with the client before relying on these.
+ * Bronson's targets. Isolated behind this function so swapping to an
+ * Airtable-backed or config-file source later is a one-function change, not
+ * a UI rewrite. Confirmed KPI targets set 2026-09-22: connection rate 30%,
+ * opt-in rate 20%, close rate 35% (both low- and high-ticket), overall
+ * funnel conversion rate 10%.
  */
 export async function getGoals(): Promise<GoalsConfig> {
   return {
@@ -43,13 +44,13 @@ export async function getGoals(): Promise<GoalsConfig> {
     vslViews: null,
     dials: null,
     salesLowTicket: null,
-    closeRateLowTicket: { min: 0.4 },
+    closeRateLowTicket: { min: 0.35 },
     landingPageConnectRate: { min: 0.8 },
-    optInRate: { min: 0.3 },
+    optInRate: { min: 0.2 },
     vslPlayRate: { min: 0.7 },
     vslEngagementRate: { min: 0.4 },
-    connectionRate: { min: 0.2 },
+    connectionRate: { min: 0.3 },
     showRate: { min: 0.7 },
-    highTicketCloseRate: { min: 0.3 },
+    highTicketCloseRate: { min: 0.35 },
   };
 }

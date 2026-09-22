@@ -7,16 +7,18 @@ import {
 } from "@/lib/airtable/tables-ecom-simulation";
 import type { BronsonAffiliateEodRow } from "@/lib/airtable/tables";
 import { buildWeeklyScorecard } from "@/lib/weekly-scorecard";
+import { getEcomSimulationGoals } from "@/lib/goals-ecom-simulation";
 
 export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
   const weekStart = request.nextUrl.searchParams.get("weekStart");
-  const [marketing, leads, eodRaw, closer] = await Promise.all([
+  const [marketing, leads, eodRaw, closer, goals] = await Promise.all([
     getMarketingDailyMetrics(),
     getLeads(),
     getAffiliateEod(),
     getEodCloser(),
+    getEcomSimulationGoals(),
   ]);
 
   // Reshape into the shared row shape (Bronson/Aval's own getters already
@@ -40,6 +42,6 @@ export async function GET(request: NextRequest) {
     totalTalkTimeRaw: r.totalTalkTimeRaw,
   }));
 
-  const payload = await buildWeeklyScorecard(marketing, leads, eod, closer, weekStart);
+  const payload = await buildWeeklyScorecard(marketing, leads, eod, closer, weekStart, new Date(), goals);
   return Response.json(payload);
 }

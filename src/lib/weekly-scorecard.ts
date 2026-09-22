@@ -8,7 +8,7 @@ import type {
 import { isOrganicSource, isPaidSource } from "./airtable/lead-source-lookup";
 import { easternDateString, toEasternDateOnly } from "./date-range";
 import { average, roas, safeDivide, sum } from "./metrics";
-import { getGoals } from "./goals";
+import type { getGoals } from "./goals";
 
 export type CellStatus = "green" | "yellow" | "red" | null;
 export type GoalDirection = "higher" | "lower";
@@ -559,7 +559,8 @@ export async function buildWeeklyScorecard(
   allEod: BronsonAffiliateEodRow[],
   allCloser: BronsonEodCloserRow[],
   weekStartInput: string | null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  goals: Awaited<ReturnType<typeof getGoals>>
 ): Promise<WeeklyScorecardPayload> {
   const currentWeekStart = sundayOf(todayIso(now));
   const weekStart = weekStartInput ? sundayOf(weekStartInput) : currentWeekStart;
@@ -649,7 +650,6 @@ export async function buildWeeklyScorecard(
   });
   const scoredDays = dayCtxs.filter((c) => c.date < todayE);
 
-  const goals = await getGoals();
   const groups: ScorecardGroup[] = buildSpecs(goals).map((g) => ({
     emoji: g.emoji,
     title: g.title,
