@@ -13,6 +13,8 @@ import {
   bronsonAgencyProfit,
   avalAgencyProfit,
   ecomSimAgencyProfit,
+  bronsonSalesManagerCut,
+  ecomSimSalesManagerCut,
   type DailyOfferRow,
 } from "@/lib/agency";
 
@@ -57,12 +59,25 @@ export async function GET(request: NextRequest) {
   const avalRows = avalAllRows.filter((r) => isDateInRange(r.date, range));
   const ecomRows = ecomAllRows.filter((r) => isDateInRange(r.date, range));
 
-  const bronson = { ...clientSummary(bronsonRows), agencyProfit: bronsonAgencyProfit(bronsonRows) };
-  const aval = { ...avalClientSummary(avalRows), agencyProfit: avalAgencyProfit(avalRows) };
-  const ecomSimulation = {
-    ...clientSummary(ecomRows),
-    agencyProfit: ecomSimAgencyProfit(ecomAllRows, range),
-  };
+  // Personal Profit = Agency Profit minus the sales manager's 5% cut, which
+  // comes out of the agency owner's own split (Bronson + Andy only).
+  const withPersonal = <T extends { agencyProfit: number }>(c: T, salesManagerCut: number) => ({
+    ...c,
+    salesManagerCut,
+    personalProfit: c.agencyProfit - salesManagerCut,
+  });
+  const bronson = withPersonal(
+    { ...clientSummary(bronsonRows), agencyProfit: bronsonAgencyProfit(bronsonRows) },
+    bronsonSalesManagerCut(bronsonRows)
+  );
+  const aval = withPersonal(
+    { ...avalClientSummary(avalRows), agencyProfit: avalAgencyProfit(avalRows) },
+    0
+  );
+  const ecomSimulation = withPersonal(
+    { ...clientSummary(ecomRows), agencyProfit: ecomSimAgencyProfit(ecomAllRows, range) },
+    ecomSimSalesManagerCut(ecomRows)
+  );
 
   const clients = { bronson, aval, ecomSimulation };
   const totalCashCollected = bronson.cash + aval.cash + ecomSimulation.cash;
@@ -71,12 +86,9 @@ export async function GET(request: NextRequest) {
   const totalSalesTeamPayout =
     bronson.salesTeamPayout + aval.salesTeamPayout + ecomSimulation.salesTeamPayout;
   const totalAgencyProfit = bronson.agencyProfit + aval.agencyProfit + ecomSimulation.agencyProfit;
-  // Sales manager gets 5% of Net Cash (not Agency Profit) on Bronson and
-  // Andy only — no cut on Aval at all. Paid personally out of the agency
-  // owner's own take-home, so it's subtracted from My Profit, not spread
-  // across the total Agency Profit line.
-  const salesManagerCut = 0.05 * (bronson.profit + ecomSimulation.profit);
-  const myProfit = totalAgencyProfit - salesManagerCut;
+  const salesManagerCut =
+    bronson.salesManagerCut + aval.salesManagerCut + ecomSimulation.salesManagerCut;
+  const myProfit = bronson.personalProfit + aval.personalProfit + ecomSimulation.personalProfit;
 
   const byDayMap = new Map<string, { cash: number; adSpend: number }>();
   for (const rows of [bronsonRows, avalRows, ecomRows]) {

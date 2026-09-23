@@ -8,7 +8,8 @@ import {
   bronsonAgencyProfitByDay,
   avalAgencyProfitByDay,
   ecomSimAgencyProfitByDay,
-  profitByDay,
+  bronsonSalesManagerCutByDay,
+  ecomSimSalesManagerCutByDay,
   type DailyOfferRow,
 } from "@/lib/agency";
 
@@ -49,10 +50,10 @@ export async function GET(request: NextRequest) {
   const bronsonCashByDay = cashByDay(bronsonRows);
   const avalCashByDay = cashByDay(avalRows);
   const ecomCashByDay = cashByDay(ecomRows);
-  // Sales manager's 5% cut is on Net Cash, Bronson and Andy only — no cut
-  // on Aval — same rule as the top-level stat cards, applied per day.
-  const bronsonProfitByDay = profitByDay(bronsonRows);
-  const ecomProfitByDay = profitByDay(ecomRows);
+  // Sales manager's 5% cut, Bronson and Andy only — no cut on Aval — same
+  // rule as the top-level stat cards and By Client table, applied per day.
+  const bronsonManagerCutByDay = bronsonSalesManagerCutByDay(bronsonRows);
+  const ecomManagerCutByDay = ecomSimSalesManagerCutByDay(ecomRows);
 
   const dates = new Set<string>(
     [...bronsonRows, ...avalRows, ...ecomRows].map((r) => r.date).filter((d) => d.startsWith(month))
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
     const totalCash =
       (bronsonCashByDay.get(date) ?? 0) + (avalCashByDay.get(date) ?? 0) + (ecomCashByDay.get(date) ?? 0);
     const salesManagerCut =
-      0.05 * ((bronsonProfitByDay.get(date) ?? 0) + (ecomProfitByDay.get(date) ?? 0));
+      (bronsonManagerCutByDay.get(date) ?? 0) + (ecomManagerCutByDay.get(date) ?? 0);
     const myProfit = agencyProfit - salesManagerCut;
 
     byDay[date] = { agencyProfit, totalCash, myProfit, byClient };

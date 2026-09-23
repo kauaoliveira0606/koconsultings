@@ -14,6 +14,8 @@ type ClientMetrics = {
   salesTeamPayout: number;
   profit: number;
   agencyProfit: number;
+  salesManagerCut: number;
+  personalProfit: number;
 };
 
 type MetricsResponse = {
@@ -50,6 +52,7 @@ export default function AgencyPage() {
         profit: data.totalProfit,
         salesTeamPayout: data.totalSalesTeamPayout,
         agencyProfit: data.totalAgencyProfit,
+        personalProfit: data.myProfit,
       }
     : null;
 
@@ -123,7 +126,7 @@ export default function AgencyPage() {
           label="Sales Manager Cut"
           value={data?.salesManagerCut}
           format="currency"
-          subtext="5% of Net Cash on Bronson and Andy only — no cut on Aval. Comes out of your own take-home."
+          subtext="Bronson: 5% of organic cash + 5% of paid profit. Andy: 5% of organic + paid profit. No cut on Aval. Comes out of your own take-home."
         />
       </div>
 
@@ -148,6 +151,7 @@ export default function AgencyPage() {
                 <th className="px-4 py-3 text-right">Profit</th>
                 <th className="px-4 py-3 text-right">Sales Team Payout</th>
                 <th className="px-4 py-3 text-right">Agency Profit</th>
+                <th className="px-4 py-3 text-right">Personal Profit</th>
               </tr>
             </thead>
             <tbody>
@@ -170,6 +174,9 @@ export default function AgencyPage() {
                     <td className="px-4 py-3 text-right font-semibold text-emerald-400">
                       {formatStatValue(c?.agencyProfit, "currency")}
                     </td>
+                    <td className="px-4 py-3 text-right font-semibold text-emerald-400">
+                      {formatStatValue(c?.personalProfit, "currency")}
+                    </td>
                   </tr>
                 );
               })}
@@ -183,6 +190,9 @@ export default function AgencyPage() {
                 </td>
                 <td className="px-4 py-3 text-right text-emerald-400">
                   {formatStatValue(totalRow?.agencyProfit, "currency")}
+                </td>
+                <td className="px-4 py-3 text-right text-emerald-400">
+                  {formatStatValue(totalRow?.personalProfit, "currency")}
                 </td>
               </tr>
             </tbody>

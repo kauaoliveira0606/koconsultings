@@ -211,6 +211,44 @@ export function ecomSimAgencyProfit(allRows: DailyOfferRow[], range: ResolvedRan
   return total;
 }
 
+/**
+ * Sales manager's 5% cut, paid out of the agency owner's own split — per
+ * day. Mirrors each offer's own profit-share basis: Bronson's organic leg
+ * is on top-line organic cash, Andy's is on organic profit (after sales
+ * team); the paid leg is on paid profit (after ad spend + sales team) for
+ * both. No cut on Aval.
+ */
+function salesManagerCutByDay(
+  rows: DailyOfferRow[],
+  organicBasis: "cash" | "profit"
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
+    const cashOrganic = r.ltCashOrganic + r.htCashOrganic;
+    const organicBase = organicBasis === "cash" ? cashOrganic : cashOrganic - payoutOrganic;
+    const paidProfit = r.ltCashPaid + r.htCashPaid - r.adSpend - payoutPaid;
+    map.set(r.date, 0.05 * organicBase + 0.05 * paidProfit);
+  }
+  return map;
+}
+
+export function bronsonSalesManagerCutByDay(rows: DailyOfferRow[]): Map<string, number> {
+  return salesManagerCutByDay(rows, "cash");
+}
+
+export function ecomSimSalesManagerCutByDay(rows: DailyOfferRow[]): Map<string, number> {
+  return salesManagerCutByDay(rows, "profit");
+}
+
+export function bronsonSalesManagerCut(rows: DailyOfferRow[]): number {
+  return sumMapValues(bronsonSalesManagerCutByDay(rows));
+}
+
+export function ecomSimSalesManagerCut(rows: DailyOfferRow[]): number {
+  return sumMapValues(ecomSimSalesManagerCutByDay(rows));
+}
+
 function sumMapValues(map: Map<string, number>): number {
   let total = 0;
   for (const v of map.values()) total += v;
