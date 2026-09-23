@@ -160,11 +160,11 @@ export function bronsonAgencyProfit(rows: DailyOfferRow[]): number {
   return sumMapValues(bronsonAgencyProfitByDay(rows));
 }
 
-/** Aval: flat 11.5% of top-line cash, minus ad spend — no sales team deduction — per day. */
+/** Aval: 11.5% of (cash minus ad spend) — no sales team deduction — per day. */
 export function avalAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
-    map.set(r.date, 0.115 * cash(r) - r.adSpend);
+    map.set(r.date, 0.115 * (cash(r) - r.adSpend));
   }
   return map;
 }
