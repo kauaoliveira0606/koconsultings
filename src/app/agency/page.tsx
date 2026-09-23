@@ -52,6 +52,7 @@ export default function AgencyPage() {
         profit: data.totalProfit,
         salesTeamPayout: data.totalSalesTeamPayout,
         agencyProfit: data.totalAgencyProfit,
+        salesManagerCut: data.salesManagerCut,
         personalProfit: data.myProfit,
       }
     : null;
@@ -151,6 +152,7 @@ export default function AgencyPage() {
                 <th className="px-4 py-3 text-right">Profit</th>
                 <th className="px-4 py-3 text-right">Sales Team Payout</th>
                 <th className="px-4 py-3 text-right">Agency Profit</th>
+                <th className="px-4 py-3 text-right">Sales Manager Payout</th>
                 <th className="px-4 py-3 text-right">Personal Profit</th>
               </tr>
             </thead>
@@ -174,6 +176,9 @@ export default function AgencyPage() {
                     <td className="px-4 py-3 text-right font-semibold text-emerald-400">
                       {formatStatValue(c?.agencyProfit, "currency")}
                     </td>
+                    <td className="px-4 py-3 text-right font-semibold text-red-400">
+                      {formatStatValue(c?.salesManagerCut, "currency")}
+                    </td>
                     <td className="px-4 py-3 text-right font-semibold text-emerald-400">
                       {formatStatValue(c?.personalProfit, "currency")}
                     </td>
@@ -190,6 +195,9 @@ export default function AgencyPage() {
                 </td>
                 <td className="px-4 py-3 text-right text-emerald-400">
                   {formatStatValue(totalRow?.agencyProfit, "currency")}
+                </td>
+                <td className="px-4 py-3 text-right text-red-400">
+                  {formatStatValue(totalRow?.salesManagerCut, "currency")}
                 </td>
                 <td className="px-4 py-3 text-right text-emerald-400">
                   {formatStatValue(totalRow?.personalProfit, "currency")}
