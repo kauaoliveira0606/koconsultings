@@ -175,36 +175,25 @@ export function avalAgencyProfit(rows: DailyOfferRow[]): number {
 
 /**
  * Andy (Ecom Simulation): 17.5% organic / 22.5% paid, doubling to 35%/45%
- * the moment that CALENDAR MONTH's running (organic + paid) cash hits
- * $100k — from that point on only, per the client. Cash before the line
- * stays at the lower tier; on the day that crosses it, the day's profit is
- * split pro rata by how much of its cash landed below vs above $100k.
- * `allRows` must be unfiltered by date range (every row this offer has
- * ever logged) so the running month total is right even when only a
- * narrower slice of it is being summed.
+ * once that CALENDAR MONTH's combined (organic + paid) cash crosses
+ * $100k — the whole month's cash re-rates at the higher tier, not just the
+ * amount above $100k. `allRows` must be unfiltered by date range (every
+ * row this offer has ever logged) so a month's tier is judged on its full
+ * total even when only a narrower slice of it is being summed.
  */
-const ECOM_SIM_TIER_THRESHOLD = 100_000;
-
 export function ecomSimAgencyProfitByDay(allRows: DailyOfferRow[]): Map<string, number> {
-  const sorted = [...allRows].sort((a, b) => a.date.localeCompare(b.date));
-  const runningMonthCash = new Map<string, number>();
+  const monthCash = new Map<string, number>();
+  for (const r of allRows) {
+    const month = r.date.slice(0, 7);
+    monthCash.set(month, (monthCash.get(month) ?? 0) + cash(r));
+  }
 
   const map = new Map<string, number>();
-  for (const r of sorted) {
+  for (const r of allRows) {
     const month = r.date.slice(0, 7);
-    const before = runningMonthCash.get(month) ?? 0;
-    const dayCash = cash(r);
-    const after = before + dayCash;
-    runningMonthCash.set(month, after);
-
-    // Share of this day's cash that sits at or above the $100k line.
-    let highShare: number;
-    if (before >= ECOM_SIM_TIER_THRESHOLD) highShare = 1;
-    else if (after <= ECOM_SIM_TIER_THRESHOLD || dayCash <= 0) highShare = 0;
-    else highShare = (after - ECOM_SIM_TIER_THRESHOLD) / dayCash;
-
-    const rateOrganic = 0.175 * (1 - highShare) + 0.35 * highShare;
-    const ratePaid = 0.225 * (1 - highShare) + 0.45 * highShare;
+    const tierHit = (monthCash.get(month) ?? 0) > 100_000;
+    const rateOrganic = tierHit ? 0.35 : 0.175;
+    const ratePaid = tierHit ? 0.45 : 0.225;
     const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
     const organicProfit = r.ltCashOrganic + r.htCashOrganic - payoutOrganic;
     const paidProfit = r.ltCashPaid + r.htCashPaid - r.adSpend - payoutPaid;
