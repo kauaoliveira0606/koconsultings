@@ -79,10 +79,6 @@ export default function AgencyPage() {
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
 
-      <div className="mb-8">
-        <AgencyExpenses />
-      </div>
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           label="Total Ad Spend"
@@ -137,6 +133,10 @@ export default function AgencyPage() {
           format="currency"
           subtext="Bronson: 5% of organic cash + 5% of paid profit. Andy: 5% of organic + paid profit. No cut on Aval. Comes out of your own take-home."
         />
+      </div>
+
+      <div className="mt-8">
+        <AgencyExpenses />
       </div>
 
       <div className="mt-8">
