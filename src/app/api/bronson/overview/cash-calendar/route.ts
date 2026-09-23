@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { getMarketingDailyMetrics, getLeads, getBronsonAffiliatePcn } from "@/lib/airtable/tables";
-import { filterByMonth, getCashByDay, monthTotal } from "@/lib/cash-calendar";
+import { filterByMonth, getAdSpendByDay, getCashByDay, monthTotal } from "@/lib/cash-calendar";
 import { cashBySourceByDay } from "@/lib/airtable/lead-source-lookup";
 
 export const revalidate = 60;
@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
   // Cash Collected comes exclusively from the Marketing Daily Metrics form,
   // per the client — no layering in EOD Closer's own cash figure.
   const byDay = filterByMonth(getCashByDay(marketing), month);
+  const adSpendByDay = filterByMonth(getAdSpendByDay(marketing), month);
 
   // Post Call Note has no lead-email field on this offer, so only Affiliate
   // PCN closes can be matched to a lead for the Paid/Organic split.
@@ -29,5 +30,10 @@ export async function GET(request: NextRequest) {
     if (date.startsWith(month)) bySourceForMonth[date] = value;
   }
 
-  return Response.json({ byDay, total: monthTotal(byDay), bySourceDay: bySourceForMonth });
+  return Response.json({
+    byDay,
+    total: monthTotal(byDay),
+    bySourceDay: bySourceForMonth,
+    adSpendByDay,
+  });
 }

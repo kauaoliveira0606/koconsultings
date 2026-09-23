@@ -13,6 +13,16 @@ export function getCashByDay(rows: MarketingDailyMetricRow[]): CashByDay {
   return byDay;
 }
 
+/** Sums Meta ad spend per date (YYYY-MM-DD). */
+export function getAdSpendByDay(rows: MarketingDailyMetricRow[]): CashByDay {
+  const byDay: CashByDay = {};
+  for (const row of rows) {
+    if (!row.date) continue;
+    byDay[row.date] = (byDay[row.date] ?? 0) + (row.adSpendMeta ?? 0);
+  }
+  return byDay;
+}
+
 export function filterByMonth(byDay: CashByDay, month: string /* YYYY-MM */): CashByDay {
   const filtered: CashByDay = {};
   for (const [date, value] of Object.entries(byDay)) {

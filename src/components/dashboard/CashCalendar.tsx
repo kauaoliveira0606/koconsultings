@@ -43,6 +43,7 @@ type CashCalendarResponse = {
   byDay: Record<string, number>;
   total: number;
   bySourceDay: Record<string, { paid: number; organic: number; unattributed: number }>;
+  adSpendByDay: Record<string, number>;
 };
 
 function monthLabel(month: string): string {
@@ -78,6 +79,7 @@ export function CashCalendar({ apiPath }: { apiPath: string }) {
 
   const byDay = data?.byDay ?? {};
   const bySourceDay = data?.bySourceDay ?? {};
+  const adSpendByDay = data?.adSpendByDay ?? {};
   const max = Math.max(0, ...Object.values(byDay));
   const days = daysInMonth(month);
   const blanks = leadingBlankCount(month);
@@ -86,10 +88,10 @@ export function CashCalendar({ apiPath }: { apiPath: string }) {
     <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-[var(--text-muted)]">
-          Cash collected per day, from Marketing Daily Metrics submissions. Paid/Organic/
-          Unattributed split below each day is the Affiliate PCN cross-reference (may not sum to
-          the same total — independently submitted sources; Unattributed = closed calls whose
-          email didn&apos;t match a lead).
+          Cash collected per day, from Marketing Daily Metrics submissions. Ad Spend and Net Cash
+          (collected minus spend) come from the same submissions; Paid/Organic is the Affiliate
+          PCN cross-reference and may not sum to the same total — independently submitted
+          sources.
         </p>
         <div className="flex items-center gap-3">
           <button
@@ -128,24 +130,46 @@ export function CashCalendar({ apiPath }: { apiPath: string }) {
               const value = byDay[date] ?? 0;
               const bucket = bucketIntensity(value, max);
               const source = bySourceDay[date];
+              const adSpend = adSpendByDay[date] ?? 0;
+              const netCash = value - adSpend;
+              const subtextClass = BUCKET_SUBTEXT_COLORS[bucket];
               return (
                 <div
                   key={date}
-                  className={`flex h-24 flex-col justify-between rounded-md border border-[var(--panel-border)] p-2 ${BUCKET_COLORS[bucket]} ${BUCKET_TEXT_COLORS[bucket]}`}
+                  className={`flex h-32 flex-col gap-1 rounded-md border border-[var(--panel-border)] p-2 ${BUCKET_COLORS[bucket]} ${BUCKET_TEXT_COLORS[bucket]}`}
                 >
-                  <span className="text-xs font-semibold">{day}</span>
+                  <div className="flex items-start justify-between">
+                    <span className="text-xs font-semibold">{day}</span>
+                    {value > 0 ? (
+                      <span className="text-right text-xs font-bold">
+                        {formatStatValue(value, "currency")}
+                      </span>
+                    ) : null}
+                  </div>
                   {value > 0 ? (
-                    <span className="text-right text-xs font-bold">{formatStatValue(value, "currency")}</span>
-                  ) : null}
-                  {source && (source.paid > 0 || source.organic > 0 || source.unattributed > 0) ? (
-                    <div className={`text-right text-[10px] leading-tight ${BUCKET_SUBTEXT_COLORS[bucket]}`}>
-                      {source.paid > 0 ? <div>P: {formatStatValue(source.paid, "currency")}</div> : null}
-                      {source.organic > 0 ? (
-                        <div>O: {formatStatValue(source.organic, "currency")}</div>
-                      ) : null}
-                      {source.unattributed > 0 ? (
-                        <div>U: {formatStatValue(source.unattributed, "currency")}</div>
-                      ) : null}
+                    <div
+                      className={`mt-auto grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] leading-tight ${subtextClass}`}
+                    >
+                      <div>
+                        <div className="opacity-80">Paid</div>
+                        <div className="font-semibold">
+                          {formatStatValue(source?.paid ?? 0, "currency")}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="opacity-80">Ad Spend</div>
+                        <div className="font-semibold">{formatStatValue(adSpend, "currency")}</div>
+                      </div>
+                      <div>
+                        <div className="opacity-80">Organic</div>
+                        <div className="font-semibold">
+                          {formatStatValue(source?.organic ?? 0, "currency")}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="opacity-80">Net Cash</div>
+                        <div className="font-semibold">{formatStatValue(netCash, "currency")}</div>
+                      </div>
                     </div>
                   ) : null}
                 </div>
