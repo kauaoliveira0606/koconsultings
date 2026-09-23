@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
+import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
 import {
-  getAvalMarketingDailyMetrics,
-  getAvalLeads,
-  getAvalAffiliatePcn,
-  getAvalPostCallNotes,
-} from "@/lib/airtable/tables-aval";
-import { filterByMonth, getAdSpendByDay, getCashByDay, monthTotal } from "@/lib/cash-calendar";
-import { cashBySourceByDay } from "@/lib/airtable/lead-source-lookup";
+  filterByMonth,
+  getAdSpendByDay,
+  getCashByDay,
+  getCashSourceByDay,
+  monthTotal,
+} from "@/lib/cash-calendar";
 
 export const revalidate = 60;
 
@@ -16,31 +16,21 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "month query param (YYYY-MM) is required" }, { status: 400 });
   }
 
-  const [marketing, leads, pcn, postCallNotes] = await Promise.all([
-    getAvalMarketingDailyMetrics(),
-    getAvalLeads(),
-    getAvalAffiliatePcn(),
-    getAvalPostCallNotes(),
-  ]);
+  const marketing = await getAvalMarketingDailyMetrics();
 
-  // Cash Collected comes exclusively from the Marketing Daily Metrics form,
-  // per the client — no layering in EOD Closer's own cash figure.
+  // Cash Collected, its Paid/Organic split, and Ad Spend all come exclusively
+  // from the Marketing Daily Metrics form — no Affiliate PCN/EOD
+  // cross-reference. That cross-reference is independently submitted and
+  // doesn't reliably sum to the real cash total; the form's own
+  // "(Paid)"/"(Organic)" columns always do.
   const byDay = filterByMonth(getCashByDay(marketing), month);
   const adSpendByDay = filterByMonth(getAdSpendByDay(marketing), month);
-
-  const postCallNoteClosed = postCallNotes
-    .filter((r) => r.cashCollected !== null && r.cashCollected > 0)
-    .map((r) => ({ leadEmail: r.leadEmail, cpaCash: r.cashCollected, date: r.date }));
-  const bySourceDay = cashBySourceByDay(leads, [...pcn, ...postCallNoteClosed]);
-  const bySourceForMonth: typeof bySourceDay = {};
-  for (const [date, value] of Object.entries(bySourceDay)) {
-    if (date.startsWith(month)) bySourceForMonth[date] = value;
-  }
+  const bySourceDay = filterByMonth(getCashSourceByDay(marketing), month);
 
   return Response.json({
     byDay,
     total: monthTotal(byDay),
-    bySourceDay: bySourceForMonth,
+    bySourceDay,
     adSpendByDay,
   });
 }

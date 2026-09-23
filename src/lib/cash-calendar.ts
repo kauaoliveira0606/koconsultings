@@ -13,6 +13,29 @@ export function getCashByDay(rows: MarketingDailyMetricRow[]): CashByDay {
   return byDay;
 }
 
+export type CashSourceByDay = Record<string, { paid: number; organic: number }>;
+
+/**
+ * Paid/Organic split per date, straight from the Marketing Daily Metrics
+ * form's own "(Paid)"/"(Organic)" columns (Low Ticket + High Ticket
+ * combined) — NOT the Affiliate PCN/EOD cross-reference, which is
+ * independently submitted and doesn't reliably sum to the real cash total.
+ * These always sum exactly to getCashByDay's total for the same row, since
+ * both come from the same splitCash() reconciliation in the parser.
+ */
+export function getCashSourceByDay(rows: MarketingDailyMetricRow[]): CashSourceByDay {
+  const byDay: CashSourceByDay = {};
+  for (const row of rows) {
+    if (!row.date) continue;
+    const paid = (row.cashCollectedLowTicketPaid ?? 0) + (row.cashCollectedHighTicketPaid ?? 0);
+    const organic =
+      (row.cashCollectedLowTicketOrganic ?? 0) + (row.cashCollectedHighTicketOrganic ?? 0);
+    const prev = byDay[row.date] ?? { paid: 0, organic: 0 };
+    byDay[row.date] = { paid: prev.paid + paid, organic: prev.organic + organic };
+  }
+  return byDay;
+}
+
 /** Sums Meta ad spend per date (YYYY-MM-DD). */
 export function getAdSpendByDay(rows: MarketingDailyMetricRow[]): CashByDay {
   const byDay: CashByDay = {};
@@ -23,8 +46,11 @@ export function getAdSpendByDay(rows: MarketingDailyMetricRow[]): CashByDay {
   return byDay;
 }
 
-export function filterByMonth(byDay: CashByDay, month: string /* YYYY-MM */): CashByDay {
-  const filtered: CashByDay = {};
+export function filterByMonth<T>(
+  byDay: Record<string, T>,
+  month: string /* YYYY-MM */
+): Record<string, T> {
+  const filtered: Record<string, T> = {};
   for (const [date, value] of Object.entries(byDay)) {
     if (date.startsWith(month)) filtered[date] = value;
   }

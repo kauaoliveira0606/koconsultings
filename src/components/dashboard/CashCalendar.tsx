@@ -42,7 +42,7 @@ const BUCKET_SUBTEXT_COLORS = [
 type CashCalendarResponse = {
   byDay: Record<string, number>;
   total: number;
-  bySourceDay: Record<string, { paid: number; organic: number; unattributed: number }>;
+  bySourceDay: Record<string, { paid: number; organic: number }>;
   adSpendByDay: Record<string, number>;
 };
 
@@ -88,10 +88,9 @@ export function CashCalendar({ apiPath }: { apiPath: string }) {
     <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-[var(--text-muted)]">
-          Cash collected per day, from Marketing Daily Metrics submissions. Ad Spend and Net Cash
-          (collected minus spend) come from the same submissions; Paid/Organic is the Affiliate
-          PCN cross-reference and may not sum to the same total — independently submitted
-          sources.
+          Cash collected per day, Paid/Organic split, and Ad Spend all come from Marketing Daily
+          Metrics submissions only (no Affiliate PCN/EOD cross-reference). Net Cash is collected
+          minus ad spend. Paid + Organic always sums to the total.
         </p>
         <div className="flex items-center gap-3">
           <button
