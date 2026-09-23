@@ -28,6 +28,13 @@ function clientSummary(rows: DailyOfferRow[]) {
   };
 }
 
+/** Aval is a straight 11.5% revenue share — no sales team comes out of it, only ad spend. */
+function avalClientSummary(rows: DailyOfferRow[]) {
+  const cash = sumCash(rows);
+  const adSpend = sumAdSpend(rows);
+  return { cash, adSpend, salesTeamPayout: 0, profit: cash - adSpend };
+}
+
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
@@ -51,7 +58,7 @@ export async function GET(request: NextRequest) {
   const ecomRows = ecomAllRows.filter((r) => isDateInRange(r.date, range));
 
   const bronson = { ...clientSummary(bronsonRows), agencyProfit: bronsonAgencyProfit(bronsonRows) };
-  const aval = { ...clientSummary(avalRows), agencyProfit: avalAgencyProfit(avalRows) };
+  const aval = { ...avalClientSummary(avalRows), agencyProfit: avalAgencyProfit(avalRows) };
   const ecomSimulation = {
     ...clientSummary(ecomRows),
     agencyProfit: ecomSimAgencyProfit(ecomAllRows, range),
