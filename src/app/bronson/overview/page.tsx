@@ -1,10 +1,11 @@
 "use client";
 
+import { RecentChanges } from "@/components/dashboard/RecentChanges";
 import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { CashCalendar } from "@/components/dashboard/CashCalendar";
-import { RangeFilterBar, defaultRangeState } from "@/components/dashboard/RangeFilterBar";
+import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
@@ -102,13 +103,6 @@ type PlanSplitResponse = {
   unknown: number;
   total: number;
   yearlyShare: number | null;
-};
-
-type RecentChangesResponse = {
-  days: {
-    date: string;
-    changesMadeToday: string;
-  }[];
 };
 
 // --- KPI helpers: same green/yellow/red scale the Weekly Scorecard uses, so
@@ -638,7 +632,9 @@ export default function OverviewPage() {
         </p>
       </DashboardSection>
 
-      <RecentChanges />
+      <DashboardSection title="Recent Changes">
+        <RecentChanges apiPath="/api/bronson/overview/recent-changes" />
+      </DashboardSection>
 
       <WeeklyScorecard />
 
@@ -646,41 +642,5 @@ export default function OverviewPage() {
         <CashCalendar apiPath="/api/bronson/overview/cash-calendar" />
       </DashboardSection>
     </div>
-  );
-}
-
-function RecentChanges() {
-  const { data } = useSectionData<RecentChangesResponse>(
-    "/api/bronson/overview/recent-changes",
-    defaultRangeState("all_time")
-  );
-
-  return (
-    <DashboardSection title="Recent Changes">
-      <p className="mb-3 text-sm text-[var(--text-muted)]">
-        Each &quot;Changes Made Today&quot; note from the Marketing Daily Metrics form.
-      </p>
-      {data && data.days.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {data.days.map((day) => (
-            <div
-              key={day.date}
-              className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm"
-            >
-              <div className="mb-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
-                {day.date}
-              </div>
-              <p className="whitespace-pre-wrap border-l-2 border-[var(--accent)] pl-3 text-sm text-[var(--text-strong)]">
-                {day.changesMadeToday}
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm text-[var(--text-muted)] backdrop-blur-sm">
-          No &quot;Changes Made Today&quot; notes logged in the last 14 days.
-        </div>
-      )}
-    </DashboardSection>
   );
 }

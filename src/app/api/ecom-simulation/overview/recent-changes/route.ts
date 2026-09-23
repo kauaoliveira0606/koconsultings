@@ -1,34 +1,30 @@
 import { getMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
-import { easternDateString, toEasternDateOnly } from "@/lib/date-range";
+import {
+  DASHBOARD_CHANGES_TABLES,
+  getRecentChanges,
+  saveDayChanges,
+} from "@/lib/airtable/dashboard-changes";
 
 // Always needs live Airtable data.
 export const dynamic = "force-dynamic";
-export const revalidate = 60;
 
-const WINDOW_DAYS = 14;
+const TABLE = DASHBOARD_CHANGES_TABLES.ecomSimulation;
 
 export async function GET() {
-  const marketing = await getMarketingDailyMetrics();
-  const cutoff = easternDateString(new Date(Date.now() - WINDOW_DAYS * 864e5));
-  const today = easternDateString();
-
-  // Only days the team actually left a "Changes Made Today" note, newest first.
-  const days = marketing
-    .filter((r) => {
-      const d = toEasternDateOnly(r.date);
-      return (
-        d !== null &&
-        d >= cutoff &&
-        d <= today &&
-        typeof r.changesMadeToday === "string" &&
-        r.changesMadeToday.trim() !== ""
-      );
-    })
-    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
-    .map((row) => ({
-      date: toEasternDateOnly(row.date),
-      changesMadeToday: row.changesMadeToday,
-    }));
-
+  const days = await getRecentChanges(TABLE, await getMarketingDailyMetrics());
   return Response.json({ days });
+}
+
+// Saves the "changes made" note for one day, written on the dashboard itself.
+export async function POST(request: Request) {
+  const body = (await request.json().catch(() => null)) as {
+    date?: unknown;
+    changes?: unknown;
+  } | null;
+  const date = typeof body?.date === "string" ? body.date : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || typeof body?.changes !== "string") {
+    return Response.json({ error: "Expected { date: YYYY-MM-DD, changes: string }" }, { status: 400 });
+  }
+  await saveDayChanges(TABLE, date, body.changes);
+  return Response.json({ ok: true });
 }
