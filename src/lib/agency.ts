@@ -28,6 +28,8 @@ export type DailyOfferRow = {
   htCashPaid: number;
   htCashOrganic: number;
   adSpend: number;
+  /** Monthly tool expenses, booked in full on the 1st of their month. Bronson/Andy only. */
+  expenses: number;
 };
 
 type MarketingRowLike = {
@@ -58,7 +60,10 @@ type MarketingRowLike = {
  * before `AGENCY_DATA_START` is dropped entirely — August and earlier is
  * out of scope for this rollup.
  */
-export function buildDailyOfferRows(marketing: MarketingRowLike[]): DailyOfferRow[] {
+export function buildDailyOfferRows(
+  marketing: MarketingRowLike[],
+  expensesByMonth: Map<string, number> = new Map()
+): DailyOfferRow[] {
   marketing = marketing.filter((r) => r.date !== null && r.date >= AGENCY_DATA_START);
   const ltTotalByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedLowTicket);
   const ltPaidByDay = sumByDate(marketing, (r) => r.date, (r) => r.cashCollectedLowTicketPaid);
@@ -76,6 +81,15 @@ export function buildDailyOfferRows(marketing: MarketingRowLike[]): DailyOfferRo
   );
   const adSpendByDay = sumByDate(marketing, (r) => r.date, (r) => r.adSpendMeta);
 
+  // Monthly bills land in full on the 1st of their month, so any range that
+  // covers that month (this month, all time, the calendar's day 1) carries
+  // the whole bill.
+  const expensesByDay = new Map<string, number>();
+  for (const [month, total] of expensesByMonth) {
+    const date = `${month}-01`;
+    if (date >= AGENCY_DATA_START) expensesByDay.set(date, total);
+  }
+
   const dates = new Set<string>([
     ...ltTotalByDay.keys(),
     ...ltPaidByDay.keys(),
@@ -84,6 +98,7 @@ export function buildDailyOfferRows(marketing: MarketingRowLike[]): DailyOfferRo
     ...htPaidByDay.keys(),
     ...htOrganicByDay.keys(),
     ...adSpendByDay.keys(),
+    ...expensesByDay.keys(),
   ]);
 
   const rows: DailyOfferRow[] = [];
@@ -101,6 +116,7 @@ export function buildDailyOfferRows(marketing: MarketingRowLike[]): DailyOfferRo
       htCashPaid: htPaid,
       htCashOrganic: htOrganic,
       adSpend: adSpendByDay.get(date) ?? 0,
+      expenses: expensesByDay.get(date) ?? 0,
     });
   }
   return rows;
@@ -116,6 +132,10 @@ export function sumCash(rows: DailyOfferRow[]): number {
 
 export function sumAdSpend(rows: DailyOfferRow[]): number {
   return rows.reduce((total, r) => total + r.adSpend, 0);
+}
+
+export function sumExpenses(rows: DailyOfferRow[]): number {
+  return rows.reduce((total, r) => total + r.expenses, 0);
 }
 
 /** Total sales team commission, split by Paid vs Organic traffic. */
@@ -134,7 +154,7 @@ export function profitByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
     const { paid, organic } = sumSalesTeamPayout([r]);
-    map.set(r.date, cash(r) - r.adSpend - (paid + organic));
+    map.set(r.date, cash(r) - r.adSpend - (paid + organic) - r.expenses);
   }
   return map;
 }
@@ -143,14 +163,14 @@ export function profit(rows: DailyOfferRow[]): number {
   return sumMapValues(profitByDay(rows));
 }
 
-/** Bronson: 50% agency share of Paid profit (after ad spend + sales team), plus 20% of Organic top-line cash — per day. */
+/** Bronson: 50% agency share of Paid profit (after ad spend + sales team + expenses), plus 20% of Organic top-line cash — per day. */
 export function bronsonAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
     const cashPaid = r.ltCashPaid + r.htCashPaid;
     const cashOrganic = r.ltCashOrganic + r.htCashOrganic;
     const { paid: payoutPaid } = sumSalesTeamPayout([r]);
-    const paidProfit = cashPaid - r.adSpend - payoutPaid;
+    const paidProfit = cashPaid - r.adSpend - payoutPaid - r.expenses;
     map.set(r.date, 0.5 * paidProfit + 0.2 * cashOrganic);
   }
   return map;
@@ -195,8 +215,9 @@ export function ecomSimAgencyProfitByDay(allRows: DailyOfferRow[]): Map<string, 
     const rateOrganic = tierHit ? 0.35 : 0.175;
     const ratePaid = tierHit ? 0.45 : 0.225;
     const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
-    const organicProfit = r.ltCashOrganic + r.htCashOrganic - payoutOrganic;
-    const paidProfit = r.ltCashPaid + r.htCashPaid - r.adSpend - payoutPaid;
+    // Expenses split 50/50 between the organic and paid sides, per the client.
+    const organicProfit = r.ltCashOrganic + r.htCashOrganic - payoutOrganic - r.expenses / 2;
+    const paidProfit = r.ltCashPaid + r.htCashPaid - r.adSpend - payoutPaid - r.expenses / 2;
     map.set(r.date, rateOrganic * organicProfit + ratePaid * paidProfit);
   }
   return map;
@@ -216,7 +237,8 @@ export function ecomSimAgencyProfit(allRows: DailyOfferRow[], range: ResolvedRan
  * day. Mirrors each offer's own profit-share basis: Bronson's organic leg
  * is on top-line organic cash, Andy's is on organic profit (after sales
  * team); the paid leg is on paid profit (after ad spend + sales team) for
- * both. No cut on Aval.
+ * both. Expenses come off the same way as in each offer's own split:
+ * Bronson all off paid, Andy 50/50. No cut on Aval.
  */
 function salesManagerCutByDay(
   rows: DailyOfferRow[],
@@ -226,8 +248,10 @@ function salesManagerCutByDay(
   for (const r of rows) {
     const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
     const cashOrganic = r.ltCashOrganic + r.htCashOrganic;
-    const organicBase = organicBasis === "cash" ? cashOrganic : cashOrganic - payoutOrganic;
-    const paidProfit = r.ltCashPaid + r.htCashPaid - r.adSpend - payoutPaid;
+    const organicBase =
+      organicBasis === "cash" ? cashOrganic : cashOrganic - payoutOrganic - r.expenses / 2;
+    const paidExpenses = organicBasis === "cash" ? r.expenses : r.expenses / 2;
+    const paidProfit = r.ltCashPaid + r.htCashPaid - r.adSpend - payoutPaid - paidExpenses;
     map.set(r.date, 0.05 * organicBase + 0.05 * paidProfit);
   }
   return map;

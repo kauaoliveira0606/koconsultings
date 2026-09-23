@@ -4,6 +4,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { CashVsSpendChart } from "@/components/dashboard/CashVsSpendChart";
 import { AgencyCashCalendar } from "@/components/dashboard/AgencyCashCalendar";
+import { AgencyExpenses } from "@/components/dashboard/AgencyExpenses";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue } from "@/lib/format";
@@ -12,6 +13,7 @@ type ClientMetrics = {
   cash: number;
   adSpend: number;
   salesTeamPayout: number;
+  expenses: number;
   profit: number;
   agencyProfit: number;
   salesManagerCut: number;
@@ -23,6 +25,7 @@ type MetricsResponse = {
   totalAdSpend: number;
   totalProfit: number;
   totalSalesTeamPayout: number;
+  totalExpenses: number;
   totalAgencyProfit: number;
   salesManagerCut: number;
   myProfit: number;
@@ -51,6 +54,7 @@ export default function AgencyPage() {
         cash: data.totalCashCollected,
         profit: data.totalProfit,
         salesTeamPayout: data.totalSalesTeamPayout,
+        expenses: data.totalExpenses,
         agencyProfit: data.totalAgencyProfit,
         salesManagerCut: data.salesManagerCut,
         personalProfit: data.myProfit,
@@ -68,11 +72,15 @@ export default function AgencyPage() {
             </span>
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Every client combined. Ad spend and sales team payouts come off first, then each
-            offer&apos;s profit-share.
+            Every client combined. Ad spend, sales team payouts and expenses come off first,
+            then each offer&apos;s profit-share.
           </p>
         </div>
         <RangeFilterBar value={range} onChange={setRange} />
+      </div>
+
+      <div className="mb-8">
+        <AgencyExpenses />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -93,7 +101,7 @@ export default function AgencyPage() {
           value={data?.totalProfit}
           format="currency"
           size="lg"
-          subtext="Cash − Ad Spend − Sales Team Payouts, across all clients."
+          subtext="Cash − Ad Spend − Sales Team Payouts − Expenses, across all clients."
         />
         <StatCard
           label="Total Sales Team Payouts"
@@ -151,6 +159,7 @@ export default function AgencyPage() {
                 <th className="px-4 py-3 text-right">Cash Collected</th>
                 <th className="px-4 py-3 text-right">Profit</th>
                 <th className="px-4 py-3 text-right">Sales Team Payout</th>
+                <th className="px-4 py-3 text-right">Expenses</th>
                 <th className="px-4 py-3 text-right">Agency Profit</th>
                 <th className="px-4 py-3 text-right">Sales Manager Payout</th>
                 <th className="px-4 py-3 text-right">Personal Profit</th>
@@ -173,6 +182,9 @@ export default function AgencyPage() {
                     <td className="px-4 py-3 text-right">
                       {formatStatValue(c?.salesTeamPayout, "currency")}
                     </td>
+                    <td className="px-4 py-3 text-right text-red-400">
+                      {formatStatValue(c?.expenses, "currency")}
+                    </td>
                     <td className="px-4 py-3 text-right font-semibold text-emerald-400">
                       {formatStatValue(c?.agencyProfit, "currency")}
                     </td>
@@ -192,6 +204,9 @@ export default function AgencyPage() {
                 <td className="px-4 py-3 text-right">{formatStatValue(totalRow?.profit, "currency")}</td>
                 <td className="px-4 py-3 text-right">
                   {formatStatValue(totalRow?.salesTeamPayout, "currency")}
+                </td>
+                <td className="px-4 py-3 text-right text-red-400">
+                  {formatStatValue(totalRow?.expenses, "currency")}
                 </td>
                 <td className="px-4 py-3 text-right text-emerald-400">
                   {formatStatValue(totalRow?.agencyProfit, "currency")}

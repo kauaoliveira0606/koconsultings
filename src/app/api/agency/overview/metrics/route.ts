@@ -4,10 +4,12 @@ import { isDateInRange } from "@/lib/date-range";
 import { getMarketingDailyMetrics as getBronsonMarketingDailyMetrics } from "@/lib/airtable/tables";
 import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
 import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
+import { EXPENSE_TABLES, expensesByMonth, listExpenses } from "@/lib/airtable/expenses";
 import {
   buildDailyOfferRows,
   sumCash,
   sumAdSpend,
+  sumExpenses,
   sumSalesTeamPayout,
   profit,
   bronsonAgencyProfit,
@@ -26,6 +28,7 @@ function clientSummary(rows: DailyOfferRow[]) {
     cash: sumCash(rows),
     adSpend: sumAdSpend(rows),
     salesTeamPayout: paid + organic,
+    expenses: sumExpenses(rows),
     profit: profit(rows),
   };
 }
@@ -34,26 +37,29 @@ function clientSummary(rows: DailyOfferRow[]) {
 function avalClientSummary(rows: DailyOfferRow[]) {
   const cash = sumCash(rows);
   const adSpend = sumAdSpend(rows);
-  return { cash, adSpend, salesTeamPayout: 0, profit: cash - adSpend };
+  return { cash, adSpend, salesTeamPayout: 0, expenses: 0, profit: cash - adSpend };
 }
 
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
-  const [bronsonMarketing, avalMarketing, ecomMarketing] = await Promise.all([
-    getBronsonMarketingDailyMetrics(),
-    getAvalMarketingDailyMetrics(),
-    getEcomSimMarketingDailyMetrics(),
-  ]);
+  const [bronsonMarketing, avalMarketing, ecomMarketing, bronsonExpenses, ecomExpenses] =
+    await Promise.all([
+      getBronsonMarketingDailyMetrics(),
+      getAvalMarketingDailyMetrics(),
+      getEcomSimMarketingDailyMetrics(),
+      listExpenses(EXPENSE_TABLES.bronson),
+      listExpenses(EXPENSE_TABLES.ecomSimulation),
+    ]);
 
   // Everything — cash, ad spend, Paid/Organic splits — comes straight from
   // each offer's Marketing Daily Metrics table, per the client. No EOD
   // Closer / Affiliate EOD blending here (unlike each offer's own
   // /overview/metrics route, which does blend those in for a more complete
   // real-time picture).
-  const bronsonAllRows = buildDailyOfferRows(bronsonMarketing);
+  const bronsonAllRows = buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonExpenses));
   const avalAllRows = buildDailyOfferRows(avalMarketing);
-  const ecomAllRows = buildDailyOfferRows(ecomMarketing);
+  const ecomAllRows = buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses));
 
   const bronsonRows = bronsonAllRows.filter((r) => isDateInRange(r.date, range));
   const avalRows = avalAllRows.filter((r) => isDateInRange(r.date, range));
@@ -83,6 +89,7 @@ export async function GET(request: NextRequest) {
   const totalCashCollected = bronson.cash + aval.cash + ecomSimulation.cash;
   const totalAdSpend = bronson.adSpend + aval.adSpend + ecomSimulation.adSpend;
   const totalProfit = bronson.profit + aval.profit + ecomSimulation.profit;
+  const totalExpenses = bronson.expenses + aval.expenses + ecomSimulation.expenses;
   const totalSalesTeamPayout =
     bronson.salesTeamPayout + aval.salesTeamPayout + ecomSimulation.salesTeamPayout;
   const totalAgencyProfit = bronson.agencyProfit + aval.agencyProfit + ecomSimulation.agencyProfit;
@@ -109,6 +116,7 @@ export async function GET(request: NextRequest) {
     totalAdSpend,
     totalProfit,
     totalSalesTeamPayout,
+    totalExpenses,
     totalAgencyProfit,
     salesManagerCut,
     myProfit,

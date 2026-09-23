@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { getMarketingDailyMetrics as getBronsonMarketingDailyMetrics } from "@/lib/airtable/tables";
 import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
 import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
+import { EXPENSE_TABLES, expensesByMonth, listExpenses } from "@/lib/airtable/expenses";
 import {
   buildDailyOfferRows,
   cash,
@@ -32,17 +33,20 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "month query param (YYYY-MM) is required" }, { status: 400 });
   }
 
-  const [bronsonMarketing, avalMarketing, ecomMarketing] = await Promise.all([
-    getBronsonMarketingDailyMetrics(),
-    getAvalMarketingDailyMetrics(),
-    getEcomSimMarketingDailyMetrics(),
-  ]);
+  const [bronsonMarketing, avalMarketing, ecomMarketing, bronsonExpenses, ecomExpenses] =
+    await Promise.all([
+      getBronsonMarketingDailyMetrics(),
+      getAvalMarketingDailyMetrics(),
+      getEcomSimMarketingDailyMetrics(),
+      listExpenses(EXPENSE_TABLES.bronson),
+      listExpenses(EXPENSE_TABLES.ecomSimulation),
+    ]);
 
   // Everything comes straight from each offer's Marketing Daily Metrics
   // table, per the client — no EOD Closer / Affiliate EOD blending.
-  const bronsonRows = buildDailyOfferRows(bronsonMarketing);
+  const bronsonRows = buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonExpenses));
   const avalRows = buildDailyOfferRows(avalMarketing);
-  const ecomRows = buildDailyOfferRows(ecomMarketing);
+  const ecomRows = buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses));
 
   const bronsonAgencyByDay = bronsonAgencyProfitByDay(bronsonRows);
   const avalAgencyByDay = avalAgencyProfitByDay(avalRows);
