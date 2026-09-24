@@ -157,6 +157,8 @@ export async function GET(request: NextRequest) {
       : null;
   const highTicketDealsClosedPaid = sum(inRangeMarketing.map((r) => r.highTicketDealsClosedPaid));
 
+  const vsl = vslTotals(inRangeMarketing);
+
   return Response.json({
     // Tier 1 — Keystone
     totalCashCollected,
@@ -180,7 +182,11 @@ export async function GET(request: NextRequest) {
     optInsPaid,
     optInsOrganic,
     landingPageConnectRate: average(inRangeMarketing.map((r) => r.landingPageConnectRate)),
-    optInRate: average(inRangeMarketing.map((r) => r.optInRate)),
+    // Paid leads / VTurb VSL views, calculated automatically; the form's
+    // typed-in rate only fills in if a range has no VSL views at all.
+    optInRate:
+      safeDivide(optInsPaid, vsl.vslViews) ??
+      average(inRangeMarketing.map((r) => r.optInRate)),
     costPerLeadPaid: average(inRangeMarketing.map((r) => r.costPerLeadMeta)),
 
     // Tier 4 — Front-end conversion
@@ -213,7 +219,7 @@ export async function GET(request: NextRequest) {
     avgDaysToClose,
 
     // Tier 7 — Funnel / marketing health (diagnostic)
-    ...vslTotals(inRangeMarketing),
+    ...vsl,
     funnelConversionRatePaid: average(inRangeMarketing.map((r) => r.funnelConversionRatePaid)),
     funnelConversionRateOrganic: average(
       inRangeMarketing.map((r) => r.funnelConversionRateOrganic)

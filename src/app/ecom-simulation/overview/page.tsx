@@ -322,7 +322,7 @@ export default function OverviewPage() {
             label="Opt-In Rate (Paid)"
             value={metrics?.optInRate}
             format="percent"
-            subtext="Opt-ins ÷ landing page views, from the form."
+            subtext="Paid leads ÷ VSL views (VTurb), calculated automatically."
             status={kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher")}
             goal={kpiLabel(goals?.optInRate?.min, "higher", "percent")}
           />
