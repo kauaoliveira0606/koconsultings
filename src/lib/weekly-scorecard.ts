@@ -504,11 +504,14 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           day: (c) =>
             safeDivide(dPaidLeads(c), c.m ? num(c.m.vslViews) : null) ??
             (c.m ? num(c.m.optInRate) : null),
-          week: (days) =>
-            safeDivide(
-              days.reduce((n, c) => n + (dPaidLeads(c) ?? 0), 0),
-              sum(days.map(fromM((r) => r.vslViews)))
-            ),
+          // Only days with VSL views count, so pre-VSL days can't inflate it.
+          week: (days) => {
+            const vslDays = days.filter((c) => (c.m ? num(c.m.vslViews) ?? 0 : 0) > 0);
+            return safeDivide(
+              vslDays.reduce((n, c) => n + (dPaidLeads(c) ?? 0), 0),
+              sum(vslDays.map(fromM((r) => r.vslViews)))
+            );
+          },
         },
         {
           key: "vslPlayRate",

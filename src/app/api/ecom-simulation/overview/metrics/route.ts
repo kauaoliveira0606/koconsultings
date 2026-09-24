@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
-import { isDateInRange } from "@/lib/date-range";
+import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
 import {
   getLeads,
   getMarketingDailyMetrics,
@@ -145,6 +145,14 @@ export async function GET(request: NextRequest) {
   const highTicketDealsClosedPaid = sum(inRangeMarketing.map((r) => r.highTicketDealsClosedPaid));
 
   const vsl = vslTotals(inRangeMarketing);
+  // Opt-in rate only counts paid leads from days that actually have VSL
+  // views, so days before a VSL existed can't inflate the rate.
+  const vslDays = new Set(
+    inRangeMarketing.filter((r) => (r.vslViews ?? 0) > 0).map((r) => r.date)
+  );
+  const paidLeadsOnVslDays = inRangeLeads.filter(
+    (l) => isPaidSource(l.source) && vslDays.has(toEasternDateOnly(l.createdAt))
+  ).length;
 
   return Response.json({
     // Tier 1 — Keystone
@@ -172,7 +180,7 @@ export async function GET(request: NextRequest) {
     // Paid leads / VTurb VSL views, calculated automatically; the form's
     // typed-in rate only fills in if a range has no VSL views at all.
     optInRate:
-      safeDivide(optInsPaid, vsl.vslViews) ??
+      safeDivide(paidLeadsOnVslDays, vsl.vslViews) ??
       average(inRangeMarketing.map((r) => r.optInRate)),
     // Straight from the form's own field — no need to (re)calculate it.
     costPerLeadPaid: average(inRangeMarketing.map((r) => r.costPerLeadMeta)),
