@@ -127,7 +127,21 @@ type VslDay = {
   engagementRate: number | null;
 };
 
-export function createAirtableTables(baseId: string, tableIds: TableIds) {
+export type MarketingFormOptions = {
+  /**
+   * Aval's form has no "(Organic)" low-ticket columns: its plain "Sales -
+   * Low Ticket" / "Cash Collected - Low ticket" ARE the organic figures and
+   * the "(Paid)" columns are logged on top, so Total = Paid + Organic.
+   * Everywhere else the plain column is the combined total.
+   */
+  lowTicketPlainColumnIsOrganic?: boolean;
+};
+
+export function createAirtableTables(
+  baseId: string,
+  tableIds: TableIds,
+  formOptions: MarketingFormOptions = {}
+) {
   async function getLeads(): Promise<LeadRow[]> {
     const records = await airtableListAll<{
       Name?: string;
@@ -225,10 +239,12 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         f["Sales - Low Ticket (Paid)"] ??
         f["Low Ticket Sales (Paid)"]
     );
-    const salesLTOrganicExplicit = parseNumericText(
-      f["Low ticket sales (Organic)"] ?? f["Low ticket sales (organic)"]
-    );
-    const cashLTRaw = parseNumericText(f["Cash Collected - Low ticket"]);
+    const plainIsOrganic = formOptions.lowTicketPlainColumnIsOrganic === true;
+    const salesLTOrganicExplicit = plainIsOrganic
+      ? salesLTRaw
+      : parseNumericText(f["Low ticket sales (Organic)"] ?? f["Low ticket sales (organic)"]);
+    const cashLTPlain = parseNumericText(f["Cash Collected - Low ticket"]);
+    const cashLTRaw = plainIsOrganic ? null : cashLTPlain;
     // Same story: Bronson "Low ticket cash collected (Paid)", Aval "Cash
     // collected - Low ticket (Paid)", Ecom Simulation "Cash Low ticket
     // (Paid)".
@@ -237,7 +253,9 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
         f["Cash collected - Low ticket (Paid)"] ??
         f["Cash Low ticket (Paid)"]
     );
-    const cashLTOrganicExplicit = parseNumericText(f["Low ticket cash collected (Organic)"]);
+    const cashLTOrganicExplicit = plainIsOrganic
+      ? cashLTPlain
+      : parseNumericText(f["Low ticket cash collected (Organic)"]);
     // Bronson "Cash collected (High Ticket)", Aval "High Ticket Cash
     // Collected", Ecom Simulation "High ticket cash collected".
     const cashHTRaw = parseNumericText(
@@ -288,7 +306,11 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
       paid: number | null,
       organicExplicit: number | null
     ) => raw ?? (paid !== null || organicExplicit !== null ? (paid ?? 0) + (organicExplicit ?? 0) : null);
-    const salesLT = reconcileTotal(salesLTRaw, salesLTPaid, salesLTOrganicExplicit);
+    const salesLT = reconcileTotal(
+      plainIsOrganic ? null : salesLTRaw,
+      salesLTPaid,
+      salesLTOrganicExplicit
+    );
     // Unlike the form's other percent fields (native Airtable percent
     // type, always a 0–1 fraction), "Conversion Rate (Paid)/(Organic)" is
     // free text and the team types whole percents into it ("25" meaning
