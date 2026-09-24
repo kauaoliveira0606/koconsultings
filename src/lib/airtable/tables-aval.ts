@@ -27,6 +27,7 @@ export const AVAL_TABLE_IDS: TableIds = {
   eodCloser: "tbl0xIvtCZIjemZRZ",
   speedToLead: "",
   leaderboard: "",
+  vslDailyStats: "tbl5HOgO4cyZVXZWQ",
 };
 
 export const {

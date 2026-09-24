@@ -14,6 +14,7 @@ export const ECOM_SIMULATION_TABLE_IDS: TableIds = {
   eodCloser: "tbl0xIvtCZIjemZRZ",
   speedToLead: "tblQc86rJh5uiAP0E", // created to mirror Bronson's Speed to Lead (no equivalent timing data exists for this offer)
   leaderboard: "tblqmFNXfaSuEI4n5", // created to mirror Bronson's Leaderboard
+  vslDailyStats: "tblA0TPnjvAKNyCsa",
 };
 
 export const {

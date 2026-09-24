@@ -62,6 +62,45 @@ export function average(values: (number | null)[]): number | null {
   return sum(present)! / present.length;
 }
 
+/**
+ * VSL totals across days. Rates are weighted by volume (play rate by views,
+ * engagement by plays) so a thin day, like today's first few visitors, can't
+ * swing a whole week the way a plain average of daily rates would.
+ */
+export function vslTotals(
+  rows: {
+    vslViews: number | null;
+    vslPlays: number | null;
+    vslPlayRate: number | null;
+    vslEngagementRate: number | null;
+  }[]
+) {
+  let views = 0;
+  let plays = 0;
+  let playRateViews = 0;
+  let engagementWeighted = 0;
+  let engagementPlays = 0;
+  let any = false;
+  for (const r of rows) {
+    if (r.vslViews === null) continue;
+    any = true;
+    views += r.vslViews;
+    if (r.vslPlayRate === null) continue;
+    const dayPlays = r.vslPlays ?? r.vslViews * r.vslPlayRate;
+    plays += dayPlays;
+    playRateViews += r.vslViews;
+    if (r.vslEngagementRate !== null) {
+      engagementWeighted += r.vslEngagementRate * dayPlays;
+      engagementPlays += dayPlays;
+    }
+  }
+  return {
+    vslViews: any ? views : null,
+    vslPlayRate: safeDivide(plays, playRateViews || null),
+    vslEngagementRate: safeDivide(engagementWeighted, engagementPlays || null),
+  };
+}
+
 export function median(values: (number | null)[]): number | null {
   const present = values.filter((v): v is number => v !== null).sort((a, b) => a - b);
   if (present.length === 0) return null;

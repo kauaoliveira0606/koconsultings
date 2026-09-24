@@ -11,7 +11,7 @@ import {
 } from "@/lib/airtable/tables-aval";
 import { wasHighTicketPitched, wasClosed } from "@/lib/airtable/tables";
 import { isPaidSource, normalizeEmail } from "@/lib/airtable/lead-source-lookup";
-import { average, safeDivide, sum, sumByDate, sumPreferringDatedSources } from "@/lib/metrics";
+import { average, safeDivide, sum, sumByDate, sumPreferringDatedSources, vslTotals } from "@/lib/metrics";
 
 export const revalidate = 60;
 
@@ -213,9 +213,7 @@ export async function GET(request: NextRequest) {
     avgDaysToClose,
 
     // Tier 7 — Funnel / marketing health (diagnostic)
-    vslViews: sum(inRangeMarketing.map((r) => r.vslViews)),
-    vslPlayRate: average(inRangeMarketing.map((r) => r.vslPlayRate)),
-    vslEngagementRate: average(inRangeMarketing.map((r) => r.vslEngagementRate)),
+    ...vslTotals(inRangeMarketing),
     funnelConversionRatePaid: average(inRangeMarketing.map((r) => r.funnelConversionRatePaid)),
     funnelConversionRateOrganic: average(
       inRangeMarketing.map((r) => r.funnelConversionRateOrganic)
