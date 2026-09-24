@@ -35,7 +35,7 @@ export const {
   getMarketingDailyMetrics: getAvalMarketingDailyMetrics,
   getEodDialer: getAvalEodDialer,
 } = createAirtableTables(AVAL_BASE_ID, AVAL_TABLE_IDS, {
-  lowTicketPlainColumnIsOrganic: true,
+  plainColumnsAreOrganic: true,
 });
 
 // One row per lead per Eastern-time day with a 1+ minute GHL phone call,

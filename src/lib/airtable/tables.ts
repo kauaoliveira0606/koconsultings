@@ -120,6 +120,11 @@ export type LeaderboardRow = {
   lastUpdated: string | null;
 };
 
+/** a + b, where a blank side counts as 0 but both blank stays null (no data). */
+function addNullable(a: number | null, b: number | null): number | null {
+  return a === null && b === null ? null : (a ?? 0) + (b ?? 0);
+}
+
 type VslDay = {
   views: number | null;
   plays: number | null;
@@ -129,12 +134,14 @@ type VslDay = {
 
 export type MarketingFormOptions = {
   /**
-   * Aval's form has no "(Organic)" low-ticket columns: its plain "Sales -
-   * Low Ticket" / "Cash Collected - Low ticket" ARE the organic figures and
-   * the "(Paid)" columns are logged on top, so Total = Paid + Organic.
-   * Everywhere else the plain column is the combined total.
+   * Aval / Ecom Simulation forms have no "(Organic)" columns: a plain column
+   * (no "Paid" in its name) IS the organic figure and the "(Paid)" column is
+   * logged on top, so Total = Paid + Organic. Applies to low-ticket sales and
+   * cash, and to high-ticket cash when the base has no explicit (Organic)
+   * column. Bronson has explicit Paid/Organic columns and keeps treating its
+   * plain column as the combined total.
    */
-  lowTicketPlainColumnIsOrganic?: boolean;
+  plainColumnsAreOrganic?: boolean;
 };
 
 export function createAirtableTables(
@@ -239,7 +246,7 @@ export function createAirtableTables(
         f["Sales - Low Ticket (Paid)"] ??
         f["Low Ticket Sales (Paid)"]
     );
-    const plainIsOrganic = formOptions.lowTicketPlainColumnIsOrganic === true;
+    const plainIsOrganic = formOptions.plainColumnsAreOrganic === true;
     const salesLTOrganicExplicit = plainIsOrganic
       ? salesLTRaw
       : parseNumericText(f["Low ticket sales (Organic)"] ?? f["Low ticket sales (organic)"]);
@@ -270,7 +277,10 @@ export function createAirtableTables(
     const cashHTPaid = parseNumericText(
       f["High ticket cash collected (Paid)"] ?? f["high Ticket Cash (Paid)"]
     );
-    const cashHTOrganicExplicit = parseNumericText(f["High ticket cash collected (Organic)"]);
+    const cashHTOrganicTyped = parseNumericText(f["High ticket cash collected (Organic)"]);
+    const cashHTOrganicExplicit = plainIsOrganic
+      ? cashHTOrganicTyped ?? cashHTRaw
+      : cashHTOrganicTyped;
     // Bronson stopped filling in the combined Total column starting
     // 2026-09 and only types the Paid/Organic split; Aval/Ecom Simulation
     // type the Total and only occasionally split out Paid. So neither
@@ -294,7 +304,7 @@ export function createAirtableTables(
       return { total: p + organic, paid: p, organic };
     };
     const cashLTSplit = splitCash(cashLTRaw, cashLTPaid, cashLTOrganicExplicit);
-    const cashHTSplit = splitCash(cashHTRaw, cashHTPaid, cashHTOrganicExplicit);
+    const cashHTSplit = splitCash(plainIsOrganic ? null : cashHTRaw, cashHTPaid, cashHTOrganicExplicit);
     const cashLT = cashLTSplit.total;
     const cashHT = cashHTSplit.total;
     // Sales counts keep the older rule: Total is a floor, rebuilt from
@@ -318,6 +328,14 @@ export function createAirtableTables(
     // one-way normalization regardless of which convention a given row
     // used.
     const asFraction = (v: number | null) => (v !== null && v > 1 ? v / 100 : v);
+    const htClosedOrganic = parseNumericText(
+      f["High Ticket Deals Closed"] ?? f["High ticket closes"]
+    );
+    const htClosedPaid = parseNumericText(
+      f["High Ticket Deals Closed (Paid)"] ??
+        f["High Ticket Closed (Paid)"] ??
+        f["High ticket closes (Paid)"]
+    );
     return {
       id: r.id,
       date: parseDateOnly(f.Date),
@@ -356,8 +374,13 @@ export function createAirtableTables(
       // Bronson "Revenue (High Ticket)", Aval "High TIcket Revenue" (sic —
       // that's the actual Airtable field name, typo and all), Ecom
       // Simulation "High ticket revenue".
-      revenueHighTicket: parseNumericText(
-        f["Revenue (High Ticket)"] ?? f["High TIcket Revenue"] ?? f["High ticket revenue"]
+      // Plain revenue column is organic; Aval also logs "High Ticket Revenue
+      // (Paid)" on top of it, so the total is the two added together.
+      revenueHighTicket: addNullable(
+        parseNumericText(
+          f["Revenue (High Ticket)"] ?? f["High TIcket Revenue"] ?? f["High ticket revenue"]
+        ),
+        parseNumericText(f["High Ticket Revenue (Paid)"])
       ),
       // Bronson / Aval / Ecom Simulation each named these differently.
       callsBooked: parseNumericText(
@@ -368,17 +391,12 @@ export function createAirtableTables(
       callsShowed: parseNumericText(
         f["Calls Showed"] ?? f["High Ticket Calls Shown"] ?? f["Calls shown"]
       ),
-      highTicketDealsClosed: parseNumericText(
-        f["High Ticket Deals Closed"] ?? f["High ticket closes"]
-      ),
-      // Bronson calls it "High Ticket Deals Closed (Paid)", Aval calls it
-      // "High Ticket Closed (Paid)", Ecom Simulation calls it "High
-      // ticket closes (Paid)" — same idea, three different column names.
-      highTicketDealsClosedPaid: parseNumericText(
-        f["High Ticket Deals Closed (Paid)"] ??
-          f["High Ticket Closed (Paid)"] ??
-          f["High ticket closes (Paid)"]
-      ),
+      // No form has an "(Organic)" closes column: the plain column is the
+      // organic closes and "(Paid)" is logged on top, so total = both added.
+      // Bronson calls the paid one "High Ticket Deals Closed (Paid)", Aval
+      // "High Ticket Closed (Paid)", Ecom Simulation "High ticket closes (Paid)".
+      highTicketDealsClosed: addNullable(htClosedOrganic, htClosedPaid),
+      highTicketDealsClosedPaid: htClosedPaid,
       refundCount: parseNumericText(f["Refund count"]),
       refundDollars: parseNumericText(f["Refund dollars"]),
       chargebackCount: parseNumericText(f["Chargebacks"]),

@@ -23,7 +23,9 @@ export const {
   getEodDialer,
   getSpeedToLead,
   getLeaderboard,
-} = createAirtableTables(ECOM_SIMULATION_BASE_ID, ECOM_SIMULATION_TABLE_IDS);
+} = createAirtableTables(ECOM_SIMULATION_BASE_ID, ECOM_SIMULATION_TABLE_IDS, {
+  plainColumnsAreOrganic: true,
+});
 
 // One row per lead per Eastern-time day with a 1+ minute answered Close call,
 // written hourly by the n8n "Andy · Connected Calls Collector (Close →
