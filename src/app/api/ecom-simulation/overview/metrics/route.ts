@@ -198,13 +198,16 @@ export async function GET(request: NextRequest) {
     optInsPaid,
     optInsOrganic,
     landingPageConnectRate: average(inRangeMarketing.map((r) => r.landingPageConnectRate)),
-    // Paid leads / VTurb VSL views, calculated automatically; the form's
-    // typed-in rate only fills in if a range has no VSL views at all.
+    // Form's typed opt-in rate first (client rule); otherwise paid leads /
+    // VSL views, calculated.
     optInRate:
-      safeDivide(paidLeadsOnVslDays, vsl.vslViews) ??
-      average(inRangeMarketing.map((r) => r.optInRate)),
+      average(inRangeMarketing.map((r) => r.optInRate)) ??
+      safeDivide(paidLeadsOnVslDays, vsl.vslViews),
     // Straight from the form's own field — no need to (re)calculate it.
-    costPerLeadPaid: average(inRangeMarketing.map((r) => r.costPerLeadMeta)),
+    // Form's typed CPL first; otherwise ad spend / paid opt-ins.
+    costPerLeadPaid:
+      average(inRangeMarketing.map((r) => r.costPerLeadMeta)) ??
+      (adsActive ? safeDivide(adSpend, optInsPaid) : null),
 
     // Tier 4 — Front-end conversion
     pickups,
@@ -214,8 +217,14 @@ export async function GET(request: NextRequest) {
     sales: salesCount,
     averageOrderValueLowTicket: safeDivide(cashLowTicket, salesCount || null),
     averageOrderValueHighTicket: safeDivide(cashHighTicket, highTicketClosed || null),
-    closeRateLowTicket: safeDivide(softwareClosed, softwarePitched || null),
-    connectionRate: safeDivide(pickups, (optInsPaid ?? 0) + optInsOrganic || null),
+    // Form's typed rates first (client rule); calculated only when the
+    // range has none typed.
+    closeRateLowTicket:
+      average(inRangeMarketing.map((r) => r.closeRateLowTicket)) ??
+      safeDivide(softwareClosed, softwarePitched || null),
+    connectionRate:
+      average(inRangeMarketing.map((r) => r.connectionRate)) ??
+      safeDivide(pickups, (optInsPaid ?? 0) + optInsOrganic || null),
 
     // Tier 5 — High-ticket backend
     highTicketCallsBooked,

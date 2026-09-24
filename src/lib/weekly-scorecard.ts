@@ -118,10 +118,11 @@ type CloserDay = {
 
 /**
  * Everything a single day's cell needs. The Marketing Daily Metrics form is
- * the source of truth for every number it has (sales, dials, high-ticket
- * calls/closes, cash, ad spend); the Affiliate EOD / EOD Closer roll-ups
- * only fill a day the form left blank, plus what only they track (pitched,
- * pickups). Opt-ins come from the Leads table, VSL from VTurb.
+ * the source of truth for every metric it tracks (sales, dials, high-ticket
+ * calls/closes, cash, ad spend, and the rates the team types in: CPL,
+ * opt-in, funnel conversion, close and connection rate); everything else
+ * (EOD roll-ups, Leads table, VTurb, calculated rates) only fills a day
+ * the form left blank, plus what only they track (pitched, pickups).
  */
 type DayCtx = {
   date: string;
@@ -239,7 +240,10 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goalDirection: "lower",
           // Paid-lead count: Leads table, falling back to the Marketing
           // Daily Metrics "Opt ins (Paid)" count on days it has nothing.
-          day: (c) => safeDivide(dAdSpend(c), dPaidLeads(c) || null) ?? (c.m ? num(c.m.costPerLeadMeta) : null),
+          // Form's typed CPL first; calculated only on days it's blank.
+          day: (c) =>
+            (c.m ? num(c.m.costPerLeadMeta) : null) ??
+            safeDivide(dAdSpend(c), dPaidLeads(c) || null),
           week: (days) =>
             safeDivide(
               sum(days.map(dAdSpend)),
@@ -298,8 +302,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.funnelConversionRate?.min ?? null,
           goalDirection: "higher",
           day: (c) =>
-            safeDivide(dSalesLTPaid(c), dPaidLeads(c) || null) ??
-            (c.m ? num(c.m.funnelConversionRatePaid) : null),
+            (c.m ? num(c.m.funnelConversionRatePaid) : null) ??
+            safeDivide(dSalesLTPaid(c), dPaidLeads(c) || null),
           week: (days) =>
             safeDivide(
               sum(days.map(dSalesLTPaid)),
@@ -313,8 +317,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.funnelConversionRate?.min ?? null,
           goalDirection: "higher",
           day: (c) =>
-            safeDivide(dSalesLTOrg(c), dOrganicLeads(c) || null) ??
-            (c.m ? num(c.m.funnelConversionRateOrganic) : null),
+            (c.m ? num(c.m.funnelConversionRateOrganic) : null) ??
+            safeDivide(dSalesLTOrg(c), dOrganicLeads(c) || null),
           week: (days) =>
             safeDivide(
               sum(days.map(dSalesLTOrg)),
@@ -432,7 +436,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           // Affiliate EOD "software closed" ÷ "software pitched", always —
           // form value only when a day has no Affiliate EOD submission.
           day: (c) =>
-            safeDivide(dEodClosed(c), dPitched(c)) ?? (c.m ? num(c.m.closeRateLowTicket) : null),
+            (c.m ? num(c.m.closeRateLowTicket) : null) ?? safeDivide(dEodClosed(c), dPitched(c)),
           week: (days) => safeDivide(sum(days.map(dEodClosed)), sum(days.map(dPitched))),
         },
       ],
@@ -511,8 +515,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           // Daily Metrics "Opt ins (Paid)" count. VSL Views has no other
           // source, so it's still the form value.
           day: (c) =>
-            safeDivide(dPaidLeads(c), (c.m ? num(c.m.vslViews) : null) || null) ??
-            (c.m ? num(c.m.optInRate) : null),
+            (c.m ? num(c.m.optInRate) : null) ??
+            safeDivide(dPaidLeads(c), (c.m ? num(c.m.vslViews) : null) || null),
           // Only days with VSL views count, so pre-VSL days can't inflate it.
           week: (days) => {
             const vslDays = days.filter((c) => (c.m ? num(c.m.vslViews) ?? 0 : 0) > 0);
@@ -555,7 +559,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.connectionRate?.min ?? null,
           goalDirection: "higher",
           day: (c) =>
-            safeDivide(dPickups(c), dLeads(c) || null) ?? (c.m ? num(c.m.connectionRate) : null),
+            (c.m ? num(c.m.connectionRate) : null) ?? safeDivide(dPickups(c), dLeads(c) || null),
           week: (days) =>
             safeDivide(
               sum(days.map(dPickups)),

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { easternDateString } from "@/lib/date-range";
+import { addDaysToDateString, easternDateString } from "@/lib/date-range";
 
 type RecentChangesResponse = {
   days: { date: string; changesMadeToday: string }[];
@@ -22,7 +22,8 @@ const fetcher = async (url: string) => {
  */
 export function RecentChanges({ apiPath }: { apiPath: string }) {
   const { data, mutate } = useSWR<RecentChangesResponse>(apiPath, fetcher);
-  const [date, setDate] = useState(() => easternDateString());
+  // The team always logs the day before, once it's fully finished.
+  const [date, setDate] = useState(() => addDaysToDateString(easternDateString(), -1));
   // null = untouched, so the editor shows the chosen day's saved note.
   const [edit, setEdit] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -76,7 +77,7 @@ export function RecentChanges({ apiPath }: { apiPath: string }) {
             setStatus("idle");
           }}
           rows={4}
-          placeholder="What changed today? (new ad, page edit, script update, price test...)"
+          placeholder="What changed that day? (new ad, page edit, script update, price test...)"
           className="w-full rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] p-3 text-sm text-[var(--text-strong)] placeholder:text-[var(--text-muted)]"
         />
         <div className="mt-2 flex items-center gap-3">

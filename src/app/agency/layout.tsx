@@ -12,7 +12,9 @@ export const metadata: Metadata = {
 
 export default function AgencyLayout({ children }: { children: ReactNode }) {
   return (
-    <RangeProvider>
+    // The Agency tab stays open all day: always open on This Month and keep
+    // the numbers refreshing on their own.
+    <RangeProvider initialPreset="this_month" refreshIntervalMs={60_000}>
       <div
         data-theme="deepspace"
         style={{ background: "var(--app-bg)" }}

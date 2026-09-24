@@ -203,7 +203,8 @@ export function createAirtableTables(
 
   /**
    * Marketing Daily Metrics rows, with VSL Views / Play Rate / Engagement Rate
-   * taken from VTurb's "VSL Daily Stats" wherever it has that day. A VTurb day
+   * filled from VTurb's "VSL Daily Stats" on days the form has no VSL numbers
+   * (the form is the source of truth when it has them). A VTurb day
    * with no form row yet (today, or before the team submits) gets its own row
    * with only the VSL fields filled, so those cards never sit empty.
    */
@@ -224,6 +225,9 @@ export function createAirtableTables(
     return records.map(parseMarketingRecord).map((row) => {
       const vsl = row.date ? vslByDate.get(row.date) : undefined;
       if (!vsl || !row.date) return row;
+      // The form wins whenever the team logged VSL numbers for that day;
+      // VTurb only fills days the form left blank (or at 0 views).
+      if ((row.vslViews ?? 0) > 0) return row;
       // Only one row per day carries the VTurb numbers, so a duplicated form
       // row can't double-count views.
       if (overlaid.has(row.date)) {
@@ -364,7 +368,9 @@ export function createAirtableTables(
       funnelConversionRatePaid: asFraction(parseNumericText(f["Conversion Rate (Paid)"])),
       funnelConversionRateOrganic: asFraction(
         parseNumericText(f["Conversion Rate (Organic)"]) ??
-          parseNumericText(f["Funnel Conversion rate Organic"])
+          parseNumericText(f["Funnel Conversion rate Organic"]) ??
+          // No "Paid" in the name, so it's the organic rate (client rule).
+          parseNumericText(f["Funnel Conversion rate (Lt Sales/opt ins)"])
       ),
       adSpendMeta: parseNumericText(f["Ad Spend Meta"]),
       changesMadeToday: (f["Changes Made Today"] as string) ?? null,
@@ -376,9 +382,9 @@ export function createAirtableTables(
       vslEngagementRate: parseNumericText(f["VSL Engagement Rate"]),
       vslPlays: null,
       confirmationEmailOpenRate: parseNumericText(f["Confirmation Email open rate"]),
-      connectionRate: parseNumericText(
-        f["Connection rate (On total dials)"] ?? f["Connection rate (Pick ups vs opt ins)"]
-      ),
+      // Only the pickups-vs-opt-ins version is the dashboard's Connection
+      // Rate; Bronson's "(On total dials)" is a different metric.
+      connectionRate: parseNumericText(f["Connection rate (Pick ups vs opt ins)"]),
       closeRateLowTicket: parseNumericText(f["Close rate - Low ticket"]),
       funnelConversionRate: parseNumericText(f["Funnel Conversion rate (Lt Sales/opt ins)"]),
       cashCollectedHighTicket: cashHT,
