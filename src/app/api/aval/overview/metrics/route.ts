@@ -9,9 +9,9 @@ import {
   getAvalPostCallNotes,
   getAvalAffiliatePcn,
 } from "@/lib/airtable/tables-aval";
-import { wasHighTicketPitched, wasClosed } from "@/lib/airtable/tables";
+import { wasHighTicketPitched } from "@/lib/airtable/tables";
 import { isPaidSource, normalizeEmail } from "@/lib/airtable/lead-source-lookup";
-import { average, safeDivide, sum, sumByDate, sumPreferringDatedSources, vslTotals } from "@/lib/metrics";
+import { average, safeDivide, sum, sumByDate, vslTotals, formFirstByDay } from "@/lib/metrics";
 
 export const revalidate = 60;
 
@@ -76,24 +76,31 @@ export async function GET(request: NextRequest) {
   const newHighTicketCallsBooked = sum(inRangeEod.map((r) => r.newHighTicketCallsBooked));
 
   const highTicketPitched = inRangePostCallNotes.filter(wasHighTicketPitched).length;
-  const highTicketClosed = inRangePostCallNotes.filter(wasClosed).length;
-  // EOD Closer is the source of record for booked/showed, but the closer
-  // doesn't always submit it same-day — fall back to Affiliate EOD's own
-  // booking/show fields (setters log these directly) for any day EOD
-  // Closer has nothing, same preferred-source idea as the cash figure
-  // above, so a stale closer form doesn't blank out this week's numbers.
-  const htBookedDates = new Set([
-    ...inRangeCloser.filter((r) => r.date).map((r) => r.date as string),
-    ...inRangeEod.filter((r) => r.date).map((r) => r.date as string),
-  ]);
-  const highTicketCallsBooked = sumPreferringDatedSources(htBookedDates, [
-    sumByDate(inRangeCloser, (r) => r.date, (r) => r.callsBooked),
-    sumByDate(inRangeEod, (r) => r.date, (r) => r.newHighTicketCallsBooked),
-  ]);
-  const highTicketCallsShowed = sumPreferringDatedSources(htBookedDates, [
-    sumByDate(inRangeCloser, (r) => r.date, (r) => r.callsShowed),
-    sumByDate(inRangeEod, (r) => r.date, (r) => r.highTicketCallsShowed),
-  ]);
+  // Form first per day; EOD Closer, then Affiliate EOD, only fill days the
+  // form left blank. Same order as the Weekly Scorecard.
+  const highTicketClosed =
+    formFirstByDay(inRangeMarketing, (r) => r.date, (r) => r.highTicketDealsClosed, [
+      sumByDate(inRangeCloser, (r) => r.date, (r) => r.dealsClosed),
+      sumByDate(inRangeEod, (r) => r.date, (r) => r.highTicketSetClosed),
+    ]) ?? 0;
+  const highTicketCallsBooked = formFirstByDay(
+    inRangeMarketing,
+    (r) => r.date,
+    (r) => r.callsBooked,
+    [
+      sumByDate(inRangeCloser, (r) => r.date, (r) => r.callsBooked),
+      sumByDate(inRangeEod, (r) => r.date, (r) => r.highTicketCallsOnCalendar),
+    ]
+  );
+  const highTicketCallsShowed = formFirstByDay(
+    inRangeMarketing,
+    (r) => r.date,
+    (r) => r.callsShowed,
+    [
+      sumByDate(inRangeCloser, (r) => r.date, (r) => r.callsShowed),
+      sumByDate(inRangeEod, (r) => r.date, (r) => r.highTicketCallsShowed),
+    ]
+  );
 
   // Tier 1 keystone: the single number that captures show rate, close rate,
   // average price, and collections all at once for the high-ticket side.

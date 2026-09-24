@@ -183,17 +183,18 @@ const dCashLTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketOrganic) 
 const dCashHTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketPaid) : null);
 const dCashHTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketOrganic) : null);
 
-// --- high-ticket: form first, then Affiliate EOD, then EOD Closer ---
+// --- high-ticket: form first, then EOD Closer, then Affiliate EOD (same
+// order as the Overview cards) ---
 const firstOf = (...vals: (number | null | undefined)[]) => {
   for (const v of vals) if (num(v) !== null) return v as number;
   return null;
 };
 const dHtBooked = (c: DayCtx) =>
-  firstOf(c.m?.callsBooked, c.eod?.htBooked, c.closer?.callsBooked);
+  firstOf(c.m?.callsBooked, c.closer?.callsBooked, c.eod?.htBooked);
 const dHtShowed = (c: DayCtx) =>
-  firstOf(c.m?.callsShowed, c.eod?.htShowed, c.closer?.callsShowed);
+  firstOf(c.m?.callsShowed, c.closer?.callsShowed, c.eod?.htShowed);
 const dHtClosed = (c: DayCtx) =>
-  firstOf(c.m?.highTicketDealsClosed, c.eod?.htClosed, c.closer?.dealsClosed);
+  firstOf(c.m?.highTicketDealsClosed, c.closer?.dealsClosed, c.eod?.htClosed);
 
 const wSum = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => sum(days.map(pick));
 const wAvg = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => average(days.map(pick));

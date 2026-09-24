@@ -152,4 +152,24 @@ export function sumByDate<T>(
   return byDate;
 }
 
+/**
+ * High-ticket calls booked / showed / deals closed, per day: the Marketing
+ * Daily Metrics form wins on any day it has a value, and the fallback
+ * sources (EOD Closer, Affiliate EOD, Post Call Notes, in that order) only
+ * fill days the form left blank. Same rule as the Weekly Scorecard, so the
+ * two pages always agree.
+ */
+export function formFirstByDay<F>(
+  formRows: F[],
+  getDate: (row: F) => string | null,
+  pick: (row: F) => number | null,
+  fallbacks: Map<string, number>[]
+): number | null {
+  const withValue = formRows.filter((r) => pick(r) !== null);
+  const form = sumByDate(withValue, getDate, pick);
+  const dates = new Set<string>(form.keys());
+  for (const f of fallbacks) for (const d of f.keys()) dates.add(d);
+  return sumPreferringDatedSources(dates, [form, ...fallbacks]);
+}
+
 export { safeDivide };
