@@ -1,5 +1,6 @@
 import { airtableListAll } from "./client";
 import { parseDateOnly, parseNumericText } from "./parse";
+import { toEasternDateOnly } from "@/lib/date-range";
 
 export type TableIds = {
   leads: string;
@@ -143,7 +144,10 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
       email: r.fields.Email ?? null,
       phone: r.fields.Phone ?? null,
       source: r.fields.Source ?? null,
-      createdAt: parseDateOnly(r.fields["Created At"]),
+      // Aval stores a full UTC timestamp here (Bronson/Ecom a plain date);
+      // bucket it by Eastern day like every other dashboard date, so an 8pm+
+      // ET opt-in doesn't land on tomorrow.
+      createdAt: toEasternDateOnly(r.fields["Created At"]),
       cashCollected: parseNumericText(r.fields["Cash Collected"]),
     }));
   }
