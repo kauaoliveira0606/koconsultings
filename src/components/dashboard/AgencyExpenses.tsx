@@ -57,8 +57,6 @@ export function AgencyExpenses() {
   const refreshAll = () =>
     mutate((k) => typeof k === "string" && k.startsWith("/api/agency/"));
 
-  const total = sum(data?.bronson) + sum(data?.ecomSimulation);
-
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-4">
@@ -88,7 +86,7 @@ export function AgencyExpenses() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {OFFERS.map((offer) => (
           <OfferExpenses
             key={offer.key}
@@ -98,17 +96,6 @@ export function AgencyExpenses() {
             onChange={refreshAll}
           />
         ))}
-        <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-            Total Expenses
-          </div>
-          <div className="mt-2 text-4xl font-bold text-red-400">
-            {data ? formatStatValue(total, "currency") : "—"}
-          </div>
-          <div className="mt-1 text-xs text-[var(--text-muted)]">
-            {monthLabel(month)}, Bronson + Andy. No expenses on Aval.
-          </div>
-        </div>
       </div>
     </div>
   );
