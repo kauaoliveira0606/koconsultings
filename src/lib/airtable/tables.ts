@@ -125,6 +125,20 @@ function addNullable(a: number | null, b: number | null): number | null {
   return a === null && b === null ? null : (a ?? 0) + (b ?? 0);
 }
 
+/**
+ * A lead's Eastern-time opt-in day. Aval stores "Created At" as a UTC
+ * timestamp; Bronson stores a plain date that is the UTC day (so an 8pm+ ET
+ * opt-in reads as tomorrow); Ecom Simulation's plain date is already Eastern.
+ * When the plain date is exactly the UTC day Airtable created the record,
+ * it was stamped at opt-in time, so use that creation time's Eastern day.
+ */
+function leadEasternDate(createdAt: string | undefined, recordCreatedTime: string) {
+  if (createdAt && createdAt.length <= 10 && recordCreatedTime) {
+    if (createdAt === recordCreatedTime.slice(0, 10)) return toEasternDateOnly(recordCreatedTime);
+  }
+  return toEasternDateOnly(createdAt);
+}
+
 type VslDay = {
   views: number | null;
   plays: number | null;
@@ -165,10 +179,7 @@ export function createAirtableTables(
       email: r.fields.Email ?? null,
       phone: r.fields.Phone ?? null,
       source: r.fields.Source ?? null,
-      // Aval stores a full UTC timestamp here (Bronson/Ecom a plain date);
-      // bucket it by Eastern day like every other dashboard date, so an 8pm+
-      // ET opt-in doesn't land on tomorrow.
-      createdAt: toEasternDateOnly(r.fields["Created At"]),
+      createdAt: leadEasternDate(r.fields["Created At"], r.createdTime),
       cashCollected: parseNumericText(r.fields["Cash Collected"]),
     }));
   }
