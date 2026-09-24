@@ -337,9 +337,18 @@ export function createAirtableTables(baseId: string, tableIds: TableIds) {
       revenueHighTicket: parseNumericText(
         f["Revenue (High Ticket)"] ?? f["High TIcket Revenue"] ?? f["High ticket revenue"]
       ),
-      callsBooked: parseNumericText(f["Calls booked (On calendar)"]),
-      callsShowed: parseNumericText(f["Calls Showed"]),
-      highTicketDealsClosed: parseNumericText(f["High Ticket Deals Closed"]),
+      // Bronson / Aval / Ecom Simulation each named these differently.
+      callsBooked: parseNumericText(
+        f["Calls booked (On calendar)"] ??
+          f["High Ticket Calls On The Calendar"] ??
+          f["Calls on the calendar"]
+      ),
+      callsShowed: parseNumericText(
+        f["Calls Showed"] ?? f["High Ticket Calls Shown"] ?? f["Calls shown"]
+      ),
+      highTicketDealsClosed: parseNumericText(
+        f["High Ticket Deals Closed"] ?? f["High ticket closes"]
+      ),
       // Bronson calls it "High Ticket Deals Closed (Paid)", Aval calls it
       // "High Ticket Closed (Paid)", Ecom Simulation calls it "High
       // ticket closes (Paid)" — same idea, three different column names.

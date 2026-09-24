@@ -7,7 +7,7 @@ import type {
 } from "./airtable/tables";
 import { isOrganicSource, isPaidSource } from "./airtable/lead-source-lookup";
 import { easternDateString, toEasternDateOnly } from "./date-range";
-import { average, roas, safeDivide, sum } from "./metrics";
+import { average, roas, safeDivide, sum, vslTotals } from "./metrics";
 import type { getGoals } from "./goals";
 
 export type CellStatus = "green" | "yellow" | "red" | null;
@@ -117,11 +117,11 @@ type CloserDay = {
 };
 
 /**
- * Everything a single day's cell needs. Derived values (dials, sales, cash,
- * close rate, …) prefer the Affiliate EOD roll-up so the team doesn't have
- * to re-key them into the Marketing Daily Metrics form; the form value is
- * the fallback for days with no EOD submission. Video / landing-page / ad
- * metrics have no other source and stay form-only.
+ * Everything a single day's cell needs. The Marketing Daily Metrics form is
+ * the source of truth for every number it has (sales, dials, high-ticket
+ * calls/closes, cash, ad spend); the Affiliate EOD / EOD Closer roll-ups
+ * only fill a day the form left blank, plus what only they track (pitched,
+ * pickups). Opt-ins come from the Leads table, VSL from VTurb.
  */
 type DayCtx = {
   date: string;
@@ -135,13 +135,17 @@ type DayCtx = {
 const num = (v: number | null | undefined): number | null =>
   v === null || v === undefined || !Number.isFinite(v) ? null : v;
 
-// --- per-day component accessors (EOD-preferred, form fallback) ---
+// --- per-day component accessors (form first, EOD fallback) ---
 const dAdSpend = (c: DayCtx) => (c.m ? num(c.m.adSpendMeta) : null);
 const dSalesLT = (c: DayCtx) =>
-  c.eod ? num(c.eod.closed) : c.m ? num(c.m.salesLowTicket) : null;
+  (c.m ? num(c.m.salesLowTicket) : null) ?? (c.eod ? num(c.eod.closed) : null);
 const dPitched = (c: DayCtx) => (c.eod ? num(c.eod.pitched) : null);
+// Affiliate close rate stays inside the EOD (closed and pitched both from
+// the same setter reports) so the two sides always describe the same calls.
+const dEodClosed = (c: DayCtx) => (c.eod ? num(c.eod.closed) : null);
 const dPickups = (c: DayCtx) => (c.eod ? num(c.eod.pickups) : null);
-const dDials = (c: DayCtx) => (c.eod ? num(c.eod.dials) : c.m ? num(c.m.dials) : null);
+const dDials = (c: DayCtx) =>
+  (c.m ? num(c.m.dials) : null) ?? (c.eod ? num(c.eod.dials) : null);
 // Cash Collected comes exclusively from the Marketing Daily Metrics form,
 // per the client — no blending in Affiliate EOD or EOD Closer even though
 // those tables also log a cash figure.
@@ -179,13 +183,17 @@ const dCashLTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketOrganic) 
 const dCashHTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketPaid) : null);
 const dCashHTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketOrganic) : null);
 
-// --- high-ticket: Affiliate EOD (setters log it), EOD Closer as fallback ---
+// --- high-ticket: form first, then Affiliate EOD, then EOD Closer ---
+const firstOf = (...vals: (number | null | undefined)[]) => {
+  for (const v of vals) if (num(v) !== null) return v as number;
+  return null;
+};
 const dHtBooked = (c: DayCtx) =>
-  c.eod ? num(c.eod.htBooked) : c.closer ? num(c.closer.callsBooked) : null;
+  firstOf(c.m?.callsBooked, c.eod?.htBooked, c.closer?.callsBooked);
 const dHtShowed = (c: DayCtx) =>
-  c.eod ? num(c.eod.htShowed) : c.closer ? num(c.closer.callsShowed) : null;
+  firstOf(c.m?.callsShowed, c.eod?.htShowed, c.closer?.callsShowed);
 const dHtClosed = (c: DayCtx) =>
-  c.eod ? num(c.eod.htClosed) : c.closer ? num(c.closer.dealsClosed) : null;
+  firstOf(c.m?.highTicketDealsClosed, c.eod?.htClosed, c.closer?.dealsClosed);
 
 const wSum = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => sum(days.map(pick));
 const wAvg = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => average(days.map(pick));
@@ -289,8 +297,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.funnelConversionRate?.min ?? null,
           goalDirection: "higher",
           day: (c) =>
-            (c.m ? num(c.m.funnelConversionRatePaid) : null) ??
-            safeDivide(dSalesLTPaid(c), dPaidLeads(c) || null),
+            safeDivide(dSalesLTPaid(c), dPaidLeads(c) || null) ??
+            (c.m ? num(c.m.funnelConversionRatePaid) : null),
           week: (days) =>
             safeDivide(
               sum(days.map(dSalesLTPaid)),
@@ -304,8 +312,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.funnelConversionRate?.min ?? null,
           goalDirection: "higher",
           day: (c) =>
-            (c.m ? num(c.m.funnelConversionRateOrganic) : null) ??
-            safeDivide(dSalesLTOrg(c), dOrganicLeads(c) || null),
+            safeDivide(dSalesLTOrg(c), dOrganicLeads(c) || null) ??
+            (c.m ? num(c.m.funnelConversionRateOrganic) : null),
           week: (days) =>
             safeDivide(
               sum(days.map(dSalesLTOrg)),
@@ -423,8 +431,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           // Affiliate EOD "software closed" ÷ "software pitched", always —
           // form value only when a day has no Affiliate EOD submission.
           day: (c) =>
-            safeDivide(dSalesLT(c), dPitched(c)) ?? (c.m ? num(c.m.closeRateLowTicket) : null),
-          week: (days) => safeDivide(sum(days.map(dSalesLT)), sum(days.map(dPitched))),
+            safeDivide(dEodClosed(c), dPitched(c)) ?? (c.m ? num(c.m.closeRateLowTicket) : null),
+          week: (days) => safeDivide(sum(days.map(dEodClosed)), sum(days.map(dPitched))),
         },
       ],
     },
@@ -502,7 +510,7 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           // Daily Metrics "Opt ins (Paid)" count. VSL Views has no other
           // source, so it's still the form value.
           day: (c) =>
-            safeDivide(dPaidLeads(c), c.m ? num(c.m.vslViews) : null) ??
+            safeDivide(dPaidLeads(c), (c.m ? num(c.m.vslViews) : null) || null) ??
             (c.m ? num(c.m.optInRate) : null),
           // Only days with VSL views count, so pre-VSL days can't inflate it.
           week: (days) => {
@@ -520,7 +528,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.vslPlayRate?.min ?? null,
           goalDirection: "higher",
           day: fromM((r) => r.vslPlayRate),
-          week: wAvg(fromM((r) => r.vslPlayRate)),
+          // Weighted by views, same as the Overview card.
+          week: (days) => vslTotals(days.flatMap((c) => (c.m ? [c.m] : []))).vslPlayRate,
         },
         {
           key: "vslEngagementRate",
@@ -529,7 +538,8 @@ function buildSpecs(goals: Awaited<ReturnType<typeof getGoals>>): {
           goal: goals.vslEngagementRate?.min ?? null,
           goalDirection: "higher",
           day: fromM((r) => r.vslEngagementRate),
-          week: wAvg(fromM((r) => r.vslEngagementRate)),
+          // Weighted by plays, same as the Overview card.
+          week: (days) => vslTotals(days.flatMap((c) => (c.m ? [c.m] : []))).vslEngagementRate,
         },
       ],
     },
