@@ -83,7 +83,7 @@ export function AgencyCashCalendar() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-[var(--text-muted)]">
           Per day: Agency Profit (bold), then Total Cash across all offers and your personal
-          take-home below it, plus each client&apos;s Agency Profit contribution.
+          take-home below it, plus each client&apos;s personal profit contribution (after the sales manager&apos;s cut).
         </p>
         <div className="flex items-center gap-3">
           <button

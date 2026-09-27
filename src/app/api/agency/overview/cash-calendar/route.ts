@@ -78,17 +78,23 @@ export async function GET(request: NextRequest) {
   let monthSalesManagerCut = 0;
 
   for (const date of dates) {
-    const byClient = {
-      bronson: bronsonAgencyByDay.get(date) ?? 0,
-      aval: avalAgencyByDay.get(date) ?? 0,
-      ecomSimulation: ecomAgencyByDay.get(date) ?? 0,
-    };
-    const agencyProfit = byClient.bronson + byClient.aval + byClient.ecomSimulation;
+    const bronsonAgency = bronsonAgencyByDay.get(date) ?? 0;
+    const avalAgency = avalAgencyByDay.get(date) ?? 0;
+    const ecomAgency = ecomAgencyByDay.get(date) ?? 0;
+    const agencyProfit = bronsonAgency + avalAgency + ecomAgency;
     const totalCash =
       (bronsonCashByDay.get(date) ?? 0) + (avalCashByDay.get(date) ?? 0) + (ecomCashByDay.get(date) ?? 0);
-    const salesManagerCut =
-      (bronsonManagerCutByDay.get(date) ?? 0) + (ecomManagerCutByDay.get(date) ?? 0);
+    const bronsonManagerCut = bronsonManagerCutByDay.get(date) ?? 0;
+    const ecomManagerCut = ecomManagerCutByDay.get(date) ?? 0;
+    const salesManagerCut = bronsonManagerCut + ecomManagerCut;
     const myProfit = agencyProfit - salesManagerCut;
+    // Per-client figures are personal profit — each client's agency share
+    // minus the sales manager's cut on it — so B + A + E = myProfit.
+    const byClient = {
+      bronson: bronsonAgency - bronsonManagerCut,
+      aval: avalAgency,
+      ecomSimulation: ecomAgency - ecomManagerCut,
+    };
 
     byDay[date] = { agencyProfit, totalCash, myProfit, byClient };
     monthAgencyProfit += agencyProfit;
