@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
       totalCash: number;
       myProfit: number;
       byClient: { bronson: number; aval: number; ecomSimulation: number };
+      cashByClient: { bronson: number; aval: number; ecomSimulation: number };
     }
   > = {};
 
@@ -84,13 +85,17 @@ export async function GET(request: NextRequest) {
       ecomSimulation: ecomAgencyByDay.get(date) ?? 0,
     };
     const agencyProfit = byClient.bronson + byClient.aval + byClient.ecomSimulation;
-    const totalCash =
-      (bronsonCashByDay.get(date) ?? 0) + (avalCashByDay.get(date) ?? 0) + (ecomCashByDay.get(date) ?? 0);
+    const cashByClient = {
+      bronson: bronsonCashByDay.get(date) ?? 0,
+      aval: avalCashByDay.get(date) ?? 0,
+      ecomSimulation: ecomCashByDay.get(date) ?? 0,
+    };
+    const totalCash = cashByClient.bronson + cashByClient.aval + cashByClient.ecomSimulation;
     const salesManagerCut =
       (bronsonManagerCutByDay.get(date) ?? 0) + (ecomManagerCutByDay.get(date) ?? 0);
     const myProfit = agencyProfit - salesManagerCut;
 
-    byDay[date] = { agencyProfit, totalCash, myProfit, byClient };
+    byDay[date] = { agencyProfit, totalCash, myProfit, byClient, cashByClient };
     monthAgencyProfit += agencyProfit;
     monthTotalCash += totalCash;
     monthSalesManagerCut += salesManagerCut;
