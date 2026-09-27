@@ -74,7 +74,7 @@ export function AgencyCashCalendar() {
   );
 
   const byDay = data?.byDay ?? {};
-  const max = Math.max(0, ...Object.values(byDay).map((d) => d.agencyProfit));
+  const max = Math.max(0, ...Object.values(byDay).map((d) => d.myProfit));
   const days = daysInMonth(month);
   const blanks = leadingBlankCount(month);
 
@@ -82,8 +82,8 @@ export function AgencyCashCalendar() {
     <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-[var(--text-muted)]">
-          Per day: Agency Profit (bold), then Total Cash across all offers and your personal
-          take-home below it, plus each client&apos;s personal profit contribution (after the sales manager&apos;s cut).
+          Per day: My Profit (bold), then Total Cash across all offers, plus each client&apos;s
+          contribution to My Profit.
         </p>
         <div className="flex items-center gap-3">
           <button
@@ -102,7 +102,7 @@ export function AgencyCashCalendar() {
             Next →
           </button>
           <span className="text-sm font-semibold text-[var(--text-strong)]">
-            Month Agency Profit: {formatStatValue(data?.monthTotal?.agencyProfit ?? null, "currency")}
+            Month My Profit: {formatStatValue(data?.monthTotal?.myProfit ?? null, "currency")}
           </span>
         </div>
       </div>
@@ -120,22 +120,21 @@ export function AgencyCashCalendar() {
             ))}
             {days.map(({ day, date }) => {
               const entry = byDay[date];
-              const bucket = bucketIntensity(entry?.agencyProfit ?? 0, max);
+              const bucket = bucketIntensity(entry?.myProfit ?? 0, max);
               return (
                 <div
                   key={date}
                   className={`flex h-32 flex-col justify-between rounded-md border border-[var(--panel-border)] p-2 ${BUCKET_COLORS[bucket]} ${BUCKET_TEXT_COLORS[bucket]}`}
                 >
                   <span className="text-xs font-semibold">{day}</span>
-                  {entry && entry.agencyProfit !== 0 ? (
+                  {entry && entry.myProfit !== 0 ? (
                     <span className="text-right text-sm font-bold">
-                      {formatStatValue(entry.agencyProfit, "currency")}
+                      {formatStatValue(entry.myProfit, "currency")}
                     </span>
                   ) : null}
-                  {entry && (entry.totalCash !== 0 || entry.myProfit !== 0) ? (
+                  {entry && entry.totalCash !== 0 ? (
                     <div className={`text-right text-[10px] leading-tight ${BUCKET_SUBTEXT_COLORS[bucket]}`}>
                       <div>Cash: {formatStatValue(entry.totalCash, "currency")}</div>
-                      <div>Me: {formatStatValue(entry.myProfit, "currency")}</div>
                     </div>
                   ) : null}
                   {entry &&
