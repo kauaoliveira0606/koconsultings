@@ -30,8 +30,6 @@ type DayEntry = {
   totalCash: number;
   myProfit: number;
   byClient: { bronson: number; aval: number; ecomSimulation: number };
-  /** Each client's cash that day — same figure as that offer's own dashboard and Cash Calendar. */
-  cashByClient: { bronson: number; aval: number; ecomSimulation: number };
 };
 
 type CashCalendarResponse = {
@@ -85,7 +83,7 @@ export function AgencyCashCalendar() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-[var(--text-muted)]">
           Per day: Agency Profit (bold), then Total Cash across all offers and your personal
-          take-home below it, plus each client&apos;s cash (B/A/E) — same numbers as each offer&apos;s own dashboard.
+          take-home below it, plus each client&apos;s Agency Profit contribution.
         </p>
         <div className="flex items-center gap-3">
           <button
@@ -141,13 +139,13 @@ export function AgencyCashCalendar() {
                     </div>
                   ) : null}
                   {entry &&
-                  (entry.cashByClient.bronson !== 0 ||
-                    entry.cashByClient.aval !== 0 ||
-                    entry.cashByClient.ecomSimulation !== 0) ? (
+                  (entry.byClient.bronson !== 0 ||
+                    entry.byClient.aval !== 0 ||
+                    entry.byClient.ecomSimulation !== 0) ? (
                     <div className={`text-right text-[10px] leading-tight ${BUCKET_SUBTEXT_COLORS[bucket]}`}>
-                      <div>B: {formatStatValue(entry.cashByClient.bronson, "currency")}</div>
-                      <div>A: {formatStatValue(entry.cashByClient.aval, "currency")}</div>
-                      <div>E: {formatStatValue(entry.cashByClient.ecomSimulation, "currency")}</div>
+                      <div>B: {formatStatValue(entry.byClient.bronson, "currency")}</div>
+                      <div>A: {formatStatValue(entry.byClient.aval, "currency")}</div>
+                      <div>E: {formatStatValue(entry.byClient.ecomSimulation, "currency")}</div>
                     </div>
                   ) : null}
                 </div>
