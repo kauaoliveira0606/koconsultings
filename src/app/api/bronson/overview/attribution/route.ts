@@ -10,8 +10,8 @@ import {
 
 export const revalidate = 60;
 
-const BRANDS = ["base44", "wix"];
-const FROM = ATTRIBUTION_START_DATE; // 2026-08-01
+export const BRANDS = ["base44", "wix"];
+export const FROM = ATTRIBUTION_START_DATE; // 2026-08-01
 
 export async function GET() {
   const [portalDaily, pcn] = await Promise.all([

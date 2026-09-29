@@ -9,12 +9,12 @@ import {
 
 export const revalidate = 60;
 
-const BRANDS = ["base44"];
+export const BRANDS = ["base44"];
 // Aval only started this motion in Sep 2026 — no standalone August bucket.
 // Its first four closes are dated Aug 31 (the start of the Sep push / the
 // portal's Aug 31–Sep 6 payout week), so data counts from Aug 31.
 const PERIODS_FROM = "2026-09-01";
-const DATA_FLOOR = "2026-08-31";
+export const DATA_FLOOR = "2026-08-31";
 
 export async function GET() {
   const [portalDaily, pcn] = await Promise.all([

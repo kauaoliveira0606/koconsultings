@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import {
   getAffiliateEod,
+  getAffiliatePcn,
+  getConnectedCalls,
   getEodCloser,
   getLeads,
   getMarketingDailyMetrics,
@@ -8,17 +10,20 @@ import {
 import type { BronsonAffiliateEodRow } from "@/lib/airtable/tables";
 import { buildWeeklyScorecard } from "@/lib/weekly-scorecard";
 import { getEcomSimulationGoals } from "@/lib/goals-ecom-simulation";
+import { CONNECTION_TRACKING_START } from "../connection-rate/route";
 
 export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
   const weekStart = request.nextUrl.searchParams.get("weekStart");
-  const [marketing, leads, eodRaw, closer, goals] = await Promise.all([
+  const [marketing, leads, eodRaw, closer, goals, pcn, connected] = await Promise.all([
     getMarketingDailyMetrics(),
     getLeads(),
     getAffiliateEod(),
     getEodCloser(),
     getEcomSimulationGoals(),
+    getAffiliatePcn(),
+    getConnectedCalls(),
   ]);
 
   // Reshape into the shared row shape (Bronson/Aval's own getters already
@@ -42,6 +47,11 @@ export async function GET(request: NextRequest) {
     totalTalkTimeRaw: r.totalTalkTimeRaw,
   }));
 
-  const payload = await buildWeeklyScorecard(marketing, leads, eod, closer, weekStart, new Date(), goals);
+  // No affiliate portal feed for this offer, so no Attribution Rate row data.
+  const payload = await buildWeeklyScorecard(marketing, leads, eod, closer, weekStart, new Date(), goals, {
+    pcn,
+    connected,
+    connectionTrackingStart: CONNECTION_TRACKING_START,
+  });
   return Response.json(payload);
 }
