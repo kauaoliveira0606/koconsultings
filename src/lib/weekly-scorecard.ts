@@ -284,7 +284,7 @@ function buildSpecs(
   const fromM = (pick: (r: MarketingDailyMetricRow) => number | null) => (c: DayCtx) =>
     c.m ? num(pick(c.m)) : null;
 
-  return [
+  const groups: { emoji: string; title: string; metrics: MetricSpec[] }[] = [
     {
       emoji: "💰",
       title: "Leading Metrics",
@@ -740,7 +740,10 @@ function buildSpecs(
           goalDirection: "higher",
           day: fromM((r) => r.vslPlayRate),
           // Weighted by views, same as the Overview card.
-          week: (days) => vslTotals(days.flatMap((c) => (c.m ? [c.m] : []))).vslPlayRate,
+          // Falls back to the plain average when the form has rates but no views.
+          week: (days) =>
+            vslTotals(days.flatMap((c) => (c.m ? [c.m] : []))).vslPlayRate ??
+            average(days.map(fromM((r) => r.vslPlayRate))),
         },
         {
           key: "vslEngagementRate",
@@ -750,7 +753,9 @@ function buildSpecs(
           goalDirection: "higher",
           day: fromM((r) => r.vslEngagementRate),
           // Weighted by plays, same as the Overview card.
-          week: (days) => vslTotals(days.flatMap((c) => (c.m ? [c.m] : []))).vslEngagementRate,
+          week: (days) =>
+            vslTotals(days.flatMap((c) => (c.m ? [c.m] : []))).vslEngagementRate ??
+            average(days.map(fromM((r) => r.vslEngagementRate))),
         },
       ],
     },
@@ -831,7 +836,29 @@ function buildSpecs(
       ],
     },
   ];
+
+  // Rows whose day cell is the rate the team typed into the Marketing Daily
+  // Metrics form (calculated only when a day has none typed). Their week
+  // total is the plain average of the day cells shown, so it always matches
+  // the days next to it instead of being recalculated from other tables.
+  return groups.map((g) => ({
+    ...g,
+    metrics: g.metrics.map((spec) =>
+      TYPED_RATE_KEYS.has(spec.key)
+        ? { ...spec, week: (days: DayCtx[]) => average(days.map(spec.day)) }
+        : spec
+    ),
+  }));
 }
+
+const TYPED_RATE_KEYS = new Set([
+  "costPerLeadMeta",
+  "funnelConvPaid",
+  "funnelConvOrganic",
+  "closeRateLowTicket",
+  "optInRate",
+  "connectionRate",
+]);
 
 /**
  * Display order, mirroring the Overview dashboard's tiers, with a Hierarchy
