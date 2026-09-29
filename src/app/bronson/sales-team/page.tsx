@@ -9,7 +9,6 @@ import { useSectionData } from "@/lib/use-section-data";
 import { formatDateTime, formatStatValue } from "@/lib/format";
 
 type SpeedToLeadResponse = {
-  avgSpeedToLead: number | null;
   medianSpeedToLead: number | null;
   leadsCalled: {
     called: number;
@@ -25,7 +24,6 @@ type SpeedToLeadResponse = {
     firstCallAt: string | null;
     minutesToCall: number | null;
     status: string | null;
-    everSpokeTo?: boolean;
   }[];
 };
 
@@ -34,15 +32,9 @@ type SpeedBucket = { label: string; className: string };
 function speedBucket(lead: {
   minutesToCall: number | null;
   firstCallAt: string | null;
-  everSpokeTo?: boolean;
 }): SpeedBucket {
-  const { minutesToCall, firstCallAt, everSpokeTo } = lead;
+  const { minutesToCall, firstCallAt } = lead;
   if (!firstCallAt || minutesToCall === null || !Number.isFinite(minutesToCall)) {
-    // No first-call timestamp on the Speed to Lead table — but if the lead
-    // turns up in a call log we still know they were reached.
-    if (everSpokeTo) {
-      return { label: "Called (no timestamp)", className: "bg-blue-100 text-blue-800" };
-    }
     return { label: "Not called yet", className: "bg-black/5 text-black/50" };
   }
   if (minutesToCall < 5) return { label: "Under 5 min", className: "bg-green-100 text-green-800" };
@@ -119,7 +111,7 @@ export default function SalesTeamPage() {
 
   const leadColumns: Column<SpeedToLeadResponse["leads"][number]>[] = [
     { key: "lead", header: "Lead", render: (l) => l.name ?? "Unknown" },
-    { key: "created", header: "Created", render: (l) => formatDateTime(l.createdAt) },
+    { key: "created", header: "Opted In", render: (l) => formatDateTime(l.createdAt) },
     { key: "firstCalled", header: "First Called", render: (l) => formatDateTime(l.firstCallAt) },
     {
       key: "timeToCall",
@@ -181,8 +173,18 @@ export default function SalesTeamPage() {
       <div className="ko-light-panel">
         <DashboardSection title="Speed to Lead">
           <StatCardGrid>
-            <StatCard label="Avg. Speed to Lead" value={speedToLead?.avgSpeedToLead} format="number" />
-            <StatCard label="Median Speed to Lead" value={speedToLead?.medianSpeedToLead} format="number" />
+            <StatCard
+              label="% Called Under 5 Min"
+              value={speedToLead?.leadsCalled.under5Rate}
+              format="percent"
+              subtext="Opt-ins a rep called within 5 min ÷ all funnel opt-ins"
+            />
+            <StatCard
+              label="Median Speed to Lead"
+              value={speedToLead?.medianSpeedToLead}
+              format="number"
+              subtext={`${formatMinutes(speedToLead?.medianSpeedToLead ?? null)} from opt-in to first rep call (called leads only)`}
+            />
             <StatCard
               label="Leads Called"
               value={speedToLead?.leadsCalled.called}
@@ -202,12 +204,6 @@ export default function SalesTeamPage() {
                   ? `of ${speedToLead.leadsCalled.total} total opt-ins`
                   : undefined
               }
-            />
-            <StatCard
-              label="% Called Under 5 Min"
-              value={speedToLead?.leadsCalled.under5Rate}
-              format="percent"
-              subtext="Under-5-min calls ÷ total opt-ins"
             />
           </StatCardGrid>
         </DashboardSection>

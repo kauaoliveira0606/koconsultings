@@ -25,7 +25,8 @@ export const BRONSON_TABLE_IDS: TableIds = {
   // "Speed to Lead (GHL)" — fed by the n8n "Bronson · Speed to Lead
   // (GHL → Airtable)" workflow off two GHL Power Dialer workflows.
   // Replaces the old ad-ventur.com-fed "Speed to Lead" table (tblxBgJe2hpDtzUdG).
-  speedToLead: "tbluBr2D8A2yL20pf",
+  // "Speed to Lead v2": n8n PHKXSwtfTIIaH2yB, GHL opt-ins + first human call.
+  speedToLead: "tbltKRQ3AG4vbl9Yd",
   leaderboard: "tblumrfxY24tF2D8E",
   vslDailyStats: "tblXkoLdiizJoUjjD",
 };
@@ -110,6 +111,8 @@ export type SpeedToLeadRow = {
   firstCallAt: string | null;
   minutesToCall: number | null;
   status: string | null;
+  /** Last 10 digits; used to dedupe the same person across GHL contacts. */
+  phone: string | null;
 };
 
 export type LeaderboardRow = {
@@ -444,7 +447,9 @@ export function createAirtableTables(
   async function getSpeedToLead(): Promise<SpeedToLeadRow[]> {
     const records = await airtableListAll<{
       Name?: string;
+      "Lead Time"?: string;
       "Created At"?: string;
+      Phone?: string;
       "First Call At"?: string;
       "Minutes to Call"?: number;
       Status?: string;
@@ -453,11 +458,13 @@ export function createAirtableTables(
     return records.map((r) => ({
       id: r.id,
       name: r.fields.Name ?? null,
-      createdAt: r.fields["Created At"] ?? null,
+      // "Lead Time" on Speed to Lead v2; older tables call it "Created At".
+      createdAt: r.fields["Lead Time"] ?? r.fields["Created At"] ?? null,
       firstCallAt: r.fields["First Call At"] ?? null,
       minutesToCall:
         typeof r.fields["Minutes to Call"] === "number" ? r.fields["Minutes to Call"] : null,
       status: r.fields.Status ?? null,
+      phone: r.fields.Phone ?? null,
     }));
   }
 

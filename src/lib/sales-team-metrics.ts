@@ -1,8 +1,38 @@
 import type { SpeedToLeadRow } from "./airtable/tables";
-import { average, median } from "./metrics";
+import { median } from "./metrics";
 
-export function avgSpeedToLead(rows: SpeedToLeadRow[]): number | null {
-  return average(rows.filter((r) => r.firstCallAt).map((r) => r.minutesToCall));
+/**
+ * The same person can exist as two GHL contacts. Collapse rows sharing a
+ * phone number into one lead: the earliest opt-in, and the earliest first
+ * call at or after it. Rows without a phone stay as they are.
+ */
+export function dedupeByPhone(rows: SpeedToLeadRow[]): SpeedToLeadRow[] {
+  const byPhone = new Map<string, SpeedToLeadRow[]>();
+  const out: SpeedToLeadRow[] = [];
+  for (const r of rows) {
+    if (!r.phone) {
+      out.push(r);
+      continue;
+    }
+    const group = byPhone.get(r.phone) ?? [];
+    group.push(r);
+    byPhone.set(r.phone, group);
+  }
+  for (const group of byPhone.values()) {
+    const lead = [...group].sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""))[0];
+    const leadTime = lead.createdAt;
+    const firstCall =
+      group
+        .map((r) => r.firstCallAt)
+        .filter((t): t is string => !!t && (!leadTime || t >= leadTime))
+        .sort()[0] ?? null;
+    const minutesToCall =
+      firstCall && leadTime
+        ? Math.round(((Date.parse(firstCall) - Date.parse(leadTime)) / 60000) * 10) / 10
+        : null;
+    out.push({ ...lead, firstCallAt: firstCall, minutesToCall });
+  }
+  return out;
 }
 
 export function medianSpeedToLead(rows: SpeedToLeadRow[]): number | null {

@@ -4,28 +4,20 @@ import {
   type BronsonAffiliateEodRow,
   type BronsonEodCloserRow,
   type ConnectedCallRow,
-  type SpeedToLeadRow,
   type TableIds,
 } from "./tables";
 import { parseDateOnly, parseNumericText } from "./parse";
 
-// Aval's Speed to Lead (GHL) table isn't wired yet — no Aval GHL creds.
-// Returns [] so the sales-team route renders an empty state until the
-// GHL → n8n → Airtable pipeline is built (then point this at the table id).
-export async function getAvalSpeedToLead(): Promise<SpeedToLeadRow[]> {
-  return [];
-}
-
 export const AVAL_BASE_ID = "appgEcTIxQjmtRKbP"; // "Aval Trades" base
 
-// Aval doesn't have dedicated Speed to Lead / Leaderboard tables yet, so
-// those two getters from the shared factory are never called for Aval.
+// Aval doesn't have a Leaderboard table, so that getter is never called for Aval.
 export const AVAL_TABLE_IDS: TableIds = {
   leads: "tblpFVOkddRGgm5rI",
   marketingDailyMetrics: "tblRdiOjEHQgth0TN",
   eodDialer: "tblWm3TRktDt075ih",
   eodCloser: "tbl0xIvtCZIjemZRZ",
-  speedToLead: "",
+  // "Speed to Lead v2": n8n WHwpopWZPKOFzX1c, GHL opt-ins + first human call.
+  speedToLead: "tblgbq8OfbhNhr8sn",
   leaderboard: "",
   vslDailyStats: "tbl5HOgO4cyZVXZWQ",
 };
@@ -34,6 +26,7 @@ export const {
   getLeads: getAvalLeads,
   getMarketingDailyMetrics: getAvalMarketingDailyMetrics,
   getEodDialer: getAvalEodDialer,
+  getSpeedToLead: getAvalSpeedToLead,
 } = createAirtableTables(AVAL_BASE_ID, AVAL_TABLE_IDS, {
   plainColumnsAreOrganic: true,
 });
