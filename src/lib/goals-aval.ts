@@ -11,12 +11,13 @@ import type { GoalsConfig } from "./goals";
  * Client KPI targets updated 2026-09-29 (same across all 3 client dashboards):
  * show rate 70%, close rate 35%, low-ticket close rate 40%, VSL play rate
  * 60%, engagement rate 40%, CAC $100, attribution rate 90%, landing page
- * connect rate 80%, ROAS 3x, connection rate 40%, yearly share 30%.
+ * connect rate 80%, ROAS 3x, connection rate 40%, yearly share 30%, cost per
+ * lead $15.
  */
 export async function getAvalGoals(): Promise<GoalsConfig> {
   return {
     adSpendMeta: null,
-    costPerLeadMeta: null,
+    costPerLeadMeta: { max: 15 },
     cashCollectedLowTicket: null,
     funnelConversionRate: { min: 0.1 },
     roasTotal: { min: 3 },
