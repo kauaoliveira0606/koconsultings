@@ -20,6 +20,12 @@ export async function GET() {
         tableId: "tblXsKo89QNuRawBy",
         cashFields: ["Amount (CPA/Cash)"],
       },
+      followUpPayments: {
+        baseId: ECOM_SIMULATION_BASE_ID,
+        tableId: "tblIv06rB4qG0msnZ",
+        dateField: "Payment Collected Date",
+        cashFields: ["Cash Collected"],
+      },
     })
   );
 }

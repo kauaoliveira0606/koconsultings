@@ -18,6 +18,12 @@ export async function GET() {
         tableId: "tblFZy89IvQ6Dcsl0",
         cashFields: ["CPA?"],
       },
+      followUpPayments: {
+        baseId: AVAL_BASE_ID,
+        tableId: "tblIv06rB4qG0msnZ",
+        dateField: "Payment Collected Date",
+        cashFields: ["Cash Collected"],
+      },
     })
   );
 }

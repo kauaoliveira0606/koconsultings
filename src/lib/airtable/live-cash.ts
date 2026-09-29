@@ -3,14 +3,17 @@ import { parseDateOnly, parseNumericText } from "./parse";
 import { easternDateString, toEasternDateOnly } from "@/lib/date-range";
 
 /**
- * Live "cash so far today" read straight off the two per-sale logs the team
- * fills in as deals close: Post Call Notes (high ticket) and Affiliate PCN
- * (software CPA). Display-only — the historical metrics stay form-first.
+ * Live "cash so far today" read ONLY from the three per-sale logs the team
+ * fills in as money comes in: Post Call Notes (high ticket), Affiliate PCN
+ * (software CPA) and Follow Up Payment (later installments). Nothing else
+ * feeds it, and it feeds nothing else — the historical metrics stay form-first.
  */
 
 export type LiveCashSource = {
   baseId: string;
   tableId: string;
+  /** Date field the row counts on (defaults to "Date"). */
+  dateField?: string;
   /** First non-blank of these fields is the row's cash. */
   cashFields: string[];
   /** Drop repeat rows sharing this field's value (Ecom PCN double-submits). */
@@ -28,6 +31,7 @@ export type LiveCashResponse = {
   total: number;
   postCallNotes: LiveCashSourceTotal;
   affiliatePcn: LiveCashSourceTotal;
+  followUpPayments: LiveCashSourceTotal;
   fetchedAt: string;
 };
 
@@ -52,7 +56,7 @@ async function sumSourceForDay(source: LiveCashSource, day: string): Promise<Liv
   let lastEntryAt: string | null = null;
 
   for (const r of records) {
-    if (rowEasternDate(r.fields.Date, r.createdTime) !== day) continue;
+    if (rowEasternDate(r.fields[source.dateField ?? "Date"], r.createdTime) !== day) continue;
     if (source.dedupeField) {
       const key = r.fields[source.dedupeField];
       if (typeof key === "string" && key) {
@@ -77,17 +81,20 @@ async function sumSourceForDay(source: LiveCashSource, day: string): Promise<Liv
 export async function getLiveCashToday(sources: {
   postCallNotes: LiveCashSource;
   affiliatePcn: LiveCashSource;
+  followUpPayments: LiveCashSource;
 }): Promise<LiveCashResponse> {
   const date = easternDateString();
-  const [postCallNotes, affiliatePcn] = await Promise.all([
+  const [postCallNotes, affiliatePcn, followUpPayments] = await Promise.all([
     sumSourceForDay(sources.postCallNotes, date),
     sumSourceForDay(sources.affiliatePcn, date),
+    sumSourceForDay(sources.followUpPayments, date),
   ]);
   return {
     date,
-    total: postCallNotes.cash + affiliatePcn.cash,
+    total: postCallNotes.cash + affiliatePcn.cash + followUpPayments.cash,
     postCallNotes,
     affiliatePcn,
+    followUpPayments,
     fetchedAt: new Date().toISOString(),
   };
 }

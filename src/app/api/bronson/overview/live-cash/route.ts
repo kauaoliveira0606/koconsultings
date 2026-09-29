@@ -18,6 +18,12 @@ export async function GET() {
         tableId: "tblXsKo89QNuRawBy",
         cashFields: ["CPA (Payout / Cash Collected)"],
       },
+      followUpPayments: {
+        baseId: BRONSON_BASE_ID,
+        tableId: "tblIv06rB4qG0msnZ",
+        dateField: "Payment Collected Date",
+        cashFields: ["Cash Collected"],
+      },
     })
   );
 }
