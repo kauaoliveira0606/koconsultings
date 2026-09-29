@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { formatStatValue } from "@/lib/format";
 import type { AttributionBucket, AttributionGranularity } from "@/lib/attribution";
+import { cellStatus } from "@/lib/weekly-scorecard";
 
 type AttributionResponse = {
   brands: string[];
@@ -12,6 +13,12 @@ type AttributionResponse = {
 };
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+const STATUS_DOT = {
+  green: "var(--cell-green-bg)",
+  yellow: "var(--cell-yellow-bg)",
+  red: "var(--cell-red-bg)",
+} as const;
 
 const THEME = {
   light: {
@@ -51,10 +58,13 @@ export function AttributionSection({
   apiPath,
   theme = "light",
   brandLabel,
+  goal,
 }: {
   apiPath: string;
   theme?: "light" | "dark" | "deepspace";
   brandLabel: string;
+  /** Minimum attribution rate target; same green/yellow/red scale as StatCard. */
+  goal?: number | null;
 }) {
   const t = THEME[theme];
   const { data } = useSWR<AttributionResponse>(apiPath, fetcher);
@@ -64,6 +74,8 @@ export function AttributionSection({
   const buckets = data ? data[granularity] : [];
   const selected =
     buckets.find((b) => b.key === periodKey) ?? buckets[0] ?? null;
+  const status =
+    selected && goal != null ? cellStatus(selected.rate ?? null, goal, "higher") : null;
 
   return (
     <div className={t.card}>
@@ -101,9 +113,23 @@ export function AttributionSection({
       {selected ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <div className={t.label}>Attribution Rate</div>
+            <div className="flex items-center gap-2">
+              <div className={t.label}>Attribution Rate</div>
+              {status ? (
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: STATUS_DOT[status] }}
+                  aria-label={`KPI status: ${status}`}
+                />
+              ) : null}
+            </div>
             <div className={t.rate}>{formatStatValue(selected.rate, "percent")}</div>
             <div className={`mt-1 ${t.muted}`}>{brandLabel}</div>
+            {goal !== undefined ? (
+              <div className={`mt-1 ${t.muted}`}>
+                {goal != null ? `≥ ${formatStatValue(goal, "percent")}` : "No goal set"}
+              </div>
+            ) : null}
           </div>
           <div>
             <div className={t.label}>Portal Purchases Tracked</div>

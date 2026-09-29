@@ -478,6 +478,8 @@ export default function OverviewPage() {
                 value={planSplit.yearlyShare}
                 format="percent"
                 subtext="Yearly ÷ total PCN closes."
+                status={kpiStatus(planSplit.yearlyShare, goals?.yearlyShare?.min, "higher")}
+                goal={kpiLabel(goals?.yearlyShare?.min, "higher", "percent")}
               />
             </StatCardGrid>
           ) : (
@@ -615,6 +617,7 @@ export default function OverviewPage() {
           apiPath="/api/bronson/overview/attribution"
           brandLabel="Base 44 + Wix"
           theme="deepspace"
+          goal={goals?.attributionRate?.min}
         />
       </DashboardSection>
 

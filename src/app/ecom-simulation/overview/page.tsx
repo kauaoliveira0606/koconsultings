@@ -479,6 +479,8 @@ export default function OverviewPage() {
                 value={planSplit.yearlyShare}
                 format="percent"
                 subtext="Yearly ÷ total PCN closes."
+                status={kpiStatus(planSplit.yearlyShare, goals?.yearlyShare?.min, "higher")}
+                goal={kpiLabel(goals?.yearlyShare?.min, "higher", "percent")}
               />
             </StatCardGrid>
           ) : (
