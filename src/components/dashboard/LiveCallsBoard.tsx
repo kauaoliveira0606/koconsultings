@@ -9,7 +9,10 @@ const REFRESH_MS = 30_000;
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Request to ${url} failed (${res.status})`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `Couldn't reach Calendly (${res.status}), retrying…`);
+  }
   return res.json();
 };
 
@@ -155,7 +158,7 @@ export function LiveCallsBoard({ apiPath }: { apiPath: string }) {
 
       <div className="mb-4 text-xs text-[var(--text-muted)]">
         {error && !data
-          ? "Couldn't reach Calendly, retrying…"
+          ? error.message || "Couldn't reach Calendly, retrying…"
           : data
             ? `Updated ${time(data.fetchedAt)} ET · refreshes every 30 seconds · all times Eastern`
             : "Loading…"}
@@ -164,6 +167,12 @@ export function LiveCallsBoard({ apiPath }: { apiPath: string }) {
       {data && byDay.size === 0 ? (
         <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-6 text-sm text-[var(--text-muted)]">
           No sales calls on the calendar for the next 7 days.
+        </div>
+      ) : null}
+
+      {data?.hiddenEventNames?.length ? (
+        <div className="mb-4 text-xs text-[var(--text-muted)]">
+          Not shown (not sales calls): {data.hiddenEventNames.join(", ")}
         </div>
       ) : null}
 

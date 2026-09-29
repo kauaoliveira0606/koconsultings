@@ -29,6 +29,8 @@ export type LiveCall = {
 
 export type LiveCallsResponse = {
   calls: LiveCall[];
+  /** Call types on the calendar in this window that aren't sales calls. */
+  hiddenEventNames: string[];
   fetchedAt: string;
 };
 
@@ -86,6 +88,15 @@ function eventUriOfInvitee(inviteeUri: string): string {
   return inviteeUri.replace(/\/invitees\/[^/]+$/, "");
 }
 
+/** The Calendly organization a token belongs to. */
+export async function getTokenOrganization(pat: string): Promise<string> {
+  const { resource } = await calendlyGet<{ resource: { current_organization: string } }>(
+    pat,
+    "/users/me"
+  );
+  return resource.current_organization;
+}
+
 export async function getLiveCalls({
   pat,
   organization,
@@ -102,9 +113,13 @@ export async function getLiveCalls({
   const min = new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString();
   const max = new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
 
-  const events = (await listEvents(pat, organization, min, max)).filter(
-    (e) => isSalesCall(e.name) && new Date(e.end_time) > now
+  const upcoming = (await listEvents(pat, organization, min, max)).filter(
+    (e) => new Date(e.end_time) > now
   );
+  const events = upcoming.filter((e) => isSalesCall(e.name));
+  const hiddenEventNames = [
+    ...new Set(upcoming.filter((e) => !isSalesCall(e.name)).map((e) => e.name)),
+  ].sort();
 
   const calls = await Promise.all(
     events.map(async (e): Promise<LiveCall> => {
@@ -161,5 +176,5 @@ export async function getLiveCalls({
     })
   );
 
-  return { calls, fetchedAt: now.toISOString() };
+  return { calls, hiddenEventNames, fetchedAt: now.toISOString() };
 }
