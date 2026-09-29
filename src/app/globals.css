@@ -44,6 +44,8 @@
   --cell-red-text: #991b1b;
   --cell-cash-bg: #ffedd5;
   --cell-cash-text: #9a3412;
+  --cell-current-bg: #e0f2fe;
+  --cell-current-text: #075985;
 }
 
 [data-theme="deepspace"] {
@@ -69,6 +71,8 @@
   --cell-red-text: #ffffff;
   --cell-cash-bg: rgba(249, 115, 22, 0.42);
   --cell-cash-text: #ffffff;
+  --cell-current-bg: rgba(56, 189, 248, 0.4);
+  --cell-current-text: #ffffff;
 }
 
 [data-theme="deepspace"] ::selection {
@@ -104,6 +108,8 @@
   --cell-red-text: #ffffff;
   --cell-cash-bg: rgba(249, 115, 22, 0.42);
   --cell-cash-text: #ffffff;
+  --cell-current-bg: rgba(56, 189, 248, 0.4);
+  --cell-current-text: #ffffff;
 }
 
 [data-theme="violet"] ::selection {

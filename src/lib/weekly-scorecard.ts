@@ -1160,7 +1160,6 @@ export type PacingRow = {
   toDate: number | null;
   dailyAvg: number | null;
   projected: number | null;
-  previous: number | null;
   goal: number | null;
   goalDirection: GoalDirection | null;
   status: CellStatus;
@@ -1169,7 +1168,6 @@ export type PacingRow = {
 export type PacingPeriod = {
   key: "month" | "week";
   label: string;
-  previousLabel: string;
   start: string;
   end: string;
   /** Last completed day counted; null when no day of the period has closed yet. */
@@ -1236,8 +1234,6 @@ export function buildPacing(
   const lastClosed = formDates.has(yesterday) ? yesterday : isoAddDays(yesterday, -1);
 
   const monthStart = `${today.slice(0, 7)}-01`;
-  const prevMonthEnd = isoAddDays(monthStart, -1);
-  const prevMonthStart = `${prevMonthEnd.slice(0, 7)}-01`;
   const weekStart = sundayOf(today);
   const monthName = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleString("en-US", {
@@ -1250,20 +1246,14 @@ export function buildPacing(
     {
       key: "month" as const,
       label: monthName(monthStart),
-      previousLabel: monthName(prevMonthStart),
       start: monthStart,
       end: lastDayOfMonth(monthStart),
-      prevStart: prevMonthStart,
-      prevEnd: prevMonthEnd,
     },
     {
       key: "week" as const,
       label: formatWeekLabel(weekStart, isoAddDays(weekStart, 6)),
-      previousLabel: "Last Week",
       start: weekStart,
       end: isoAddDays(weekStart, 6),
-      prevStart: isoAddDays(weekStart, -7),
-      prevEnd: isoAddDays(weekStart, -1),
     },
   ];
 
@@ -1271,7 +1261,6 @@ export function buildPacing(
     periods: periodDefs.map((p) => {
       const through = lastClosed >= p.start ? lastClosed : null;
       const elapsed = through ? datesBetween(p.start, through).map(ctxFor) : [];
-      const previous = datesBetween(p.prevStart, p.prevEnd).map(ctxFor);
       const daysTotal = datesBetween(p.start, p.end).length;
 
       const rows: PacingRow[] = [...PACING_TOTALS, ...PACING_RATES].flatMap((key) => {
@@ -1293,7 +1282,6 @@ export function buildPacing(
             toDate,
             dailyAvg,
             projected,
-            previous: spec.week(previous),
             goal: kind === "rate" ? spec.goal : null,
             goalDirection: kind === "rate" ? spec.goalDirection : null,
             status: kind === "rate" ? cellStatus(projected, spec.goal, spec.goalDirection) : null,
@@ -1304,7 +1292,6 @@ export function buildPacing(
       return {
         key: p.key,
         label: p.label,
-        previousLabel: p.previousLabel,
         start: p.start,
         end: p.end,
         through,

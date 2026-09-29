@@ -18,6 +18,13 @@ const CASH_STYLE: React.CSSProperties = {
   color: "var(--cell-cash-text)",
 };
 
+// "Currently At" gets its own sky-blue so where we are now reads apart from
+// where we're pacing.
+const CURRENT_STYLE: React.CSSProperties = {
+  background: "var(--cell-current-bg)",
+  color: "var(--cell-current-text)",
+};
+
 function shortDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleString("en-US", {
     month: "short",
@@ -54,14 +61,13 @@ function PeriodTable({ period }: { period: PacingPeriod }) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] border-collapse">
+        <table className="w-full min-w-[440px] border-collapse">
           <thead>
             <tr className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
               <th className="px-2 py-1.5 text-left font-semibold">Metric</th>
-              <th className="px-2 py-1.5 text-right font-semibold">To Date</th>
+              <th className="px-2 py-1.5 text-right font-semibold">Currently At</th>
               <th className="px-2 py-1.5 text-right font-semibold">Daily Avg</th>
               <th className="px-2 py-1.5 text-right font-semibold">Pacing For</th>
-              <th className="px-2 py-1.5 text-right font-semibold">{period.previousLabel}</th>
             </tr>
           </thead>
           <tbody>
@@ -81,7 +87,7 @@ function PeriodTable({ period }: { period: PacingPeriod }) {
                       <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">{goal}</span>
                     ) : null}
                   </th>
-                  <td className={cellClass()} style={base}>
+                  <td className={cellClass("font-semibold")} style={CURRENT_STYLE}>
                     {formatStatValue(row.toDate, row.format)}
                   </td>
                   <td className={cellClass()} style={base}>
@@ -92,9 +98,6 @@ function PeriodTable({ period }: { period: PacingPeriod }) {
                     style={row.status ? STATUS_STYLE[row.status] : base}
                   >
                     {formatStatValue(row.projected, row.format)}
-                  </td>
-                  <td className={cellClass("text-[var(--text-muted)]")}>
-                    {formatStatValue(row.previous, row.format)}
                   </td>
                 </tr>
               );
