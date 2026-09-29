@@ -10,6 +10,7 @@ import { formatStatValue, type StatFormat } from "@/lib/format";
 import { cellStatus, type GoalDirection } from "@/lib/weekly-scorecard";
 import type { GoalsConfig } from "@/lib/goals";
 import { CashCalendar } from "@/components/dashboard/CashCalendar";
+import { PacingSection } from "@/components/dashboard/PacingSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { WeeklyScorecard } from "./WeeklyScorecard";
 
@@ -641,6 +642,10 @@ export default function OverviewPage() {
 
       <DashboardSection title="Cash Calendar">
         <CashCalendar apiPath="/api/ecom-simulation/overview/cash-calendar" />
+      </DashboardSection>
+
+      <DashboardSection title="Pacing">
+        <PacingSection apiPath="/api/ecom-simulation/overview/pacing" />
       </DashboardSection>
     </div>
   );

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function EcomSimulationLayout({ children }: { children: ReactNode }) {
   return (
-    <RangeProvider>
+    <RangeProvider initialPreset="this_month">
       <div
         data-theme="violet"
         style={{ background: "var(--app-bg)" }}

@@ -935,21 +935,24 @@ const CASH_KEYS = new Set([
   "collectedPerBookedCallHT",
 ]);
 
-export async function buildWeeklyScorecard(
+const emptyDay = (date: string): DayCtx => ({
+  date,
+  paidLeads: 0,
+  organicLeads: 0,
+  pcnTotal: 0,
+  pcnYearly: 0,
+  connectedPaid: null,
+  connectedOrganic: null,
+});
+
+/** Rolls every source up per Eastern day; returns a lookup for one day's inputs. */
+function indexDays(
   allMarketing: MarketingDailyMetricRow[],
   allLeads: LeadRow[],
   allEod: BronsonAffiliateEodRow[],
   allCloser: BronsonEodCloserRow[],
-  weekStartInput: string | null,
-  now: Date = new Date(),
-  goals: Awaited<ReturnType<typeof getGoals>>,
-  extras: ScorecardExtras = {},
-): Promise<WeeklyScorecardPayload> {
-  const currentWeekStart = sundayOf(todayIso(now));
-  const weekStart = weekStartInput ? sundayOf(weekStartInput) : currentWeekStart;
-  const dayDates = weekDates(weekStart);
-  const weekEnd = dayDates[6];
-
+  extras: ScorecardExtras
+): (date: string) => DayCtx {
   const byDate = new Map(allMarketing.filter((r) => r.date).map((r) => [r.date as string, r]));
 
   // Affiliate EOD is per-setter — roll every setter's row up per day.
@@ -1040,36 +1043,45 @@ export async function buildWeeklyScorecard(
     !!extras.connectionTrackingStart &&
     date >= extras.connectionTrackingStart;
 
+  return (date) => ({
+    date,
+    m: byDate.get(date),
+    eod: eodByDate.get(date),
+    closer: closerByDate.get(date),
+    paidLeads: paidByDate.get(date) ?? 0,
+    organicLeads: organicByDate.get(date) ?? 0,
+    pcnTotal: pcnTotalByDate.get(date) ?? 0,
+    pcnYearly: pcnYearlyByDate.get(date) ?? 0,
+    connectedPaid: connTracked(date) ? (connPaidByDate.get(date) ?? 0) : null,
+    connectedOrganic: connTracked(date) ? (connOrgByDate.get(date) ?? 0) : null,
+  });
+}
+
+export async function buildWeeklyScorecard(
+  allMarketing: MarketingDailyMetricRow[],
+  allLeads: LeadRow[],
+  allEod: BronsonAffiliateEodRow[],
+  allCloser: BronsonEodCloserRow[],
+  weekStartInput: string | null,
+  now: Date = new Date(),
+  goals: Awaited<ReturnType<typeof getGoals>>,
+  extras: ScorecardExtras = {},
+): Promise<WeeklyScorecardPayload> {
+  const currentWeekStart = sundayOf(todayIso(now));
+  const weekStart = weekStartInput ? sundayOf(weekStartInput) : currentWeekStart;
+  const dayDates = weekDates(weekStart);
+  const weekEnd = dayDates[6];
+
+  const ctxFor = indexDays(allMarketing, allLeads, allEod, allCloser, extras);
+
   // Today (and anything later) is still in progress — a partial day would
   // drag the week's rates and totals off. Hold it blank until it closes;
   // it fills in the next day. Past weeks are fully complete, nothing held.
   const todayE = easternDateString(now);
 
-  const dayCtxs: DayCtx[] = dayDates.map((date) => {
-    if (date >= todayE) {
-      return {
-        date,
-        paidLeads: 0,
-        organicLeads: 0,
-        pcnTotal: 0,
-        pcnYearly: 0,
-        connectedPaid: null,
-        connectedOrganic: null,
-      };
-    }
-    return {
-      date,
-      m: byDate.get(date),
-      eod: eodByDate.get(date),
-      closer: closerByDate.get(date),
-      paidLeads: paidByDate.get(date) ?? 0,
-      organicLeads: organicByDate.get(date) ?? 0,
-      pcnTotal: pcnTotalByDate.get(date) ?? 0,
-      pcnYearly: pcnYearlyByDate.get(date) ?? 0,
-      connectedPaid: connTracked(date) ? (connPaidByDate.get(date) ?? 0) : null,
-      connectedOrganic: connTracked(date) ? (connOrgByDate.get(date) ?? 0) : null,
-    };
-  });
+  const dayCtxs: DayCtx[] = dayDates.map((date) =>
+    date >= todayE ? emptyDay(date) : ctxFor(date)
+  );
   const scoredDays = dayCtxs.filter((c) => c.date < todayE);
 
   // Attribution over the completed days of this Sun–Sat week.
@@ -1133,5 +1145,173 @@ export async function buildWeeklyScorecard(
     dayDates,
     isCurrentWeek: weekStart >= currentWeekStart,
     groups,
+  };
+}
+
+// --- Pacing ---------------------------------------------------------------
+
+export type PacingRow = {
+  key: string;
+  label: string;
+  format: StatFormat;
+  cash: boolean;
+  /** "total" metrics are projected forward; "rate" metrics pace at their to-date value. */
+  kind: "total" | "rate";
+  toDate: number | null;
+  dailyAvg: number | null;
+  projected: number | null;
+  previous: number | null;
+  goal: number | null;
+  goalDirection: GoalDirection | null;
+  status: CellStatus;
+};
+
+export type PacingPeriod = {
+  key: "month" | "week";
+  label: string;
+  previousLabel: string;
+  start: string;
+  end: string;
+  /** Last completed day counted; null when no day of the period has closed yet. */
+  through: string | null;
+  daysElapsed: number;
+  daysTotal: number;
+  rows: PacingRow[];
+};
+
+export type PacingPayload = { periods: PacingPeriod[] };
+
+const PACING_TOTALS = [
+  "totalCashCollected",
+  "cashCollectedLowTicket",
+  "cashLtPaid",
+  "cashLtOrganic",
+  "cashCollectedHighTicket",
+  "cashHtPaid",
+  "cashHtOrganic",
+  "adSpendMeta",
+  "optInsPaid",
+  "optInsOrganic",
+  "salesLowTicket",
+  "htCallsBooked",
+  "htDealsClosed",
+];
+const PACING_RATES = ["roasTotal", "costPerLeadMeta", "cpaLowTicket"];
+
+function datesBetween(start: string, end: string): string[] {
+  const out: string[] = [];
+  for (let d = start; d <= end; d = isoAddDays(d, 1)) out.push(d);
+  return out;
+}
+
+function lastDayOfMonth(iso: string): string {
+  const [y, m] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
+/**
+ * Month and week (Sun–Sat) pacing: completed days so far, projected to the
+ * full period at the same daily rate. Today never counts (no partial days),
+ * and if yesterday's Marketing Daily Metrics form isn't in yet, yesterday
+ * waits too, so a missing form doesn't read as a $0 day and sink the pace.
+ */
+export function buildPacing(
+  allMarketing: MarketingDailyMetricRow[],
+  allLeads: LeadRow[],
+  allEod: BronsonAffiliateEodRow[],
+  allCloser: BronsonEodCloserRow[],
+  goals: Awaited<ReturnType<typeof getGoals>>,
+  now: Date = new Date()
+): PacingPayload {
+  const ctxFor = indexDays(allMarketing, allLeads, allEod, allCloser, {});
+  const specByKey = new Map(
+    buildSpecs(goals, null)
+      .flatMap((g) => g.metrics)
+      .map((spec) => [spec.key, spec])
+  );
+
+  const today = todayIso(now);
+  const yesterday = isoAddDays(today, -1);
+  const formDates = new Set(allMarketing.map((r) => r.date));
+  const lastClosed = formDates.has(yesterday) ? yesterday : isoAddDays(yesterday, -1);
+
+  const monthStart = `${today.slice(0, 7)}-01`;
+  const prevMonthEnd = isoAddDays(monthStart, -1);
+  const prevMonthStart = `${prevMonthEnd.slice(0, 7)}-01`;
+  const weekStart = sundayOf(today);
+  const monthName = (iso: string) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleString("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+
+  const periodDefs = [
+    {
+      key: "month" as const,
+      label: monthName(monthStart),
+      previousLabel: monthName(prevMonthStart),
+      start: monthStart,
+      end: lastDayOfMonth(monthStart),
+      prevStart: prevMonthStart,
+      prevEnd: prevMonthEnd,
+    },
+    {
+      key: "week" as const,
+      label: formatWeekLabel(weekStart, isoAddDays(weekStart, 6)),
+      previousLabel: "Last Week",
+      start: weekStart,
+      end: isoAddDays(weekStart, 6),
+      prevStart: isoAddDays(weekStart, -7),
+      prevEnd: isoAddDays(weekStart, -1),
+    },
+  ];
+
+  return {
+    periods: periodDefs.map((p) => {
+      const through = lastClosed >= p.start ? lastClosed : null;
+      const elapsed = through ? datesBetween(p.start, through).map(ctxFor) : [];
+      const previous = datesBetween(p.prevStart, p.prevEnd).map(ctxFor);
+      const daysTotal = datesBetween(p.start, p.end).length;
+
+      const rows: PacingRow[] = [...PACING_TOTALS, ...PACING_RATES].flatMap((key) => {
+        const spec = specByKey.get(key);
+        if (!spec) return [];
+        const kind = PACING_RATES.includes(key) ? "rate" : "total";
+        const toDate = elapsed.length ? spec.week(elapsed) : null;
+        const dailyAvg =
+          kind === "total" && toDate !== null ? toDate / elapsed.length : null;
+        const projected =
+          kind === "total" ? (dailyAvg !== null ? dailyAvg * daysTotal : null) : toDate;
+        return [
+          {
+            key,
+            label: spec.label,
+            format: spec.format,
+            cash: CASH_KEYS.has(key),
+            kind,
+            toDate,
+            dailyAvg,
+            projected,
+            previous: spec.week(previous),
+            goal: kind === "rate" ? spec.goal : null,
+            goalDirection: kind === "rate" ? spec.goalDirection : null,
+            status: kind === "rate" ? cellStatus(projected, spec.goal, spec.goalDirection) : null,
+          },
+        ];
+      });
+
+      return {
+        key: p.key,
+        label: p.label,
+        previousLabel: p.previousLabel,
+        start: p.start,
+        end: p.end,
+        through,
+        daysElapsed: elapsed.length,
+        daysTotal,
+        rows,
+      };
+    }),
   };
 }

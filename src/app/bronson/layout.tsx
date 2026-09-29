@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function BronsonLayout({ children }: { children: ReactNode }) {
   return (
-    <RangeProvider>
+    <RangeProvider initialPreset="this_month">
       <div
         data-theme="deepspace"
         style={{ background: "var(--app-bg)" }}

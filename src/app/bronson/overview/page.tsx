@@ -5,6 +5,7 @@ import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { CashCalendar } from "@/components/dashboard/CashCalendar";
+import { PacingSection } from "@/components/dashboard/PacingSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
@@ -648,6 +649,10 @@ export default function OverviewPage() {
 
       <DashboardSection title="Cash Calendar">
         <CashCalendar apiPath="/api/bronson/overview/cash-calendar" />
+      </DashboardSection>
+
+      <DashboardSection title="Pacing">
+        <PacingSection apiPath="/api/bronson/overview/pacing" />
       </DashboardSection>
     </div>
   );
