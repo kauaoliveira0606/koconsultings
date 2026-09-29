@@ -607,7 +607,7 @@ function buildSpecs(
         },
         {
           key: "yearlyShare",
-          label: "Yearly Share (Affiliate PCN)",
+          label: "Yearly Split % (Affiliate PCN)",
           format: "percent",
           goal: goals.yearlyShare?.min ?? null,
           goalDirection: "higher",
@@ -892,7 +892,6 @@ const SCORECARD_LAYOUT: { emoji: string; title: string; keys: string[] }[] = [
       "htBookingRateFromLt",
       "aovHighTicket",
       "revenueHighTicket",
-      "yearlyShare",
     ],
   },
   {
@@ -920,7 +919,7 @@ const SCORECARD_LAYOUT: { emoji: string; title: string; keys: string[] }[] = [
   {
     emoji: "📊",
     title: "Attribution & Refunds",
-    keys: ["attributionRate", "refundChargebackDollars", "refundChargebackRate"],
+    keys: ["attributionRate", "yearlyShare", "refundChargebackDollars", "refundChargebackRate"],
   },
 ];
 
