@@ -22,6 +22,13 @@ const STATUS_STYLE: Record<Exclude<CellStatus, null>, React.CSSProperties> = {
   red: { background: "var(--cell-red-bg)", color: "var(--cell-red-text)" },
 };
 
+// Cash-collected rows are always orange so they're easy to spot; a KPI
+// status (green/yellow/red) still wins on any cell that has a goal.
+const CASH_STYLE: React.CSSProperties = {
+  background: "var(--cell-cash-bg)",
+  color: "var(--cell-cash-text)",
+};
+
 function kpiText(row: ScorecardRow): string {
   if (row.goal === null || row.goalDirection === null) return "—";
   const v = formatStatValue(row.goal, row.format);
@@ -32,10 +39,12 @@ function Cell({
   value,
   status,
   format,
+  cash,
 }: {
   value: number | null;
   status: CellStatus;
   format: ScorecardRow["format"];
+  cash: boolean;
 }) {
   return (
     <td
@@ -43,7 +52,9 @@ function Cell({
       style={
         status
           ? STATUS_STYLE[status]
-          : { color: value === null ? "var(--text-muted)" : "var(--text)" }
+          : cash
+            ? CASH_STYLE
+            : { color: value === null ? "var(--text-muted)" : "var(--text)" }
       }
     >
       {formatStatValue(value, format)}
@@ -162,18 +173,29 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
       </tr>
       {rows.map((row) => (
         <tr key={row.key}>
-          <th className="sticky left-0 z-10 bg-[var(--panel-bg)] px-2 py-1.5 text-left align-middle backdrop-blur-sm">
+          <th
+            className="sticky left-0 z-10 bg-[var(--panel-bg)] px-2 py-1.5 text-left align-middle backdrop-blur-sm"
+            style={row.cash ? { boxShadow: "inset 4px 0 0 rgb(249, 115, 22)" } : undefined}
+          >
             <span className="text-sm font-medium leading-tight text-[var(--text-strong)]">{row.label}</span>
           </th>
           {row.days.map((cell) => (
-            <Cell key={cell.date} value={cell.value} status={cell.status} format={row.format} />
+            <Cell
+              key={cell.date}
+              value={cell.value}
+              status={cell.status}
+              format={row.format}
+              cash={row.cash}
+            />
           ))}
           <td
             className="border border-[var(--panel-border)] px-2 py-1.5 text-right text-sm font-semibold tabular-nums"
             style={
               row.week.status
                 ? STATUS_STYLE[row.week.status]
-                : { background: "var(--panel-subtle)", color: "var(--text)" }
+                : row.cash
+                  ? CASH_STYLE
+                  : { background: "var(--panel-subtle)", color: "var(--text)" }
             }
           >
             {formatStatValue(row.week.value, row.format)}

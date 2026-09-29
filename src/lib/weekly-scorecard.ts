@@ -27,6 +27,8 @@ export type ScorecardRow = {
   format: StatFormat;
   goal: number | null;
   goalDirection: GoalDirection | null;
+  /** Cash-collected rows are highlighted orange in the grid. */
+  cash: boolean;
   days: ScorecardCell[];
   week: { value: number | null; status: CellStatus };
 };
@@ -831,6 +833,109 @@ function buildSpecs(
   ];
 }
 
+/**
+ * Display order, mirroring the Overview dashboard's tiers, with a Hierarchy
+ * section on top for the numbers checked first. Metric definitions live in
+ * buildSpecs; this only decides where each one shows up.
+ */
+const SCORECARD_LAYOUT: { emoji: string; title: string; keys: string[] }[] = [
+  {
+    emoji: "👑",
+    title: "Hierarchy",
+    keys: [
+      "adSpendMeta",
+      "costPerLeadMeta",
+      "totalCashCollected",
+      "cashCollectedLowTicket",
+      "cashLtPaid",
+      "cashLtOrganic",
+      "cashCollectedHighTicket",
+      "cashHtPaid",
+      "cashHtOrganic",
+      "roasTotal",
+      "cpaLowTicket",
+    ],
+  },
+  {
+    emoji: "🔥",
+    title: "Lead Flow",
+    keys: ["optInsPaid", "optInsOrganic", "vslViews", "optInRate"],
+  },
+  {
+    emoji: "🤝",
+    title: "Front-End Sales Conversion",
+    keys: [
+      "dials",
+      "pickups",
+      "pickupRate",
+      "softwarePitched",
+      "pitchRate",
+      "salesLowTicket",
+      "salesLtPaid",
+      "salesLtOrganic",
+      "closeRateLowTicket",
+      "aovLowTicket",
+      "connectionRate",
+      "connectionRatePaid",
+      "connectionRateOrganic",
+    ],
+  },
+  {
+    emoji: "🎯",
+    title: "High-Ticket Backend",
+    keys: [
+      "htCallsBooked",
+      "htCallsShowed",
+      "htShowRate",
+      "htDealsClosed",
+      "htCloseRate",
+      "htBookingRateFromLt",
+      "aovHighTicket",
+      "revenueHighTicket",
+      "yearlyShare",
+    ],
+  },
+  {
+    emoji: "💰",
+    title: "Unit Economics",
+    keys: [
+      "cacHighTicketPaid",
+      "costPerCallHT",
+      "leadToCloseRate",
+      "cashPerOptInPaid",
+      "collectedPerBookedCallHT",
+    ],
+  },
+  {
+    emoji: "🚩",
+    title: "Funnel & Marketing Health",
+    keys: [
+      "landingPageConnectRate",
+      "vslPlayRate",
+      "vslEngagementRate",
+      "funnelConvPaid",
+      "funnelConvOrganic",
+    ],
+  },
+  {
+    emoji: "📊",
+    title: "Attribution & Refunds",
+    keys: ["attributionRate", "refundChargebackDollars", "refundChargebackRate"],
+  },
+];
+
+const CASH_KEYS = new Set([
+  "totalCashCollected",
+  "cashCollectedLowTicket",
+  "cashLtPaid",
+  "cashLtOrganic",
+  "cashCollectedHighTicket",
+  "cashHtPaid",
+  "cashHtOrganic",
+  "cashPerOptInPaid",
+  "collectedPerBookedCallHT",
+]);
+
 export async function buildWeeklyScorecard(
   allMarketing: MarketingDailyMetricRow[],
   allLeads: LeadRow[],
@@ -981,10 +1086,19 @@ export async function buildWeeklyScorecard(
         )[0].rate
       : null;
 
-  const groups: ScorecardGroup[] = buildSpecs(goals, weekAttribution).map((g) => ({
+  const specByKey = new Map(
+    buildSpecs(goals, weekAttribution)
+      .flatMap((g) => g.metrics)
+      .map((spec) => [spec.key, spec])
+  );
+  const groups: ScorecardGroup[] = SCORECARD_LAYOUT.map((g) => ({
     emoji: g.emoji,
     title: g.title,
-    rows: g.metrics
+    rows: g.keys
+      .flatMap((key) => {
+        const spec = specByKey.get(key);
+        return spec ? [spec] : [];
+      })
       // Offers without an affiliate portal feed have nothing to show here.
       .filter((spec) => spec.key !== "attributionRate" || !!extras.attribution)
       .map((spec) => {
@@ -1003,6 +1117,7 @@ export async function buildWeeklyScorecard(
           format: spec.format,
           goal: spec.goal,
           goalDirection: spec.goalDirection,
+          cash: CASH_KEYS.has(spec.key),
           days,
           week: {
             value: weekValue,
