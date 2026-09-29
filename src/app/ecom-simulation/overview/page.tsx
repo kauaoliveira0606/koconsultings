@@ -10,6 +10,7 @@ import { formatStatValue, type StatFormat } from "@/lib/format";
 import { cellStatus, type GoalDirection } from "@/lib/weekly-scorecard";
 import type { GoalsConfig } from "@/lib/goals";
 import { CashCalendar } from "@/components/dashboard/CashCalendar";
+import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { WeeklyScorecard } from "./WeeklyScorecard";
 
 type MetricsResponse = {
@@ -168,6 +169,10 @@ export default function OverviewPage() {
         <h1 className="text-2xl font-bold">Overview</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
+
+      <DashboardSection title="Live Cash Today">
+        <LiveCashToday apiPath="/api/ecom-simulation/overview/live-cash" />
+      </DashboardSection>
 
       {/* TIER 1 — KEYSTONE METRICS: the four numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">

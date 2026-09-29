@@ -5,6 +5,7 @@ import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { CashCalendar } from "@/components/dashboard/CashCalendar";
+import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
@@ -166,6 +167,10 @@ export default function OverviewPage() {
         <h1 className="text-2xl font-bold text-[var(--text-strong)]">Overview</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
+
+      <DashboardSection title="Live Cash Today">
+        <LiveCashToday apiPath="/api/aval/overview/live-cash" />
+      </DashboardSection>
 
       {/* TIER 1 — KEYSTONE METRICS: the four numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">
