@@ -1,5 +1,5 @@
 import type { SpeedToLeadRow } from "./airtable/tables";
-import { median } from "./metrics";
+import { average, median } from "./metrics";
 
 /**
  * The same person can exist as two GHL contacts. Collapse rows sharing a
@@ -33,6 +33,11 @@ export function dedupeByPhone(rows: SpeedToLeadRow[]): SpeedToLeadRow[] {
     out.push({ ...lead, firstCallAt: firstCall, minutesToCall });
   }
   return out;
+}
+
+/** Called leads only: a lead nobody has called yet has no time to average. */
+export function avgSpeedToLead(rows: SpeedToLeadRow[]): number | null {
+  return average(rows.filter((r) => r.firstCallAt).map((r) => r.minutesToCall));
 }
 
 export function medianSpeedToLead(rows: SpeedToLeadRow[]): number | null {

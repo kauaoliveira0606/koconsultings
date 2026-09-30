@@ -39,5 +39,6 @@ export async function getAvalGoals(): Promise<GoalsConfig> {
     showRate: { min: 0.7 },
     attributionRate: { min: 0.9 },
     yearlyShare: { min: 0.3 },
+    speedToLeadMinutes: { max: 5 },
   };
 }

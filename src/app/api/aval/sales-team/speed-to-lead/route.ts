@@ -3,15 +3,19 @@ import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date-range";
 import { getAvalSpeedToLead } from "@/lib/airtable/tables-aval";
 import type { SpeedToLeadRow } from "@/lib/airtable/tables";
-import { dedupeByPhone, leadsCalledSummary, medianSpeedToLead } from "@/lib/sales-team-metrics";
+import {
+  avgSpeedToLead,
+  dedupeByPhone,
+  leadsCalledSummary,
+  medianSpeedToLead,
+} from "@/lib/sales-team-metrics";
 
 export const revalidate = 60;
 
 /**
  * Speed to Lead v2 (n8n writes it from GHL every 10 min): funnel opt-ins and
  * the first outbound call a real rep placed after the lead came in. Same
- * person across duplicate contacts counts once. Median, not average, so one
- * lead nobody called for days can't swamp the number.
+ * person across duplicate contacts counts once.
  */
 function summarize(rows: SpeedToLeadRow[], range: ResolvedRange) {
   const inRange = dedupeByPhone(rows)
@@ -19,6 +23,7 @@ function summarize(rows: SpeedToLeadRow[], range: ResolvedRange) {
     // newest opt-in first
     .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
   return {
+    avgSpeedToLead: avgSpeedToLead(inRange),
     medianSpeedToLead: medianSpeedToLead(inRange),
     leadsCalled: leadsCalledSummary(inRange),
     leads: inRange,

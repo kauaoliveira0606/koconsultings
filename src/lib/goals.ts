@@ -22,6 +22,8 @@ export type GoalsConfig = {
   highTicketCloseRate?: { min: number } | null;
   attributionRate?: { min: number } | null;
   yearlyShare?: { min: number } | null;
+  /** Average minutes from opt-in to first rep call. */
+  speedToLeadMinutes?: { max: number } | null;
 };
 
 /**
@@ -62,5 +64,6 @@ export async function getGoals(): Promise<GoalsConfig> {
     highTicketCloseRate: { min: 0.35 },
     attributionRate: { min: 0.9 },
     yearlyShare: { min: 0.3 },
+    speedToLeadMinutes: { max: 5 },
   };
 }

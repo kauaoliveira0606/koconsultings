@@ -1,6 +1,8 @@
 "use client";
 
 import { StatCard } from "@/components/dashboard/StatCard";
+import { cellStatus } from "@/lib/weekly-scorecard";
+import type { GoalsConfig } from "@/lib/goals";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { DataTable, type Column } from "@/components/dashboard/DataTable";
@@ -9,6 +11,7 @@ import { useSectionData } from "@/lib/use-section-data";
 import { formatDateTime, formatStatValue } from "@/lib/format";
 
 type SpeedToLeadResponse = {
+  avgSpeedToLead: number | null;
   medianSpeedToLead: number | null;
   leadsCalled: {
     called: number;
@@ -66,6 +69,15 @@ type ByRepResponse = {
   }[];
 };
 
+/** 4.2 min, 1h 12m, 2d 3h: readable at any size. */
+function formatDuration(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined || !Number.isFinite(minutes)) return "—";
+  if (minutes < 60) return `${minutes.toFixed(1)} min`;
+  const h = Math.floor(minutes / 60);
+  if (h < 24) return `${h}h ${Math.round(minutes % 60)}m`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
 function formatMinutes(minutes: number | null): string {
   if (minutes === null || !Number.isFinite(minutes)) return "—";
   return `${minutes.toFixed(1)}m`;
@@ -74,6 +86,7 @@ function formatMinutes(minutes: number | null): string {
 export default function SalesTeamPage() {
   const { range, setRange } = useSharedRange();
 
+  const { data: goals } = useSectionData<GoalsConfig>("/api/bronson/goals", range);
   const { data: speedToLead } = useSectionData<SpeedToLeadResponse>(
     "/api/bronson/sales-team/speed-to-lead",
     range
@@ -174,34 +187,24 @@ export default function SalesTeamPage() {
         <DashboardSection title="Speed to Lead">
           <StatCardGrid>
             <StatCard
+              label="Avg. Speed to Lead"
+              value={speedToLead?.avgSpeedToLead}
+              override={speedToLead ? formatDuration(speedToLead.avgSpeedToLead) : undefined}
+              subtext="Average time from opt-in to a rep's first call (called leads only)"
+              status={cellStatus(
+                speedToLead?.avgSpeedToLead ?? null,
+                goals?.speedToLeadMinutes?.max ?? null,
+                "lower"
+              )}
+              goal={goals?.speedToLeadMinutes ? `≤ ${goals.speedToLeadMinutes.max} min` : null}
+            />
+            <StatCard
               label="% Called Under 5 Min"
               value={speedToLead?.leadsCalled.under5Rate}
               format="percent"
-              subtext="Opt-ins a rep called within 5 min ÷ all funnel opt-ins"
-            />
-            <StatCard
-              label="Median Speed to Lead"
-              value={speedToLead?.medianSpeedToLead}
-              format="number"
-              subtext={`${formatMinutes(speedToLead?.medianSpeedToLead ?? null)} from opt-in to first rep call (called leads only)`}
-            />
-            <StatCard
-              label="Leads Called"
-              value={speedToLead?.leadsCalled.called}
-              format="number"
               subtext={
                 speedToLead
-                  ? `${speedToLead.leadsCalled.called}/${speedToLead.leadsCalled.total} — ${speedToLead.leadsCalled.notYetCalled} not yet called`
-                  : undefined
-              }
-            />
-            <StatCard
-              label="Called Under 5 Min"
-              value={speedToLead?.leadsCalled.calledUnder5}
-              format="number"
-              subtext={
-                speedToLead
-                  ? `of ${speedToLead.leadsCalled.total} total opt-ins`
+                  ? `${speedToLead.leadsCalled.calledUnder5} of ${speedToLead.leadsCalled.total} opt-ins called within 5 min · ${speedToLead.leadsCalled.notYetCalled} not called yet`
                   : undefined
               }
             />
