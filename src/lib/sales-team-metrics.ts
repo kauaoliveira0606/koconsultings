@@ -1,5 +1,61 @@
 import type { SpeedToLeadRow } from "./airtable/tables";
 import { average, median } from "./metrics";
+import { addDaysToDateString, easternDateString } from "./date-range";
+
+/** The sales team's working hours, US Eastern. The speed-to-lead clock only runs inside them. */
+export const WORK_START_HOUR_ET = 9;
+export const WORK_END_HOUR_ET = 23;
+
+/** Minutes ET is ahead of UTC at a given instant (negative: -240 in EDT, -300 in EST). */
+function etOffsetMinutes(ms: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(ms);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  const wallAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"));
+  return Math.round((wallAsUtc - Math.floor(ms / 60000) * 60000) / 60000);
+}
+
+/** UTC instant of `hour`:00 Eastern on an Eastern calendar date (YYYY-MM-DD). */
+function etWallToMs(ymd: string, hour: number): number {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const guess = Date.UTC(y, m - 1, d, hour);
+  return guess - etOffsetMinutes(guess) * 60000;
+}
+
+/**
+ * Minutes between two instants that fall inside working hours
+ * (9am–11pm ET, every day). A 2am opt-in called at 9:03am is 3 minutes;
+ * a 10:58pm opt-in called at 9:03am next day is 5.
+ */
+export function workingMinutesBetween(startMs: number, endMs: number): number {
+  if (!(endMs > startMs)) return 0;
+  let total = 0;
+  const lastDay = easternDateString(new Date(endMs));
+  for (let day = easternDateString(new Date(startMs)); day <= lastDay; day = addDaysToDateString(day, 1)) {
+    const open = etWallToMs(day, WORK_START_HOUR_ET);
+    const close = etWallToMs(day, WORK_END_HOUR_ET);
+    const s = Math.max(startMs, open);
+    const e = Math.min(endMs, close);
+    if (e > s) total += e - s;
+  }
+  return total / 60000;
+}
+
+/** Re-time every called lead on working hours only (Airtable stores raw clock minutes). */
+export function applyWorkingHours(rows: SpeedToLeadRow[]): SpeedToLeadRow[] {
+  return rows.map((r) => {
+    if (!r.firstCallAt || !r.createdAt) return r;
+    const minutes = workingMinutesBetween(Date.parse(r.createdAt), Date.parse(r.firstCallAt));
+    return { ...r, minutesToCall: Math.round(minutes * 10) / 10 };
+  });
+}
 
 /**
  * The same person can exist as two GHL contacts. Collapse rows sharing a

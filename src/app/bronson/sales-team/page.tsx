@@ -190,7 +190,7 @@ export default function SalesTeamPage() {
               label="Avg. Speed to Lead"
               value={speedToLead?.avgSpeedToLead}
               override={speedToLead ? formatDuration(speedToLead.avgSpeedToLead) : undefined}
-              subtext="Average time from opt-in to a rep's first call (called leads only)"
+              subtext="Average working-hours time (9am–11pm ET) from opt-in to a rep's first call, called leads only"
               status={cellStatus(
                 speedToLead?.avgSpeedToLead ?? null,
                 goals?.speedToLeadMinutes?.max ?? null,
@@ -204,7 +204,7 @@ export default function SalesTeamPage() {
               format="percent"
               subtext={
                 speedToLead
-                  ? `${speedToLead.leadsCalled.calledUnder5} of ${speedToLead.leadsCalled.total} opt-ins called within 5 min · ${speedToLead.leadsCalled.notYetCalled} not called yet`
+                  ? `${speedToLead.leadsCalled.calledUnder5} of ${speedToLead.leadsCalled.total} opt-ins called within 5 working min (9am–11pm ET) · ${speedToLead.leadsCalled.notYetCalled} not called yet`
                   : undefined
               }
             />

@@ -3,6 +3,7 @@ import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date-range";
 import { getSpeedToLead, type SpeedToLeadRow } from "@/lib/airtable/tables";
 import {
+  applyWorkingHours,
   avgSpeedToLead,
   dedupeByPhone,
   leadsCalledSummary,
@@ -14,10 +15,11 @@ export const revalidate = 60;
 /**
  * Speed to Lead v2 (n8n writes it from GHL every 10 min): funnel opt-ins and
  * the first outbound call a real rep placed after the lead came in. Same
- * person across duplicate contacts counts once.
+ * person across duplicate contacts counts once. Time to call only counts
+ * working hours (9am–11pm ET), so an overnight opt-in's clock starts at 9am.
  */
 function summarize(rows: SpeedToLeadRow[], range: ResolvedRange) {
-  const inRange = dedupeByPhone(rows)
+  const inRange = applyWorkingHours(dedupeByPhone(rows))
     .filter((r) => isDateInRange(toEasternDateOnly(r.createdAt), range))
     // newest opt-in first
     .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
