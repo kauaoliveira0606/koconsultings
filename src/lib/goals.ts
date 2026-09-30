@@ -24,6 +24,8 @@ export type GoalsConfig = {
   yearlyShare?: { min: number } | null;
   /** Average minutes from opt-in to first rep call. */
   speedToLeadMinutes?: { max: number } | null;
+  /** Touch points (double-dial = 1) per lead in its first 14 days. */
+  touchPointsPerLead?: { min: number } | null;
 };
 
 /**
@@ -65,5 +67,6 @@ export async function getGoals(): Promise<GoalsConfig> {
     attributionRate: { min: 0.9 },
     yearlyShare: { min: 0.3 },
     speedToLeadMinutes: { max: 5 },
+    touchPointsPerLead: { min: 5 },
   };
 }

@@ -20,6 +20,12 @@ type SpeedToLeadResponse = {
     calledUnder5: number;
     under5Rate: number | null;
   };
+  touchPoints: {
+    avgTouchPoints: number | null;
+    atFivePlus: number;
+    atFivePlusRate: number | null;
+    total: number;
+  };
   leads: {
     id: string;
     name: string | null;
@@ -27,6 +33,7 @@ type SpeedToLeadResponse = {
     firstCallAt: string | null;
     minutesToCall: number | null;
     status: string | null;
+    touchPoints: number | null;
   }[];
 };
 
@@ -132,6 +139,12 @@ export default function SalesTeamPage() {
       render: (l) => formatMinutes(l.minutesToCall),
     },
     {
+      key: "touchPoints",
+      header: "Touch Points",
+      render: (l) => formatStatValue(l.touchPoints ?? 0),
+      align: "right",
+    },
+    {
       key: "status",
       header: "Status",
       render: (l) => {
@@ -205,6 +218,38 @@ export default function SalesTeamPage() {
               subtext={
                 speedToLead
                   ? `${speedToLead.leadsCalled.calledUnder5} of ${speedToLead.leadsCalled.total} opt-ins called within 5 working min (9am–11pm ET) · ${speedToLead.leadsCalled.notYetCalled} not called yet`
+                  : undefined
+              }
+            />
+          </StatCardGrid>
+        </DashboardSection>
+
+        <DashboardSection title="Touch Point Density">
+          <StatCardGrid>
+            <StatCard
+              label="Avg. Touch Points per Lead"
+              value={speedToLead?.touchPoints.avgTouchPoints}
+              format="ratio"
+              override={
+                speedToLead?.touchPoints.avgTouchPoints != null
+                  ? speedToLead.touchPoints.avgTouchPoints.toFixed(1)
+                  : undefined
+              }
+              subtext="Rep calls in each lead's first 14 days; a double-dial (calls within 5 min) counts as 1 touch point. Every opt-in counts, uncalled leads as 0."
+              status={cellStatus(
+                speedToLead?.touchPoints.avgTouchPoints ?? null,
+                goals?.touchPointsPerLead?.min ?? null,
+                "higher"
+              )}
+              goal={goals?.touchPointsPerLead ? `≥ ${goals.touchPointsPerLead.min} per lead` : null}
+            />
+            <StatCard
+              label="% Leads With 5+ Touch Points"
+              value={speedToLead?.touchPoints.atFivePlusRate}
+              format="percent"
+              subtext={
+                speedToLead
+                  ? `${speedToLead.touchPoints.atFivePlus} of ${speedToLead.touchPoints.total} opt-ins reached 5 touch points`
                   : undefined
               }
             />

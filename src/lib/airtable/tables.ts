@@ -113,6 +113,9 @@ export type SpeedToLeadRow = {
   status: string | null;
   /** Last 10 digits; used to dedupe the same person across GHL contacts. */
   phone: string | null;
+  /** Human outbound calls / touch points (double-dial = 1) in the first 14 days. */
+  calls: number | null;
+  touchPoints: number | null;
 };
 
 export type LeaderboardRow = {
@@ -450,6 +453,8 @@ export function createAirtableTables(
       "Lead Time"?: string;
       "Created At"?: string;
       Phone?: string;
+      Calls?: number;
+      "Touch Points"?: number;
       "First Call At"?: string;
       "Minutes to Call"?: number;
       Status?: string;
@@ -465,6 +470,8 @@ export function createAirtableTables(
         typeof r.fields["Minutes to Call"] === "number" ? r.fields["Minutes to Call"] : null,
       status: r.fields.Status ?? null,
       phone: r.fields.Phone ?? null,
+      calls: typeof r.fields.Calls === "number" ? r.fields.Calls : null,
+      touchPoints: typeof r.fields["Touch Points"] === "number" ? r.fields["Touch Points"] : null,
     }));
   }
 

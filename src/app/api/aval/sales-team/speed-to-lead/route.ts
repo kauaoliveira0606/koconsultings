@@ -9,6 +9,7 @@ import {
   dedupeByPhone,
   leadsCalledSummary,
   medianSpeedToLead,
+  touchPointSummary,
 } from "@/lib/sales-team-metrics";
 
 export const revalidate = 60;
@@ -28,6 +29,7 @@ function summarize(rows: SpeedToLeadRow[], range: ResolvedRange) {
     avgSpeedToLead: avgSpeedToLead(inRange),
     medianSpeedToLead: medianSpeedToLead(inRange),
     leadsCalled: leadsCalledSummary(inRange),
+    touchPoints: touchPointSummary(inRange),
     leads: inRange,
   };
 }

@@ -86,7 +86,16 @@ export function dedupeByPhone(rows: SpeedToLeadRow[]): SpeedToLeadRow[] {
       firstCall && leadTime
         ? Math.round(((Date.parse(firstCall) - Date.parse(leadTime)) / 60000) * 10) / 10
         : null;
-    out.push({ ...lead, firstCallAt: firstCall, minutesToCall });
+    // Duplicate contacts are one person, so their calls add up.
+    const addUp = (pick: (r: SpeedToLeadRow) => number | null) =>
+      group.some((r) => pick(r) !== null) ? group.reduce((n, r) => n + (pick(r) ?? 0), 0) : null;
+    out.push({
+      ...lead,
+      firstCallAt: firstCall,
+      minutesToCall,
+      calls: addUp((r) => r.calls),
+      touchPoints: addUp((r) => r.touchPoints),
+    });
   }
   return out;
 }
@@ -94,6 +103,23 @@ export function dedupeByPhone(rows: SpeedToLeadRow[]): SpeedToLeadRow[] {
 /** Called leads only: a lead nobody has called yet has no time to average. */
 export function avgSpeedToLead(rows: SpeedToLeadRow[]): number | null {
   return average(rows.filter((r) => r.firstCallAt).map((r) => r.minutesToCall));
+}
+
+/** Touch point density across every opt-in (a lead never called counts as 0). */
+export function touchPointSummary(rows: SpeedToLeadRow[]): {
+  avgTouchPoints: number | null;
+  atFivePlus: number;
+  atFivePlusRate: number | null;
+  total: number;
+} {
+  const touches = rows.map((r) => r.touchPoints ?? 0);
+  const atFivePlus = touches.filter((t) => t >= 5).length;
+  return {
+    avgTouchPoints: rows.length ? touches.reduce((a, b) => a + b, 0) / rows.length : null,
+    atFivePlus,
+    atFivePlusRate: rows.length ? atFivePlus / rows.length : null,
+    total: rows.length,
+  };
 }
 
 export function medianSpeedToLead(rows: SpeedToLeadRow[]): number | null {
