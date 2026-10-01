@@ -5,13 +5,15 @@ import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date
 /**
  * Sales-team commissions for Bronson, split by ticket size.
  *
- * Low ticket (Base44 / Wix software, setter is full cycle): 10% flat.
+ * Low ticket (Base44 / Wix software, setter is full cycle): 10% flat, paid
+ * ONLY on real (attributed) cash. Submitted cash is shown for comparison.
  *  - Real cash      = what the affiliate portal actually tracked for the rep's
  *                     Shared ID ("Affiliate Portal By Rep", synced daily by the
  *                     n8n Base44/Wix Attribution Collector; sub_id_2 = the rep).
  *  - Submitted cash = what the rep logged themselves in "Affiliate PCN".
  *
  * High ticket ("Post Call Note"): closer 10%, setter 5% of cash collected.
+ * A rep who both set and closed the deal gets both (15%).
  */
 
 const BRONSON_BASE_ID = "appiMw8gpaLv2WITA";
@@ -32,6 +34,7 @@ const NO_SETTER = /^no setter/i;
 
 export type LowTicketRepRow = {
   rep: string;
+  /** Portal sales under the rep's Shared ID that still stand (reversed ones taken out). */
   realSales: number;
   realCash: number;
   reversedSales: number;
@@ -40,8 +43,12 @@ export type LowTicketRepRow = {
   submittedCash: number;
   /** Real cash minus submitted cash (negative = portal tracked less than the rep logged). */
   gap: number;
-  commissionOnReal: number;
-  commissionOnSubmitted: number;
+  /** Every portal sale under the Shared ID, reversed included. */
+  trackedSales: number;
+  /** trackedSales / submittedSales — same definition as the Overview attribution rate. */
+  attributionRate: number | null;
+  /** Paid on real (attributed) cash only. */
+  commission: number;
 };
 
 export type HighTicketRepRow = {
@@ -85,6 +92,10 @@ export type CommissionsResponse = {
     highTicketCommission: number;
     lowTicketRealCash: number;
     lowTicketSubmittedCash: number;
+    /** Team-wide: portal sales with a Shared ID / Affiliate PCN submissions. */
+    lowTicketAttributionRate: number | null;
+    lowTicketTrackedSales: number;
+    lowTicketSubmittedSales: number;
     unassignedCash: number;
     unassignedSales: number;
     highTicketCash: number;
@@ -149,8 +160,9 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
     submittedSales: 0,
     submittedCash: 0,
     gap: 0,
-    commissionOnReal: 0,
-    commissionOnSubmitted: 0,
+    trackedSales: 0,
+    attributionRate: null,
+    commission: 0,
   }));
   let unassignedCash = 0;
   let unassignedSales = 0;
@@ -186,8 +198,9 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
   const lowTicketRows = lowTicket.values();
   for (const row of lowTicketRows) {
     row.gap = row.realCash - row.submittedCash;
-    row.commissionOnReal = row.realCash * LOW_TICKET_RATE;
-    row.commissionOnSubmitted = row.submittedCash * LOW_TICKET_RATE;
+    row.trackedSales = row.realSales + row.reversedSales;
+    row.attributionRate = row.submittedSales > 0 ? row.trackedSales / row.submittedSales : null;
+    row.commission = row.realCash * LOW_TICKET_RATE;
   }
   lowTicketRows.sort((a, b) => b.realCash - a.realCash || b.submittedCash - a.submittedCash);
 
@@ -257,7 +270,7 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
     highTicketSetter: 0,
     total: 0,
   }));
-  for (const row of lowTicketRows) combined.get(row.rep).lowTicket += row.commissionOnReal;
+  for (const row of lowTicketRows) combined.get(row.rep).lowTicket += row.commission;
   for (const row of highTicketRows) {
     const total = combined.get(row.rep);
     total.highTicketCloser += row.closerCommission;
@@ -267,7 +280,9 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
   for (const row of byRep) row.total = row.lowTicket + row.highTicketCloser + row.highTicketSetter;
   byRep.sort((a, b) => b.total - a.total);
 
-  const lowTicketCommission = lowTicketRows.reduce((s, r) => s + r.commissionOnReal, 0);
+  const lowTicketTrackedSales = lowTicketRows.reduce((s, r) => s + r.trackedSales, 0);
+  const lowTicketSubmittedSales = lowTicketRows.reduce((s, r) => s + r.submittedSales, 0);
+  const lowTicketCommission = lowTicketRows.reduce((s, r) => s + r.commission, 0);
   const highTicketCommission = highTicketRows.reduce((s, r) => s + r.commission, 0);
 
   return {
@@ -283,6 +298,10 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
       highTicketCommission,
       lowTicketRealCash: lowTicketRows.reduce((s, r) => s + r.realCash, 0),
       lowTicketSubmittedCash: lowTicketRows.reduce((s, r) => s + r.submittedCash, 0),
+      lowTicketAttributionRate:
+        lowTicketSubmittedSales > 0 ? lowTicketTrackedSales / lowTicketSubmittedSales : null,
+      lowTicketTrackedSales,
+      lowTicketSubmittedSales,
       unassignedCash,
       unassignedSales,
       highTicketCash: highTicketDeals.reduce((s, d) => s + d.cashCollected, 0),

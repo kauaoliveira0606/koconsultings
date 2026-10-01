@@ -2,9 +2,10 @@
 
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
-import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
+import type { RangeState } from "@/components/dashboard/RangeFilterBar";
 import { DataTable, type Column } from "@/components/dashboard/DataTable";
-import { useSharedRange } from "@/lib/range-context";
+import { useMemo, useState } from "react";
+import { buildPayPeriods } from "@/lib/pay-periods";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue } from "@/lib/format";
 import type {
@@ -28,7 +29,17 @@ function formatDay(date: string | null): string {
 }
 
 export default function CommissionsPage() {
-  const { range, setRange } = useSharedRange();
+  // Commissions are paid per pay period, so this tab has its own period
+  // picker instead of the shared day/week range filter.
+  const periods = useMemo(() => buildPayPeriods(), []);
+  const defaultKey = periods.find((p) => p.kind === "period")?.key ?? periods[0]?.key ?? "";
+  const [periodKey, setPeriodKey] = useState(defaultKey);
+  const period = periods.find((p) => p.key === periodKey) ?? periods[0];
+  const range: RangeState = {
+    preset: "custom",
+    customStart: period?.start,
+    customEnd: period?.end,
+  };
   const { data, error } = useSectionData<CommissionsResponse>("/api/bronson/commissions", range);
 
   const rates = data?.rates;
@@ -90,15 +101,22 @@ export default function CommissionsPage() {
       align: "right",
     },
     {
-      key: "commissionOnReal",
-      header: `Commission on Real (${pct(rates?.lowTicket)})`,
-      render: (r) => <span className="font-semibold">{money(r.commissionOnReal)}</span>,
+      key: "attributionRate",
+      header: "Attribution Rate",
+      render: (r) => (
+        <span title={`${r.trackedSales} tracked / ${r.submittedSales} submitted`}>
+          {formatStatValue(r.attributionRate, "percent")}{" "}
+          <span className="text-xs text-black/50">
+            ({r.trackedSales}/{r.submittedSales})
+          </span>
+        </span>
+      ),
       align: "right",
     },
     {
-      key: "commissionOnSubmitted",
-      header: `If Paid on Submitted (${pct(rates?.lowTicket)})`,
-      render: (r) => money(r.commissionOnSubmitted),
+      key: "commission",
+      header: `Commission (${pct(rates?.lowTicket)} of Real)`,
+      render: (r) => <span className="font-semibold">{money(r.commission)}</span>,
       align: "right",
     },
   ];
@@ -155,7 +173,33 @@ export default function CommissionsPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Commissions</h1>
-        <RangeFilterBar value={range} onChange={setRange} />
+        <label className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+          Pay period
+          <select
+            value={period?.key ?? ""}
+            onChange={(e) => setPeriodKey(e.target.value)}
+            className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2 text-sm font-medium text-[var(--text-strong)]"
+          >
+            <optgroup label="Pay periods">
+              {periods
+                .filter((p) => p.kind === "period")
+                .map((p) => (
+                  <option key={p.key} value={p.key}>
+                    {p.label}
+                  </option>
+                ))}
+            </optgroup>
+            <optgroup label="Full months">
+              {periods
+                .filter((p) => p.kind === "month")
+                .map((p) => (
+                  <option key={p.key} value={p.key}>
+                    {p.label}
+                  </option>
+                ))}
+            </optgroup>
+          </select>
+        </label>
       </div>
 
       {error ? (
@@ -170,7 +214,7 @@ export default function CommissionsPage() {
             label="Total Commissions"
             value={totals?.commission}
             format="currency"
-            subtext="Low ticket (on real cash) + high ticket"
+            subtext="Low ticket (real cash only) + high ticket"
           />
           <StatCard
             label="Low Ticket Commissions"
@@ -197,6 +241,12 @@ export default function CommissionsPage() {
             subtext="Affiliate PCN submissions"
           />
           <StatCard
+            label="Team Attribution Rate"
+            value={totals?.lowTicketAttributionRate}
+            format="percent"
+            subtext={`${formatStatValue(totals?.lowTicketTrackedSales)} sales tracked under a Shared ID / ${formatStatValue(totals?.lowTicketSubmittedSales)} submitted`}
+          />
+          <StatCard
             label="No Shared ID"
             value={totals?.unassignedCash}
             format="currency"
@@ -216,7 +266,7 @@ export default function CommissionsPage() {
           columns={totalColumns}
           rows={data?.byRep ?? []}
           rowKey={(r) => r.rep}
-          emptyMessage="No commissions in this date range."
+          emptyMessage="No commissions in this pay period."
         />
       </DashboardSection>
 
@@ -225,11 +275,13 @@ export default function CommissionsPage() {
           columns={lowTicketColumns}
           rows={data?.lowTicket ?? []}
           rowKey={(r) => r.rep}
-          emptyMessage="No low ticket sales in this date range."
+          emptyMessage="No low ticket sales in this pay period."
         />
         <p className="mt-2 text-xs text-[var(--text-muted)]">
           Real = sales the affiliate portal tracked under the rep&apos;s Shared ID, reversed sales
-          taken out. Submitted = what the rep logged in Affiliate PCN. The portal only started
+          taken out. Commission is paid on real cash only. Submitted = what the rep logged in
+          Affiliate PCN. Attribution rate = sales the portal tracked under the Shared ID (reversed
+          included) divided by sales the rep submitted. The portal only started
           stamping Shared IDs on {formatDay(data?.sharedIdTrackingStart ?? null)}, so real cash is
           blank before that date.
         </p>
@@ -240,7 +292,7 @@ export default function CommissionsPage() {
           columns={highTicketColumns}
           rows={data?.highTicket ?? []}
           rowKey={(r) => r.rep}
-          emptyMessage="No high ticket cash in this date range."
+          emptyMessage="No high ticket cash in this pay period."
         />
       </DashboardSection>
 
@@ -249,7 +301,7 @@ export default function CommissionsPage() {
           columns={dealColumns}
           rows={data?.highTicketDeals ?? []}
           rowKey={(d) => d.id}
-          emptyMessage="No high ticket cash in this date range."
+          emptyMessage="No high ticket cash in this pay period."
         />
       </DashboardSection>
     </div>
