@@ -297,10 +297,10 @@ export function CommissionsBoard({
 }) {
   // Commissions are paid per pay period, so this tab has its own period
   // picker instead of the shared day/week range filter.
-  const { firstMonth, firstMonthSplitDay } = payPeriods;
+  const { cadence, firstMonth, firstMonthSplitDay } = payPeriods;
   const periods = useMemo(
-    () => buildPayPeriods({ firstMonth, firstMonthSplitDay }),
-    [firstMonth, firstMonthSplitDay]
+    () => buildPayPeriods({ cadence, firstMonth, firstMonthSplitDay }),
+    [cadence, firstMonth, firstMonthSplitDay]
   );
   // Payouts happen the morning after a period closes, so for the first three
   // days of a new period the tab opens on the one that just ended.

@@ -1,8 +1,10 @@
-import { easternDateString } from "./date-range";
+import { addDaysToDateString, easternDateString } from "./date-range";
 
 /**
- * Sales-team pay periods: twice a month (1st-15th, 16th-end). Bronson's
- * August 2026 was paid as Aug 1-21 and Aug 22-31 before that started.
+ * Sales-team pay periods.
+ *  - "semimonthly" (Bronson): 1st-15th and 16th-end. Bronson's August 2026 was
+ *    paid as Aug 1-21 and Aug 22-31 before that started.
+ *  - "weekly" (Aval): Monday to Sunday; the wire goes out the Monday after.
  */
 
 export type PayPeriod = {
@@ -19,6 +21,8 @@ const MONTHS = [
 ];
 
 export type PayPeriodOptions = {
+  /** Defaults to "semimonthly". */
+  cadence?: "semimonthly" | "weekly";
   /** First month listed, `YYYY-MM`. */
   firstMonth: string;
   /** Split day for the first month when it wasn't the usual 15th. */
@@ -31,10 +35,11 @@ const lastDayOfMonth = (year: number, month0: number) =>
 
 /** Every pay period and whole month up to today (Eastern), newest first. */
 export function buildPayPeriods(
-  { firstMonth, firstMonthSplitDay }: PayPeriodOptions,
+  { cadence = "semimonthly", firstMonth, firstMonthSplitDay }: PayPeriodOptions,
   today: string = easternDateString()
 ): PayPeriod[] {
   const periods: PayPeriod[] = [];
+  const weekly = cadence === "weekly";
   const endYear = Number(today.slice(0, 4));
   const endMonth0 = Number(today.slice(5, 7)) - 1;
 
@@ -48,7 +53,7 @@ export function buildPayPeriods(
       [1, split],
       [split + 1, last],
     ];
-    for (const [from, to] of halves) {
+    for (const [from, to] of weekly ? [] : halves) {
       const start = `${ym}-${pad(from)}`;
       if (start > today) continue;
       periods.push({
@@ -69,5 +74,31 @@ export function buildPayPeriods(
     m += 1;
     if (m > 11) { m = 0; y += 1; }
   }
-  return periods.reverse();
+  periods.reverse();
+  return weekly ? [...buildWeeks(`${firstMonth}-01`, today), ...periods] : periods;
+}
+
+function mondayOf(ymd: string): string {
+  const dow = new Date(`${ymd}T00:00:00Z`).getUTCDay(); // 0 = Sun
+  return addDaysToDateString(ymd, dow === 0 ? -6 : 1 - dow);
+}
+
+function shortDay(ymd: string): string {
+  return `${MONTHS[Number(ymd.slice(5, 7)) - 1]} ${Number(ymd.slice(8, 10))}`;
+}
+
+/** Monday-Sunday weeks from the week containing `from` through this week, newest first. */
+function buildWeeks(from: string, today: string): PayPeriod[] {
+  const weeks: PayPeriod[] = [];
+  for (let start = mondayOf(today); start >= mondayOf(from); start = addDaysToDateString(start, -7)) {
+    const end = addDaysToDateString(start, 6);
+    weeks.push({
+      key: start,
+      label: `${shortDay(start)} - ${shortDay(end)}, ${end.slice(0, 4)}`,
+      start,
+      end,
+      kind: "period",
+    });
+  }
+  return weeks;
 }

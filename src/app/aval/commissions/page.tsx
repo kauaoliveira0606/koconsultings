@@ -1,5 +1,11 @@
 import { CommissionsBoard } from "@/components/dashboard/CommissionsBoard";
 
 export default function CommissionsPage() {
-  return <CommissionsBoard apiPath="/api/aval/commissions" payPeriods={{ firstMonth: "2026-09" }} />;
+  // Aval pays weekly: Monday to Sunday, wired the Monday after.
+  return (
+    <CommissionsBoard
+      apiPath="/api/aval/commissions"
+      payPeriods={{ cadence: "weekly", firstMonth: "2026-09" }}
+    />
+  );
 }
