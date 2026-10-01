@@ -1,10 +1,10 @@
 import { airtableListAll } from "./client";
-import { listClawbacks, type Clawback } from "./clawbacks";
+import { listClawbacks, type Clawback, type ClawbacksTable } from "./clawbacks";
 import { parseDateOnly, parseNumericText } from "./parse";
 import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date-range";
 
 /**
- * Sales-team commissions for Bronson, split by ticket size.
+ * Sales-team commissions (Bronson and Aval share the rules), split by ticket size.
  *
  * Low ticket (Base44 / Wix software, setter is full cycle): 10% flat, paid
  * ONLY on real (attributed) cash. Submitted cash is shown for comparison.
@@ -23,11 +23,51 @@ import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date
  * off the rep's total in the pay period their date falls in.
  */
 
-const BRONSON_BASE_ID = "appiMw8gpaLv2WITA";
-const AFFILIATE_PORTAL_BY_REP_TABLE_ID = "tblLc3CJh5lbxAq67";
-const AFFILIATE_PCN_TABLE_ID = "tblXsKo89QNuRawBy";
+// Same table IDs in every offer's base (the bases were cloned from one template).
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 const FOLLOW_UP_PAYMENT_TABLE_ID = "tblIv06rB4qG0msnZ";
+
+export type CommissionsOffer = {
+  baseId: string;
+  affiliatePortalByRepTableId: string;
+  affiliatePcnTableId: string;
+  /** Affiliate PCN field holding the rep's name / the CPA cash. */
+  affiliatePcnRepField: string;
+  affiliatePcnCashField: string;
+  clawbacksTableId: string;
+  /** The portal only started stamping Shared IDs on sales from this date. */
+  sharedIdTrackingStart: string;
+  /**
+   * Portal Shared IDs (lowercase) that are spelled differently from the rep's
+   * name in Airtable, mapped to that name so they land on the same card.
+   */
+  sharedIdAliases?: Record<string, string>;
+};
+
+export const COMMISSIONS_OFFERS = {
+  bronson: {
+    baseId: "appiMw8gpaLv2WITA",
+    affiliatePortalByRepTableId: "tblLc3CJh5lbxAq67",
+    affiliatePcnTableId: "tblXsKo89QNuRawBy",
+    affiliatePcnRepField: "Full Name",
+    affiliatePcnCashField: "CPA (Payout / Cash Collected)",
+    clawbacksTableId: "tblEWLBxlRGjhDmyJ",
+    sharedIdTrackingStart: "2026-09-08",
+  },
+  aval: {
+    baseId: "appgEcTIxQjmtRKbP",
+    affiliatePortalByRepTableId: "tbl4W4Yr4noU0wAUa",
+    affiliatePcnTableId: "tblFZy89IvQ6Dcsl0",
+    affiliatePcnRepField: "Your Name",
+    affiliatePcnCashField: "CPA?",
+    clawbacksTableId: "tblXW3TcyTcWdYYtV",
+    sharedIdTrackingStart: "2026-09-11",
+    // "Keizer" is how Khizer's link is spelled on the portal; K and R can only
+    // be Khizer and Rashardo. M / J / S are ambiguous (Moe/Melissa/Mohamad,
+    // Jarek/James, Seb/Sahil) so they stay as their own cards until confirmed.
+    sharedIdAliases: { keizer: "Khizer", k: "Khizer", r: "Rashardo", moecopy: "Moe" },
+  },
+} satisfies Record<string, CommissionsOffer>;
 
 export const LOW_TICKET_RATE = 0.1;
 export const HIGH_TICKET_CLOSER_RATE = 0.1;
@@ -39,10 +79,13 @@ const FINANCED = /^financed/i;
 
 /** Portal sales that came through without a Shared ID — nobody is paid on these. */
 export const UNASSIGNED_SHARED_ID = "Unassigned";
-/** The portal only started stamping Shared IDs on sales from this date. */
-export const SHARED_ID_TRACKING_START = "2026-09-08";
 
 const NO_SETTER = /^no setter/i;
+
+export const clawbacksTable = (offer: CommissionsOffer): ClawbacksTable => ({
+  baseId: offer.baseId,
+  tableId: offer.clawbacksTableId,
+});
 
 export type LowTicketRepRow = {
   rep: string;
@@ -173,14 +216,19 @@ function rowEasternDate(dateField: unknown, createdTime: string): string | null 
 const text = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
 
-export async function getBronsonCommissions(range: ResolvedRange): Promise<CommissionsResponse> {
+export async function getCommissions(
+  offer: CommissionsOffer,
+  range: ResolvedRange
+): Promise<CommissionsResponse> {
+  const { baseId } = offer;
+  const aliases: Record<string, string> = offer.sharedIdAliases ?? {};
   const [portalRecords, affiliatePcnRecords, postCallNoteRecords, followUpRecords, allClawbacks] =
     await Promise.all([
-    airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, AFFILIATE_PORTAL_BY_REP_TABLE_ID),
-    airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, AFFILIATE_PCN_TABLE_ID),
-    airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, POST_CALL_NOTE_TABLE_ID),
-    airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, FOLLOW_UP_PAYMENT_TABLE_ID),
-    listClawbacks(),
+    airtableListAll<Record<string, unknown>>(baseId, offer.affiliatePortalByRepTableId),
+    airtableListAll<Record<string, unknown>>(baseId, offer.affiliatePcnTableId),
+    airtableListAll<Record<string, unknown>>(baseId, POST_CALL_NOTE_TABLE_ID),
+    airtableListAll<Record<string, unknown>>(baseId, FOLLOW_UP_PAYMENT_TABLE_ID),
+    listClawbacks(clawbacksTable(offer)),
   ]);
 
   let portalSyncedAt: string | null = null;
@@ -220,7 +268,7 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
       unassignedCash += cash;
       continue;
     }
-    const row = lowTicket.get(sharedId);
+    const row = lowTicket.get(aliases[sharedId.toLowerCase()] ?? sharedId);
     row.realSales += sales;
     row.realCash += cash;
     row.reversedSales += parseNumericText(f["Reversed Purchases"]) ?? 0;
@@ -230,11 +278,11 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
   for (const r of affiliatePcnRecords) {
     const f = r.fields;
     if (!isDateInRange(rowEasternDate(f.Date, r.createdTime), range)) continue;
-    const rep = text(f["Full Name"]);
+    const rep = text(f[offer.affiliatePcnRepField]);
     if (!rep) continue;
     const row = lowTicket.get(rep);
     row.submittedSales += 1;
-    row.submittedCash += parseNumericText(f["CPA (Payout / Cash Collected)"]) ?? 0;
+    row.submittedCash += parseNumericText(f[offer.affiliatePcnCashField]) ?? 0;
   }
 
   const lowTicketRows = lowTicket.values();
@@ -394,7 +442,7 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
       highTicketProcessingFee: HIGH_TICKET_PROCESSING_FEE,
       highTicketFinancingFee: HIGH_TICKET_FINANCING_FEE,
     },
-    sharedIdTrackingStart: SHARED_ID_TRACKING_START,
+    sharedIdTrackingStart: offer.sharedIdTrackingStart,
     totals: {
       commission: lowTicketCommission + highTicketCommission - clawbackTotal,
       lowTicketCommission,

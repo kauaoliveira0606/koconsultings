@@ -1,8 +1,8 @@
 import { easternDateString } from "./date-range";
 
 /**
- * Bronson sales-team pay periods. August 2026 was paid as Aug 1-21 and
- * Aug 22-31; from September 2026 on it is twice a month (1st-15th, 16th-end).
+ * Sales-team pay periods: twice a month (1st-15th, 16th-end). Bronson's
+ * August 2026 was paid as Aug 1-21 and Aug 22-31 before that started.
  */
 
 export type PayPeriod = {
@@ -18,26 +18,32 @@ const MONTHS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-const FIRST_YEAR = 2026;
-const FIRST_MONTH0 = 7; // August 2026
-const AUGUST_2026_SPLIT_DAY = 21;
+export type PayPeriodOptions = {
+  /** First month listed, `YYYY-MM`. */
+  firstMonth: string;
+  /** Split day for the first month when it wasn't the usual 15th. */
+  firstMonthSplitDay?: number;
+};
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const lastDayOfMonth = (year: number, month0: number) =>
   new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
 
 /** Every pay period and whole month up to today (Eastern), newest first. */
-export function buildPayPeriods(today: string = easternDateString()): PayPeriod[] {
+export function buildPayPeriods(
+  { firstMonth, firstMonthSplitDay }: PayPeriodOptions,
+  today: string = easternDateString()
+): PayPeriod[] {
   const periods: PayPeriod[] = [];
   const endYear = Number(today.slice(0, 4));
   const endMonth0 = Number(today.slice(5, 7)) - 1;
 
-  let y = FIRST_YEAR;
-  let m = FIRST_MONTH0;
+  let y = Number(firstMonth.slice(0, 4));
+  let m = Number(firstMonth.slice(5, 7)) - 1;
   while (y < endYear || (y === endYear && m <= endMonth0)) {
     const ym = `${y}-${pad(m + 1)}`;
     const last = lastDayOfMonth(y, m);
-    const split = y === 2026 && m === 7 ? AUGUST_2026_SPLIT_DAY : 15;
+    const split = (ym === firstMonth && firstMonthSplitDay) || 15;
     const halves: [number, number][] = [
       [1, split],
       [split + 1, last],

@@ -3,11 +3,13 @@ import { AirtableError } from "@/lib/airtable/client";
 const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 
 /**
- * "Commission Clawbacks" table (Bronson base): clawbacks are handled by hand,
+ * "Commission Clawbacks" table in each offer's base: clawbacks are handled by hand,
  * so they are typed in on the Commissions tab. Each row comes off that rep's
  * total in the pay period its Date falls in.
  */
-const TABLE_URL = `${AIRTABLE_API_BASE}/appiMw8gpaLv2WITA/tblEWLBxlRGjhDmyJ`;
+export type ClawbacksTable = { baseId: string; tableId: string };
+
+const tableUrl = ({ baseId, tableId }: ClawbacksTable) => `${AIRTABLE_API_BASE}/${baseId}/${tableId}`;
 
 export type Clawback = {
   id: string;
@@ -37,13 +39,15 @@ async function airtable<T>(url: string, init: RequestInit = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function listClawbacks(): Promise<Clawback[]> {
+export async function listClawbacks(table: ClawbacksTable): Promise<Clawback[]> {
   const clawbacks: Clawback[] = [];
   let offset: string | undefined;
   do {
     const qs = new URLSearchParams({ pageSize: "100" });
     if (offset) qs.set("offset", offset);
-    const body = await airtable<{ records: ClawbackRecord[]; offset?: string }>(`${TABLE_URL}?${qs}`);
+    const body = await airtable<{ records: ClawbackRecord[]; offset?: string }>(
+      `${tableUrl(table)}?${qs}`
+    );
     for (const r of body.records) {
       const rep = r.fields.Rep?.trim();
       const date = r.fields.Date?.slice(0, 10);
@@ -56,8 +60,8 @@ export async function listClawbacks(): Promise<Clawback[]> {
   return clawbacks;
 }
 
-export async function addClawback(input: Omit<Clawback, "id">) {
-  await airtable(TABLE_URL, {
+export async function addClawback(table: ClawbacksTable, input: Omit<Clawback, "id">) {
+  await airtable(tableUrl(table), {
     method: "POST",
     body: JSON.stringify({
       fields: { Rep: input.rep, Date: input.date, Amount: input.amount, Note: input.note },
@@ -65,6 +69,6 @@ export async function addClawback(input: Omit<Clawback, "id">) {
   });
 }
 
-export async function deleteClawback(id: string) {
-  await airtable(`${TABLE_URL}/${id}`, { method: "DELETE" });
+export async function deleteClawback(table: ClawbacksTable, id: string) {
+  await airtable(`${tableUrl(table)}/${id}`, { method: "DELETE" });
 }

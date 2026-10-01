@@ -5,4 +5,4 @@ import { commissionsGet } from "@/lib/commissions-routes";
 // Airtable tables are still cached for 60s inside airtableListAll.
 export const dynamic = "force-dynamic";
 
-export const GET = commissionsGet(COMMISSIONS_OFFERS.bronson);
+export const GET = commissionsGet(COMMISSIONS_OFFERS.aval);

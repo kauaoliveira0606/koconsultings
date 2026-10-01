@@ -3,5 +3,5 @@ import { clawbackDelete, clawbackPost } from "@/lib/commissions-routes";
 
 export const dynamic = "force-dynamic";
 
-export const POST = clawbackPost(COMMISSIONS_OFFERS.bronson);
-export const DELETE = clawbackDelete(COMMISSIONS_OFFERS.bronson);
+export const POST = clawbackPost(COMMISSIONS_OFFERS.aval);
+export const DELETE = clawbackDelete(COMMISSIONS_OFFERS.aval);
