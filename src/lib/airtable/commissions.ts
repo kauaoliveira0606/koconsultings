@@ -1,4 +1,5 @@
 import { airtableListAll } from "./client";
+import { listClawbacks, type Clawback } from "./clawbacks";
 import { parseDateOnly, parseNumericText } from "./parse";
 import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date-range";
 
@@ -15,13 +16,18 @@ import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date
  * High ticket ("Post Call Note"): closer 10%, setter 5% of cash collected
  * after fees (3% processing, or 18% when "Where Was Payment Collected On" is a
  * financing option).
- * A rep who both set and closed the deal gets both (15%).
+ * A rep who both set and closed the deal gets both (15%). Later installments
+ * logged in "Follow Up Payment" pay the same way.
+ *
+ * Clawbacks are entered by hand on the tab ("Commission Clawbacks") and come
+ * off the rep's total in the pay period their date falls in.
  */
 
 const BRONSON_BASE_ID = "appiMw8gpaLv2WITA";
 const AFFILIATE_PORTAL_BY_REP_TABLE_ID = "tblLc3CJh5lbxAq67";
 const AFFILIATE_PCN_TABLE_ID = "tblXsKo89QNuRawBy";
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
+const FOLLOW_UP_PAYMENT_TABLE_ID = "tblIv06rB4qG0msnZ";
 
 export const LOW_TICKET_RATE = 0.1;
 export const HIGH_TICKET_CLOSER_RATE = 0.1;
@@ -70,6 +76,8 @@ export type HighTicketRepRow = {
 
 export type HighTicketDeal = {
   id: string;
+  /** First payment (Post Call Note) or a later installment (Follow Up Payment). */
+  kind: "new_deal" | "follow_up";
   date: string | null;
   lead: string | null;
   closer: string | null;
@@ -90,6 +98,7 @@ export type CommissionTotalRow = {
   lowTicket: number;
   highTicketCloser: number;
   highTicketSetter: number;
+  clawbacks: number;
   total: number;
 };
 
@@ -116,7 +125,11 @@ export type CommissionsResponse = {
     unassignedSales: number;
     highTicketCash: number;
     highTicketNetCash: number;
+    clawbacks: number;
   };
+  /** When the portal collector last wrote real cash (ISO), null if never. */
+  portalSyncedAt: string | null;
+  clawbacks: Clawback[];
   byRep: CommissionTotalRow[];
   lowTicket: LowTicketRepRow[];
   highTicket: HighTicketRepRow[];
@@ -161,11 +174,23 @@ const text = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
 
 export async function getBronsonCommissions(range: ResolvedRange): Promise<CommissionsResponse> {
-  const [portalRecords, affiliatePcnRecords, postCallNoteRecords] = await Promise.all([
+  const [portalRecords, affiliatePcnRecords, postCallNoteRecords, followUpRecords, allClawbacks] =
+    await Promise.all([
     airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, AFFILIATE_PORTAL_BY_REP_TABLE_ID),
     airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, AFFILIATE_PCN_TABLE_ID),
     airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, POST_CALL_NOTE_TABLE_ID),
+    airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, FOLLOW_UP_PAYMENT_TABLE_ID),
+    listClawbacks(),
   ]);
+
+  let portalSyncedAt: string | null = null;
+  for (const r of portalRecords) {
+    const synced = text(r.fields["Synced At"]);
+    const ms = synced ? Date.parse(synced) : NaN;
+    if (Number.isFinite(ms) && (!portalSyncedAt || ms > Date.parse(portalSyncedAt))) {
+      portalSyncedAt = new Date(ms).toISOString();
+    }
+  }
 
   // ---- Low ticket -------------------------------------------------------
   const lowTicket = new RepIndex<LowTicketRepRow>((rep) => ({
@@ -234,17 +259,20 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
   }));
   const highTicketDeals: HighTicketDeal[] = [];
 
-  for (const r of postCallNoteRecords) {
-    const f = r.fields;
-    const date = rowEasternDate(f.Date, r.createdTime);
-    if (!isDateInRange(date, range)) continue;
-    const cash = parseNumericText(f["Cash Collected"]) ?? 0;
-    if (cash <= 0) continue;
-
-    const closer = text(f["First Name"]);
-    const setterRaw = text(f["Setters Full Name"]) ?? text(f["Setters Name"]);
-    const setter = setterRaw && !NO_SETTER.test(setterRaw) ? setterRaw : null;
-    const paymentMethod = text(f["Where Was Payment Collected On"]);
+  const addDeal = (deal: {
+    id: string;
+    kind: HighTicketDeal["kind"];
+    date: string | null;
+    lead: string | null;
+    closer: string | null;
+    setterRaw: string | null;
+    offer: string | null;
+    outcome: string | null;
+    cash: number;
+    paymentMethod: string | null;
+  }) => {
+    const { closer, cash, paymentMethod } = deal;
+    const setter = deal.setterRaw && !NO_SETTER.test(deal.setterRaw) ? deal.setterRaw : null;
     const feeRate =
       paymentMethod && FINANCED.test(paymentMethod)
         ? HIGH_TICKET_FINANCING_FEE
@@ -267,19 +295,60 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
     }
 
     highTicketDeals.push({
-      id: r.id,
-      date,
-      lead: text(f["Full Name (Lead)"]),
+      id: deal.id,
+      kind: deal.kind,
+      date: deal.date,
+      lead: deal.lead,
       closer,
       setter,
-      offer: text(f["Offer Pitched On/Closed"]) ?? text(f["Offer Pitched/Closed On"]),
-      outcome: text(f["Call Outcome"]),
+      offer: deal.offer,
+      outcome: deal.outcome,
       cashCollected: cash,
       paymentMethod,
       feeRate,
       netCash,
       closerCommission,
       setterCommission,
+    });
+  };
+
+  for (const r of postCallNoteRecords) {
+    const f = r.fields;
+    const date = rowEasternDate(f.Date, r.createdTime);
+    if (!isDateInRange(date, range)) continue;
+    const cash = parseNumericText(f["Cash Collected"]) ?? 0;
+    if (cash <= 0) continue;
+    addDeal({
+      id: r.id,
+      kind: "new_deal",
+      date,
+      lead: text(f["Full Name (Lead)"]),
+      closer: text(f["First Name"]),
+      setterRaw: text(f["Setters Full Name"]) ?? text(f["Setters Name"]),
+      offer: text(f["Offer Pitched On/Closed"]) ?? text(f["Offer Pitched/Closed On"]),
+      outcome: text(f["Call Outcome"]),
+      cash,
+      paymentMethod: text(f["Where Was Payment Collected On"]),
+    });
+  }
+
+  for (const r of followUpRecords) {
+    const f = r.fields;
+    const date = rowEasternDate(f["Payment Collected Date"], r.createdTime);
+    if (!isDateInRange(date, range)) continue;
+    const cash = parseNumericText(f["Cash Collected"]) ?? 0;
+    if (cash <= 0) continue;
+    addDeal({
+      id: r.id,
+      kind: "follow_up",
+      date,
+      lead: [text(f["Lead First Name"]), text(f["Lead Last Name"])].filter(Boolean).join(" ") || null,
+      closer: text(f["Closer Name"]),
+      setterRaw: text(f["Setter Name"]),
+      offer: text(f["Offer Closed On"]),
+      outcome: "Follow Up Payment",
+      cash,
+      paymentMethod: text(f["Where Was Payment Collected On"]),
     });
   }
 
@@ -294,6 +363,7 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
     lowTicket: 0,
     highTicketCloser: 0,
     highTicketSetter: 0,
+    clawbacks: 0,
     total: 0,
   }));
   for (const row of lowTicketRows) combined.get(row.rep).lowTicket += row.commission;
@@ -302,14 +372,19 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
     total.highTicketCloser += row.closerCommission;
     total.highTicketSetter += row.setterCommission;
   }
+  const clawbacks = allClawbacks.filter((c) => isDateInRange(c.date, range));
+  for (const c of clawbacks) combined.get(c.rep).clawbacks += c.amount;
   const byRep = combined.values();
-  for (const row of byRep) row.total = row.lowTicket + row.highTicketCloser + row.highTicketSetter;
+  for (const row of byRep) {
+    row.total = row.lowTicket + row.highTicketCloser + row.highTicketSetter - row.clawbacks;
+  }
   byRep.sort((a, b) => b.total - a.total);
 
   const lowTicketTrackedSales = lowTicketRows.reduce((s, r) => s + r.trackedSales, 0);
   const lowTicketSubmittedSales = lowTicketRows.reduce((s, r) => s + r.submittedSales, 0);
   const lowTicketCommission = lowTicketRows.reduce((s, r) => s + r.commission, 0);
   const highTicketCommission = highTicketRows.reduce((s, r) => s + r.commission, 0);
+  const clawbackTotal = clawbacks.reduce((s, c) => s + c.amount, 0);
 
   return {
     rates: {
@@ -321,7 +396,7 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
     },
     sharedIdTrackingStart: SHARED_ID_TRACKING_START,
     totals: {
-      commission: lowTicketCommission + highTicketCommission,
+      commission: lowTicketCommission + highTicketCommission - clawbackTotal,
       lowTicketCommission,
       highTicketCommission,
       lowTicketRealCash: lowTicketRows.reduce((s, r) => s + r.realCash, 0),
@@ -334,7 +409,10 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
       unassignedSales,
       highTicketCash: highTicketDeals.reduce((s, d) => s + d.cashCollected, 0),
       highTicketNetCash: highTicketDeals.reduce((s, d) => s + d.netCash, 0),
+      clawbacks: clawbackTotal,
     },
+    portalSyncedAt,
+    clawbacks,
     byRep,
     lowTicket: lowTicketRows,
     highTicket: highTicketRows,
