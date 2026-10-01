@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
     ecomExpenses,
     bronsonPaidCommissions,
     bronsonPortalCash,
-    avalPortalCash,
   ] = await Promise.all([
     getBronsonMarketingDailyMetrics(),
     getAvalMarketingDailyMetrics(),
@@ -63,13 +62,12 @@ export async function GET(request: NextRequest) {
     listExpenses(EXPENSE_TABLES.ecomSimulation),
     getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
     getPortalCashByDay(COMMISSIONS_OFFERS.bronson),
-    getPortalCashByDay(COMMISSIONS_OFFERS.aval),
   ]);
 
   // Everything comes straight from each offer's Marketing Daily Metrics
   // table, per the client — no EOD Closer / Affiliate EOD blending.
-  // Low ticket is true (portal-attributed) cash for Bronson and Aval, not the
-  // logged figure — same as the metrics route.
+  // Bronson's low ticket is true (portal-attributed) cash, not the logged
+  // figure — same as the metrics route.
   const bronsonRows = withAttributedLowTicket(
     withBronsonActualCommissions(
       buildDailyOfferRows(
@@ -80,7 +78,8 @@ export async function GET(request: NextRequest) {
     ),
     bronsonPortalCash
   );
-  const avalRows = withAttributedLowTicket(buildDailyOfferRows(avalMarketing), avalPortalCash);
+  // Aval stays on logged cash: it is paid out differently, per the client.
+  const avalRows = buildDailyOfferRows(avalMarketing);
   const ecomRows = untilAndyLeft(buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses)));
 
   const bronsonAgencyByDay = bronsonAgencyProfitByDay(bronsonRows);

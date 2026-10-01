@@ -66,7 +66,6 @@ export async function GET(request: NextRequest) {
     ecomExpenses,
     bronsonPaidCommissions,
     bronsonPortalCash,
-    avalPortalCash,
   ] = await Promise.all([
     getBronsonMarketingDailyMetrics(),
     getAvalMarketingDailyMetrics(),
@@ -75,7 +74,6 @@ export async function GET(request: NextRequest) {
     listExpenses(EXPENSE_TABLES.ecomSimulation),
     getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
     getPortalCashByDay(COMMISSIONS_OFFERS.bronson),
-    getPortalCashByDay(COMMISSIONS_OFFERS.aval),
   ]);
 
   // Everything — cash, ad spend, Paid/Organic splits — comes straight from
@@ -86,8 +84,8 @@ export async function GET(request: NextRequest) {
   // Bronson's sales team payout is the actual paid-traffic commission from its
   // Commissions tab (organic commissions are not deducted), not a cash estimate.
   const bronsonEffectiveExpenses = effectiveExpenses(EXPENSE_TABLES.bronson, bronsonExpenses);
-  // Low ticket cash for Bronson and Aval is TRUE cash (what the affiliate
-  // portal tracked and pays), not what was logged on the form.
+  // Bronson's low ticket cash is TRUE cash (what the affiliate portal tracked
+  // and pays), not what was logged on the form.
   const bronsonAllRows = withAttributedLowTicket(
     withBronsonActualCommissions(
       buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonEffectiveExpenses)),
@@ -95,7 +93,8 @@ export async function GET(request: NextRequest) {
     ),
     bronsonPortalCash
   );
-  const avalAllRows = withAttributedLowTicket(buildDailyOfferRows(avalMarketing), avalPortalCash);
+  // Aval stays on logged cash: it is paid out differently, per the client.
+  const avalAllRows = buildDailyOfferRows(avalMarketing);
   const ecomAllRows = untilAndyLeft(
     buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses))
   );
