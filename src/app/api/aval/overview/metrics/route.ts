@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
   const optInsOrganic =
     inRangeLeads.length - (inRangeLeads.filter((l) => isPaidSource(l.source)).length || 0);
   const cashLowTicketPaid = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketPaid));
+  const cashLowTicketOrganic = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketOrganic));
 
   const pickups = sum(inRangeEod.map((r) => r.pickups));
   const dials = sum(inRangeEod.map((r) => r.outboundDials));
@@ -188,6 +189,8 @@ export async function GET(request: NextRequest) {
 
     // Tier 2 — Revenue breakdown
     cashCollectedLowTicket: cashLowTicket,
+    cashCollectedLowTicketPaid: cashLowTicketPaid,
+    cashCollectedLowTicketOrganic: cashLowTicketOrganic,
     cashCollectedHighTicket: cashHighTicket,
     cashCollectedHighTicketPaid: cashHighTicketPaidForm,
     cashCollectedHighTicketOrganic: cashHighTicketOrganicForm,

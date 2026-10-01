@@ -25,6 +25,8 @@ type MetricsResponse = {
   adsActive: boolean;
 
   cashCollectedLowTicket: number | null;
+  cashCollectedLowTicketPaid: number | null;
+  cashCollectedLowTicketOrganic: number | null;
   cashCollectedHighTicket: number | null;
   cashCollectedHighTicketPaid: number | null;
   cashCollectedHighTicketOrganic: number | null;
@@ -232,6 +234,18 @@ export default function OverviewPage() {
             value={metrics?.cashCollectedLowTicket}
             format="currency"
             subtext="Software front-end cash collected."
+          />
+          <StatCard
+            label="Cash Collected — Low Ticket (Paid)"
+            value={metrics?.cashCollectedLowTicketPaid}
+            format="currency"
+            subtext="From the Marketing Daily Metrics form."
+          />
+          <StatCard
+            label="Cash Collected — Low Ticket (Organic)"
+            value={metrics?.cashCollectedLowTicketOrganic}
+            format="currency"
+            subtext="From the Marketing Daily Metrics form."
           />
           <StatCard
             label="Cash Collected — High Ticket"
