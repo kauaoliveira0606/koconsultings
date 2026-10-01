@@ -30,6 +30,13 @@ type MetricsResponse = {
   salesManagerCut: number;
   myProfit: number;
   bronsonReimbursement: number;
+  bronsonPaidPnl: {
+    cash: number;
+    salesTeamCommission: number;
+    adSpend: number;
+    expenses: number;
+    profit: number;
+  };
   bronsonTotalOwed: number;
   blendedRoas: number | null;
   clients: {
@@ -45,6 +52,34 @@ const CLIENT_ROWS: { key: keyof MetricsResponse["clients"]; label: string; dot: 
   { key: "aval", label: "Aval", dot: "#a855f7" },
   { key: "ecomSimulation", label: "Andy (Ecom Simulation)", dot: "#22d3ee" },
 ];
+
+/** One line of the paid-traffic P&L. Costs show in red with a minus sign. */
+function PnlCard({
+  label,
+  value,
+  subtext,
+  cost = false,
+}: {
+  label: string;
+  value: number | undefined;
+  subtext?: string;
+  cost?: boolean;
+}) {
+  const formatted = formatStatValue(value, "currency");
+  return (
+    <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm">
+      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        {label}
+      </div>
+      <div
+        className={`mt-2 text-2xl font-bold ${cost ? "text-red-400" : "text-[var(--text-strong)]"}`}
+      >
+        {cost && value ? `-${formatted}` : formatted}
+      </div>
+      {subtext ? <div className="mt-1 text-xs text-[var(--text-muted)]">{subtext}</div> : null}
+    </div>
+  );
+}
 
 export default function AgencyPage() {
   const { range, setRange } = useSharedRange();
@@ -152,6 +187,37 @@ export default function AgencyPage() {
           format="currency"
           subtext="Bronson: 5% of organic cash + 5% of paid profit. Andy: 5% of organic + paid profit. No cut on Aval. Comes out of your own take-home."
         />
+      </div>
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+          PNL (Bronson Paid Traffic)
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <PnlCard
+            label="Cash Collected"
+            value={data?.bronsonPaidPnl.cash}
+            subtext="Low + high ticket cash from paid traffic."
+          />
+          <PnlCard
+            label="Sales Team Commission"
+            value={data?.bronsonPaidPnl.salesTeamCommission}
+            subtext="Paid-traffic commissions only."
+            cost
+          />
+          <PnlCard label="Ad Spend" value={data?.bronsonPaidPnl.adSpend} cost />
+          <PnlCard
+            label="Expenses"
+            value={data?.bronsonPaidPnl.expenses}
+            subtext="Monthly bills, booked on the 1st."
+            cost
+          />
+          <PnlCard
+            label="Paid Profit"
+            value={data?.bronsonPaidPnl.profit}
+            subtext="Cash minus the three costs. Your 50% comes out of this."
+          />
+        </div>
       </div>
 
       <div className="mt-8">

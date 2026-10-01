@@ -118,6 +118,17 @@ export async function GET(request: NextRequest) {
     ecomSimSalesManagerCut(ecomRows)
   );
 
+  // Bronson's paid-traffic P&L — the base of the 50% profit share.
+  const paidCash = bronsonRows.reduce((t, r) => t + r.ltCashPaid + r.htCashPaid, 0);
+  const paidCommission = sumSalesTeamPayout(bronsonRows).paid;
+  const bronsonPaidPnl = {
+    cash: paidCash,
+    salesTeamCommission: paidCommission,
+    adSpend: bronson.adSpend,
+    expenses: bronson.expenses,
+    profit: paidCash - paidCommission - bronson.adSpend - bronson.expenses,
+  };
+
   const clients = { bronson, aval, ecomSimulation };
   const totalCashCollected = bronson.cash + aval.cash + ecomSimulation.cash;
   const totalAdSpend = bronson.adSpend + aval.adSpend + ecomSimulation.adSpend;
@@ -154,6 +165,7 @@ export async function GET(request: NextRequest) {
     salesManagerCut,
     myProfit,
     bronsonReimbursement,
+    bronsonPaidPnl,
     bronsonTotalOwed: bronson.agencyProfit + bronsonReimbursement,
     blendedRoas: totalAdSpend > 0 ? totalCashCollected / totalAdSpend : null,
     clients,
