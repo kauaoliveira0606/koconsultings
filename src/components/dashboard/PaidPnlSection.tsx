@@ -29,41 +29,66 @@ function PnlCard({
       >
         {cost && value ? `-${formatted}` : formatted}
       </div>
-      {subtext ? <div className="mt-1 text-xs text-[var(--text-muted)]">{subtext}</div> : null}
+      {subtext ? (
+        <div className="mt-1 text-xs text-[var(--text-muted)]">{subtext}</div>
+      ) : null}
     </div>
   );
 }
 
-/** Overview "PNL": what paid traffic brought in and what came off it, for the selected range. */
-export function PaidPnlSection({ apiPath, range }: { apiPath: string; range: RangeState }) {
+/**
+ * Overview "PNL" for the selected range: what paid traffic brought in and
+ * what came off it, then organic cash on its own (no deductions).
+ */
+export function PaidPnlSection({
+  apiPath,
+  range,
+}: {
+  apiPath: string;
+  range: RangeState;
+}) {
   const { data } = useSectionData<PaidPnl>(apiPath, range);
   return (
-    <DashboardSection title="PNL (Paid Traffic)">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <PnlCard
-          label="Cash Collected"
-          value={data?.cash}
-          subtext="Low + high ticket cash from paid traffic."
-        />
-        <PnlCard
-          label="Sales Team Commission"
-          value={data?.salesTeamCommission}
-          subtext="Paid-traffic commissions only."
-          cost
-        />
-        <PnlCard label="Ad Spend" value={data?.adSpend} cost />
-        <PnlCard
-          label="Expenses"
-          value={data?.expenses}
-          subtext="Monthly bills, booked on the 1st."
-          cost
-        />
-        <PnlCard
-          label="Paid Profit"
-          value={data?.profit}
-          subtext="Cash minus the three costs."
-        />
-      </div>
-    </DashboardSection>
+    <>
+      <DashboardSection title="PNL (Paid Traffic)">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <PnlCard
+            label="Cash Collected"
+            value={data?.cash}
+            subtext="Low + high ticket cash from paid traffic."
+          />
+          <PnlCard
+            label="Sales Team Commission"
+            value={data?.salesTeamCommission}
+            subtext="Paid-traffic commissions only."
+            cost
+          />
+          <PnlCard label="Ad Spend" value={data?.adSpend} cost />
+          <PnlCard
+            label="Expenses"
+            value={data?.expenses}
+            subtext="Monthly bills, booked on the 1st."
+            cost
+          />
+          <PnlCard
+            label="Paid Profit"
+            value={data?.profit}
+            subtext="Cash minus the three costs."
+          />
+        </div>
+      </DashboardSection>
+
+      <DashboardSection title="PNL (Organic)">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <PnlCard
+            label="Cash Collected"
+            value={data?.organicCash}
+            subtext="Low + high ticket cash from organic. Nothing comes off it."
+          />
+          <PnlCard label="Low Ticket" value={data?.organicCashLowTicket} />
+          <PnlCard label="High Ticket" value={data?.organicCashHighTicket} />
+        </div>
+      </DashboardSection>
+    </>
   );
 }

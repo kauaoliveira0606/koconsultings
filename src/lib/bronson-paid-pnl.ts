@@ -15,11 +15,15 @@ export type PaidPnl = {
   adSpend: number;
   expenses: number;
   profit: number;
+  /** Organic cash collected — nothing comes off it. */
+  organicCash: number;
+  organicCashLowTicket: number;
+  organicCashHighTicket: number;
 };
 
 /**
  * Bronson's paid-traffic P&L for a range — the base of the agency's 50%
- * profit share. Same rows and rules as the Agency page: paid cash and ad
+ * profit share — plus the organic cash for the same range (no deductions). Same rows and rules as the Agency page: paid cash and ad
  * spend from the Marketing Daily Metrics form, actual paid-traffic sales team
  * commissions, and the monthly bills (booked on the 1st of their month).
  */
@@ -40,6 +44,8 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
   const cash = rows.reduce((t, r) => t + r.ltCashPaid + r.htCashPaid, 0);
   const salesTeamCommission = sumSalesTeamPayout(rows).paid;
   const adSpend = rows.reduce((t, r) => t + r.adSpend, 0);
+  const organicCashLowTicket = rows.reduce((t, r) => t + r.ltCashOrganic, 0);
+  const organicCashHighTicket = rows.reduce((t, r) => t + r.htCashOrganic, 0);
   const expensesTotal = rows.reduce((t, r) => t + r.expenses, 0);
   return {
     cash,
@@ -47,5 +53,8 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
     adSpend,
     expenses: expensesTotal,
     profit: cash - salesTeamCommission - adSpend - expensesTotal,
+    organicCash: organicCashLowTicket + organicCashHighTicket,
+    organicCashLowTicket,
+    organicCashHighTicket,
   };
 }
