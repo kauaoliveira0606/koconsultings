@@ -38,7 +38,8 @@ function PnlCard({
 
 /**
  * Overview "PNL" for the selected range: what paid traffic brought in and
- * what came off it, then organic cash on its own (no deductions).
+ * what came off it, then organic cash on its own (no deductions). Low ticket
+ * is true (portal-attributed) cash, with the logged figure alongside.
  */
 export function PaidPnlSection({
   apiPath,
@@ -48,6 +49,9 @@ export function PaidPnlSection({
   range: RangeState;
 }) {
   const { data } = useSectionData<PaidPnl>(apiPath, range);
+  const money = (value: number | undefined) =>
+    formatStatValue(value, "currency");
+  const rate = formatStatValue(data?.lowTicketAttributionRate, "percent");
   return (
     <>
       <DashboardSection title="PNL (Paid Traffic)">
@@ -55,7 +59,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.cash}
-            subtext="Low + high ticket cash from paid traffic."
+            subtext={`True cash: low ticket ${money(data?.paidCashLowTicket)} attributed (${money(data?.loggedLowTicketPaid)} logged) + high ticket ${money(data?.paidCashHighTicket)}.`}
           />
           <PnlCard
             label="Sales Team Commission"
@@ -73,7 +77,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Paid Profit"
             value={data?.profit}
-            subtext="Cash minus the three costs."
+            subtext="True cash minus the three costs."
           />
         </div>
       </DashboardSection>
@@ -83,10 +87,19 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.organicCash}
-            subtext="Low + high ticket cash from organic. Nothing comes off it."
+            subtext="True cash: attributed low ticket + high ticket. Nothing comes off it."
           />
-          <PnlCard label="Low Ticket" value={data?.organicCashLowTicket} />
+          <PnlCard
+            label="Low Ticket (Attributed)"
+            value={data?.organicCashLowTicket}
+            subtext={`${money(data?.loggedLowTicketOrganic)} logged x ${rate} attribution.`}
+          />
           <PnlCard label="High Ticket" value={data?.organicCashHighTicket} />
+          <PnlCard
+            label="Low Ticket Attribution"
+            value={data?.portalLowTicketCash}
+            subtext={`${rate} of logged low ticket. The portal tracked this much of ${money((data?.loggedLowTicketPaid ?? 0) + (data?.loggedLowTicketOrganic ?? 0))} logged; paid and organic are split in the logged proportion.`}
+          />
         </div>
       </DashboardSection>
     </>
