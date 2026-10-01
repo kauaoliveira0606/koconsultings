@@ -6,6 +6,7 @@ import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardG
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { CashCalendar } from "@/components/dashboard/CashCalendar";
 import { PacingSection } from "@/components/dashboard/PacingSection";
+import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
@@ -300,6 +301,8 @@ export default function OverviewPage() {
           />
         </StatCardGrid>
       </DashboardSection>
+
+      <PaidPnlSection apiPath="/api/bronson/overview/pnl" range={range} />
 
       {/* TIER 3 — ACQUISITION & LEAD FLOW */}
       <DashboardSection title="Acquisition & Lead Flow">
