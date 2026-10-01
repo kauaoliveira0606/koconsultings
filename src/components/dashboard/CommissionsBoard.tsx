@@ -206,8 +206,15 @@ function payoutStatus(periodEnd: string | undefined, portalSyncedAt: string | nu
   };
 }
 
+const LEAD_SOURCE_LABEL: Record<HighTicketDeal["leadSource"], string> = {
+  paid: "paid lead",
+  organic: "organic lead",
+  unmatched: "no lead match, counted organic",
+};
+
 function RepCard({
   apiPath,
+  paidSplit,
   rank,
   rep,
   lowTicket,
@@ -218,6 +225,8 @@ function RepCard({
   rates,
 }: {
   apiPath: string;
+  /** Show how much of each line came from paid traffic. */
+  paidSplit: boolean;
   rank: number;
   rep: CommissionTotalRow;
   lowTicket: LowTicketRepRow | undefined;
@@ -237,7 +246,12 @@ function RepCard({
           </div>
           <div className="text-lg font-bold text-[var(--text-strong)]">{rep.rep}</div>
         </div>
-        <div className="text-3xl font-bold text-[var(--text-strong)]">{money(rep.total)}</div>
+        <div className="text-right">
+          <div className="text-3xl font-bold text-[var(--text-strong)]">{money(rep.total)}</div>
+          {paidSplit ? (
+            <div className="text-xs text-[var(--text-muted)]">{money(rep.paid)} from paid traffic</div>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-4 divide-y divide-[var(--panel-border)] border-t border-[var(--panel-border)]">
@@ -248,7 +262,11 @@ function RepCard({
               `${money(lowTicket.realCash)} real cash x ${pct(rates.lowTicket)}` +
               ` · submitted ${money(lowTicket.submittedCash)}` +
               ` · attribution rate ${formatStatValue(lowTicket.attributionRate, "percent")}` +
-              ` (${lowTicket.trackedSales}/${lowTicket.submittedSales} sales)`
+              ` (${lowTicket.trackedSales}/${lowTicket.submittedSales} sales)` +
+              (paidSplit
+                ? ` · paid traffic ${money(lowTicket.paidCommission)}` +
+                  ` (${money(lowTicket.submittedPaidCash)} of submitted was paid leads)`
+                : "")
             }
             amount={lowTicket.commission}
           />
@@ -266,7 +284,8 @@ function RepCard({
               label={`${deal.kind === "follow_up" ? "Follow Up Payment" : "High Ticket"} · ${deal.lead ?? "Unknown lead"} (${role})`}
               math={
                 `${formatDay(deal.date)} · ${money(deal.cashCollected)} cash` +
-                ` - ${pct(deal.feeRate)} fee = ${money(deal.netCash)} x ${pct(rate)}`
+                ` - ${pct(deal.feeRate)} fee = ${money(deal.netCash)} x ${pct(rate)}` +
+                (paidSplit ? ` · ${LEAD_SOURCE_LABEL[deal.leadSource]}` : "")
               }
               amount={(closed ? deal.closerCommission : 0) + (set ? deal.setterCommission : 0)}
             />
@@ -404,6 +423,7 @@ export function CommissionsBoard({
               <RepCard
                 key={rep.rep}
                 apiPath={apiPath}
+                paidSplit={data.paidSplit}
                 rank={i + 1}
                 rep={rep}
                 lowTicket={data.lowTicket.find((r) => sameRep(r.rep, rep.rep))}
@@ -433,6 +453,47 @@ export function CommissionsBoard({
             {money(data?.totals.commission)}
           </div>
         </div>
+
+        {data?.paidSplit ? (
+          <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                  Paid Traffic Commissions
+                </div>
+                <div className="mt-1 text-xs text-[var(--text-muted)]">
+                  What comes off paid profit. Organic commissions:{" "}
+                  {money(data.totals.organicCommission)}. Clawbacks are not split.
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-[var(--text-strong)]">
+                {money(data.totals.paidCommission)}
+              </div>
+            </div>
+
+            {data.unmatchedLeads.length > 0 ? (
+              <div className="mt-4 border-t border-[var(--panel-border)] pt-3">
+                <div className="text-sm font-medium text-[var(--text-strong)]">
+                  {data.unmatchedLeads.length} sales with no Paid/Organic match (counted as organic)
+                </div>
+                <div className="mt-1 text-xs text-[var(--text-muted)]">
+                  Their email is not in the Leads table. Add the lead there with a Source and it
+                  matches on its own.
+                </div>
+                <ul className="mt-2 space-y-1 text-xs text-[var(--text-muted)]">
+                  {data.unmatchedLeads.map((u) => (
+                    <li key={u.id}>
+                      {formatDay(u.date)} · {u.kind === "high_ticket" ? "High ticket" : "Low ticket"} ·{" "}
+                      {u.rep ?? "No rep"} · {u.lead ?? "Unknown lead"} ·{" "}
+                      <span className="text-[var(--text-strong)]">{u.email ?? "no email logged"}</span>{" "}
+                      · {money(u.cash)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

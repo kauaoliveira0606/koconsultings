@@ -7,6 +7,7 @@ import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/l
 import { EXPENSE_TABLES, expensesByMonth, listExpenses } from "@/lib/airtable/expenses";
 import {
   buildDailyOfferRows,
+  withBronsonActualCommissions,
   sumCash,
   sumAdSpend,
   sumExpenses,
@@ -19,6 +20,7 @@ import {
   ecomSimSalesManagerCut,
   type DailyOfferRow,
 } from "@/lib/agency";
+import { COMMISSIONS_OFFERS, getPaidCommissionsByDay } from "@/lib/airtable/commissions";
 
 export const revalidate = 60;
 
@@ -43,21 +45,33 @@ function avalClientSummary(rows: DailyOfferRow[]) {
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
-  const [bronsonMarketing, avalMarketing, ecomMarketing, bronsonExpenses, ecomExpenses] =
-    await Promise.all([
-      getBronsonMarketingDailyMetrics(),
-      getAvalMarketingDailyMetrics(),
-      getEcomSimMarketingDailyMetrics(),
-      listExpenses(EXPENSE_TABLES.bronson),
-      listExpenses(EXPENSE_TABLES.ecomSimulation),
-    ]);
+  const [
+    bronsonMarketing,
+    avalMarketing,
+    ecomMarketing,
+    bronsonExpenses,
+    ecomExpenses,
+    bronsonPaidCommissions,
+  ] = await Promise.all([
+    getBronsonMarketingDailyMetrics(),
+    getAvalMarketingDailyMetrics(),
+    getEcomSimMarketingDailyMetrics(),
+    listExpenses(EXPENSE_TABLES.bronson),
+    listExpenses(EXPENSE_TABLES.ecomSimulation),
+    getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
+  ]);
 
   // Everything — cash, ad spend, Paid/Organic splits — comes straight from
   // each offer's Marketing Daily Metrics table, per the client. No EOD
   // Closer / Affiliate EOD blending here (unlike each offer's own
   // /overview/metrics route, which does blend those in for a more complete
   // real-time picture).
-  const bronsonAllRows = buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonExpenses));
+  // Bronson's sales team payout is the actual paid-traffic commission from its
+  // Commissions tab (organic commissions are not deducted), not a cash estimate.
+  const bronsonAllRows = withBronsonActualCommissions(
+    buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonExpenses)),
+    bronsonPaidCommissions
+  );
   const avalAllRows = buildDailyOfferRows(avalMarketing);
   const ecomAllRows = buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses));
 

@@ -30,6 +30,8 @@ export type DailyOfferRow = {
   adSpend: number;
   /** Monthly tool expenses, booked in full on the 1st of their month. Bronson/Andy only. */
   expenses: number;
+  /** Set when the offer's sales team payout is known rather than estimated from cash (Bronson). */
+  salesTeamPayout?: { paid: number; organic: number };
 };
 
 type MarketingRowLike = {
@@ -143,10 +145,51 @@ export function sumSalesTeamPayout(rows: DailyOfferRow[]): { paid: number; organ
   let paid = 0;
   let organic = 0;
   for (const r of rows) {
-    paid += commissionForDay(r.date, r.ltCashPaid, r.htCashPaid);
-    organic += commissionForDay(r.date, r.ltCashOrganic, r.htCashOrganic);
+    paid += r.salesTeamPayout?.paid ?? commissionForDay(r.date, r.ltCashPaid, r.htCashPaid);
+    organic +=
+      r.salesTeamPayout?.organic ?? commissionForDay(r.date, r.ltCashOrganic, r.htCashOrganic);
   }
   return { paid, organic };
+}
+
+/** First day Bronson's sales team was paid by the Commissions tab's rules (Sep 16-30 pay period). */
+export const BRONSON_ACTUAL_COMMISSIONS_FROM = "2026-09-16";
+
+/**
+ * Bronson is a profit share on PAID traffic only, so only paid-traffic
+ * commissions come off — organic commissions are never deducted here. From
+ * `BRONSON_ACTUAL_COMMISSIONS_FROM` the paid figure is the actual commission
+ * from the Commissions tab (`paidByDay`); before that it stays the cash-based
+ * estimate, since that period was paid out under the old rules.
+ */
+export function withBronsonActualCommissions(
+  rows: DailyOfferRow[],
+  paidByDay: Map<string, number>
+): DailyOfferRow[] {
+  const byDate = new Map(rows.map((r) => [r.date, r]));
+  for (const date of paidByDay.keys()) {
+    if (date >= BRONSON_ACTUAL_COMMISSIONS_FROM && !byDate.has(date)) {
+      byDate.set(date, {
+        date,
+        ltCashPaid: 0,
+        ltCashOrganic: 0,
+        htCashPaid: 0,
+        htCashOrganic: 0,
+        adSpend: 0,
+        expenses: 0,
+      });
+    }
+  }
+  return Array.from(byDate.values()).map((r) => ({
+    ...r,
+    salesTeamPayout: {
+      paid:
+        r.date >= BRONSON_ACTUAL_COMMISSIONS_FROM
+          ? (paidByDay.get(r.date) ?? 0)
+          : commissionForDay(r.date, r.ltCashPaid, r.htCashPaid),
+      organic: 0,
+    },
+  }));
 }
 
 /** Generic client P&L per day, same shape as every offer's own "Net Cash" stat. */

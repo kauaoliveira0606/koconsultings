@@ -42,7 +42,15 @@ export type CommissionsOffer = {
    * name in Airtable, mapped to that name so they land on the same card.
    */
   sharedIdAliases?: Record<string, string>;
+  /**
+   * Leads table (Email + Source = Paid/Organic). When set, commissions are
+   * also split by traffic source, for offers on a paid-traffic profit share.
+   */
+  leadsTableId?: string;
 };
+
+/** Where the lead behind a sale came from, by matching its email to the Leads table. */
+export type LeadSource = "paid" | "organic" | "unmatched";
 
 export const COMMISSIONS_OFFERS = {
   bronson: {
@@ -53,6 +61,7 @@ export const COMMISSIONS_OFFERS = {
     affiliatePcnCashField: "CPA (Payout / Cash Collected)",
     clawbacksTableId: "tblEWLBxlRGjhDmyJ",
     sharedIdTrackingStart: "2026-09-08",
+    leadsTableId: "tbl4E1VNyL7ZbTi5C",
   },
   aval: {
     baseId: "appgEcTIxQjmtRKbP",
@@ -104,6 +113,15 @@ export type LowTicketRepRow = {
   attributionRate: number | null;
   /** Paid on real (attributed) cash only. */
   commission: number;
+  /**
+   * Part of `commission` that came from paid traffic. The portal doesn't say
+   * which lead bought, so each day's real commission is split by the paid
+   * share of what the rep submitted in that pay period.
+   */
+  paidCommission: number;
+  /** Submitted cash whose lead matched a Paid lead (unmatched counts as organic). */
+  submittedPaidCash: number;
+  submittedUnmatchedSales: number;
 };
 
 export type HighTicketRepRow = {
@@ -134,6 +152,8 @@ export type HighTicketDeal = {
   netCash: number;
   closerCommission: number;
   setterCommission: number;
+  leadEmail: string | null;
+  leadSource: LeadSource;
 };
 
 export type CommissionTotalRow = {
@@ -143,6 +163,19 @@ export type CommissionTotalRow = {
   highTicketSetter: number;
   clawbacks: number;
   total: number;
+  /** Part of the commission (before clawbacks) that came from paid traffic. */
+  paid: number;
+};
+
+/** A sale whose lead email isn't in the Leads table, so it counts as organic. */
+export type UnmatchedLead = {
+  id: string;
+  kind: "low_ticket" | "high_ticket";
+  date: string | null;
+  rep: string | null;
+  lead: string | null;
+  email: string | null;
+  cash: number;
 };
 
 export type CommissionsResponse = {
@@ -169,7 +202,13 @@ export type CommissionsResponse = {
     highTicketCash: number;
     highTicketNetCash: number;
     clawbacks: number;
+    /** Commission from paid traffic / everything else, before clawbacks. */
+    paidCommission: number;
+    organicCommission: number;
   };
+  /** Whether this offer splits commissions by Paid vs Organic traffic. */
+  paidSplit: boolean;
+  unmatchedLeads: UnmatchedLead[];
   /** When the portal collector last wrote real cash (ISO), null if never. */
   portalSyncedAt: string | null;
   clawbacks: Clawback[];
@@ -216,20 +255,69 @@ function rowEasternDate(dateField: unknown, createdTime: string): string | null 
 const text = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
 
+const normalizeEmail = (value: unknown): string | null =>
+  text(value)?.toLowerCase().replace(/^mailto:/, "") || null;
+
+/** Pay period a day's low ticket paid share is judged over: 1st-15th or 16th-end. */
+const sharePeriodKey = (date: string) => `${date.slice(0, 7)}-${date.slice(8, 10) <= "15" ? "a" : "b"}`;
+
 export async function getCommissions(
   offer: CommissionsOffer,
   range: ResolvedRange
 ): Promise<CommissionsResponse> {
+  return (await computeCommissions(offer, range, true)).response;
+}
+
+/**
+ * Actual paid-traffic sales team commission per day, all time — what the
+ * Agency page deducts from paid profit. Empty for offers without a paid split.
+ */
+export async function getPaidCommissionsByDay(offer: CommissionsOffer): Promise<Map<string, number>> {
+  return (await computeCommissions(offer, { start: null, end: null }, false)).paidByDay;
+}
+
+async function computeCommissions(
+  offer: CommissionsOffer,
+  range: ResolvedRange,
+  withClawbacks: boolean
+): Promise<{ response: CommissionsResponse; paidByDay: Map<string, number> }> {
   const { baseId } = offer;
   const aliases: Record<string, string> = offer.sharedIdAliases ?? {};
-  const [portalRecords, affiliatePcnRecords, postCallNoteRecords, followUpRecords, allClawbacks] =
-    await Promise.all([
-    airtableListAll<Record<string, unknown>>(baseId, offer.affiliatePortalByRepTableId),
-    airtableListAll<Record<string, unknown>>(baseId, offer.affiliatePcnTableId),
-    airtableListAll<Record<string, unknown>>(baseId, POST_CALL_NOTE_TABLE_ID),
-    airtableListAll<Record<string, unknown>>(baseId, FOLLOW_UP_PAYMENT_TABLE_ID),
-    listClawbacks(clawbacksTable(offer)),
+  const list = (tableId: string) => airtableListAll<Record<string, unknown>>(baseId, tableId);
+  const [
+    portalRecords,
+    affiliatePcnRecords,
+    postCallNoteRecords,
+    followUpRecords,
+    leadRecords,
+    allClawbacks,
+  ] = await Promise.all([
+    list(offer.affiliatePortalByRepTableId),
+    list(offer.affiliatePcnTableId),
+    list(POST_CALL_NOTE_TABLE_ID),
+    list(FOLLOW_UP_PAYMENT_TABLE_ID),
+    offer.leadsTableId ? list(offer.leadsTableId) : Promise.resolve([]),
+    withClawbacks ? listClawbacks(clawbacksTable(offer)) : Promise.resolve([]),
   ]);
+
+  // ---- Paid vs Organic, by the lead's email in the Leads table ----------
+  const paidSplit = Boolean(offer.leadsTableId);
+  const sourceByEmail = new Map<string, string>();
+  for (const r of leadRecords) {
+    const email = normalizeEmail(r.fields.Email);
+    const source = text(r.fields.Source);
+    if (email && source) sourceByEmail.set(email, source.toLowerCase());
+  }
+  const leadSource = (email: string | null): LeadSource => {
+    const source = email ? sourceByEmail.get(email) : undefined;
+    if (!source) return "unmatched";
+    return source.includes("paid") ? "paid" : "organic";
+  };
+  const unmatchedLeads: UnmatchedLead[] = [];
+  const paidByDay = new Map<string, number>();
+  const addPaid = (date: string | null, amount: number) => {
+    if (date && amount) paidByDay.set(date, (paidByDay.get(date) ?? 0) + amount);
+  };
 
   let portalSyncedAt: string | null = null;
   for (const r of portalRecords) {
@@ -253,13 +341,59 @@ export async function getCommissions(
     trackedSales: 0,
     attributionRate: null,
     commission: 0,
+    paidCommission: 0,
+    submittedPaidCash: 0,
+    submittedUnmatchedSales: 0,
   }));
+
+  // Submitted side first: it also gives each rep's paid share per pay period,
+  // which is what splits their real (portal) commission into paid vs organic.
+  const submittedShare = new Map<string, { paid: number; total: number }>();
+  for (const r of affiliatePcnRecords) {
+    const f = r.fields;
+    const rep = text(f[offer.affiliatePcnRepField]);
+    const date = rowEasternDate(f.Date, r.createdTime);
+    if (!rep || !date) continue;
+    const cash = parseNumericText(f[offer.affiliatePcnCashField]) ?? 0;
+    const email = normalizeEmail(f["lead email"] ?? f["Lead Email"]);
+    const source = paidSplit ? leadSource(email) : "organic";
+
+    const key = `${rep.toLowerCase()}::${sharePeriodKey(date)}`;
+    const share = submittedShare.get(key) ?? { paid: 0, total: 0 };
+    share.total += cash;
+    if (source === "paid") share.paid += cash;
+    submittedShare.set(key, share);
+
+    if (!isDateInRange(date, range)) continue;
+    const row = lowTicket.get(rep);
+    row.submittedSales += 1;
+    row.submittedCash += cash;
+    if (source === "paid") row.submittedPaidCash += cash;
+    if (source === "unmatched") {
+      row.submittedUnmatchedSales += 1;
+      unmatchedLeads.push({
+        id: r.id,
+        kind: "low_ticket",
+        date,
+        rep: row.rep,
+        lead: text(f["Lead name"] ?? f["Lead Name"]),
+        email,
+        cash,
+      });
+    }
+  }
+  const paidShare = (rep: string, date: string): number => {
+    const share = submittedShare.get(`${rep.toLowerCase()}::${sharePeriodKey(date)}`);
+    return share && share.total > 0 ? share.paid / share.total : 0;
+  };
+
   let unassignedCash = 0;
   let unassignedSales = 0;
 
   for (const r of portalRecords) {
     const f = r.fields;
-    if (!isDateInRange(parseDateOnly(f.Date), range)) continue;
+    const date = parseDateOnly(f.Date);
+    if (!date || !isDateInRange(date, range)) continue;
     const sharedId = text(f["Shared ID"]) ?? UNASSIGNED_SHARED_ID;
     const sales = parseNumericText(f.Purchases) ?? 0;
     const cash = parseNumericText(f.Commission) ?? 0;
@@ -273,16 +407,11 @@ export async function getCommissions(
     row.realCash += cash;
     row.reversedSales += parseNumericText(f["Reversed Purchases"]) ?? 0;
     row.reversedCash += parseNumericText(f["Reversed Commission"]) ?? 0;
-  }
-
-  for (const r of affiliatePcnRecords) {
-    const f = r.fields;
-    if (!isDateInRange(rowEasternDate(f.Date, r.createdTime), range)) continue;
-    const rep = text(f[offer.affiliatePcnRepField]);
-    if (!rep) continue;
-    const row = lowTicket.get(rep);
-    row.submittedSales += 1;
-    row.submittedCash += parseNumericText(f[offer.affiliatePcnCashField]) ?? 0;
+    if (paidSplit) {
+      const paid = cash * LOW_TICKET_RATE * paidShare(row.rep, date);
+      row.paidCommission += paid;
+      addPaid(date, paid);
+    }
   }
 
   const lowTicketRows = lowTicket.values();
@@ -318,6 +447,7 @@ export async function getCommissions(
     outcome: string | null;
     cash: number;
     paymentMethod: string | null;
+    leadEmail: string | null;
   }) => {
     const { closer, cash, paymentMethod } = deal;
     const setter = deal.setterRaw && !NO_SETTER.test(deal.setterRaw) ? deal.setterRaw : null;
@@ -342,6 +472,20 @@ export async function getCommissions(
       row.setterCommission += setterCommission;
     }
 
+    const source = paidSplit ? leadSource(deal.leadEmail) : "organic";
+    if (source === "paid") addPaid(deal.date, closerCommission + setterCommission);
+    if (source === "unmatched") {
+      unmatchedLeads.push({
+        id: deal.id,
+        kind: "high_ticket",
+        date: deal.date,
+        rep: closer,
+        lead: deal.lead,
+        email: deal.leadEmail,
+        cash,
+      });
+    }
+
     highTicketDeals.push({
       id: deal.id,
       kind: deal.kind,
@@ -357,6 +501,8 @@ export async function getCommissions(
       netCash,
       closerCommission,
       setterCommission,
+      leadEmail: deal.leadEmail,
+      leadSource: source,
     });
   };
 
@@ -377,6 +523,7 @@ export async function getCommissions(
       outcome: text(f["Call Outcome"]),
       cash,
       paymentMethod: text(f["Where Was Payment Collected On"]),
+      leadEmail: normalizeEmail(f["Email (Lead)"]),
     });
   }
 
@@ -397,6 +544,7 @@ export async function getCommissions(
       outcome: "Follow Up Payment",
       cash,
       paymentMethod: text(f["Where Was Payment Collected On"]),
+      leadEmail: normalizeEmail(f["Lead Email"]),
     });
   }
 
@@ -413,8 +561,18 @@ export async function getCommissions(
     highTicketSetter: 0,
     clawbacks: 0,
     total: 0,
+    paid: 0,
   }));
-  for (const row of lowTicketRows) combined.get(row.rep).lowTicket += row.commission;
+  for (const row of lowTicketRows) {
+    const total = combined.get(row.rep);
+    total.lowTicket += row.commission;
+    total.paid += row.paidCommission;
+  }
+  for (const deal of highTicketDeals) {
+    if (deal.leadSource !== "paid") continue;
+    if (deal.closer) combined.get(deal.closer).paid += deal.closerCommission;
+    if (deal.setter) combined.get(deal.setter).paid += deal.setterCommission;
+  }
   for (const row of highTicketRows) {
     const total = combined.get(row.rep);
     total.highTicketCloser += row.closerCommission;
@@ -433,8 +591,10 @@ export async function getCommissions(
   const lowTicketCommission = lowTicketRows.reduce((s, r) => s + r.commission, 0);
   const highTicketCommission = highTicketRows.reduce((s, r) => s + r.commission, 0);
   const clawbackTotal = clawbacks.reduce((s, c) => s + c.amount, 0);
+  const paidCommission = byRep.reduce((s, r) => s + r.paid, 0);
+  unmatchedLeads.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
 
-  return {
+  const response: CommissionsResponse = {
     rates: {
       lowTicket: LOW_TICKET_RATE,
       highTicketCloser: HIGH_TICKET_CLOSER_RATE,
@@ -458,7 +618,11 @@ export async function getCommissions(
       highTicketCash: highTicketDeals.reduce((s, d) => s + d.cashCollected, 0),
       highTicketNetCash: highTicketDeals.reduce((s, d) => s + d.netCash, 0),
       clawbacks: clawbackTotal,
+      paidCommission,
+      organicCommission: lowTicketCommission + highTicketCommission - paidCommission,
     },
+    paidSplit,
+    unmatchedLeads: paidSplit ? unmatchedLeads : [],
     portalSyncedAt,
     clawbacks,
     byRep,
@@ -466,4 +630,5 @@ export async function getCommissions(
     highTicket: highTicketRows,
     highTicketDeals,
   };
+  return { response, paidByDay };
 }

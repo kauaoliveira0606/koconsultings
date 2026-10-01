@@ -5,6 +5,7 @@ import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/l
 import { EXPENSE_TABLES, expensesByMonth, listExpenses } from "@/lib/airtable/expenses";
 import {
   buildDailyOfferRows,
+  withBronsonActualCommissions,
   cash,
   bronsonAgencyProfitByDay,
   avalAgencyProfitByDay,
@@ -13,6 +14,7 @@ import {
   ecomSimSalesManagerCutByDay,
   type DailyOfferRow,
 } from "@/lib/agency";
+import { COMMISSIONS_OFFERS, getPaidCommissionsByDay } from "@/lib/airtable/commissions";
 
 export const revalidate = 60;
 
@@ -33,18 +35,28 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "month query param (YYYY-MM) is required" }, { status: 400 });
   }
 
-  const [bronsonMarketing, avalMarketing, ecomMarketing, bronsonExpenses, ecomExpenses] =
-    await Promise.all([
-      getBronsonMarketingDailyMetrics(),
-      getAvalMarketingDailyMetrics(),
-      getEcomSimMarketingDailyMetrics(),
-      listExpenses(EXPENSE_TABLES.bronson),
-      listExpenses(EXPENSE_TABLES.ecomSimulation),
-    ]);
+  const [
+    bronsonMarketing,
+    avalMarketing,
+    ecomMarketing,
+    bronsonExpenses,
+    ecomExpenses,
+    bronsonPaidCommissions,
+  ] = await Promise.all([
+    getBronsonMarketingDailyMetrics(),
+    getAvalMarketingDailyMetrics(),
+    getEcomSimMarketingDailyMetrics(),
+    listExpenses(EXPENSE_TABLES.bronson),
+    listExpenses(EXPENSE_TABLES.ecomSimulation),
+    getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
+  ]);
 
   // Everything comes straight from each offer's Marketing Daily Metrics
   // table, per the client — no EOD Closer / Affiliate EOD blending.
-  const bronsonRows = buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonExpenses));
+  const bronsonRows = withBronsonActualCommissions(
+    buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonExpenses)),
+    bronsonPaidCommissions
+  );
   const avalRows = buildDailyOfferRows(avalMarketing);
   const ecomRows = buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses));
 
