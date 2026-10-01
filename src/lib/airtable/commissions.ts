@@ -12,7 +12,9 @@ import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date
  *                     n8n Base44/Wix Attribution Collector; sub_id_2 = the rep).
  *  - Submitted cash = what the rep logged themselves in "Affiliate PCN".
  *
- * High ticket ("Post Call Note"): closer 10%, setter 5% of cash collected.
+ * High ticket ("Post Call Note"): closer 10%, setter 5% of cash collected
+ * after fees (3% processing, or 18% when "Where Was Payment Collected On" is a
+ * financing option).
  * A rep who both set and closed the deal gets both (15%).
  */
 
@@ -24,6 +26,10 @@ const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 export const LOW_TICKET_RATE = 0.1;
 export const HIGH_TICKET_CLOSER_RATE = 0.1;
 export const HIGH_TICKET_SETTER_RATE = 0.05;
+/** Fees come off high ticket cash before commission: processing, or financing when the deal was financed. */
+export const HIGH_TICKET_PROCESSING_FEE = 0.03;
+export const HIGH_TICKET_FINANCING_FEE = 0.18;
+const FINANCED = /^financed/i;
 
 /** Portal sales that came through without a Shared ID — nobody is paid on these. */
 export const UNASSIGNED_SHARED_ID = "Unassigned";
@@ -71,6 +77,10 @@ export type HighTicketDeal = {
   offer: string | null;
   outcome: string | null;
   cashCollected: number;
+  paymentMethod: string | null;
+  feeRate: number;
+  /** Cash collected minus the fee — what commission is paid on. */
+  netCash: number;
   closerCommission: number;
   setterCommission: number;
 };
@@ -84,7 +94,13 @@ export type CommissionTotalRow = {
 };
 
 export type CommissionsResponse = {
-  rates: { lowTicket: number; highTicketCloser: number; highTicketSetter: number };
+  rates: {
+    lowTicket: number;
+    highTicketCloser: number;
+    highTicketSetter: number;
+    highTicketProcessingFee: number;
+    highTicketFinancingFee: number;
+  };
   sharedIdTrackingStart: string;
   totals: {
     commission: number;
@@ -99,6 +115,7 @@ export type CommissionsResponse = {
     unassignedCash: number;
     unassignedSales: number;
     highTicketCash: number;
+    highTicketNetCash: number;
   };
   byRep: CommissionTotalRow[];
   lowTicket: LowTicketRepRow[];
@@ -227,8 +244,14 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
     const closer = text(f["First Name"]);
     const setterRaw = text(f["Setters Full Name"]) ?? text(f["Setters Name"]);
     const setter = setterRaw && !NO_SETTER.test(setterRaw) ? setterRaw : null;
-    const closerCommission = closer ? cash * HIGH_TICKET_CLOSER_RATE : 0;
-    const setterCommission = setter ? cash * HIGH_TICKET_SETTER_RATE : 0;
+    const paymentMethod = text(f["Where Was Payment Collected On"]);
+    const feeRate =
+      paymentMethod && FINANCED.test(paymentMethod)
+        ? HIGH_TICKET_FINANCING_FEE
+        : HIGH_TICKET_PROCESSING_FEE;
+    const netCash = cash * (1 - feeRate);
+    const closerCommission = closer ? netCash * HIGH_TICKET_CLOSER_RATE : 0;
+    const setterCommission = setter ? netCash * HIGH_TICKET_SETTER_RATE : 0;
 
     if (closer) {
       const row = highTicket.get(closer);
@@ -252,6 +275,9 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
       offer: text(f["Offer Pitched On/Closed"]) ?? text(f["Offer Pitched/Closed On"]),
       outcome: text(f["Call Outcome"]),
       cashCollected: cash,
+      paymentMethod,
+      feeRate,
+      netCash,
       closerCommission,
       setterCommission,
     });
@@ -290,6 +316,8 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
       lowTicket: LOW_TICKET_RATE,
       highTicketCloser: HIGH_TICKET_CLOSER_RATE,
       highTicketSetter: HIGH_TICKET_SETTER_RATE,
+      highTicketProcessingFee: HIGH_TICKET_PROCESSING_FEE,
+      highTicketFinancingFee: HIGH_TICKET_FINANCING_FEE,
     },
     sharedIdTrackingStart: SHARED_ID_TRACKING_START,
     totals: {
@@ -305,6 +333,7 @@ export async function getBronsonCommissions(range: ResolvedRange): Promise<Commi
       unassignedCash,
       unassignedSales,
       highTicketCash: highTicketDeals.reduce((s, d) => s + d.cashCollected, 0),
+      highTicketNetCash: highTicketDeals.reduce((s, d) => s + d.netCash, 0),
     },
     byRep,
     lowTicket: lowTicketRows,

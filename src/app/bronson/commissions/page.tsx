@@ -153,6 +153,9 @@ export default function CommissionsPage() {
     { key: "offer", header: "Offer", render: (d) => d.offer ?? "Unknown" },
     { key: "outcome", header: "Outcome", render: (d) => d.outcome ?? "Unknown" },
     { key: "cash", header: "Cash Collected", render: (d) => money(d.cashCollected), align: "right" },
+    { key: "paidVia", header: "Paid Via", render: (d) => d.paymentMethod ?? "Not logged" },
+    { key: "fee", header: "Fee", render: (d) => pct(d.feeRate), align: "right" },
+    { key: "netCash", header: "Cash After Fee", render: (d) => money(d.netCash), align: "right" },
     { key: "closer", header: "Closer", render: (d) => d.closer ?? "Not logged" },
     {
       key: "closerCommission",
@@ -226,7 +229,7 @@ export default function CommissionsPage() {
             label="High Ticket Commissions"
             value={totals?.highTicketCommission}
             format="currency"
-            subtext={`Closer ${pct(rates?.highTicketCloser)} + setter ${pct(rates?.highTicketSetter)} of cash collected`}
+            subtext={`Closer ${pct(rates?.highTicketCloser)} + setter ${pct(rates?.highTicketSetter)} of cash after fees`}
           />
           <StatCard
             label="Low Ticket Real Cash"
@@ -256,7 +259,7 @@ export default function CommissionsPage() {
             label="High Ticket Cash"
             value={totals?.highTicketCash}
             format="currency"
-            subtext="Post Call Notes cash collected"
+            subtext={`Post Call Notes cash collected, ${money(totals?.highTicketNetCash)} after fees`}
           />
         </StatCardGrid>
       </DashboardSection>
@@ -294,6 +297,12 @@ export default function CommissionsPage() {
           rowKey={(r) => r.rep}
           emptyMessage="No high ticket cash in this pay period."
         />
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
+          Commission is paid on cash after fees: {pct(rates?.highTicketProcessingFee)} processing,
+          or {pct(rates?.highTicketFinancingFee)} when the deal was financed. Closer and setter
+          come from the Post Call Note (First Name and Setters Full Name). A rep who set and
+          closed the same deal gets both.
+        </p>
       </DashboardSection>
 
       <DashboardSection title="High Ticket Deals">
