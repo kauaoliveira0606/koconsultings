@@ -74,7 +74,8 @@ export default function AgencyPage() {
             </span>
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Every client combined. Ad spend, sales team payouts and expenses come off first,
+            Every client combined, on real cash: Bronson and Aval low ticket is what the affiliate
+            portal actually tracked, not what was logged. Ad spend, sales team payouts and expenses come off first,
             then each offer&apos;s profit-share.
           </p>
         </div>

@@ -160,6 +160,39 @@ export function sumSalesTeamPayout(rows: DailyOfferRow[]): { paid: number; organ
   return { paid, organic };
 }
 
+/**
+ * Swaps logged low ticket cash for TRUE cash. The Marketing Daily Metrics
+ * form logs what reps say they sold; the affiliate portal only pays what it
+ * tracked. The portal doesn't know Paid from Organic and its dates don't line
+ * up day for day with the form, so each calendar month's portal total is
+ * spread over that month's logged days, keeping the logged paid / organic
+ * proportions. A month the portal has nothing for yet is left as logged.
+ */
+export function withAttributedLowTicket(
+  rows: DailyOfferRow[],
+  portalCashByDay: Map<string, number>
+): DailyOfferRow[] {
+  const logged = new Map<string, number>();
+  for (const r of rows) {
+    const month = r.date.slice(0, 7);
+    logged.set(month, (logged.get(month) ?? 0) + r.ltCashPaid + r.ltCashOrganic);
+  }
+  const portal = new Map<string, number>();
+  for (const [date, cash] of portalCashByDay) {
+    if (date < AGENCY_DATA_START) continue;
+    const month = date.slice(0, 7);
+    portal.set(month, (portal.get(month) ?? 0) + cash);
+  }
+  return rows.map((r) => {
+    const month = r.date.slice(0, 7);
+    const loggedCash = logged.get(month) ?? 0;
+    const portalCash = portal.get(month);
+    if (portalCash === undefined || loggedCash <= 0) return r;
+    const rate = portalCash / loggedCash;
+    return { ...r, ltCashPaid: r.ltCashPaid * rate, ltCashOrganic: r.ltCashOrganic * rate };
+  });
+}
+
 /** First day Bronson's sales team was paid by the Commissions tab's rules (Sep 16-30 pay period). */
 export const BRONSON_ACTUAL_COMMISSIONS_FROM = "2026-09-16";
 

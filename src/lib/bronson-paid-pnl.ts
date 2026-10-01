@@ -1,14 +1,17 @@
 import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
-import { airtableListAll } from "@/lib/airtable/client";
-import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
 import {
-  AGENCY_DATA_START,
   buildDailyOfferRows,
   sumSalesTeamPayout,
+  withAttributedLowTicket,
   withBronsonActualCommissions,
+  type DailyOfferRow,
 } from "@/lib/agency";
 import { getMarketingDailyMetrics } from "@/lib/airtable/tables";
-import { COMMISSIONS_OFFERS, getPaidCommissionsByDay } from "@/lib/airtable/commissions";
+import {
+  COMMISSIONS_OFFERS,
+  getPaidCommissionsByDay,
+  getPortalCashByDay,
+} from "@/lib/airtable/commissions";
 import {
   EXPENSE_TABLES,
   effectiveExpenses,
@@ -46,48 +49,46 @@ export type PaidPnl = {
  *
  * Low ticket is shown as TRUE cash: the form logs what reps say they sold,
  * but the affiliate portal only pays what it tracked. The portal doesn't know
- * Paid from Organic, so its cash for the range is split in the same
- * proportion as the logged paid / organic low ticket cash.
+ * Paid from Organic, so each month's portal cash is split in the same
+ * proportion as that month's logged paid / organic low ticket cash
+ * (`withAttributedLowTicket`, shared with the Agency page).
  */
 export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> {
   const offer = COMMISSIONS_OFFERS.bronson;
-  const [marketing, expenses, paidCommissions, portalRecords] = await Promise.all([
+  const [marketing, expenses, paidCommissions, portalCashByDay] = await Promise.all([
     getMarketingDailyMetrics(),
     listExpenses(EXPENSE_TABLES.bronson),
     getPaidCommissionsByDay(offer),
-    airtableListAll<Record<string, unknown>>(offer.baseId, offer.affiliatePortalByRepTableId),
+    getPortalCashByDay(offer),
   ]);
-  const rows = withBronsonActualCommissions(
+  const loggedRows = withBronsonActualCommissions(
     buildDailyOfferRows(
       marketing,
       expensesByMonth(effectiveExpenses(EXPENSE_TABLES.bronson, expenses))
     ),
     paidCommissions
-  ).filter((r) => isDateInRange(r.date, range));
+  );
+  const inRange = (r: DailyOfferRow) => isDateInRange(r.date, range);
+  const logged = loggedRows.filter(inRange);
+  // Exactly the rows the Agency page uses, so the two always agree.
+  const rows = withAttributedLowTicket(loggedRows, portalCashByDay).filter(inRange);
 
-  const sumOf = (pick: (r: (typeof rows)[number]) => number) =>
-    rows.reduce((t, r) => t + pick(r), 0);
-  const loggedLowTicketPaid = sumOf((r) => r.ltCashPaid);
-  const loggedLowTicketOrganic = sumOf((r) => r.ltCashOrganic);
+  const sumOf = (list: DailyOfferRow[], pick: (r: DailyOfferRow) => number) =>
+    list.reduce((t, r) => t + pick(r), 0);
+  const loggedLowTicketPaid = sumOf(logged, (r) => r.ltCashPaid);
+  const loggedLowTicketOrganic = sumOf(logged, (r) => r.ltCashOrganic);
   const loggedLowTicket = loggedLowTicketPaid + loggedLowTicketOrganic;
 
-  let portalLowTicketCash = 0;
-  for (const r of portalRecords) {
-    const date = parseDateOnly(r.fields.Date);
-    if (!date || date < AGENCY_DATA_START || !isDateInRange(date, range)) continue;
-    portalLowTicketCash += parseNumericText(r.fields.Commission) ?? 0;
-  }
+  const paidCashLowTicket = sumOf(rows, (r) => r.ltCashPaid);
+  const paidCashHighTicket = sumOf(rows, (r) => r.htCashPaid);
+  const organicCashLowTicket = sumOf(rows, (r) => r.ltCashOrganic);
+  const organicCashHighTicket = sumOf(rows, (r) => r.htCashOrganic);
+  const portalLowTicketCash = paidCashLowTicket + organicCashLowTicket;
   const lowTicketAttributionRate = loggedLowTicket > 0 ? portalLowTicketCash / loggedLowTicket : null;
-  const rate = lowTicketAttributionRate ?? 1;
-
-  const paidCashLowTicket = loggedLowTicketPaid * rate;
-  const paidCashHighTicket = sumOf((r) => r.htCashPaid);
-  const organicCashLowTicket = loggedLowTicketOrganic * rate;
-  const organicCashHighTicket = sumOf((r) => r.htCashOrganic);
   const cash = paidCashLowTicket + paidCashHighTicket;
   const salesTeamCommission = sumSalesTeamPayout(rows).paid;
-  const adSpend = sumOf((r) => r.adSpend);
-  const expensesTotal = sumOf((r) => r.expenses);
+  const adSpend = sumOf(rows, (r) => r.adSpend);
+  const expensesTotal = sumOf(rows, (r) => r.expenses);
   return {
     cash,
     salesTeamCommission,

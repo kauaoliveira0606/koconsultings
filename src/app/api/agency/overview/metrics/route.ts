@@ -15,6 +15,7 @@ import {
   AGENCY_DATA_START,
   buildDailyOfferRows,
   untilAndyLeft,
+  withAttributedLowTicket,
   withBronsonActualCommissions,
   sumCash,
   sumAdSpend,
@@ -28,7 +29,11 @@ import {
   ecomSimSalesManagerCut,
   type DailyOfferRow,
 } from "@/lib/agency";
-import { COMMISSIONS_OFFERS, getPaidCommissionsByDay } from "@/lib/airtable/commissions";
+import {
+  COMMISSIONS_OFFERS,
+  getPaidCommissionsByDay,
+  getPortalCashByDay,
+} from "@/lib/airtable/commissions";
 
 export const revalidate = 60;
 
@@ -60,6 +65,8 @@ export async function GET(request: NextRequest) {
     bronsonExpenses,
     ecomExpenses,
     bronsonPaidCommissions,
+    bronsonPortalCash,
+    avalPortalCash,
   ] = await Promise.all([
     getBronsonMarketingDailyMetrics(),
     getAvalMarketingDailyMetrics(),
@@ -67,6 +74,8 @@ export async function GET(request: NextRequest) {
     listExpenses(EXPENSE_TABLES.bronson),
     listExpenses(EXPENSE_TABLES.ecomSimulation),
     getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
+    getPortalCashByDay(COMMISSIONS_OFFERS.bronson),
+    getPortalCashByDay(COMMISSIONS_OFFERS.aval),
   ]);
 
   // Everything — cash, ad spend, Paid/Organic splits — comes straight from
@@ -77,11 +86,16 @@ export async function GET(request: NextRequest) {
   // Bronson's sales team payout is the actual paid-traffic commission from its
   // Commissions tab (organic commissions are not deducted), not a cash estimate.
   const bronsonEffectiveExpenses = effectiveExpenses(EXPENSE_TABLES.bronson, bronsonExpenses);
-  const bronsonAllRows = withBronsonActualCommissions(
-    buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonEffectiveExpenses)),
-    bronsonPaidCommissions
+  // Low ticket cash for Bronson and Aval is TRUE cash (what the affiliate
+  // portal tracked and pays), not what was logged on the form.
+  const bronsonAllRows = withAttributedLowTicket(
+    withBronsonActualCommissions(
+      buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonEffectiveExpenses)),
+      bronsonPaidCommissions
+    ),
+    bronsonPortalCash
   );
-  const avalAllRows = buildDailyOfferRows(avalMarketing);
+  const avalAllRows = withAttributedLowTicket(buildDailyOfferRows(avalMarketing), avalPortalCash);
   const ecomAllRows = untilAndyLeft(
     buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses))
   );

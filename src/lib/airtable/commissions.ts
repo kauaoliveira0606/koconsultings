@@ -276,6 +276,25 @@ export async function getPaidCommissionsByDay(offer: CommissionsOffer): Promise<
   return (await computeCommissions(offer, { start: null, end: null }, false)).paidByDay;
 }
 
+/**
+ * True low ticket cash per day: what the affiliate portal tracked (every
+ * Shared ID, including sales with none; reversed sales taken out). This is
+ * the money that actually gets paid, as opposed to what reps log.
+ */
+export async function getPortalCashByDay(offer: CommissionsOffer): Promise<Map<string, number>> {
+  const records = await airtableListAll<Record<string, unknown>>(
+    offer.baseId,
+    offer.affiliatePortalByRepTableId
+  );
+  const byDay = new Map<string, number>();
+  for (const r of records) {
+    const date = parseDateOnly(r.fields.Date);
+    if (!date) continue;
+    byDay.set(date, (byDay.get(date) ?? 0) + (parseNumericText(r.fields.Commission) ?? 0));
+  }
+  return byDay;
+}
+
 async function computeCommissions(
   offer: CommissionsOffer,
   range: ResolvedRange,
