@@ -1,10 +1,7 @@
 "use client";
 
-import { StatCard } from "@/components/dashboard/StatCard";
-import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
-import type { RangeState } from "@/components/dashboard/RangeFilterBar";
-import { DataTable, type Column } from "@/components/dashboard/DataTable";
 import { useMemo, useState } from "react";
+import type { RangeState } from "@/components/dashboard/RangeFilterBar";
 import { buildPayPeriods } from "@/lib/pay-periods";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue } from "@/lib/format";
@@ -12,12 +9,12 @@ import type {
   CommissionsResponse,
   CommissionTotalRow,
   HighTicketDeal,
-  HighTicketRepRow,
   LowTicketRepRow,
 } from "@/lib/airtable/commissions";
 
 const money = (value: number | null | undefined) => formatStatValue(value, "currency");
 const pct = (rate: number | undefined) => (rate === undefined ? "" : `${Math.round(rate * 100)}%`);
+const sameRep = (a: string | null, b: string) => (a ?? "").trim().toLowerCase() === b.toLowerCase();
 
 function formatDay(date: string | null): string {
   if (!date) return "Unknown";
@@ -26,6 +23,81 @@ function formatDay(date: string | null): string {
     day: "numeric",
     timeZone: "UTC",
   });
+}
+
+/** One line of a rep's math: what it is, how it was worked out, what it pays. */
+function MathLine({ label, math, amount }: { label: string; math: string; amount: number }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-[var(--text-strong)]">{label}</div>
+        <div className="text-xs text-[var(--text-muted)]">{math}</div>
+      </div>
+      <div className="text-sm font-semibold text-[var(--text-strong)]">{money(amount)}</div>
+    </div>
+  );
+}
+
+function RepCard({
+  rank,
+  rep,
+  lowTicket,
+  deals,
+  rates,
+}: {
+  rank: number;
+  rep: CommissionTotalRow;
+  lowTicket: LowTicketRepRow | undefined;
+  deals: HighTicketDeal[];
+  rates: CommissionsResponse["rates"];
+}) {
+  return (
+    <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--panel-subtle)] text-sm font-bold text-[var(--text-muted)]">
+            {rank}
+          </div>
+          <div className="text-lg font-bold text-[var(--text-strong)]">{rep.rep}</div>
+        </div>
+        <div className="text-3xl font-bold text-[var(--text-strong)]">{money(rep.total)}</div>
+      </div>
+
+      <div className="mt-4 divide-y divide-[var(--panel-border)] border-t border-[var(--panel-border)]">
+        {lowTicket ? (
+          <MathLine
+            label="Low Ticket"
+            math={
+              `${money(lowTicket.realCash)} real cash x ${pct(rates.lowTicket)}` +
+              ` · submitted ${money(lowTicket.submittedCash)}` +
+              ` · attribution rate ${formatStatValue(lowTicket.attributionRate, "percent")}` +
+              ` (${lowTicket.trackedSales}/${lowTicket.submittedSales} sales)`
+            }
+            amount={lowTicket.commission}
+          />
+        ) : null}
+
+        {deals.map((deal) => {
+          const closed = sameRep(deal.closer, rep.rep);
+          const set = sameRep(deal.setter, rep.rep);
+          const rate =
+            (closed ? rates.highTicketCloser : 0) + (set ? rates.highTicketSetter : 0);
+          const role = closed && set ? "set + closed" : closed ? "closed" : "set";
+          return (
+            <MathLine
+              key={deal.id}
+              label={`High Ticket · ${deal.lead ?? "Unknown lead"} (${role})`}
+              math={
+                `${formatDay(deal.date)} · ${money(deal.cashCollected)} cash` +
+                ` - ${pct(deal.feeRate)} fee = ${money(deal.netCash)} x ${pct(rate)}`
+              }
+              amount={(closed ? deal.closerCommission : 0) + (set ? deal.setterCommission : 0)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function CommissionsPage() {
@@ -42,138 +114,11 @@ export default function CommissionsPage() {
   };
   const { data, error } = useSectionData<CommissionsResponse>("/api/bronson/commissions", range);
 
-  const rates = data?.rates;
-  const totals = data?.totals;
-
-  const totalColumns: Column<CommissionTotalRow>[] = [
-    { key: "rep", header: "Rep", render: (r) => r.rep },
-    { key: "low", header: "Low Ticket", render: (r) => money(r.lowTicket), align: "right" },
-    {
-      key: "closer",
-      header: "High Ticket (Closer)",
-      render: (r) => money(r.highTicketCloser),
-      align: "right",
-    },
-    {
-      key: "setter",
-      header: "High Ticket (Setter)",
-      render: (r) => money(r.highTicketSetter),
-      align: "right",
-    },
-    {
-      key: "total",
-      header: "Total Commission",
-      render: (r) => <span className="font-semibold">{money(r.total)}</span>,
-      align: "right",
-    },
-  ];
-
-  const lowTicketColumns: Column<LowTicketRepRow>[] = [
-    { key: "rep", header: "Rep (Shared ID)", render: (r) => r.rep },
-    { key: "realSales", header: "Real Sales", render: (r) => formatStatValue(r.realSales), align: "right" },
-    { key: "realCash", header: "Real Cash", render: (r) => money(r.realCash), align: "right" },
-    {
-      key: "submittedSales",
-      header: "Submitted Sales",
-      render: (r) => formatStatValue(r.submittedSales),
-      align: "right",
-    },
-    {
-      key: "submittedCash",
-      header: "Submitted Cash",
-      render: (r) => money(r.submittedCash),
-      align: "right",
-    },
-    {
-      key: "gap",
-      header: "Real vs Submitted",
-      render: (r) => (
-        <span className={r.gap < 0 ? "text-red-600" : r.gap > 0 ? "text-green-700" : undefined}>
-          {money(r.gap)}
-        </span>
-      ),
-      align: "right",
-    },
-    {
-      key: "reversed",
-      header: "Reversed",
-      render: (r) => (r.reversedSales > 0 ? `${r.reversedSales} (${money(r.reversedCash)})` : "0"),
-      align: "right",
-    },
-    {
-      key: "attributionRate",
-      header: "Attribution Rate",
-      render: (r) => (
-        <span title={`${r.trackedSales} tracked / ${r.submittedSales} submitted`}>
-          {formatStatValue(r.attributionRate, "percent")}{" "}
-          <span className="text-xs text-black/50">
-            ({r.trackedSales}/{r.submittedSales})
-          </span>
-        </span>
-      ),
-      align: "right",
-    },
-    {
-      key: "commission",
-      header: `Commission (${pct(rates?.lowTicket)} of Real)`,
-      render: (r) => <span className="font-semibold">{money(r.commission)}</span>,
-      align: "right",
-    },
-  ];
-
-  const highTicketColumns: Column<HighTicketRepRow>[] = [
-    { key: "rep", header: "Rep", render: (r) => r.rep },
-    { key: "closedDeals", header: "Closed", render: (r) => formatStatValue(r.closedDeals), align: "right" },
-    { key: "closedCash", header: "Cash Closed", render: (r) => money(r.closedCash), align: "right" },
-    {
-      key: "closerCommission",
-      header: `Closer Commission (${pct(rates?.highTicketCloser)})`,
-      render: (r) => money(r.closerCommission),
-      align: "right",
-    },
-    { key: "setDeals", header: "Set", render: (r) => formatStatValue(r.setDeals), align: "right" },
-    { key: "setCash", header: "Cash Set", render: (r) => money(r.setCash), align: "right" },
-    {
-      key: "setterCommission",
-      header: `Setter Commission (${pct(rates?.highTicketSetter)})`,
-      render: (r) => money(r.setterCommission),
-      align: "right",
-    },
-    {
-      key: "commission",
-      header: "Total",
-      render: (r) => <span className="font-semibold">{money(r.commission)}</span>,
-      align: "right",
-    },
-  ];
-
-  const dealColumns: Column<HighTicketDeal>[] = [
-    { key: "date", header: "Date", render: (d) => formatDay(d.date) },
-    { key: "lead", header: "Lead", render: (d) => d.lead ?? "Unknown" },
-    { key: "offer", header: "Offer", render: (d) => d.offer ?? "Unknown" },
-    { key: "outcome", header: "Outcome", render: (d) => d.outcome ?? "Unknown" },
-    { key: "cash", header: "Cash Collected", render: (d) => money(d.cashCollected), align: "right" },
-    { key: "paidVia", header: "Paid Via", render: (d) => d.paymentMethod ?? "Not logged" },
-    { key: "fee", header: "Fee", render: (d) => pct(d.feeRate), align: "right" },
-    { key: "netCash", header: "Cash After Fee", render: (d) => money(d.netCash), align: "right" },
-    { key: "closer", header: "Closer", render: (d) => d.closer ?? "Not logged" },
-    {
-      key: "closerCommission",
-      header: "Closer Pay",
-      render: (d) => money(d.closerCommission),
-      align: "right",
-    },
-    { key: "setter", header: "Setter", render: (d) => d.setter ?? "No setter" },
-    {
-      key: "setterCommission",
-      header: "Setter Pay",
-      render: (d) => money(d.setterCommission),
-      align: "right",
-    },
-  ];
+  // Reps with only submitted (unattributed) sales still show, at $0, so the gap is visible.
+  const reps = data?.byRep ?? [];
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Commissions</h1>
         <label className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
@@ -211,108 +156,43 @@ export default function CommissionsPage() {
         </div>
       ) : null}
 
-      <DashboardSection title="Totals">
-        <StatCardGrid>
-          <StatCard
-            label="Total Commissions"
-            value={totals?.commission}
-            format="currency"
-            subtext="Low ticket (real cash only) + high ticket"
-          />
-          <StatCard
-            label="Low Ticket Commissions"
-            value={totals?.lowTicketCommission}
-            format="currency"
-            subtext={`${pct(rates?.lowTicket)} of real cash by Shared ID`}
-          />
-          <StatCard
-            label="High Ticket Commissions"
-            value={totals?.highTicketCommission}
-            format="currency"
-            subtext={`Closer ${pct(rates?.highTicketCloser)} + setter ${pct(rates?.highTicketSetter)} of cash after fees`}
-          />
-          <StatCard
-            label="Low Ticket Real Cash"
-            value={totals?.lowTicketRealCash}
-            format="currency"
-            subtext="Portal sales with a rep's Shared ID"
-          />
-          <StatCard
-            label="Low Ticket Submitted Cash"
-            value={totals?.lowTicketSubmittedCash}
-            format="currency"
-            subtext="Affiliate PCN submissions"
-          />
-          <StatCard
-            label="Team Attribution Rate"
-            value={totals?.lowTicketAttributionRate}
-            format="percent"
-            subtext={`${formatStatValue(totals?.lowTicketTrackedSales)} sales tracked under a Shared ID / ${formatStatValue(totals?.lowTicketSubmittedSales)} submitted`}
-          />
-          <StatCard
-            label="No Shared ID"
-            value={totals?.unassignedCash}
-            format="currency"
-            subtext={`${formatStatValue(totals?.unassignedSales)} portal sales with no rep attached, not paid out`}
-          />
-          <StatCard
-            label="High Ticket Cash"
-            value={totals?.highTicketCash}
-            format="currency"
-            subtext={`Post Call Notes cash collected, ${money(totals?.highTicketNetCash)} after fees`}
-          />
-        </StatCardGrid>
-      </DashboardSection>
+      <div className="flex flex-col gap-4">
+        {data && reps.length === 0 ? (
+          <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-6 text-center text-sm text-[var(--text-muted)]">
+            No commissions in this pay period.
+          </div>
+        ) : null}
 
-      <DashboardSection title="Commission By Rep">
-        <DataTable
-          columns={totalColumns}
-          rows={data?.byRep ?? []}
-          rowKey={(r) => r.rep}
-          emptyMessage="No commissions in this pay period."
-        />
-      </DashboardSection>
+        {data
+          ? reps.map((rep, i) => (
+              <RepCard
+                key={rep.rep}
+                rank={i + 1}
+                rep={rep}
+                lowTicket={data.lowTicket.find((r) => sameRep(r.rep, rep.rep))}
+                deals={data.highTicketDeals.filter(
+                  (d) => sameRep(d.closer, rep.rep) || sameRep(d.setter, rep.rep)
+                )}
+                rates={data.rates}
+              />
+            ))
+          : null}
 
-      <DashboardSection title="Low Ticket (Base44 + Wix)">
-        <DataTable
-          columns={lowTicketColumns}
-          rows={data?.lowTicket ?? []}
-          rowKey={(r) => r.rep}
-          emptyMessage="No low ticket sales in this pay period."
-        />
-        <p className="mt-2 text-xs text-[var(--text-muted)]">
-          Real = sales the affiliate portal tracked under the rep&apos;s Shared ID, reversed sales
-          taken out. Commission is paid on real cash only. Submitted = what the rep logged in
-          Affiliate PCN. Attribution rate = sales the portal tracked under the Shared ID (reversed
-          included) divided by sales the rep submitted. The portal only started
-          stamping Shared IDs on {formatDay(data?.sharedIdTrackingStart ?? null)}, so real cash is
-          blank before that date.
-        </p>
-      </DashboardSection>
-
-      <DashboardSection title="High Ticket (Post Call Notes)">
-        <DataTable
-          columns={highTicketColumns}
-          rows={data?.highTicket ?? []}
-          rowKey={(r) => r.rep}
-          emptyMessage="No high ticket cash in this pay period."
-        />
-        <p className="mt-2 text-xs text-[var(--text-muted)]">
-          Commission is paid on cash after fees: {pct(rates?.highTicketProcessingFee)} processing,
-          or {pct(rates?.highTicketFinancingFee)} when the deal was financed. Closer and setter
-          come from the Post Call Note (First Name and Setters Full Name). A rep who set and
-          closed the same deal gets both.
-        </p>
-      </DashboardSection>
-
-      <DashboardSection title="High Ticket Deals">
-        <DataTable
-          columns={dealColumns}
-          rows={data?.highTicketDeals ?? []}
-          rowKey={(d) => d.id}
-          emptyMessage="No high ticket cash in this pay period."
-        />
-      </DashboardSection>
+        <div className="flex items-center justify-between gap-4 rounded-lg border-2 border-[var(--accent)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+              Total Commissions To Pay Out
+            </div>
+            <div className="mt-1 text-xs text-[var(--text-muted)]">
+              Low ticket {money(data?.totals.lowTicketCommission)} + high ticket{" "}
+              {money(data?.totals.highTicketCommission)}
+            </div>
+          </div>
+          <div className="text-4xl font-bold text-[var(--text-strong)]">
+            {money(data?.totals.commission)}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
