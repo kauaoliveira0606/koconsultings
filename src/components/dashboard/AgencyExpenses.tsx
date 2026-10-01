@@ -4,17 +4,42 @@ import { useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { formatStatValue } from "@/lib/format";
 
-type Expense = { id: string; tool: string; cost: number; month: string };
+type Expense = {
+  id: string;
+  tool: string;
+  cost: number;
+  month: string;
+  paidByMe: boolean;
+  carriedFrom?: string;
+};
 type ExpensesResponse = { bronson: Expense[]; ecomSimulation: Expense[] };
 type Offer = keyof ExpensesResponse;
 
-const OFFERS: { key: Offer; label: string; dot: string; note: string }[] = [
-  { key: "bronson", label: "Bronson", dot: "#f97316", note: "Comes off paid profit before your 50%." },
+type OfferConfig = {
+  key: Offer;
+  label: string;
+  dot: string;
+  note: string;
+  /** Rows can be ticked "I paid": the client reimburses those in full. */
+  reimbursable?: boolean;
+  /** Last month ("YYYY-MM") this client is shown for. */
+  lastMonth?: string;
+};
+
+const OFFERS: OfferConfig[] = [
+  {
+    key: "bronson",
+    label: "Bronson",
+    dot: "#f97316",
+    note: "Comes off paid profit before your 50%. Recurring: carries into the next month until you change it.",
+    reimbursable: true,
+  },
   {
     key: "ecomSimulation",
     label: "Andy (Ecom Simulation)",
     dot: "#22d3ee",
     note: "Split 50/50 off organic and paid profit before your split.",
+    lastMonth: "2026-09",
   },
 ];
 
@@ -87,7 +112,7 @@ export function AgencyExpenses() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {OFFERS.map((offer) => (
+        {OFFERS.filter((offer) => !offer.lastMonth || month <= offer.lastMonth).map((offer) => (
           <OfferExpenses
             key={offer.key}
             offer={offer}
@@ -107,7 +132,7 @@ function OfferExpenses({
   expenses,
   onChange,
 }: {
-  offer: (typeof OFFERS)[number];
+  offer: OfferConfig;
   month: string;
   expenses: Expense[] | undefined;
   onChange: () => Promise<unknown>;
@@ -117,17 +142,19 @@ function OfferExpenses({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
 
+  const paidByMe = sum(expenses?.filter((e) => e.paidByMe));
+  const carriedFrom = expenses?.find((e) => e.carriedFrom)?.carriedFrom;
   const costNumber = Number.parseFloat(cost.replace(/[^0-9.]/g, ""));
   const canAdd = tool.trim() !== "" && Number.isFinite(costNumber) && !busy;
 
-  async function send(method: "POST" | "DELETE", body: object) {
+  async function send(method: "POST" | "PATCH" | "DELETE", body: object) {
     setBusy(true);
     setError(false);
     try {
       const res = await fetch("/api/agency/expenses", {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ offer: offer.key, ...body }),
+        body: JSON.stringify({ offer: offer.key, month, ...body }),
       });
       if (!res.ok) throw new Error(String(res.status));
       await onChange();
@@ -142,7 +169,7 @@ function OfferExpenses({
 
   async function add() {
     if (!canAdd) return;
-    if (await send("POST", { month, tool: tool.trim(), cost })) {
+    if (await send("POST", { tool: tool.trim(), cost })) {
       setTool("");
       setCost("");
     }
@@ -158,6 +185,18 @@ function OfferExpenses({
         {expenses ? formatStatValue(sum(expenses), "currency") : "—"}
       </div>
       <div className="mt-1 text-xs text-[var(--text-muted)]">{offer.note}</div>
+      {paidByMe > 0 ? (
+        <div className="mt-2 text-xs text-emerald-400">
+          You paid {formatStatValue(paidByMe, "currency")} of this yourself. {offer.label} sends that
+          back in full, on top of your split.
+        </div>
+      ) : null}
+      {carriedFrom ? (
+        <div className="mt-2 text-xs text-[var(--text-muted)]">
+          Carried over from {monthLabel(carriedFrom)}. Any change here only affects{" "}
+          {monthLabel(month)} onward.
+        </div>
+      ) : null}
 
       {expenses && expenses.length > 0 ? (
         <ul className="mt-4 divide-y divide-[var(--panel-border)] text-sm">
@@ -165,6 +204,21 @@ function OfferExpenses({
             <li key={e.id} className="flex items-center justify-between gap-3 py-2">
               <span className="truncate text-[var(--text-strong)]">{e.tool}</span>
               <span className="flex shrink-0 items-center gap-3">
+                {offer.reimbursable ? (
+                  <button
+                    type="button"
+                    onClick={() => send("PATCH", { id: e.id, paidByMe: !e.paidByMe })}
+                    disabled={busy}
+                    aria-pressed={e.paidByMe}
+                    className={`rounded-full border px-2 py-0.5 text-xs disabled:opacity-40 ${
+                      e.paidByMe
+                        ? "border-emerald-400 text-emerald-400"
+                        : "border-[var(--panel-border)] text-[var(--text-muted)] hover:text-[var(--text-strong)]"
+                    }`}
+                  >
+                    {e.paidByMe ? "I paid ✓" : "I paid"}
+                  </button>
+                ) : null}
                 <span className="text-red-400">{formatStatValue(e.cost, "currency")}</span>
                 <button
                   type="button"

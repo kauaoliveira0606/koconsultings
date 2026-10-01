@@ -2,9 +2,11 @@ import {
   EXPENSE_TABLES,
   addExpense,
   deleteExpense,
+  effectiveExpenses,
   isExpenseOffer,
   listExpenses,
   parseCost,
+  setExpensePaidByMe,
 } from "@/lib/airtable/expenses";
 
 // Always needs live Airtable data.
@@ -21,8 +23,10 @@ export async function GET(request: Request) {
     listExpenses(EXPENSE_TABLES.ecomSimulation),
   ]);
   return Response.json({
-    bronson: bronson.filter((e) => e.month === month),
-    ecomSimulation: ecomSimulation.filter((e) => e.month === month),
+    bronson: effectiveExpenses(EXPENSE_TABLES.bronson, bronson).filter((e) => e.month === month),
+    ecomSimulation: effectiveExpenses(EXPENSE_TABLES.ecomSimulation, ecomSimulation).filter(
+      (e) => e.month === month
+    ),
   });
 }
 
@@ -46,11 +50,39 @@ export async function POST(request: Request) {
   return Response.json({ ok: true });
 }
 
-export async function DELETE(request: Request) {
-  const body = (await request.json().catch(() => null)) as { offer?: unknown; id?: unknown } | null;
-  if (!isExpenseOffer(body?.offer) || typeof body?.id !== "string" || !/^rec\w+$/.test(body.id)) {
-    return Response.json({ error: "Expected { offer, id }" }, { status: 400 });
+const MONTH = /^\d{4}-\d{2}$/;
+const RECORD_ID = /^rec\w+$/;
+
+type RowBody = { offer?: unknown; month?: unknown; id?: unknown; paidByMe?: unknown } | null;
+
+// Ticks / unticks "paid by me" on one expense.
+export async function PATCH(request: Request) {
+  const body = (await request.json().catch(() => null)) as RowBody;
+  if (
+    !isExpenseOffer(body?.offer) ||
+    typeof body?.month !== "string" ||
+    !MONTH.test(body.month) ||
+    typeof body?.id !== "string" ||
+    !RECORD_ID.test(body.id) ||
+    typeof body?.paidByMe !== "boolean"
+  ) {
+    return Response.json({ error: "Expected { offer, month, id, paidByMe }" }, { status: 400 });
   }
-  await deleteExpense(EXPENSE_TABLES[body.offer], body.id);
+  await setExpensePaidByMe(EXPENSE_TABLES[body.offer], body.month, body.id, body.paidByMe);
+  return Response.json({ ok: true });
+}
+
+export async function DELETE(request: Request) {
+  const body = (await request.json().catch(() => null)) as RowBody;
+  if (
+    !isExpenseOffer(body?.offer) ||
+    typeof body?.month !== "string" ||
+    !MONTH.test(body.month) ||
+    typeof body?.id !== "string" ||
+    !RECORD_ID.test(body.id)
+  ) {
+    return Response.json({ error: "Expected { offer, month, id }" }, { status: 400 });
+  }
+  await deleteExpense(EXPENSE_TABLES[body.offer], body.month, body.id);
   return Response.json({ ok: true });
 }

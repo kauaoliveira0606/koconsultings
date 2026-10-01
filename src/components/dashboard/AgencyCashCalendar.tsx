@@ -144,7 +144,10 @@ export function AgencyCashCalendar() {
                     <div className={`text-right text-[10px] leading-tight ${BUCKET_SUBTEXT_COLORS[bucket]}`}>
                       <div>B: {formatStatValue(entry.byClient.bronson, "currency")}</div>
                       <div>A: {formatStatValue(entry.byClient.aval, "currency")}</div>
-                      <div>E: {formatStatValue(entry.byClient.ecomSimulation, "currency")}</div>
+                      {/* Andy left after September 2026, so later days have no E line. */}
+                      {entry.byClient.ecomSimulation !== 0 ? (
+                        <div>E: {formatStatValue(entry.byClient.ecomSimulation, "currency")}</div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

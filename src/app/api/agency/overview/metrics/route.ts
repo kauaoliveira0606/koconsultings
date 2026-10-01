@@ -4,9 +4,17 @@ import { isDateInRange } from "@/lib/date-range";
 import { getMarketingDailyMetrics as getBronsonMarketingDailyMetrics } from "@/lib/airtable/tables";
 import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
 import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
-import { EXPENSE_TABLES, expensesByMonth, listExpenses } from "@/lib/airtable/expenses";
 import {
+  EXPENSE_TABLES,
+  effectiveExpenses,
+  expensesByMonth,
+  listExpenses,
+  reimbursementsByMonth,
+} from "@/lib/airtable/expenses";
+import {
+  AGENCY_DATA_START,
   buildDailyOfferRows,
+  untilAndyLeft,
   withBronsonActualCommissions,
   sumCash,
   sumAdSpend,
@@ -68,12 +76,23 @@ export async function GET(request: NextRequest) {
   // real-time picture).
   // Bronson's sales team payout is the actual paid-traffic commission from its
   // Commissions tab (organic commissions are not deducted), not a cash estimate.
+  const bronsonEffectiveExpenses = effectiveExpenses(EXPENSE_TABLES.bronson, bronsonExpenses);
   const bronsonAllRows = withBronsonActualCommissions(
-    buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonExpenses)),
+    buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonEffectiveExpenses)),
     bronsonPaidCommissions
   );
   const avalAllRows = buildDailyOfferRows(avalMarketing);
-  const ecomAllRows = buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses));
+  const ecomAllRows = untilAndyLeft(
+    buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses))
+  );
+
+  // Bills the agency owner paid on his own card, booked on the 1st like every
+  // expense. Bronson sends these back in full, on top of the profit split.
+  let bronsonReimbursement = 0;
+  for (const [month, total] of reimbursementsByMonth(bronsonEffectiveExpenses)) {
+    const date = `${month}-01`;
+    if (date >= AGENCY_DATA_START && isDateInRange(date, range)) bronsonReimbursement += total;
+  }
 
   const bronsonRows = bronsonAllRows.filter((r) => isDateInRange(r.date, range));
   const avalRows = avalAllRows.filter((r) => isDateInRange(r.date, range));
@@ -134,6 +153,8 @@ export async function GET(request: NextRequest) {
     totalAgencyProfit,
     salesManagerCut,
     myProfit,
+    bronsonReimbursement,
+    bronsonTotalOwed: bronson.agencyProfit + bronsonReimbursement,
     blendedRoas: totalAdSpend > 0 ? totalCashCollected / totalAdSpend : null,
     clients,
     byDay,

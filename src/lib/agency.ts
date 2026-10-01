@@ -10,6 +10,14 @@ import { sumByDate } from "./metrics";
 /** Data before this date is out of scope for the agency rollup entirely, per the client. */
 export const AGENCY_DATA_START = "2026-09-01";
 
+/** Andy (Ecom Simulation) stopped being a client after this day; nothing of his counts from October 2026 on. */
+export const ANDY_LAST_DAY = "2026-09-30";
+
+/** Drops everything dated after Andy's last day as a client. */
+export function untilAndyLeft<T extends { date: string }>(rows: T[]): T[] {
+  return rows.filter((r) => r.date <= ANDY_LAST_DAY);
+}
+
 /** Sun/Sat get the 20% affiliate commission rate; Mon–Fri get 10%. Same rule every offer already uses. */
 function isWeekendDate(dateStr: string): boolean {
   const day = new Date(`${dateStr}T00:00:00Z`).getUTCDay();

@@ -29,6 +29,8 @@ type MetricsResponse = {
   totalAgencyProfit: number;
   salesManagerCut: number;
   myProfit: number;
+  bronsonReimbursement: number;
+  bronsonTotalOwed: number;
   blendedRoas: number | null;
   clients: {
     bronson: ClientMetrics;
@@ -104,7 +106,7 @@ export default function AgencyPage() {
           value={data?.totalSalesTeamPayout}
           format="currency"
           size="lg"
-          subtext="10%/20% weekday/weekend on Low Ticket, flat 15% on High Ticket."
+          subtext="Bronson: actual paid-traffic commissions from his Commissions tab (organic not deducted). Andy: 10%/20% weekday/weekend on Low Ticket, 15% on High Ticket."
         />
         <StatCard
           label="Agency Profit"
@@ -116,6 +118,23 @@ export default function AgencyPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <StatCard
+          label="Bronson Owes You"
+          value={data?.bronsonTotalOwed}
+          format="currency"
+          size="lg"
+          subtext={
+            data
+              ? `Your Bronson profit share (${formatStatValue(data.clients.bronson.agencyProfit, "currency")}) + bills you paid yourself (${formatStatValue(data.bronsonReimbursement, "currency")}).`
+              : undefined
+          }
+        />
+        <StatCard
+          label="Reimbursement From Bronson"
+          value={data?.bronsonReimbursement}
+          format="currency"
+          subtext="Expenses marked I paid, sent back in full. They still come off paid profit before the split, so you each carry half the cost."
+        />
         <StatCard
           label="My Profit"
           value={data?.myProfit}
@@ -168,6 +187,10 @@ export default function AgencyPage() {
             <tbody>
               {CLIENT_ROWS.map(({ key, label, dot }) => {
                 const c = data?.clients[key];
+                // Andy left after September 2026: no row once the range has nothing of his.
+                if (key === "ecomSimulation" && c && c.cash === 0 && c.adSpend === 0 && c.expenses === 0) {
+                  return null;
+                }
                 return (
                   <tr key={key} className="border-b border-[var(--panel-border)] last:border-0">
                     <td className="px-4 py-3">

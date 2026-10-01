@@ -2,9 +2,15 @@ import type { NextRequest } from "next/server";
 import { getMarketingDailyMetrics as getBronsonMarketingDailyMetrics } from "@/lib/airtable/tables";
 import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
 import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
-import { EXPENSE_TABLES, expensesByMonth, listExpenses } from "@/lib/airtable/expenses";
+import {
+  EXPENSE_TABLES,
+  effectiveExpenses,
+  expensesByMonth,
+  listExpenses,
+} from "@/lib/airtable/expenses";
 import {
   buildDailyOfferRows,
+  untilAndyLeft,
   withBronsonActualCommissions,
   cash,
   bronsonAgencyProfitByDay,
@@ -54,11 +60,14 @@ export async function GET(request: NextRequest) {
   // Everything comes straight from each offer's Marketing Daily Metrics
   // table, per the client — no EOD Closer / Affiliate EOD blending.
   const bronsonRows = withBronsonActualCommissions(
-    buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonExpenses)),
+    buildDailyOfferRows(
+      bronsonMarketing,
+      expensesByMonth(effectiveExpenses(EXPENSE_TABLES.bronson, bronsonExpenses))
+    ),
     bronsonPaidCommissions
   );
   const avalRows = buildDailyOfferRows(avalMarketing);
-  const ecomRows = buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses));
+  const ecomRows = untilAndyLeft(buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses)));
 
   const bronsonAgencyByDay = bronsonAgencyProfitByDay(bronsonRows);
   const avalAgencyByDay = avalAgencyProfitByDay(avalRows);
