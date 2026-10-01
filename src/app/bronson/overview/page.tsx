@@ -302,8 +302,6 @@ export default function OverviewPage() {
         </StatCardGrid>
       </DashboardSection>
 
-      <PaidPnlSection apiPath="/api/bronson/overview/pnl" range={range} />
-
       {/* TIER 3 — ACQUISITION & LEAD FLOW */}
       <DashboardSection title="Acquisition & Lead Flow">
         <StatCardGrid>
@@ -671,6 +669,9 @@ export default function OverviewPage() {
       <DashboardSection title="Pacing">
         <PacingSection apiPath="/api/bronson/overview/pacing" />
       </DashboardSection>
+
+      {/* Owner's own reference, not one of the offer's real stats — kept last. */}
+      <PaidPnlSection apiPath="/api/bronson/overview/pnl" range={range} />
     </div>
   );
 }
