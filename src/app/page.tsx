@@ -25,9 +25,6 @@ import {
 const GOOGLE_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSct9oGZZgENUXiPi-9V1aybXITWz9WPTE7pRw7Y-wpwbaARvQ/viewform?usp=dialog";
 
-const GOOGLE_FORM_URL_ANDY =
-  "https://docs.google.com/forms/d/e/1FAIpQLSe-VuGw3guY-Ftnbx39UXdrwwoaU8kvQt-f5OrqNgvO0Uhvsg/viewform?usp=publish-editor";
-
 const VALUES = [
   {
     icon: Zap,
@@ -118,65 +115,35 @@ const ROLE_ACCENTS: Record<
 
 const ROLES = [
   {
-    slug: "sdr-andy-stauring",
-    accent: "violet",
-    title: "Sales Development Representative",
-    tag: "Andy Stauring - Ecom Simulation",
-    formUrl: GOOGLE_FORM_URL_ANDY,
-    ote: "OTE $2K-$5.1K/mo",
-    location: "Remote",
-    type: "Full-Time",
-    comp: "Commission Only",
-    blurb:
-      "You'll be selling Base44 as an affiliate to an audience fed by Andy Stauring's massive organic following — 300K on Instagram and 200K on YouTube — turning inbound interest into booked calls and closed low-ticket sales. This is a role for someone who wants real room to grow within the offer and the agency.",
-    responsibilities: [
-      "Sell Base44 (a $50-$200/m software package) as an affiliate to inbound leads",
-      "Work leads generated from Andy Stauring's 300K IG + 200K YouTube audience",
-      "Follow speed-to-lead and follow-up sequences daily",
-      "Track and hit daily closing KPIs on the low-ticket funnel",
-    ],
-    fullDescription: [
-      "Dialer position - Full time, commission only",
-      "Base44 Affiliate offer: sell a $50-$200/m software package",
-      "OTE 2k-5.1k/m",
-      "Talent partner has 300k on Instagram and 200k on YouTube — big organic brand with a strong existing audience",
-      "Lots of room for growth within the offer and within the agency",
-      "Lots of bonuses set up for performance",
-      "We value and compensate hard work heavily. This is a full-time position. Some of our reps CHOOSE to work 8+ hours. Ask yourself before you apply: is this the type of culture and standard you can commit to at the moment?",
-      "You will get a lot better in your skill set just because of the amount of reps that you will have that you will not see in any other offer.",
-    ],
-    contact: "@kauaoliveirallc",
-  },
-  {
     slug: "sdr-ecommerce",
     accent: "red",
     title: "Sales Development Representative",
     tag: "Ecommerce Bronson",
     formUrl: GOOGLE_FORM_URL,
-    ote: "OTE $2K-$5.4K/mo",
+    ote: "OTE $1K-$4.8K/mo",
     location: "Remote",
     type: "Full-Time",
     comp: "Commission Only",
     blurb:
-      "You'll be the first line of contact turning inbound and outbound interest into booked calls for a high-growth e-commerce brand. This is a role for someone obsessed with the numbers, relentless in follow-up, and hungry to grow into a closer.",
+      "You'll be setting appointments for a subscription-first e-commerce offer driven by weekly high-ticket webinars. The offer owner is a legit operator doing over $600K a month in e-commerce, and the results our students are getting speak for themselves. This is a role for someone who wants to grow into a closer.",
     responsibilities: [
-      "Run structured outbound prospecting sequences",
-      "Track and hit weekly connection & booking targets",
-      "Follow our proven scripts while adding your own edge",
-      "Report directly into the growth & sales leadership team",
+      "Set appointments from our weekly high-ticket webinar leads",
+      "Call registrants before each webinar to drive up show rates",
+      "Run outbound calls to get attendees who didn't book onto the calendar",
+      "Work extra leads from our organic funnel running alongside the webinars",
     ],
     fullDescription: [
       "Dialer position - Full time",
-      "OTE 2k-5.4k/m, people have earned 10k+/m with this model",
-      "Abundant amount of leads coming through",
+      "OTE realistically $1K at the lowest, up to $4.8K/m per setter",
+      "Business model is subscription-first e-commerce. Students focus on building and selling MRR brands.",
+      "We're running weekly webinars selling a $6.8K package, with downsells that go all the way down to $1.5K and lower. Every lead has an offer that fits them.",
+      "We're also running an organic funnel at the same time, so there's extra lead flow coming in on top of the webinars.",
+      "Your job: set appointments from the high-ticket webinar opportunities, call people to increase webinar show rates, and do outbound to get people on the calendar who didn't book on the webinar.",
+      "Our offer owner is a real operator in the e-commerce space. He's making over $600K a month and is focused on fulfillment and growing his own e-commerce business.",
+      "We've gotten a crazy amount of strong testimonial results from students. You'll be selling something that actually works.",
+      "Lots of room to grow before moving up into a closing position, and even leadership positions if it makes sense.",
       "Lots of bonuses set up for performance",
       "We value and compensate hard work heavily. This is a full-time position. Some of our reps CHOOSE to work 8+ hours. Ask yourself before you apply: is this the type of culture and standard you can commit to at the moment?",
-      "This isn't a typical offer that you'll see. You're going to be doing an affiliate play that huge names in the e-commerce space, like Nathan Nazareth and Ramin Popal, are doing. They're bringing in 50k to 100k a day using the exact same funnel.",
-      "There is going to be a massive lead though. You can get a lot of repetition and make up to $100 per lead.",
-      "KPI's are closing at least 5 leads a day on the affiliate which is $50 a month, we've seen people do around ten a day.",
-      "You will get a lot better in your skill set just because of the amount of reps that you will have that you will not see in any other offer.",
-      "You close people on $50/m you get paid $25, stack multiple of those a day, and they stack up. If you close people on up-sells, it can add an extra $75 per lead. Which is closing them on a $20/month software.",
-      "The stuff is really easy. The marketing is they get access to a free course that we used to charge thousands of dollars for if they sign up for a platform software that they would have to sign up for already.",
       "You will be getting sales training from me who has collected millions in cash and made multiple 20-30k months.",
       "Culture is hunger, obsession, and going above and beyond. You're going to be in an environment that can make you a way better version of yourself.",
       "Expectations: seven days a week. Speed to lead. Being active and responsive very quickly.",
@@ -188,7 +155,7 @@ const ROLES = [
 const JOB_DO = [
   "Dial a minimum of 200 leads per day",
   "Respond to leads within 5-10 minutes",
-  "Close 5 people on our low-ticket funnel per day or book financially qualified leads for closers",
+  "Book financially qualified leads from our webinars for closers",
   "Attend 5 team meetings per week",
   "Attend training sessions daily",
   "Work 8 to 10 hours a day, 6 days a week",
@@ -315,7 +282,7 @@ export default function Home() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
           </span>
-          Now hiring — 4 Open Roles
+          Now Hiring: 1 Open Role
         </div>
 
         <h1
