@@ -466,9 +466,14 @@ export default function Home() {
               <p className="mt-6 text-sm text-white">
                 Got questions? Or want to stay up to date on future roles?
                 {" --> "}
-                <span className={`font-semibold ${accent.contact}`}>
+                <a
+                  href="https://www.instagram.com/kauaoliveirallc/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`font-semibold underline underline-offset-2 ${accent.contact}`}
+                >
                   {role.contact}
-                </span>
+                </a>
               </p>
 
               <div
