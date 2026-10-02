@@ -286,7 +286,7 @@ export default function Home() {
         </div>
 
         <h1
-          className="animate-fade-in-up bg-gradient-to-b from-white to-white/60 bg-clip-text text-6xl font-black tracking-tight text-transparent sm:text-8xl"
+          className="animate-fade-in-up bg-gradient-to-b from-white to-white bg-clip-text text-6xl font-black tracking-tight text-transparent sm:text-8xl"
           style={{ animationDelay: "0.15s" }}
         >
           We&apos;re Hiring.
