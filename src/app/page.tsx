@@ -241,7 +241,7 @@ export default function Home() {
           </div>
 
           <details className="group relative">
-            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-white/70 transition-colors hover:text-white [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-white transition-colors hover:text-white [&::-webkit-details-marker]:hidden">
               Open Positions
               <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
             </summary>
@@ -254,9 +254,9 @@ export default function Home() {
                 >
                   <p className="text-sm font-semibold text-white">
                     {role.title}
-                    <span className="text-white/40"> · {role.tag}</span>
+                    <span className="text-white"> · {role.tag}</span>
                   </p>
-                  <p className="mt-0.5 text-xs text-white/50">{role.ote}</p>
+                  <p className="mt-0.5 text-xs text-white">{role.ote}</p>
                 </a>
               ))}
             </div>
@@ -293,7 +293,7 @@ export default function Home() {
         </h1>
 
         <p
-          className="animate-fade-in-up mt-6 max-w-2xl text-lg text-white/60 sm:text-xl"
+          className="animate-fade-in-up mt-6 max-w-2xl text-lg text-white sm:text-xl"
           style={{ animationDelay: "0.3s" }}
         >
           If you&apos;re obsessed with growth, allergic to average, and ready
@@ -315,7 +315,7 @@ export default function Home() {
           </a>
           <a
             href="#roles"
-            className="rounded-full border border-white/20 px-8 py-4 text-base font-semibold text-white/80 transition-all hover:border-white/40 hover:bg-white/5 hover:text-white"
+            className="rounded-full border border-white/20 px-8 py-4 text-base font-semibold text-white transition-all hover:border-white/40 hover:bg-white/5 hover:text-white"
           >
             View the Role
           </a>
@@ -324,7 +324,7 @@ export default function Home() {
 
       {/* What the job actually looks like */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white/60 uppercase">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white uppercase">
           <Phone className="h-3.5 w-3.5" />
           The Role
         </div>
@@ -337,7 +337,7 @@ export default function Home() {
             <h3 className="text-xl font-bold">What You&apos;ll Do</h3>
             <ul className="mt-5 space-y-3">
               {JOB_DO.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm text-white/70">
+                <li key={item} className="flex items-start gap-3 text-sm text-white">
                   <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-400">
                     <Check className="h-3.5 w-3.5" />
                   </span>
@@ -351,7 +351,7 @@ export default function Home() {
             <h3 className="text-xl font-bold">This is NOT for You If...</h3>
             <ul className="mt-5 space-y-3">
               {JOB_NOT_FOR_YOU.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm text-white/70">
+                <li key={item} className="flex items-start gap-3 text-sm text-white">
                   <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-600/20 text-red-400">
                     <X className="h-3.5 w-3.5" />
                   </span>
@@ -365,14 +365,14 @@ export default function Home() {
 
       {/* Training & support */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white/60 uppercase">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-bold tracking-wide text-white uppercase">
           <GraduationCap className="h-3.5 w-3.5" />
           Training &amp; Support
         </div>
         <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
           You Won&apos;t Be Left to Figure It Out Alone
         </h2>
-        <p className="mt-4 max-w-2xl text-lg text-white/60">
+        <p className="mt-4 max-w-2xl text-lg text-white">
           We invest in your success from day one. You&apos;ll get structured
           training and live coaching every single week.
         </p>
@@ -387,7 +387,7 @@ export default function Home() {
                 <Icon className="h-5.5 w-5.5" />
               </div>
               <h3 className="text-lg font-bold">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/55">
+              <p className="mt-2 text-sm leading-relaxed text-white">
                 {description}
               </p>
             </div>
@@ -424,7 +424,7 @@ export default function Home() {
                 {role.ote}
               </p>
 
-              <div className="mt-4 flex flex-wrap gap-3 text-sm text-white/50">
+              <div className="mt-4 flex flex-wrap gap-3 text-sm text-white">
                 <span className="flex items-center gap-1.5">
                   <MapPin className="h-4 w-4" /> {role.location}
                 </span>
@@ -436,7 +436,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <p className="mt-5 text-sm leading-relaxed text-white/60">
+              <p className="mt-5 text-sm leading-relaxed text-white">
                 {role.blurb}
               </p>
 
@@ -444,7 +444,7 @@ export default function Home() {
                 {role.responsibilities.map((item) => (
                   <li
                     key={item}
-                    className="flex items-start gap-2 text-sm text-white/70"
+                    className="flex items-start gap-2 text-sm text-white"
                   >
                     <Target className={`mt-0.5 h-4 w-4 flex-shrink-0 ${accent.target}`} />
                     {item}
@@ -456,14 +456,14 @@ export default function Home() {
                 {role.fullDescription.map((paragraph) => (
                   <p
                     key={paragraph}
-                    className="text-sm leading-relaxed text-white/60 sm:col-span-2"
+                    className="text-sm leading-relaxed text-white sm:col-span-2"
                   >
                     {paragraph}
                   </p>
                 ))}
               </div>
 
-              <p className="mt-6 text-sm text-white/50">
+              <p className="mt-6 text-sm text-white">
                 Got questions? Or want to stay up to date on future roles?
                 {" --> "}
                 <span className={`font-semibold ${accent.contact}`}>
@@ -479,7 +479,7 @@ export default function Home() {
                   Apply for this Role
                   <ArrowRight className={`h-4 w-4 ${accent.arrow}`} />
                 </h4>
-                <p className="mt-2 text-sm text-white/50">
+                <p className="mt-2 text-sm text-white">
                   Fill out the application below. We review every submission —
                   only the obsessed move forward.
                 </p>
@@ -495,7 +495,7 @@ export default function Home() {
                   </iframe>
                 </div>
 
-                <p className="mt-4 text-sm text-white/40">
+                <p className="mt-4 text-sm text-white">
                   Form not loading?{" "}
                   <a
                     href={role.formUrl}
@@ -514,10 +514,10 @@ export default function Home() {
 
           {/* Placeholder teasing future growth */}
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 p-6 text-center">
-            <p className="text-base font-bold text-white/70">
+            <p className="text-base font-bold text-white">
               More roles opening soon
             </p>
-            <p className="mt-1 max-w-sm text-sm text-white/40">
+            <p className="mt-1 max-w-sm text-sm text-white">
               We&apos;re scaling fast. Apply to one of the roles above and
               stand out early as we grow the team.
             </p>
@@ -546,7 +546,7 @@ export default function Home() {
                 <Icon className="h-5.5 w-5.5" />
               </div>
               <h3 className="text-lg font-bold">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/55">
+              <p className="mt-2 text-sm leading-relaxed text-white">
                 {description}
               </p>
             </div>
@@ -573,12 +573,12 @@ export default function Home() {
             If You&apos;re Interested in{" "}
             <span className="text-red-500">Working With Us</span>
           </h2>
-          <p className="mt-6 text-lg text-white/70">
+          <p className="mt-6 text-lg text-white">
             We review every single application. If you make it past the first
             round, you will be invited to an interview where you will answer
             questions and also role play.
           </p>
-          <p className="mt-8 text-sm text-white/40">
+          <p className="mt-8 text-sm text-white">
             Full-time · EST timezone · 8+ hrs/day, 6-7 days/week
           </p>
         </div>
@@ -586,7 +586,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/10 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-white/40 sm:flex-row">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-white sm:flex-row">
           <span>
             © {new Date().getFullYear()} KO Consultings. All rights reserved.
           </span>
