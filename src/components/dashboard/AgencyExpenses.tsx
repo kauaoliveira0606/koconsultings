@@ -20,6 +20,8 @@ type OfferConfig = {
   label: string;
   dot: string;
   note: string;
+  /** Shown while a month has no bills entered yet. Never deducted. */
+  pendingNote?: string;
   /** Rows can be ticked "I paid": the client reimburses those in full. */
   reimbursable?: boolean;
   /** Last month ("YYYY-MM") this client is shown for. */
@@ -31,7 +33,9 @@ const OFFERS: OfferConfig[] = [
     key: "bronson",
     label: "Bronson",
     dot: "#f97316",
-    note: "Comes off paid profit before your 50%. Recurring: carries into the next month until you change it.",
+    note: "Comes off paid profit before your 50%. Entered at the end of each month, nothing comes off until then.",
+    pendingNote:
+      "No bills entered yet. Expect roughly $2,000 to $3,000 of software this month (estimate only, not deducted).",
     reimbursable: true,
   },
   {
@@ -235,7 +239,7 @@ function OfferExpenses({
         </ul>
       ) : (
         <p className="mt-4 text-sm text-[var(--text-muted)]">
-          {expenses ? "No expenses this month." : "Loading..."}
+          {expenses ? (offer.pendingNote ?? "No expenses this month.") : "Loading..."}
         </p>
       )}
 

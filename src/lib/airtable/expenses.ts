@@ -9,10 +9,12 @@ const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
  * Month is the 1st of that month). Aval has none — it's a straight
  * revenue share with only ad spend coming off.
  *
- * Bronson's bills are recurring: a month with no rows of its own carries
- * over the latest earlier month's list, until someone edits that month (the
- * edit first copies the list into it). Bronson rows can also be ticked
- * "Paid By Me" — a bill the agency owner paid on his own card, which Bronson
+ * Bronson's bills are entered once the month closes (the software list
+ * changes month to month), so an open month has no rows and nothing comes
+ * off until then. Recurring carry-over is switched off for now: a table
+ * flagged `recurring` would inherit the latest earlier month's list for any
+ * month with no rows of its own. Bronson rows can also be ticked "Paid By
+ * Me" — a bill the agency owner paid on his own card, which Bronson
  * reimburses in full on top of the profit split.
  */
 export type ExpensesTable = {
@@ -28,7 +30,6 @@ export const EXPENSE_TABLES: Record<"bronson" | "ecomSimulation", ExpensesTable>
   bronson: {
     baseId: "appiMw8gpaLv2WITA",
     tableId: "tblSPyipFbLZ3Uqck",
-    recurring: true,
     reimbursable: true,
   },
   ecomSimulation: { baseId: "appgcEYqudlGfqBjE", tableId: "tbl7nv9gTLKAy5iWY" },
