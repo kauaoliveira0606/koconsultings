@@ -13,6 +13,7 @@ import {
   untilAndyLeft,
   withAttributedLowTicket,
   withBronsonActualCommissions,
+  withAvalProfitSplit,
   cash,
   bronsonAgencyProfitByDay,
   avalAgencyProfitByDay,
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
     bronsonPortalCash
   );
   // Aval stays on logged cash: it is paid out differently, per the client.
-  const avalRows = buildDailyOfferRows(avalMarketing);
+  const avalRows = withAvalProfitSplit(buildDailyOfferRows(avalMarketing));
   const ecomRows = untilAndyLeft(buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses)));
 
   const bronsonAgencyByDay = bronsonAgencyProfitByDay(bronsonRows);

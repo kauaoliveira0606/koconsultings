@@ -17,6 +17,7 @@ import {
   untilAndyLeft,
   withAttributedLowTicket,
   withBronsonActualCommissions,
+  withAvalProfitSplit,
   sumCash,
   sumAdSpend,
   sumExpenses,
@@ -46,13 +47,6 @@ function clientSummary(rows: DailyOfferRow[]) {
     expenses: sumExpenses(rows),
     profit: profit(rows),
   };
-}
-
-/** Aval is a straight 11.5% revenue share — no sales team comes out of it, only ad spend. */
-function avalClientSummary(rows: DailyOfferRow[]) {
-  const cash = sumCash(rows);
-  const adSpend = sumAdSpend(rows);
-  return { cash, adSpend, salesTeamPayout: 0, expenses: 0, profit: cash - adSpend };
 }
 
 export async function GET(request: NextRequest) {
@@ -94,7 +88,7 @@ export async function GET(request: NextRequest) {
     bronsonPortalCash
   );
   // Aval stays on logged cash: it is paid out differently, per the client.
-  const avalAllRows = buildDailyOfferRows(avalMarketing);
+  const avalAllRows = withAvalProfitSplit(buildDailyOfferRows(avalMarketing));
   const ecomAllRows = untilAndyLeft(
     buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses))
   );
@@ -112,7 +106,8 @@ export async function GET(request: NextRequest) {
   const ecomRows = ecomAllRows.filter((r) => isDateInRange(r.date, range));
 
   // Personal Profit = Agency Profit minus the sales manager's 5% cut, which
-  // comes out of the agency owner's own split (Bronson + Andy only).
+  // comes out of the agency owner's own split (Bronson + Andy only, and only
+  // through September 2026: there is no sales manager after that).
   const withPersonal = <T extends { agencyProfit: number }>(c: T, salesManagerCut: number) => ({
     ...c,
     salesManagerCut,
@@ -123,7 +118,7 @@ export async function GET(request: NextRequest) {
     bronsonSalesManagerCut(bronsonRows)
   );
   const aval = withPersonal(
-    { ...avalClientSummary(avalRows), agencyProfit: avalAgencyProfit(avalRows) },
+    { ...clientSummary(avalRows), agencyProfit: avalAgencyProfit(avalRows) },
     0
   );
   const ecomSimulation = withPersonal(

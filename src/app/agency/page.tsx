@@ -63,6 +63,9 @@ export default function AgencyPage() {
       }
     : null;
 
+  // The sales manager left after September 2026: no card or column once the range has no cut.
+  const hasSalesManagerCut = !!data && data.salesManagerCut !== 0;
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -107,7 +110,7 @@ export default function AgencyPage() {
           value={data?.totalSalesTeamPayout}
           format="currency"
           size="lg"
-          subtext="Bronson: actual paid-traffic commissions from his Commissions tab (organic not deducted). Andy: 10%/20% weekday/weekend on Low Ticket, 15% on High Ticket."
+          subtext="Bronson: actual paid-traffic commissions from his Commissions tab (organic not deducted). Aval (from Oct 2026) and Andy: 10%/20% weekday/weekend on Low Ticket, 15% on High Ticket (5% setter + 10% closer)."
         />
         <StatCard
           label="Agency Profit"
@@ -142,17 +145,21 @@ export default function AgencyPage() {
           format="currency"
           size="lg"
           subtext={
-            data
-              ? `Agency Profit minus sales manager's 5% cut (${formatStatValue(data.salesManagerCut, "currency")}).`
-              : undefined
+            !data
+              ? undefined
+              : hasSalesManagerCut
+                ? `Agency Profit minus sales manager's 5% cut (${formatStatValue(data.salesManagerCut, "currency")}).`
+                : "Your take-home. Same as Agency Profit: no sales manager cut."
           }
         />
-        <StatCard
-          label="Sales Manager Cut"
-          value={data?.salesManagerCut}
-          format="currency"
-          subtext="Bronson: 5% of organic cash + 5% of paid profit. Andy: 5% of organic + paid profit. No cut on Aval. Comes out of your own take-home."
-        />
+        {hasSalesManagerCut && (
+          <StatCard
+            label="Sales Manager Cut"
+            value={data?.salesManagerCut}
+            format="currency"
+            subtext="Through September 2026 only. Bronson: 5% of organic cash + 5% of paid profit. Andy: 5% of organic + paid profit. No cut on Aval. Comes out of your own take-home."
+          />
+        )}
       </div>
 
       <div className="mt-8">
@@ -181,7 +188,9 @@ export default function AgencyPage() {
                 <th className="px-4 py-3 text-right">Sales Team Payout</th>
                 <th className="px-4 py-3 text-right">Expenses</th>
                 <th className="px-4 py-3 text-right">Agency Profit</th>
-                <th className="px-4 py-3 text-right">Sales Manager Payout</th>
+                {hasSalesManagerCut && (
+                  <th className="px-4 py-3 text-right">Sales Manager Payout</th>
+                )}
                 <th className="px-4 py-3 text-right">Personal Profit</th>
               </tr>
             </thead>
@@ -212,9 +221,11 @@ export default function AgencyPage() {
                     <td className="px-4 py-3 text-right font-semibold text-emerald-400">
                       {formatStatValue(c?.agencyProfit, "currency")}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-red-400">
-                      {formatStatValue(c?.salesManagerCut, "currency")}
-                    </td>
+                    {hasSalesManagerCut && (
+                      <td className="px-4 py-3 text-right font-semibold text-red-400">
+                        {formatStatValue(c?.salesManagerCut, "currency")}
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-right font-semibold text-emerald-400">
                       {formatStatValue(c?.personalProfit, "currency")}
                     </td>
@@ -235,9 +246,11 @@ export default function AgencyPage() {
                 <td className="px-4 py-3 text-right text-emerald-400">
                   {formatStatValue(totalRow?.agencyProfit, "currency")}
                 </td>
-                <td className="px-4 py-3 text-right text-red-400">
-                  {formatStatValue(totalRow?.salesManagerCut, "currency")}
-                </td>
+                {hasSalesManagerCut && (
+                  <td className="px-4 py-3 text-right text-red-400">
+                    {formatStatValue(totalRow?.salesManagerCut, "currency")}
+                  </td>
+                )}
                 <td className="px-4 py-3 text-right text-emerald-400">
                   {formatStatValue(totalRow?.personalProfit, "currency")}
                 </td>

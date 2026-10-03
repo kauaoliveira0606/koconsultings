@@ -18,6 +18,12 @@ export function untilAndyLeft<T extends { date: string }>(rows: T[]): T[] {
   return rows.filter((r) => r.date <= ANDY_LAST_DAY);
 }
 
+/** Aval moved from a revenue share to a profit split on this day: sales team commissions come off before the 11.5%. */
+export const AVAL_PROFIT_SPLIT_FROM = "2026-10-01";
+
+/** Last day there was a sales manager; no 5% cut on anything dated after it. */
+export const SALES_MANAGER_LAST_DAY = "2026-09-30";
+
 /** Sun/Sat get the 20% affiliate commission rate; Mon–Fri get 10%. Same rule every offer already uses. */
 function isWeekendDate(dateStr: string): boolean {
   const day = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
@@ -38,7 +44,7 @@ export type DailyOfferRow = {
   adSpend: number;
   /** Monthly tool expenses, booked in full on the 1st of their month. Bronson/Andy only. */
   expenses: number;
-  /** Set when the offer's sales team payout is known rather than estimated from cash (Bronson). */
+  /** Set when the offer's sales team payout is known rather than estimated from cash (Bronson, Aval's revenue-share days). */
   salesTeamPayout?: { paid: number; organic: number };
 };
 
@@ -264,11 +270,24 @@ export function bronsonAgencyProfit(rows: DailyOfferRow[]): number {
   return sumMapValues(bronsonAgencyProfitByDay(rows));
 }
 
-/** Aval: 11.5% of (cash minus ad spend) — no sales team deduction — per day. */
+/**
+ * Aval was a straight revenue share before `AVAL_PROFIT_SPLIT_FROM`: nothing
+ * came off for the sales team, so those days carry a zero payout. From that
+ * day the payout is the usual cash-based commission (10%/20% weekday/weekend
+ * on Low Ticket, 5% setter + 10% closer on High Ticket), paid and organic.
+ */
+export function withAvalProfitSplit(rows: DailyOfferRow[]): DailyOfferRow[] {
+  return rows.map((r) =>
+    r.date >= AVAL_PROFIT_SPLIT_FROM ? r : { ...r, salesTeamPayout: { paid: 0, organic: 0 } }
+  );
+}
+
+/** Aval: 11.5% of (cash minus ad spend minus sales team) — no expenses — per day. Rows must come through `withAvalProfitSplit`. */
 export function avalAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
-    map.set(r.date, 0.115 * (cash(r) - r.adSpend));
+    const { paid, organic } = sumSalesTeamPayout([r]);
+    map.set(r.date, 0.115 * (cash(r) - r.adSpend - paid - organic));
   }
   return map;
 }
@@ -322,7 +341,8 @@ export function ecomSimAgencyProfit(allRows: DailyOfferRow[], range: ResolvedRan
  * is on top-line organic cash, Andy's is on organic profit (after sales
  * team); the paid leg is on paid profit (after ad spend + sales team) for
  * both. Expenses come off the same way as in each offer's own split:
- * Bronson all off paid, Andy 50/50. No cut on Aval.
+ * Bronson all off paid, Andy 50/50. No cut on Aval, and none on anything
+ * dated after `SALES_MANAGER_LAST_DAY`.
  */
 function salesManagerCutByDay(
   rows: DailyOfferRow[],
@@ -330,6 +350,7 @@ function salesManagerCutByDay(
 ): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
+    if (r.date > SALES_MANAGER_LAST_DAY) continue;
     const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
     const cashOrganic = r.ltCashOrganic + r.htCashOrganic;
     const organicBase =
