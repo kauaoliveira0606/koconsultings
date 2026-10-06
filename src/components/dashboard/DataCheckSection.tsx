@@ -10,41 +10,123 @@ const METRIC_LABELS: Record<DataCheckFlag["metric"], string> = {
   lowTicket: "Low Ticket Cash",
 };
 
-function formatDay(date: string): string {
+type FlaggedDay = DataCheckFlag & { date: string };
+
+/** Every flagged day for one log, rolled up into a single line. */
+type Mismatch = {
+  key: string;
+  metric: DataCheckFlag["metric"];
+  source: string;
+  /** Cash the log has that the form doesn't. */
+  missingFromForm: number;
+  /** Cash the form has that the log doesn't. */
+  missingFromLog: number;
+  /** Newest first. */
+  days: FlaggedDay[];
+};
+
+const money = (value: number) => formatStatValue(value, "currency");
+
+function formatDay(date: string, weekday = false): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
-    weekday: "short",
+    weekday: weekday ? "short" : undefined,
     month: "short",
     day: "numeric",
     timeZone: "UTC",
   });
 }
 
-function FlagRow({ flag }: { flag: DataCheckFlag }) {
-  const money = (value: number) => formatStatValue(value, "currency");
-  const over = flag.diff > 0;
+function groupMismatches(data: DataCheckResponse): Mismatch[] {
+  const groups = new Map<string, Mismatch>();
+  for (const day of data.days) {
+    for (const flag of day.flags) {
+      const key = `${flag.metric}-${flag.source}`;
+      const group = groups.get(key) ?? {
+        key,
+        metric: flag.metric,
+        source: flag.source,
+        missingFromForm: 0,
+        missingFromLog: 0,
+        days: [],
+      };
+      groups.set(key, group);
+      if (flag.diff > 0) group.missingFromForm += flag.diff;
+      else group.missingFromLog -= flag.diff;
+      group.days.push({ ...flag, date: day.date });
+    }
+  }
+  return [...groups.values()].sort(
+    (a, b) =>
+      b.missingFromForm + b.missingFromLog - (a.missingFromForm + a.missingFromLog)
+  );
+}
+
+function period(days: FlaggedDay[]): string {
+  const newest = days[0].date;
+  const oldest = days[days.length - 1].date;
+  if (newest === oldest) return `Around ${formatDay(newest)}`;
+  return `${formatDay(oldest)} to ${formatDay(newest)} · ${days.length} days`;
+}
+
+function MismatchRow({ mismatch }: { mismatch: Mismatch }) {
+  const parts: string[] = [];
+  if (mismatch.missingFromForm > 0) {
+    parts.push(`${money(mismatch.missingFromForm)} more than the form`);
+  }
+  if (mismatch.missingFromLog > 0) {
+    parts.push(`${money(mismatch.missingFromLog)} less than the form`);
+  }
   return (
-    <li className="py-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <details className="group rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)]">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <div className="text-sm text-[var(--text-strong)]">
-          <span className="font-semibold">{METRIC_LABELS[flag.metric]}:</span> {flag.source} says{" "}
-          {money(flag.sourceCash)}, Marketing Daily Metrics{" "}
-          {flag.formCash === null ? "has no entry" : `says ${money(flag.formCash)}`}
+          <span className="font-semibold">{METRIC_LABELS[mismatch.metric]}:</span> {mismatch.source}{" "}
+          has <span className="font-semibold text-red-400">{parts.join(" and ")}</span>
         </div>
-        <div className={`text-sm font-semibold ${over ? "text-red-400" : "text-amber-400"}`}>
-          {over
-            ? `${money(flag.diff)} missing from the form`
-            : `${money(-flag.diff)} missing from ${flag.source}`}
+        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+          {period(mismatch.days)}
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden="true"
+            className="transition-transform group-open:rotate-180"
+          >
+            <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
         </div>
-      </div>
-      {flag.hint ? <div className="mt-0.5 text-xs text-[var(--text-muted)]">{flag.hint}</div> : null}
-    </li>
+      </summary>
+      <ul className="divide-y divide-[var(--panel-border)] border-t border-[var(--panel-border)] px-3">
+        {mismatch.days.map((day) => (
+          <li key={day.date} className="py-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+              <div className="text-[var(--text-strong)]">
+                <span className="font-semibold">{formatDay(day.date, true)}:</span> {mismatch.source}{" "}
+                {money(day.sourceCash)}, form{" "}
+                {day.formCash === null ? "has no entry" : money(day.formCash)}
+              </div>
+              <div className={`font-semibold ${day.diff > 0 ? "text-red-400" : "text-amber-400"}`}>
+                {day.diff > 0
+                  ? `${money(day.diff)} more than the form`
+                  : `${money(-day.diff)} less than the form`}
+              </div>
+            </div>
+            {day.hint ? (
+              <div className="mt-0.5 text-xs text-[var(--text-muted)]">{day.hint}</div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
 /**
- * Flags every day in the selected range where a team log (Post Call Notes,
- * Follow Up Payment, EOD Closer, Affiliate PCN, Affiliate EOD) disagrees with
- * the Marketing Daily Metrics form on cash collected.
+ * Says which team logs (Post Call Notes, Follow Up Payment, EOD Closer,
+ * Affiliate PCN, Affiliate EOD) don't match the Marketing Daily Metrics form
+ * on cash for the selected range, by how much and roughly when. Each line
+ * opens into the day-by-day detail.
  */
 export function DataCheckSection({ apiPath, range }: { apiPath: string; range: RangeState }) {
   const { data, error } = useSectionData<DataCheckResponse>(apiPath, range);
@@ -67,40 +149,20 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
     );
   }
 
+  const mismatches = groupMismatches(data);
   return (
     <div className="rounded-lg border border-red-500/40 bg-red-500/5 p-4 backdrop-blur-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="text-sm font-semibold text-red-400">
-          {data.flagCount} mismatch{data.flagCount === 1 ? "" : "es"} across {data.days.length} day
-          {data.days.length === 1 ? "" : "s"}
+          Cash isn&apos;t matching in {mismatches.length} place{mismatches.length === 1 ? "" : "s"}
         </div>
         <div className="text-xs text-[var(--text-muted)]">
-          Logs vs the Marketing Daily Metrics form, checked through {formatDay(data.checkedThrough)}.
-          Cash landing up to 2 days apart counts as matching. Today is skipped.
+          Compared to the Marketing Daily Metrics form. Click a line for the days.
         </div>
       </div>
-      <div className="mt-3 max-h-96 space-y-3 overflow-y-auto pr-1">
-        {data.days.map((day) => (
-          <div
-            key={day.date}
-            className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                {formatDay(day.date)}
-              </div>
-              {!day.formLogged ? (
-                <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[11px] font-semibold text-red-400">
-                  No form entry
-                </span>
-              ) : null}
-            </div>
-            <ul className="divide-y divide-[var(--panel-border)]">
-              {day.flags.map((flag) => (
-                <FlagRow key={`${flag.metric}-${flag.source}`} flag={flag} />
-              ))}
-            </ul>
-          </div>
+      <div className="mt-3 space-y-2">
+        {mismatches.map((mismatch) => (
+          <MismatchRow key={mismatch.key} mismatch={mismatch} />
         ))}
       </div>
     </div>
