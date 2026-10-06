@@ -1,7 +1,8 @@
-import { PAYMENT_PLAN_OFFERS, getPaymentPlans } from "@/lib/payment-plans";
+import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
+import { paymentPlansGet, paymentPlansPatch } from "@/lib/payment-plans-routes";
 
-export const revalidate = 60;
+// Edits made on the tab must show up right away.
+export const dynamic = "force-dynamic";
 
-export async function GET() {
-  return Response.json(await getPaymentPlans(PAYMENT_PLAN_OFFERS.bronson));
-}
+export const GET = paymentPlansGet(PAYMENT_PLAN_OFFERS.bronson);
+export const PATCH = paymentPlansPatch(PAYMENT_PLAN_OFFERS.bronson);

@@ -11,8 +11,14 @@
  *
  * The form has no due dates, so the next one is assumed: one payment a month
  * from the day the plan started.
+ *
+ * The tab can also be edited by hand, stored in a "Payment Plan Updates"
+ * table (one row per plan, keyed by the Post Call Note the plan started
+ * from): the balance can be typed in when a payment went through without a
+ * form entry, and a plan can be marked Paid Off or Churned, which takes it
+ * off the active list.
  */
-import { airtableListAll } from "@/lib/airtable/client";
+import { AirtableError, airtableListAll } from "@/lib/airtable/client";
 import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
 import { easternDateString } from "@/lib/date-range";
 
@@ -20,9 +26,11 @@ import { easternDateString } from "@/lib/date-range";
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 const FOLLOW_UP_PAYMENT_TABLE_ID = "tblIv06rB4qG0msnZ";
 
+const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
+
 export const PAYMENT_PLAN_OFFERS = {
-  bronson: { baseId: "appiMw8gpaLv2WITA" },
-  aval: { baseId: "appgEcTIxQjmtRKbP" },
+  bronson: { baseId: "appiMw8gpaLv2WITA", updatesTableId: "tbl1ffNlJM40EyzFh" },
+  aval: { baseId: "appgEcTIxQjmtRKbP", updatesTableId: "tblqY5GaHBYTm1vVt" },
 } as const;
 
 export type PaymentPlanOffer = (typeof PAYMENT_PLAN_OFFERS)[keyof typeof PAYMENT_PLAN_OFFERS];
@@ -34,7 +42,11 @@ export type PlanPayment = {
   kind: "first" | "followUp";
 };
 
-export type PaymentPlanStatus = "overdue" | "onTrack" | "paidOff";
+export type PaymentPlanStatus = "overdue" | "onTrack" | "paidOff" | "churned";
+
+/** What the tab can set by hand. "Active" puts a plan back on the list. */
+export const MANUAL_STATUSES = ["Active", "Paid Off", "Churned"] as const;
+export type ManualStatus = (typeof MANUAL_STATUSES)[number];
 
 export type PaymentPlan = {
   id: string;
@@ -52,6 +64,8 @@ export type PaymentPlan = {
   paid: number;
   /** Null when the note has no Total Revenue to measure against. */
   remaining: number | null;
+  /** Day the balance was last typed in by hand on the tab, if it ever was. */
+  owedUpdatedOn: string | null;
   payments: PlanPayment[];
   /** Assumed: one payment a month from the start date. Null once paid off. */
   nextDue: string | null;
@@ -68,6 +82,9 @@ export type PaymentPlansResponse = {
     overdue: number;
     overdueAmount: number;
     paidOff: number;
+    churned: number;
+    /** Balance walked away from on churned plans. */
+    churnedAmount: number;
     collected: number;
   };
 };
@@ -108,14 +125,93 @@ type FollowUp = {
   final: boolean;
 };
 
-const STATUS_ORDER: Record<PaymentPlanStatus, number> = { overdue: 0, onTrack: 1, paidOff: 2 };
+const STATUS_ORDER: Record<PaymentPlanStatus, number> = {
+  overdue: 0,
+  onTrack: 1,
+  paidOff: 2,
+  churned: 3,
+};
+
+type PlanUpdate = { amountOwed: number | null; status: ManualStatus | null; date: string | null };
+
+function authHeaders() {
+  const pat = process.env.AIRTABLE_PAT;
+  if (!pat) throw new AirtableError("Missing AIRTABLE_PAT environment variable", 500);
+  return { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" };
+}
+
+async function airtable<T>(url: string, init: RequestInit = {}): Promise<T> {
+  // Never cached: an edit made on the tab must show up right after it's saved.
+  const res = await fetch(url, { ...init, headers: authHeaders(), cache: "no-store" });
+  if (!res.ok) {
+    throw new AirtableError(`Airtable request failed for ${url} (${res.status})`, res.status);
+  }
+  return (await res.json()) as T;
+}
+
+const updatesUrl = (offer: PaymentPlanOffer) =>
+  `${AIRTABLE_API_BASE}/${offer.baseId}/${offer.updatesTableId}`;
+
+async function listPlanUpdates(offer: PaymentPlanOffer): Promise<Map<string, PlanUpdate>> {
+  const updates = new Map<string, PlanUpdate>();
+  let offset: string | undefined;
+  do {
+    const qs = new URLSearchParams({ pageSize: "100" });
+    if (offset) qs.set("offset", offset);
+    const body = await airtable<{
+      records: { fields: Record<string, unknown> }[];
+      offset?: string;
+    }>(`${updatesUrl(offer)}?${qs}`);
+    for (const { fields: f } of body.records) {
+      const planId = text(f["Plan ID"]);
+      if (!planId) continue;
+      updates.set(planId, {
+        amountOwed: typeof f["Amount Owed"] === "number" ? f["Amount Owed"] : null,
+        status: MANUAL_STATUSES.find((s) => s === f.Status) ?? null,
+        date: parseDateOnly(f.Updated),
+      });
+    }
+    offset = body.offset;
+  } while (offset);
+  return updates;
+}
+
+/**
+ * Saves a hand edit for one plan (its row is created on the first edit).
+ * Only what is passed changes: a new balance leaves the status alone and the
+ * other way round.
+ */
+export async function savePlanUpdate(
+  offer: PaymentPlanOffer,
+  input: { planId: string; lead: string; amountOwed?: number; status?: ManualStatus }
+) {
+  await airtable(updatesUrl(offer), {
+    method: "PATCH",
+    body: JSON.stringify({
+      performUpsert: { fieldsToMergeOn: ["Plan ID"] },
+      records: [
+        {
+          fields: {
+            "Plan ID": input.planId,
+            Lead: input.lead,
+            ...(input.amountOwed !== undefined
+              ? { "Amount Owed": input.amountOwed, Updated: easternDateString() }
+              : {}),
+            ...(input.status !== undefined ? { Status: input.status } : {}),
+          },
+        },
+      ],
+    }),
+  });
+}
 
 export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentPlansResponse> {
-  const [noteRecords, followUpRecords] = await Promise.all([
+  const [noteRecords, followUpRecords, updates] = await Promise.all([
     airtableListAll<Record<string, unknown>>(offer.baseId, POST_CALL_NOTE_TABLE_ID, {
       filterByFormula: `{Call Outcome}='Payment Plan'`,
     }),
     airtableListAll<Record<string, unknown>>(offer.baseId, FOLLOW_UP_PAYMENT_TABLE_ID),
+    listPlanUpdates(offer),
   ]);
 
   const followUps: FollowUp[] = [];
@@ -168,6 +264,7 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
         total,
         paid: first,
         remaining: null,
+        owedUpdatedOn: null,
         payments: [{ date, amount: first, kind: "first" }],
         nextDue: null,
         status: "onTrack",
@@ -197,11 +294,30 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
   const plans = entries.map(({ plan }) => {
     plan.payments.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
     plan.remaining = plan.total === null ? null : Math.max(0, plan.total - plan.paid);
-    if (finals.has(plan.id) || plan.remaining === 0) {
+    const update = updates.get(plan.id);
+    // A balance typed in on the tab wins over the form math; follow up
+    // payments logged after that day still come off it.
+    if (update && update.amountOwed !== null) {
+      const since = update.date;
+      const paidSince = plan.payments
+        .filter((p) => p.kind === "followUp" && since !== null && p.date !== null && p.date > since)
+        .reduce((t, p) => t + p.amount, 0);
+      plan.remaining = Math.max(0, update.amountOwed - paidSince);
+      plan.owedUpdatedOn = since;
+      if (plan.total !== null) plan.paid = Math.max(0, plan.total - plan.remaining);
+    }
+    if (update?.status === "Churned") {
+      plan.status = "churned";
+    } else if (update?.status === "Paid Off" || finals.has(plan.id) || plan.remaining === 0) {
       plan.status = "paidOff";
       plan.remaining = plan.remaining === null ? null : 0;
+      if (plan.total !== null) plan.paid = Math.max(plan.paid, plan.total);
     } else {
-      plan.nextDue = plan.startDate ? addMonths(plan.startDate, plan.payments.length) : null;
+      const byPayments = plan.startDate ? addMonths(plan.startDate, plan.payments.length) : null;
+      // A hand-updated balance means a payment just landed: the next one is a month out from it.
+      const byUpdate = plan.owedUpdatedOn ? addMonths(plan.owedUpdatedOn, 1) : null;
+      plan.nextDue =
+        byPayments && byUpdate ? (byUpdate > byPayments ? byUpdate : byPayments) : (byUpdate ?? byPayments);
       plan.status = plan.nextDue !== null && plan.nextDue < today ? "overdue" : "onTrack";
     }
     return plan;
@@ -210,13 +326,14 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
   plans.sort(
     (a, b) =>
       STATUS_ORDER[a.status] - STATUS_ORDER[b.status] ||
-      (a.status === "paidOff"
+      (a.status === "paidOff" || a.status === "churned"
         ? (b.startDate ?? "").localeCompare(a.startDate ?? "")
         : (a.nextDue ?? "9999").localeCompare(b.nextDue ?? "9999"))
   );
 
-  const open = plans.filter((p) => p.status !== "paidOff");
+  const open = plans.filter((p) => p.status === "overdue" || p.status === "onTrack");
   const overdue = plans.filter((p) => p.status === "overdue");
+  const churned = plans.filter((p) => p.status === "churned");
   const sum = (list: PaymentPlan[], pick: (p: PaymentPlan) => number | null) =>
     list.reduce((t, p) => t + (pick(p) ?? 0), 0);
   return {
@@ -226,7 +343,9 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
       outstanding: sum(open, (p) => p.remaining),
       overdue: overdue.length,
       overdueAmount: sum(overdue, (p) => p.remaining),
-      paidOff: plans.length - open.length,
+      paidOff: plans.filter((p) => p.status === "paidOff").length,
+      churned: churned.length,
+      churnedAmount: sum(churned, (p) => p.remaining),
       collected: sum(plans, (p) => p.paid),
     },
   };

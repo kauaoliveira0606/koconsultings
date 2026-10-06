@@ -18,14 +18,128 @@ const BADGE: Record<PaymentPlanStatus, { label: string; className: string }> = {
   overdue: { label: "Overdue", className: "bg-red-500/20 text-red-300" },
   onTrack: { label: "On Track", className: "bg-emerald-500/20 text-emerald-300" },
   paidOff: { label: "Paid Off", className: "bg-[var(--panel-subtle)] text-[var(--text-muted)]" },
+  churned: { label: "Churned", className: "bg-amber-500/20 text-amber-300" },
 };
 
-const FILTERS: { key: PaymentPlanStatus | "all"; label: string }[] = [
-  { key: "all", label: "All" },
+type Filter = PaymentPlanStatus | "active";
+
+// Paid off and churned plans are off the list: they only show under their own filter.
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "active", label: "Active" },
   { key: "overdue", label: "Overdue" },
   { key: "onTrack", label: "On Track" },
   { key: "paidOff", label: "Paid Off" },
+  { key: "churned", label: "Churned" },
 ];
+
+const matches = (plan: PaymentPlan, filter: Filter) =>
+  filter === "active"
+    ? plan.status === "overdue" || plan.status === "onTrack"
+    : plan.status === filter;
+
+type PlanEdit = { amountOwed?: number; status?: "Active" | "Paid Off" | "Churned" };
+
+const ACTION_BUTTON =
+  "rounded-md border border-[var(--panel-border)] px-3 py-1.5 text-sm font-medium disabled:opacity-40";
+
+/** Hand edits for one plan: retype the balance, or take it off the list (paid in full / churned). */
+function PlanActions({
+  plan,
+  onSave,
+}: {
+  plan: PaymentPlan;
+  onSave: (plan: PaymentPlan, edit: PlanEdit) => Promise<boolean>;
+}) {
+  const [owed, setOwed] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+  const owedNumber = Number.parseFloat(owed.replace(/[^0-9.]/g, ""));
+  const removed = plan.status === "paidOff" || plan.status === "churned";
+  const name = plan.leadName ?? "this lead";
+
+  async function save(edit: PlanEdit) {
+    setBusy(true);
+    setError(false);
+    const ok = await onSave(plan, edit);
+    setBusy(false);
+    setError(!ok);
+    if (ok) setOwed("");
+  }
+
+  if (removed) {
+    return (
+      <div>
+        <div className="font-semibold uppercase tracking-wide">Update</div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => save({ status: "Active" })}
+          className={`mt-1 text-[var(--text-strong)] ${ACTION_BUTTON}`}
+        >
+          {busy ? "..." : "Put Back On The List"}
+        </button>
+        {error ? <div className="mt-1 text-[var(--cell-red-text)]">Couldn&apos;t save, try again.</div> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="font-semibold uppercase tracking-wide">Update</div>
+      <form
+        className="mt-1 flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (Number.isFinite(owedNumber)) save({ amountOwed: owedNumber });
+        }}
+      >
+        <input
+          value={owed}
+          onChange={(e) => setOwed(e.target.value)}
+          placeholder="Still owes"
+          inputMode="decimal"
+          aria-label={`Amount ${name} still owes`}
+          className="w-28 rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-1.5 text-sm text-[var(--text-strong)] placeholder:text-[var(--text-muted)]"
+        />
+        <button
+          type="submit"
+          disabled={busy || !Number.isFinite(owedNumber)}
+          className="rounded-md bg-[var(--btn-active-bg)] px-3 py-1.5 text-sm font-medium text-[var(--btn-active-fg)] disabled:opacity-40"
+        >
+          {busy ? "..." : "Save Balance"}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            if (window.confirm(`Mark ${name} as paid in full and take them off the list?`)) {
+              save({ status: "Paid Off" });
+            }
+          }}
+          className={`text-emerald-400 ${ACTION_BUTTON}`}
+        >
+          Paid In Full
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            if (window.confirm(`Mark ${name} as churned and take them off the list?`)) {
+              save({ status: "Churned" });
+            }
+          }}
+          className={`text-red-400 ${ACTION_BUTTON}`}
+        >
+          Churned
+        </button>
+      </form>
+      {plan.owedUpdatedOn ? (
+        <div className="mt-1">Balance last set by hand on {day(plan.owedUpdatedOn)}.</div>
+      ) : null}
+      {error ? <div className="mt-1 text-[var(--cell-red-text)]">Couldn&apos;t save, try again.</div> : null}
+    </div>
+  );
+}
 
 function day(ymd: string | null): string {
   if (!ymd) return "—";
@@ -39,7 +153,13 @@ function day(ymd: string | null): string {
 
 const money = (value: number | null) => formatStatValue(value, "currency");
 
-function PlanRows({ plan }: { plan: PaymentPlan }) {
+function PlanRows({
+  plan,
+  onSave,
+}: {
+  plan: PaymentPlan;
+  onSave: (plan: PaymentPlan, edit: PlanEdit) => Promise<boolean>;
+}) {
   const [open, setOpen] = useState(false);
   const badge = BADGE[plan.status];
   const made = plan.payments.length;
@@ -111,6 +231,7 @@ function PlanRows({ plan }: { plan: PaymentPlan }) {
                   </div>
                 ) : null}
               </div>
+              <PlanActions plan={plan} onSave={onSave} />
             </div>
           </td>
         </tr>
@@ -122,22 +243,40 @@ function PlanRows({ plan }: { plan: PaymentPlan }) {
 /**
  * Every deal closed on a payment plan (Post Call Note with Call Outcome =
  * Payment Plan) and where it stands: split pays, what has come in, what is
- * still owed and when the next payment should land.
+ * still owed and when the next payment should land. Opening a row lets the
+ * balance be retyped, or the plan be taken off the list as paid in full or
+ * churned.
  */
 export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
-  const { data, error } = useSWR<PaymentPlansResponse>(apiPath, fetcher, {
+  const { data, error, mutate } = useSWR<PaymentPlansResponse>(apiPath, fetcher, {
     refreshInterval: REFRESH_MS,
   });
-  const [filter, setFilter] = useState<PaymentPlanStatus | "all">("all");
+  const [filter, setFilter] = useState<Filter>("active");
 
-  const plans = data?.plans.filter((p) => filter === "all" || p.status === filter);
+  const plans = data?.plans.filter((p) => matches(p, filter));
+
+  async function savePlan(plan: PaymentPlan, edit: PlanEdit): Promise<boolean> {
+    try {
+      const res = await fetch(apiPath, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId: plan.id, lead: plan.leadName ?? "", ...edit }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      await mutate();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   return (
     <div>
       <p className="-mt-4 mb-6 max-w-3xl text-sm text-[var(--text-muted)]">
         Every post call note with Call Outcome set to Payment Plan. Later installments count once
         they are logged on the Follow Up Payment form. Next payment assumes one payment a month from
-        the day the plan started.
+        the day the plan started. Click a plan to update what they owe, or to take them off the list
+        as paid in full or churned.
       </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -173,7 +312,7 @@ export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
           size="lg"
           subtext={
             data
-              ? `First payments plus follow up payments. ${data.summary.paidOff} plan${data.summary.paidOff === 1 ? "" : "s"} paid off.`
+              ? `Everything paid on a plan so far. ${data.summary.paidOff} paid off, ${data.summary.churned} churned (${formatStatValue(data.summary.churnedAmount, "currency")} never collected).`
               : undefined
           }
         />
@@ -192,7 +331,7 @@ export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
             }`}
           >
             {f.label}
-            {data ? ` (${f.key === "all" ? data.plans.length : data.plans.filter((p) => p.status === f.key).length})` : ""}
+            {data ? ` (${data.plans.filter((p) => matches(p, f.key)).length})` : ""}
           </button>
         ))}
       </div>
@@ -212,7 +351,7 @@ export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
             </tr>
           </thead>
           <tbody>
-            {plans?.map((plan) => <PlanRows key={plan.id} plan={plan} />)}
+            {plans?.map((plan) => <PlanRows key={plan.id} plan={plan} onSave={savePlan} />)}
           </tbody>
         </table>
         {!plans || plans.length === 0 ? (
