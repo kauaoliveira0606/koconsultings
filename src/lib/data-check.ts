@@ -12,8 +12,9 @@ import {
 /**
  * Data Check: every team log that reports cash is compared, day by day,
  * against the Marketing Daily Metrics form (the dashboard's source of
- * truth). Any day where a log and the form disagree is flagged, including
- * days a log has cash and the form has nothing.
+ * truth). Cash that a log and the form disagree on is flagged, including
+ * cash a log has and the form never recorded. The same cash showing up a day
+ * or two apart (late financing payments) is not a mismatch.
  *
  *   High ticket: Post Call Notes + Follow Up Payment, EOD Closer, Affiliate EOD
  *   Low ticket:  Affiliate PCN, Affiliate EOD
@@ -52,7 +53,8 @@ export type DataCheckFlag = {
   sourceCash: number;
   /** null = the form has no entry at all for that day. */
   formCash: number | null;
-  /** sourceCash minus the form's figure. */
+  /** Cash still unaccounted for (positive = the log has more than the form),
+   * after cancelling against opposite gaps on nearby days. */
   diff: number;
   hint: string | null;
 };
@@ -74,6 +76,9 @@ type SourceDay = { cash: number; repeatReps: string[] };
 
 /** Differences under a dollar are rounding, not a mismatch. */
 const TOLERANCE = 1;
+
+/** How many days apart the same cash can sit in a log and in the form. */
+const MATCH_WINDOW_DAYS = 2;
 
 async function sumSourceByDay(
   baseId: string,
@@ -138,39 +143,68 @@ export async function getDataCheck(
 
   const today = easternDateString();
   const yesterday = addDaysToDateString(today, -1);
-  const dates = new Set<string>(form.keys());
-  for (const byDay of sourceDays) for (const date of byDay.keys()) dates.add(date);
+  const allDates = new Set<string>(form.keys());
+  for (const byDay of sourceDays) for (const date of byDay.keys()) allDates.add(date);
+  // Today is still being logged, and yesterday's form goes in the next day,
+  // so neither counts until the form is actually there.
+  const dates = [...allDates]
+    .filter((date) => date !== today && !(date === yesterday && !form.has(date)))
+    .sort();
 
-  const diffFor = (sourceIndex: number, date: string): number => {
-    const source = config.sources[sourceIndex];
-    return (sourceDays[sourceIndex].get(date)?.cash ?? 0) - (form.get(date)?.[source.metric] ?? 0);
-  };
+  // What matters is that the cash cross-matches, not which day it landed on:
+  // financing (Clarity) payments arrive a day or two after the sale, so one
+  // log can carry the cash on a different day than the form. A gap on one day
+  // is cancelled against an opposite gap up to MATCH_WINDOW_DAYS later, and
+  // only what is left unaccounted for is flagged.
+  const gaps = config.sources.map((source, i) => {
+    const left = new Map<string, number>();
+    const matchedWith = new Map<string, string[]>();
+    for (const date of dates) {
+      left.set(
+        date,
+        (sourceDays[i].get(date)?.cash ?? 0) - (form.get(date)?.[source.metric] ?? 0)
+      );
+    }
+    for (const date of dates) {
+      for (let offset = 1; offset <= MATCH_WINDOW_DAYS; offset++) {
+        const gap = left.get(date) ?? 0;
+        const other = addDaysToDateString(date, offset);
+        const otherGap = left.get(other) ?? 0;
+        if (Math.abs(gap) < TOLERANCE || Math.abs(otherGap) < TOLERANCE) continue;
+        if (Math.sign(gap) === Math.sign(otherGap)) continue;
+        const cancelled = Math.min(Math.abs(gap), Math.abs(otherGap));
+        left.set(date, gap - Math.sign(gap) * cancelled);
+        left.set(other, otherGap - Math.sign(otherGap) * cancelled);
+        matchedWith.set(date, [...(matchedWith.get(date) ?? []), other]);
+        matchedWith.set(other, [...(matchedWith.get(other) ?? []), date]);
+      }
+    }
+    return { left, matchedWith };
+  });
 
+  const stillOpenFrom = addDaysToDateString(today, -MATCH_WINDOW_DAYS);
   const days: DataCheckDay[] = [];
   for (const date of dates) {
     if (!isDateInRange(date, range)) continue;
-    // Today is still being logged, and yesterday's form goes in the next
-    // day, so neither counts as a mismatch until the form is actually there.
-    if (date === today) continue;
     const formDay = form.get(date);
-    if (date === yesterday && !formDay) continue;
 
     const flags: DataCheckFlag[] = [];
     config.sources.forEach((source, i) => {
       const sourceDay = sourceDays[i].get(date);
-      const diff = diffFor(i, date);
+      const diff = gaps[i].left.get(date) ?? 0;
       if (Math.abs(diff) < TOLERANCE) return;
 
-      let hint: string | null = null;
+      const hints: string[] = [];
+      const matched = gaps[i].matchedWith.get(date);
+      if (matched) {
+        hints.push(`Part of this day's gap is covered by ${matched.join(" and ")}; this is what is left.`);
+      }
       if (date > today) {
-        hint = "This date is in the future, so an entry was dated wrong.";
+        hints.push("This date is in the future, so an entry was dated wrong.");
       } else if (sourceDay && sourceDay.repeatReps.length > 0) {
-        hint = `${sourceDay.repeatReps.join(", ")} submitted more than once for this day.`;
-      } else {
-        const shifted = [-1, 1]
-          .map((offset) => addDaysToDateString(date, offset))
-          .find((other) => Math.abs(diffFor(i, other) + diff) < TOLERANCE);
-        if (shifted) hint = `Off by the same amount the other way on ${shifted}, so it was likely logged on the wrong day.`;
+        hints.push(`${sourceDay.repeatReps.join(", ")} submitted more than once for this day.`);
+      } else if (date >= stillOpenFrom) {
+        hints.push("Recent, so this can still clear if the cash lands a day or two late.");
       }
 
       flags.push({
@@ -179,7 +213,7 @@ export async function getDataCheck(
         sourceCash: sourceDay?.cash ?? 0,
         formCash: formDay ? formDay[source.metric] : null,
         diff,
-        hint,
+        hint: hints.length > 0 ? hints.join(" ") : null,
       });
     });
 

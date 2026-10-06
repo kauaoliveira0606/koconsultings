@@ -60,8 +60,9 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
   if (data.flagCount === 0) {
     return (
       <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm text-[var(--text-strong)] backdrop-blur-sm">
-        <span className="font-semibold text-emerald-400">All clear.</span> Every log matches the
-        Marketing Daily Metrics form for this range (checked through {formatDay(data.checkedThrough)}).
+        <span className="font-semibold text-emerald-400">All clear.</span> The cash in every log
+        matches the Marketing Daily Metrics form for this range (checked through{" "}
+        {formatDay(data.checkedThrough)}).
       </div>
     );
   }
@@ -75,7 +76,7 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         </div>
         <div className="text-xs text-[var(--text-muted)]">
           Logs vs the Marketing Daily Metrics form, checked through {formatDay(data.checkedThrough)}.
-          Today is skipped.
+          Cash landing up to 2 days apart counts as matching. Today is skipped.
         </div>
       </div>
       <div className="mt-3 max-h-96 space-y-3 overflow-y-auto pr-1">
