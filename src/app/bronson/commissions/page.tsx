@@ -1,10 +1,6 @@
-import { CommissionsBoard } from "@/components/dashboard/CommissionsBoard";
+import { redirect } from "next/navigation";
 
+// Commissions moved into the Admin Team tab.
 export default function CommissionsPage() {
-  return (
-    <CommissionsBoard
-      apiPath="/api/bronson/commissions"
-      payPeriods={{ firstMonth: "2026-08", firstMonthSplitDay: 21 }}
-    />
-  );
+  redirect("/bronson/admin-team");
 }

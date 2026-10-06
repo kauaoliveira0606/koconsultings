@@ -352,7 +352,7 @@ export function CommissionsBoard({
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Commissions</h1>
+        <h2 className="text-2xl font-bold">Commissions</h2>
         <label className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
           Pay period
           <select

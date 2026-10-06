@@ -8,9 +8,9 @@ const NAV_ITEMS = [
   { href: "/aval/overview", label: "Overview" },
   { href: "/aval/sales-team", label: "Sales Team" },
   { href: "/aval/live-calls", label: "Live Calls" },
-  { href: "/aval/commissions", label: "Commissions" },
   { href: "/aval/models", label: "Models" },
   { href: "/aval/ads-analysis", label: "Ads Analysis" },
+  { href: "/aval/admin-team", label: "Admin Team" },
 ];
 
 function Brand() {

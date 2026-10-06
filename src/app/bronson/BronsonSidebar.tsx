@@ -8,9 +8,9 @@ const NAV_ITEMS = [
   { href: "/bronson/overview", label: "Overview" },
   { href: "/bronson/sales-team", label: "Sales Team" },
   { href: "/bronson/live-calls", label: "Live Calls" },
-  { href: "/bronson/commissions", label: "Commissions" },
   { href: "/bronson/models", label: "Models" },
   { href: "/bronson/ads-analysis", label: "Ads Analysis" },
+  { href: "/bronson/admin-team", label: "Admin Team" },
 ];
 
 function Brand() {

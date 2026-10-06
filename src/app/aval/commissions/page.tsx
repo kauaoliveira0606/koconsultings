@@ -1,11 +1,6 @@
-import { CommissionsBoard } from "@/components/dashboard/CommissionsBoard";
+import { redirect } from "next/navigation";
 
+// Commissions moved into the Admin Team tab.
 export default function CommissionsPage() {
-  // Aval pays weekly: Monday to Sunday, wired the Monday after.
-  return (
-    <CommissionsBoard
-      apiPath="/api/aval/commissions"
-      payPeriods={{ cadence: "weekly", firstMonth: "2026-09" }}
-    />
-  );
+  redirect("/aval/admin-team");
 }
