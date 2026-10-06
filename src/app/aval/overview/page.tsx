@@ -5,6 +5,7 @@ import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { CashCalendar } from "@/components/dashboard/CashCalendar";
+import { DataCheckSection } from "@/components/dashboard/DataCheckSection";
 import { PacingSection } from "@/components/dashboard/PacingSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
@@ -173,6 +174,10 @@ export default function OverviewPage() {
 
       <DashboardSection title="Live Cash Today">
         <LiveCashToday apiPath="/api/aval/overview/live-cash" />
+      </DashboardSection>
+
+      <DashboardSection title="Data Check">
+        <DataCheckSection apiPath="/api/aval/overview/data-check" range={range} />
       </DashboardSection>
 
       {/* TIER 1 — KEYSTONE METRICS: the four numbers that answer "scale or pull the brake" */}

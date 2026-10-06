@@ -40,7 +40,7 @@ export type LiveCashResponse = {
  * tomorrow. When Date is exactly the UTC day the record was created, trust
  * the Eastern day of the creation time instead (same rule as lead opt-ins).
  */
-function rowEasternDate(dateField: unknown, createdTime: string): string | null {
+export function rowEasternDate(dateField: unknown, createdTime: string): string | null {
   const date = parseDateOnly(dateField);
   if (date && createdTime && date === createdTime.slice(0, 10)) {
     return toEasternDateOnly(createdTime);
