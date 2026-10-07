@@ -9,6 +9,10 @@
  *
  * `?mode=overdue` instead lists everyone past due right now, for a one-off
  * catch-up post.
+ *
+ * The weekly summary (its own endpoint and workflow, Monday morning) covers
+ * the seven days up to yesterday: what is still owed, what came in, who is
+ * overdue.
  */
 import { addDaysToDateString, easternDateString } from "@/lib/date-range";
 import { getPaymentPlans, type PaymentPlan, type PaymentPlanOffer } from "@/lib/payment-plans";
@@ -132,6 +136,77 @@ export function paymentRemindersGet(offer: PaymentPlanOffer, dashboardUrl: strin
       count: included.length,
       messages: pack(sections),
       plans: included,
+    });
+  };
+}
+
+/** Weekly summary for the reminders channel: still owed, collected over the last 7 days, who is overdue. */
+export function paymentWeeklySummaryGet(offer: PaymentPlanOffer, dashboardUrl: string) {
+  return async () => {
+    const today = easternDateString();
+    const end = addDaysToDateString(today, -1);
+    const start = addDaysToDateString(today, -7);
+    const inWeek = (date: string | null) => date !== null && date >= start && date <= end;
+    const { plans, summary } = await getPaymentPlans(offer);
+
+    const collected = plans.flatMap((p) =>
+      p.collections.filter((c) => inWeek(c.date) && c.amount > 0).map((c) => ({ plan: p, ...c }))
+    );
+    const collectedTotal = collected.reduce((t, c) => t + c.amount, 0);
+    const started = plans.filter((p) => inWeek(p.startDate));
+    const overdue = plans
+      .filter((p) => p.status === "overdue" && p.nextDue)
+      .sort((a, b) => (a.nextDue as string).localeCompare(b.nextDue as string));
+
+    const head = [
+      `📊 **Weekly payment plan summary · ${day(start)} to ${day(end)}**`,
+      `> Still owed: **${money(summary.outstanding)}** across ${summary.active} active plan${summary.active === 1 ? "" : "s"}`,
+      `> Collected this week: **${money(collectedTotal)}** in ${collected.length} payment${collected.length === 1 ? "" : "s"}`,
+      `> New plans this week: ${started.length}`,
+      `> Overdue: **${summary.overdue} plan${summary.overdue === 1 ? "" : "s"}, ${money(summary.overdueAmount)}**`,
+    ].join("\n");
+
+    const KIND = {
+      first: "first payment on the call",
+      followUp: "follow up payment",
+      balanceUpdate: "balance updated on the dashboard",
+      markedPaid: "marked paid in full",
+    } as const;
+    const collectedBlock =
+      collected.length > 0
+        ? [
+            [
+              "**Collected this week**",
+              ...collected
+                .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))
+                .map(
+                  (c) =>
+                    `> ${c.plan.leadName ?? "Unknown lead"} · **${money(c.amount)}** · ${day(c.date)} · ${KIND[c.kind]}`
+                ),
+            ].join("\n"),
+          ]
+        : [];
+    const overdueLines = overdue.map((p) => {
+      const late = daysBetween(p.nextDue as string, today);
+      return `> ${p.leadName ?? "Unknown lead"} · **${money(p.remaining)}** · ${late} day${late === 1 ? "" : "s"} late · Closer ${p.closer ?? "not logged"} · ${p.leadEmail ?? "no email"}`;
+    });
+    // Ten customers per block, so a long overdue list spills into a second message cleanly.
+    const overdueBlocks: string[] = [];
+    for (let i = 0; i < overdueLines.length; i += 10) {
+      const title = i === 0 ? "**Overdue right now**" : "**Overdue right now (continued)**";
+      overdueBlocks.push([title, ...overdueLines.slice(i, i + 10)].join("\n"));
+    }
+    if (overdueBlocks.length === 0) overdueBlocks.push("**Nobody is overdue.**");
+    const messages = pack([[head], collectedBlock, overdueBlocks, [`Full list: ${dashboardUrl}`]]);
+    return Response.json({
+      start,
+      end,
+      // Always 1: the summary posts every week, even a quiet one.
+      count: 1,
+      messages,
+      collected: collectedTotal,
+      outstanding: summary.outstanding,
+      overdue: overdue.length,
     });
   };
 }

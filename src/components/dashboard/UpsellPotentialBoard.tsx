@@ -181,6 +181,89 @@ function StatusFilterRow({
   );
 }
 
+/**
+ * Who is working their list: one row per rep with how many of their
+ * customers sit in each upsell status. "Worked" is everyone moved off Not
+ * Contacted. A customer with deals from two reps counts for both.
+ */
+function StatusRollup({
+  title,
+  repLabel,
+  groups,
+  selected,
+  onSelect,
+}: {
+  title: string;
+  repLabel: string;
+  groups: { name: string; customers: Workable[] }[];
+  selected?: string | null;
+  onSelect?: (name: string) => void;
+}) {
+  if (groups.length === 0) return null;
+  const rows = [...groups].sort(
+    (a, b) => b.customers.length - a.customers.length || a.name.localeCompare(b.name)
+  );
+  const worked = (list: Workable[]) => list.filter((c) => c.status !== "Not Contacted").length;
+  return (
+    <div className="mt-8">
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        {title}
+      </h2>
+      <div className="overflow-x-auto rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)]">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--panel-border)] text-left text-xs font-semibold uppercase text-[var(--text-muted)]">
+              <th className="px-4 py-3">{repLabel}</th>
+              <th className="px-4 py-3 text-right">Customers</th>
+              <th className="px-4 py-3 text-right">Worked</th>
+              {UPSELL_STATUSES.map((s) => (
+                <th key={s} className="px-4 py-3 text-right whitespace-nowrap">
+                  {s}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((g) => {
+              const done = worked(g.customers);
+              return (
+                <tr
+                  key={g.name}
+                  onClick={onSelect ? () => onSelect(g.name) : undefined}
+                  className={`border-b border-[var(--panel-border)] last:border-0 ${
+                    onSelect ? "cursor-pointer hover:bg-[var(--panel-subtle)]" : ""
+                  } ${selected === g.name ? "bg-[var(--panel-subtle)]" : ""}`}
+                >
+                  <td className="px-4 py-3 font-medium text-[var(--text-strong)]">{g.name}</td>
+                  <td className="px-4 py-3 text-right">{g.customers.length}</td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <span className="font-semibold text-[var(--text-strong)]">{done}</span>
+                    <span className="text-[var(--text-muted)]">
+                      {" "}
+                      ({Math.round((done / g.customers.length) * 100)}%)
+                    </span>
+                  </td>
+                  {UPSELL_STATUSES.map((s) => {
+                    const n = g.customers.filter((c) => c.status === s).length;
+                    return (
+                      <td
+                        key={s}
+                        className={`px-4 py-3 text-right ${n > 0 ? STATUS_COLOR[s] : "text-[var(--text-muted)] opacity-40"}`}
+                      >
+                        {n}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /** Financed deals (Clarity, Klarna, ...) change how the upsell call is run, so they stand out. */
 const isFinanced = (paidVia: string) => /financ/i.test(paidVia);
 
@@ -323,6 +406,10 @@ const callMatches = (customer: LowTicketCustomer, filter: CallFilter) =>
     : filter === "callList"
       ? !customer.bookedCall && customer.status === "Not Contacted"
       : (filter === "booked") === customer.bookedCall;
+
+const repsOf = (customer: LowTicketCustomer) => [
+  ...new Set(customer.sales.flatMap((s) => (s.rep ? [s.rep] : []))),
+];
 
 const product = (sale: { software: string | null; plan: string | null }) =>
   [sale.software, sale.plan].filter(Boolean).join(" ") || "—";
@@ -473,6 +560,15 @@ function LowTicketList({ data, error, today, onSave }: ListProps) {
         />
       </div>
 
+      <StatusRollup
+        title="Upsell Status By Rep"
+        repLabel="Sold By"
+        groups={[...new Set(low?.customers.flatMap(repsOf) ?? [])].map((name) => ({
+          name,
+          customers: low?.customers.filter((c) => repsOf(c).includes(name)) ?? [],
+        }))}
+      />
+
       <div className="mt-8 mb-3 flex flex-wrap gap-2">
         {CALL_FILTERS.map((f) => (
           <button
@@ -615,6 +711,17 @@ function HighTicketList({ data, error, today, onSave }: ListProps) {
           subtext="Customers who paid through a financing partner (Clarity, Klarna, ...). Run these calls differently."
         />
       </div>
+
+      <StatusRollup
+        title="Upsell Status By Closer"
+        repLabel="Closer"
+        groups={closers.map((c) => ({
+          name: c.name,
+          customers: data?.customers.filter((x) => closersOf(x).includes(c.name)) ?? [],
+        }))}
+        selected={selected}
+        onSelect={(name) => setCloser(selected === name ? null : name)}
+      />
 
       <div className="mt-8 mb-3 flex flex-wrap gap-2">
         {FILTERS.map((f) => (

@@ -64,6 +64,13 @@ export type PlanPayment = {
   kind: "first" | "followUp";
 };
 
+/** Money that came in on a plan: a logged payment, or one implied by a hand edit on the tab. */
+export type PlanCollection = {
+  date: string | null;
+  amount: number;
+  kind: "first" | "followUp" | "balanceUpdate" | "markedPaid";
+};
+
 export type PaymentPlanStatus = "overdue" | "onTrack" | "paidOff" | "churned";
 
 /** What the tab can set by hand. "Active" puts a plan back on the list. */
@@ -90,6 +97,12 @@ export type PaymentPlan = {
   /** Day the balance was last typed in by hand on the tab, if it ever was. */
   owedUpdatedOn: string | null;
   payments: PlanPayment[];
+  /**
+   * Everything collected, dated: the logged payments, plus what a hand edit
+   * implies (a typed balance lower than the form math, or marking the plan
+   * paid in full), dated the day of that edit.
+   */
+  collections: PlanCollection[];
   /** Null once paid off. */
   nextDue: string | null;
   /** True when nextDue is the date the closer logged, false when it is the monthly assumption. */
@@ -160,7 +173,14 @@ const STATUS_ORDER: Record<PaymentPlanStatus, number> = {
   churned: 3,
 };
 
-type PlanUpdate = { amountOwed: number | null; status: ManualStatus | null; date: string | null };
+type PlanUpdate = {
+  amountOwed: number | null;
+  status: ManualStatus | null;
+  /** Day the balance was typed in. */
+  date: string | null;
+  /** Day the status was last changed. */
+  statusDate: string | null;
+};
 
 function authHeaders() {
   const pat = process.env.AIRTABLE_PAT;
@@ -197,6 +217,7 @@ async function listPlanUpdates(offer: PaymentPlanOffer): Promise<Map<string, Pla
         amountOwed: typeof f["Amount Owed"] === "number" ? f["Amount Owed"] : null,
         status: MANUAL_STATUSES.find((s) => s === f.Status) ?? null,
         date: parseDateOnly(f.Updated),
+        statusDate: parseDateOnly(f["Status Updated"]),
       });
     }
     offset = body.offset;
@@ -225,7 +246,9 @@ export async function savePlanUpdate(
             ...(input.amountOwed !== undefined
               ? { "Amount Owed": input.amountOwed, Updated: easternDateString() }
               : {}),
-            ...(input.status !== undefined ? { Status: input.status } : {}),
+            ...(input.status !== undefined
+              ? { Status: input.status, "Status Updated": easternDateString() }
+              : {}),
           },
         },
       ],
@@ -305,6 +328,7 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
         payments: [
           { date, amount: first, nextDate: parseDateOnly(f["Next Payment Date"]), kind: "first" },
         ],
+        collections: [],
         nextDue: null,
         nextDueLogged: false,
         status: "onTrack",
@@ -343,6 +367,8 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
     plan.payments.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
     plan.remaining = plan.total === null ? null : Math.max(0, plan.total - plan.paid);
     const update = updates.get(plan.id);
+    const logged = plan.paid;
+    plan.collections = plan.payments.map(({ date, amount, kind }) => ({ date, amount, kind }));
     // A balance typed in on the tab wins over the form math; follow up
     // payments logged after that day still come off it.
     if (update && update.amountOwed !== null) {
@@ -353,6 +379,9 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
       plan.remaining = Math.max(0, update.amountOwed - paidSince);
       plan.owedUpdatedOn = since;
       if (plan.total !== null) plan.paid = Math.max(0, plan.total - plan.remaining);
+      if (plan.paid > logged) {
+        plan.collections.push({ date: since, amount: plan.paid - logged, kind: "balanceUpdate" });
+      }
     }
     if (update?.status === "Churned") {
       plan.status = "churned";
@@ -365,15 +394,22 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
     ) {
       plan.status = "paidOff";
       plan.remaining = plan.remaining === null ? null : 0;
+      if (update?.status === "Paid Off" && plan.total !== null && plan.total > plan.paid) {
+        plan.collections.push({
+          date: update.statusDate,
+          amount: plan.total - plan.paid,
+          kind: "markedPaid",
+        });
+      }
       if (plan.total !== null) plan.paid = Math.max(plan.paid, plan.total);
     } else {
       // The date the closer logged with the latest payment wins, unless a
       // payment has landed since (then it is stale and the monthly rule takes over).
       const last = plan.payments.at(-1);
-      const logged = last?.nextDate && last.nextDate > (last.date ?? "") ? last.nextDate : null;
-      plan.nextDueLogged = logged !== null;
+      const loggedDate = last?.nextDate && last.nextDate > (last.date ?? "") ? last.nextDate : null;
+      plan.nextDueLogged = loggedDate !== null;
       const byPayments =
-        logged ?? (plan.startDate ? addMonths(plan.startDate, plan.payments.length) : null);
+        loggedDate ?? (plan.startDate ? addMonths(plan.startDate, plan.payments.length) : null);
       // A hand-updated balance means a payment just landed: the next one is a month out from it.
       const byUpdate = plan.owedUpdatedOn ? addMonths(plan.owedUpdatedOn, 1) : null;
       plan.nextDue =
