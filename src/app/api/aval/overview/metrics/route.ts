@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
+import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
+import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
 import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
 import {
   getAvalLeads,
@@ -119,8 +121,24 @@ export async function GET(request: NextRequest) {
   );
   const highTicketCommission = cashHighTicket !== null ? cashHighTicket * 0.15 : null;
   const totalCommissions = (lowTicketCommission ?? 0) + (highTicketCommission ?? 0);
+  // Processing (3% of all high ticket cash) and financing (a further 15% of
+  // financed deals) come off before anything counts as net.
+  const fees = dealFees({
+    cashHighTicket,
+    cashHighTicketPaid: cashHighTicketPaidForm,
+    financedCash: await getFinancedHighTicketCash(PAYMENT_PLAN_OFFERS.aval.baseId, range),
+  });
   const netCash =
-    totalCashCollected !== null ? totalCashCollected - (adSpend ?? 0) - totalCommissions : null;
+    totalCashCollected !== null
+      ? totalCashCollected - (adSpend ?? 0) - totalCommissions - fees.totalFees
+      : null;
+  // Net ROAS: paid cash (low ticket + high ticket) after its fees, per ad dollar.
+  const paidCash =
+    cashLowTicketPaid !== null || cashHighTicketPaidForm !== null
+      ? (cashLowTicketPaid ?? 0) + (cashHighTicketPaidForm ?? 0)
+      : null;
+  const netRoas =
+    adsActive && paidCash !== null ? safeDivide(paidCash - fees.paidFees, adSpend) : null;
 
   const costPerCallHT = adsActive ? safeDivide(adSpend, highTicketCallsBooked || null) : null;
 
@@ -183,6 +201,10 @@ export async function GET(request: NextRequest) {
     // not total cash — this is specifically the paid front-end's efficiency.
     cashCollectedPerOptInPaid: safeDivide(cashLowTicketPaid, optInsPaid),
     netCash,
+    netRoas,
+    processingFees: fees.processingFees,
+    financingFees: fees.financingFees,
+    financedCash: fees.financedCash,
     lowTicketCommission,
     highTicketCommission,
     adsActive,

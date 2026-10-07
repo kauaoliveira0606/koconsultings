@@ -19,6 +19,10 @@ type MetricsResponse = {
   collectedPerBookedCallHT: number | null;
   cashCollectedPerOptInPaid: number | null;
   netCash: number | null;
+  netRoas: number | null;
+  processingFees: number | null;
+  financingFees: number | null;
+  financedCash: number | null;
   lowTicketCommission: number | null;
   highTicketCommission: number | null;
   adsActive: boolean;
@@ -178,9 +182,9 @@ export default function OverviewPage() {
         <LiveCashToday apiPath="/api/aval/overview/live-cash" />
       </DashboardSection>
 
-      {/* TIER 1 — KEYSTONE METRICS: the five numbers that answer "scale or pull the brake" */}
+      {/* TIER 1 — KEYSTONE METRICS: the six numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
             label="Total Cash Collected"
             value={metrics?.totalCashCollected}
@@ -219,7 +223,15 @@ export default function OverviewPage() {
             value={metrics?.netCash}
             format="currency"
             size="lg"
-            subtext="Cash Collected − Ad Spend − commissions (10%/20% weekday/weekend on Low Ticket, flat 15% on High Ticket)."
+            subtext="Cash Collected − Ad Spend − commissions (10%/20% weekday/weekend on Low Ticket, flat 15% on High Ticket) − processing and financing fees."
+          />
+          <StatCard
+            label="Net ROAS"
+            value={metrics?.netRoas}
+            format="ratio"
+            size="lg"
+            override={!adsActive ? notActive : undefined}
+            subtext="Paid cash (low ticket + high ticket) after processing and financing fees ÷ Ad Spend."
           />
         </div>
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
@@ -233,6 +245,18 @@ export default function OverviewPage() {
             High Ticket commission this range:{" "}
             <span className="font-semibold text-[var(--text)]">
               {formatStatValue(metrics?.highTicketCommission, "currency")}
+            </span>
+          </span>
+          <span>
+            Processing fees (3% of high ticket cash):{" "}
+            <span className="font-semibold text-[var(--text)]">
+              {formatStatValue(metrics?.processingFees, "currency")}
+            </span>
+          </span>
+          <span>
+            Financing fees (15% of {formatStatValue(metrics?.financedCash, "currency")} financed):{" "}
+            <span className="font-semibold text-[var(--text)]">
+              {formatStatValue(metrics?.financingFees, "currency")}
             </span>
           </span>
         </div>

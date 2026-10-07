@@ -1,0 +1,85 @@
+/**
+ * Fees that come off high ticket cash before it is really ours:
+ *
+ *   - 3% processing on every high ticket dollar collected
+ *   - a further 15% on anything financed (Clarity, Klarna, ...), so a financed
+ *     deal loses 18% in total
+ *
+ * Low ticket is an affiliate payout, not a payment we process, so it carries
+ * no fee here.
+ *
+ * High ticket cash on the Overview comes from the Marketing Daily Metrics
+ * form, which doesn't say how a deal was paid. That only exists per deal, on
+ * the Post Call Note and Follow Up Payment forms ("Where Was Payment
+ * Collected On" starting with "Financed"), so the financed dollars are read
+ * from there.
+ */
+import { airtableListAll } from "@/lib/airtable/client";
+import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
+import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
+import { emailKey, nameKey, text } from "@/lib/payment-plans";
+
+export const PROCESSING_FEE_RATE = 0.03;
+export const FINANCING_FEE_RATE = 0.15;
+
+// Same table IDs in every offer's base (the bases were cloned from one template).
+const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
+const FOLLOW_UP_PAYMENT_TABLE_ID = "tblIv06rB4qG0msnZ";
+
+const isFinanced = (raw: unknown) => /^financed/i.test(text(raw) ?? "");
+
+/** High ticket cash collected through a financing partner, inside the range. */
+export async function getFinancedHighTicketCash(
+  baseId: string,
+  range: ResolvedRange
+): Promise<number> {
+  const [notes, followUps] = await Promise.all([
+    airtableListAll<Record<string, unknown>>(baseId, POST_CALL_NOTE_TABLE_ID),
+    airtableListAll<Record<string, unknown>>(baseId, FOLLOW_UP_PAYMENT_TABLE_ID),
+  ]);
+  let financed = 0;
+  // The same deal logged twice (same lead, outcome and deal size) counts once.
+  const seen = new Set<string>();
+  for (const { id, fields: f } of notes) {
+    const cash = parseNumericText(f["Cash Collected"]);
+    if (!cash || !isFinanced(f["Where Was Payment Collected On"])) continue;
+    const lead = emailKey(f["Email (Lead)"]) ?? nameKey(text(f["Full Name (Lead)"])) ?? id;
+    const key = `${lead}|${f["Call Outcome"]}|${parseNumericText(f["Total Revenue"]) ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (isDateInRange(parseDateOnly(f.Date), range)) financed += cash;
+  }
+  for (const { fields: f } of followUps) {
+    const cash = parseNumericText(f["Cash Collected"]);
+    if (!cash || !isFinanced(f["Where Was Payment Collected On"])) continue;
+    if (isDateInRange(parseDateOnly(f["Payment Collected Date"]), range)) financed += cash;
+  }
+  return financed;
+}
+
+/**
+ * Fees on a range's high ticket cash. `paidFees` is the share that falls on
+ * paid-traffic cash: processing is exact, and financing is spread by paid's
+ * share of high ticket cash, because a deal's traffic source isn't on the
+ * post call note.
+ */
+export function dealFees(input: {
+  cashHighTicket: number | null;
+  cashHighTicketPaid: number | null;
+  financedCash: number;
+}) {
+  const total = input.cashHighTicket ?? 0;
+  const paid = input.cashHighTicketPaid ?? 0;
+  // Never more financed cash than there is high ticket cash on the form.
+  const financed = Math.min(input.financedCash, total);
+  const processingFees = total * PROCESSING_FEE_RATE;
+  const financingFees = financed * FINANCING_FEE_RATE;
+  const paidShare = total > 0 ? Math.min(1, paid / total) : 0;
+  return {
+    financedCash: financed,
+    processingFees,
+    financingFees,
+    totalFees: processingFees + financingFees,
+    paidFees: paid * PROCESSING_FEE_RATE + financingFees * paidShare,
+  };
+}
