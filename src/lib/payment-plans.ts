@@ -29,8 +29,21 @@ const FOLLOW_UP_PAYMENT_TABLE_ID = "tblIv06rB4qG0msnZ";
 const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 
 export const PAYMENT_PLAN_OFFERS = {
-  bronson: { baseId: "appiMw8gpaLv2WITA", updatesTableId: "tbl1ffNlJM40EyzFh" },
-  aval: { baseId: "appgEcTIxQjmtRKbP", updatesTableId: "tblqY5GaHBYTm1vVt" },
+  bronson: {
+    baseId: "appiMw8gpaLv2WITA",
+    updatesTableId: "tbl1ffNlJM40EyzFh",
+    // Low ticket sales log, read by the Upsell Potential tab. Column names differ per base.
+    affiliatePcn: {
+      tableId: "tblXsKo89QNuRawBy",
+      repField: "Full Name",
+      cashField: "CPA (Payout / Cash Collected)",
+    },
+  },
+  aval: {
+    baseId: "appgEcTIxQjmtRKbP",
+    updatesTableId: "tblqY5GaHBYTm1vVt",
+    affiliatePcn: { tableId: "tblFZy89IvQ6Dcsl0", repField: "Your Name", cashField: "CPA?" },
+  },
 } as const;
 
 export type PaymentPlanOffer = (typeof PAYMENT_PLAN_OFFERS)[keyof typeof PAYMENT_PLAN_OFFERS];
