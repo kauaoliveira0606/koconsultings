@@ -8,8 +8,8 @@ import type { OfferSplitResponse } from "@/lib/offer-split";
 import { useSectionData } from "@/lib/use-section-data";
 
 /**
- * Share of high ticket buyers on each offer ($1K downsell, $3K, $5K, upsell)
- * and the PIF rate (paid in full vs payment plan or deposit), from the post
+ * Share of high ticket buyers on each offer (one card per offer on the post
+ * call note form, named as it is there) and the PIF rate (paid in full vs payment plan or deposit), from the post
  * call notes, for the selected range.
  */
 export function OfferSplitSection({ apiPath, range }: { apiPath: string; range: RangeState }) {

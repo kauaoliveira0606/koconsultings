@@ -4,14 +4,15 @@
  *
  * A purchase is a Post Call Note with Call Outcome = Deposit, Payment Plan or
  * Closed (PIF), dated inside the selected range. The offer is the note's
- * "Offer Pitched On/Closed" answer. The same deal logged twice (same lead,
+ * "Offer Pitched On/Closed" answer, and there is one row per option that
+ * question has in Airtable. The same deal logged twice (same lead,
  * outcome and deal size) counts once.
  *
  * PIF rate rides along: of those same purchases, the share paid in full on
  * the call (Call Outcome = Closed (PIF)) rather than a payment plan or deposit.
  */
 import type { NextRequest } from "next/server";
-import { airtableListAll } from "@/lib/airtable/client";
+import { AirtableError, airtableListAll } from "@/lib/airtable/client";
 import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
@@ -20,18 +21,35 @@ import { emailKey, nameKey, text, type PaymentPlanOffer } from "@/lib/payment-pl
 // Same table ID in every offer's base (the bases were cloned from one template).
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 
+const OFFER_FIELD = "Offer Pitched On/Closed";
+
+/** The form's "no offer" answer, which is not something anyone bought. */
+const NO_OFFER = /^no pitch/i;
+
 /**
- * Form answer -> the name the offer goes by on the dashboard. Order is how
- * they are shown. Matched by how the answer starts, not its full text: the
- * price in brackets and the top tier's name get reworded in Airtable
- * ("Mid tier ($3k-$4k)" / "Mid tier ($3k)", "Upsell/Premium" / "Mastermind").
+ * The offers, exactly as the form lists them (names and order), read from
+ * the field's own options in Airtable. Nothing here hardcodes an offer name,
+ * so renaming one or adding a tier in Airtable just shows up.
  */
-const OFFERS = [
-  { key: "downsell", label: "$1K Downsell", match: /^downsell/i },
-  { key: "mid", label: "$3K", match: /^mid/i },
-  { key: "flagship", label: "$5K", match: /^flagship/i },
-  { key: "upsell", label: "Upsell", match: /^(upsell|premium|mastermind)/i },
-] as const;
+async function offerOptions(baseId: string): Promise<string[]> {
+  const pat = process.env.AIRTABLE_PAT;
+  if (!pat) throw new AirtableError("Missing AIRTABLE_PAT environment variable", 500);
+  const res = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
+    headers: { Authorization: `Bearer ${pat}` },
+    next: { revalidate: 60 },
+  });
+  if (!res.ok) throw new AirtableError(`Airtable schema request failed (${res.status})`, res.status);
+  const body = (await res.json()) as {
+    tables: {
+      id: string;
+      fields: { name: string; options?: { choices?: { name: string }[] } }[];
+    }[];
+  };
+  const field = body.tables
+    .find((t) => t.id === POST_CALL_NOTE_TABLE_ID)
+    ?.fields.find((f) => f.name === OFFER_FIELD);
+  return (field?.options?.choices ?? []).map((c) => c.name).filter((n) => !NO_OFFER.test(n));
+}
 
 export type OfferSplitRow = {
   key: string;
@@ -56,22 +74,17 @@ export type OfferSplitResponse = {
 export function offerSplitGet(offer: PaymentPlanOffer) {
   return async (request: NextRequest) => {
     const range = parseRangeFromRequest(request);
-    const records = await airtableListAll<Record<string, unknown>>(
-      offer.baseId,
-      POST_CALL_NOTE_TABLE_ID,
-      {
+    const [records, options] = await Promise.all([
+      airtableListAll<Record<string, unknown>>(offer.baseId, POST_CALL_NOTE_TABLE_ID, {
         filterByFormula:
           "OR({Call Outcome}='Payment Plan',{Call Outcome}='Deposit',{Call Outcome}='Closed (PIF)')",
-      }
-    );
+      }),
+      offerOptions(offer.baseId),
+    ]);
 
     const empty = { deals: 0, share: null, cashCollected: 0, dealValue: 0 };
     const rows: OfferSplitRow[] = [
-      ...OFFERS.map((o) => ({
-        key: o.key,
-        label: o.key === "upsell" ? (offer.topOfferLabel ?? o.label) : o.label,
-        ...empty,
-      })),
+      ...options.map((name) => ({ key: name, label: name, ...empty })),
       // A purchase logged with no offer picked (or "No Pitch"): only shown when there is one.
       { key: "other", label: "No Offer Logged", ...empty },
     ];
@@ -87,9 +100,8 @@ export function offerSplitGet(offer: PaymentPlanOffer) {
       if (seen.has(dealKey)) continue;
       seen.add(dealKey);
       if (!isDateInRange(date, range)) continue;
-      const answer = text(f["Offer Pitched On/Closed"]) ?? "";
-      const index = OFFERS.findIndex((o) => o.match.test(answer));
-      const row = rows[index === -1 ? rows.length - 1 : index];
+      const answer = text(f[OFFER_FIELD]);
+      const row = rows.find((r) => r.key === answer) ?? rows[rows.length - 1];
       row.deals += 1;
       if (typeof f["Call Outcome"] === "string" && f["Call Outcome"] in outcomes) {
         outcomes[f["Call Outcome"] as keyof typeof outcomes] += 1;

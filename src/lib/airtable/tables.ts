@@ -508,9 +508,10 @@ export const {
 // the source of truth for pitch/close/lead-source breakdowns.
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 
-// Matched by the start of the answer, not the full text: the price in brackets
-// gets reworded per base ("Mid tier ($3k-$4k)" on Bronson, "Mid tier ($3k)" on Aval).
-const HIGH_TICKET_TIER = /^(mid tier|flagship)/i;
+// Matched by the offer's name inside the answer, not the full text: the price
+// in brackets gets reworded and tiers get added per base ("Mid tier ($3k)",
+// "OG Flagship ($5k)", "Flagship ($6.8k)").
+const HIGH_TICKET_TIER = /mid tier|flagship/i;
 const CLOSED_OUTCOMES = ["Closed (PIF)", "Payment Plan"];
 
 export type PostCallNoteRow = {
