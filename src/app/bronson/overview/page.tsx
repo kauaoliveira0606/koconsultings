@@ -5,6 +5,8 @@ import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardG
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
+import { PieSplit } from "@/components/dashboard/PieSplit";
+import { RateColumns } from "@/components/dashboard/RateColumns";
 import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
@@ -60,6 +62,7 @@ type MetricsResponse = {
   highTicketCloseRate: number | null;
   highTicketBookingRateFromLowTicket: number | null;
   highTicketPitchRate: number | null;
+  newHighTicketCallsBooked: number | null;
   revenueHighTicket: number | null;
 
   cacLowTicketPaid: number | null;
@@ -184,7 +187,7 @@ export default function OverviewPage() {
         <LiveCashToday apiPath="/api/bronson/overview/live-cash" />
       </DashboardSection>
 
-      {/* TIER 1 — KEYSTONE METRICS: the seven numbers that answer "scale or pull the brake" */}
+      {/* TIER 1 — KEYSTONE METRICS: the eight numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
@@ -195,6 +198,13 @@ export default function OverviewPage() {
             subtext="Cash actually collected, not revenue booked — payment plans that never fully collect don't count here."
             status={kpiStatus(metrics?.totalCashCollected, goals?.totalCashCollected, "higher")}
             goal={kpiLabel(goals?.totalCashCollected, "higher", "currency")}
+          />
+          <StatCard
+            label="Ad Spend"
+            value={metrics?.adSpend}
+            format="currency"
+            size="lg"
+            subtext="From Marketing Daily Metrics (Ad Spend Meta). $0.00 means no paid spend ran in this range."
           />
           <StatCard
             label="Paid ROAS"
@@ -406,85 +416,93 @@ export default function OverviewPage() {
 
       {/* TIER 5 — HIGH-TICKET BACKEND */}
       <DashboardSection title="High-Ticket Backend">
-        <StatCardGrid>
-          <StatCard
-            label="Calls Booked"
-            value={metrics?.highTicketCallsBooked}
-            format="number"
-            subtext="From the High Ticket Closer's EOD log."
-          />
-          <StatCard
-            label="Calls Showed"
-            value={metrics?.highTicketCallsShowed}
-            format="number"
-            subtext="From the High Ticket Closer's EOD log."
-          />
-          <StatCard
-            label="Show Rate"
-            value={metrics?.highTicketShowRate}
-            format="percent"
-            subtext="Calls Showed ÷ Calls Booked."
-            status={kpiStatus(metrics?.highTicketShowRate, goals?.showRate?.min, "higher")}
-            goal={kpiLabel(goals?.showRate?.min, "higher", "percent")}
-          />
-          <StatCard
-            label="Pitched (HT)"
-            value={metrics?.highTicketPitched}
-            format="number"
-            subtext="From Post Call Note — a mid-tier or flagship offer pitched."
-          />
-          <StatCard
-            label="Closed (HT)"
-            value={metrics?.highTicketClosed}
-            format="number"
-            subtext="From Post Call Note — outcome Closed (PIF) or Payment Plan."
-          />
-          <StatCard
-            label="Close Rate (HT)"
-            value={metrics?.highTicketCloseRate}
-            format="percent"
-            subtext="Classic tracking: HT Deals Closed ÷ Calls Showed."
-            status={kpiStatus(metrics?.highTicketCloseRate, goals?.highTicketCloseRate?.min, "higher")}
-            goal={kpiLabel(goals?.highTicketCloseRate?.min, "higher", "percent")}
-          />
-          <StatCard
-            label="High Ticket Pitch Rate"
-            value={metrics?.highTicketPitchRate}
-            format="percent"
-            subtext="HT Pitched ÷ Low-Ticket Sales — the upsell-into-HT rate."
-          />
-          <StatCard
-            label="HT Booking Rate (from LT)"
-            value={metrics?.highTicketBookingRateFromLowTicket}
-            format="percent"
-            subtext="New HT calls booked today ÷ Low-Ticket Sales."
-          />
-        </StatCardGrid>
+        <RateColumns
+          columns={[
+            {
+              title: "Show Rate",
+              value: metrics?.highTicketShowRate,
+              formula: "Calls Showed ÷ Calls Booked.",
+              status: kpiStatus(metrics?.highTicketShowRate, goals?.showRate?.min, "higher"),
+              goal: kpiLabel(goals?.showRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Calls Showed", value: metrics?.highTicketCallsShowed, note: "High Ticket Closer's EOD log." },
+                { label: "Calls Booked", value: metrics?.highTicketCallsBooked, note: "High Ticket Closer's EOD log." },
+              ],
+            },
+            {
+              title: "Close Rate",
+              value: metrics?.highTicketCloseRate,
+              formula: "HT Deals Closed ÷ Calls Showed.",
+              status: kpiStatus(metrics?.highTicketCloseRate, goals?.highTicketCloseRate?.min, "higher"),
+              goal: kpiLabel(goals?.highTicketCloseRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Closed (HT)", value: metrics?.highTicketClosed, note: "Closed (PIF) or Payment Plan." },
+                { label: "Calls Showed", value: metrics?.highTicketCallsShowed },
+              ],
+            },
+            {
+              title: "Pitch Rate",
+              value: metrics?.highTicketPitchRate,
+              formula: "HT Pitched ÷ Low Ticket Sales: the upsell-into-HT rate.",
+              inputs: [
+                { label: "Pitched (HT)", value: metrics?.highTicketPitched, note: "Post Call Note with a mid tier or flagship offer pitched." },
+                { label: "Low Ticket Sales", value: metrics?.sales },
+              ],
+            },
+            {
+              title: "Booking Rate (From LT)",
+              value: metrics?.highTicketBookingRateFromLowTicket,
+              formula: "New HT calls booked ÷ Low Ticket Sales.",
+              inputs: [
+                { label: "New HT Calls Booked", value: metrics?.newHighTicketCallsBooked },
+                { label: "Low Ticket Sales", value: metrics?.sales },
+              ],
+            },
+          ]}
+        />
 
         {/* Yearly / Monthly Plan Split — de-emphasized sub-section, global range now */}
         <div className="mt-4">
           <div className="mb-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
             Yearly / Monthly Plan Split
           </div>
-          {planSplit && planSplit.total > 0 ? (
-            <StatCardGrid>
-              <StatCard label="Monthly Plans" value={planSplit.monthly} format="number" subtext="Affiliate PCN, Plan? = Monthly." />
-              <StatCard label="Yearly Plans" value={planSplit.yearly} format="number" subtext="Affiliate PCN, Plan? = Yearly." />
-              <StatCard label="Total Closes" value={planSplit.total} format="number" subtext="Monthly + Yearly + unclassified." />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm lg:col-span-2">
+              {planSplit ? (
+                <PieSplit
+                  unit={["close", "closes"]}
+                  emptyText="No monthly or yearly plans in this range."
+                  slices={[
+                    { key: "monthly", label: "Monthly Plans", value: planSplit.monthly, detail: "Affiliate PCN, Plan? = Monthly." },
+                    { key: "yearly", label: "Yearly Plans", value: planSplit.yearly, detail: "Affiliate PCN, Plan? = Yearly." },
+                    ...(planSplit.unknown > 0
+                      ? [{ key: "unknown", label: "No Plan Logged", value: planSplit.unknown, detail: "Affiliate PCN with Plan? left blank." }]
+                      : []),
+                  ]}
+                />
+              ) : (
+                <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
               <StatCard
                 label="Yearly Share"
-                value={planSplit.yearlyShare}
+                value={planSplit?.yearlyShare}
                 format="percent"
+                size="lg"
                 subtext="Yearly ÷ total PCN closes."
-                status={kpiStatus(planSplit.yearlyShare, goals?.yearlyShare?.min, "higher")}
+                status={kpiStatus(planSplit?.yearlyShare, goals?.yearlyShare?.min, "higher")}
                 goal={kpiLabel(goals?.yearlyShare?.min, "higher", "percent")}
               />
-            </StatCardGrid>
-          ) : (
-            <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm text-[var(--text-muted)] backdrop-blur-sm">
-              No monthly or yearly plans in this range.
+              <StatCard
+                label="Total Closes"
+                value={planSplit?.total}
+                format="number"
+                size="lg"
+                subtext="Monthly + Yearly + unclassified."
+              />
             </div>
-          )}
+          </div>
         </div>
       </DashboardSection>
 
@@ -569,6 +587,7 @@ export default function OverviewPage() {
             label="Funnel Conversion Rate (Paid)"
             value={metrics?.funnelConversionRatePaid}
             format="percent"
+            subtext="Low ticket sales from paid ÷ paid opt-ins."
             status={kpiStatus(metrics?.funnelConversionRatePaid, goals?.funnelConversionRate?.min, "higher")}
             goal={kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent")}
           />
@@ -576,6 +595,7 @@ export default function OverviewPage() {
             label="Funnel Conversion Rate (Organic)"
             value={metrics?.funnelConversionRateOrganic}
             format="percent"
+            subtext="Low ticket sales from organic ÷ organic opt-ins."
             status={kpiStatus(metrics?.funnelConversionRateOrganic, goals?.funnelConversionRate?.min, "higher")}
             goal={kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent")}
           />

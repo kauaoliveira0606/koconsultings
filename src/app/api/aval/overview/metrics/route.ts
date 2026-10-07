@@ -272,6 +272,7 @@ export async function GET(request: NextRequest) {
     highTicketPitched,
     highTicketClosed,
     highTicketCloseRate: safeDivide(highTicketClosed, highTicketCallsShowed || null),
+    newHighTicketCallsBooked,
     highTicketBookingRateFromLowTicket: safeDivide(newHighTicketCallsBooked, salesCount || null),
     highTicketPitchRate: safeDivide(highTicketPitched, salesCount || null),
     revenueHighTicket,
@@ -285,10 +286,18 @@ export async function GET(request: NextRequest) {
 
     // Tier 7 — Funnel / marketing health (diagnostic)
     ...vsl,
-    funnelConversionRatePaid: average(inRangeMarketing.map((r) => r.funnelConversionRatePaid)),
-    funnelConversionRateOrganic: average(
-      inRangeMarketing.map((r) => r.funnelConversionRateOrganic)
-    ),
+    // The form's own typed rate when the team filled it in; otherwise worked
+    // out from what the form does have: low ticket sales ÷ opt-ins, per source.
+    // (Aval's form has no paid conversion column at all, so paid is always computed there.)
+    funnelConversionRatePaid:
+      average(inRangeMarketing.map((r) => r.funnelConversionRatePaid)) ??
+      safeDivide(salesLowTicketPaid, optInsPaid),
+    funnelConversionRateOrganic:
+      average(inRangeMarketing.map((r) => r.funnelConversionRateOrganic)) ??
+      safeDivide(
+        sum(inRangeMarketing.map((r) => r.salesLowTicketOrganic)),
+        optInsOrganic || null
+      ),
 
     refundCount,
     refundDollars,
