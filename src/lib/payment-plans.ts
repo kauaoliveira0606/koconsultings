@@ -55,8 +55,18 @@ export const PAYMENT_PLAN_OFFERS = {
       repField: "Full Name",
       cashField: "CPA (Payout / Cash Collected)",
     },
-    // Not set up for Bronson yet.
-    access: null as AccessRules | null,
+    // Per the client (2026-10-07): same process as Aval, from the same Sep 30, 2026
+    // cutoff (earlier buyers are lifetime). The $6.8K, $5K and $3K packages run 6
+    // months, the $1.5K runs 3. There is no upsell offer yet, so it has no rule.
+    access: {
+      from: "2026-09-30",
+      packages: [
+        // "Flagship ($6.8k)" and "OG Flagship ($5k)".
+        { match: /flagship/i, months: 6 },
+        { match: /^mid/i, months: 6 },
+        { match: /^downsell/i, months: 3 },
+      ],
+    } as AccessRules | null,
   },
   aval: {
     baseId: "appgEcTIxQjmtRKbP",
