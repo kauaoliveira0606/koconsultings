@@ -6,6 +6,7 @@ import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardG
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { CashCalendar } from "@/components/dashboard/CashCalendar";
 import { PacingSection } from "@/components/dashboard/PacingSection";
+import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
@@ -163,6 +164,10 @@ export default function OverviewPage() {
   const { data: goals } = useSectionData<GoalsConfig>("/api/aval/goals", range);
 
   const adsActive = metrics?.adsActive ?? false;
+  // Paid ROAS counts ALL paid cash: low ticket and high ticket, as split on the form.
+  const paidCash = addCash(metrics?.cashCollectedLowTicketPaid, metrics?.cashCollectedHighTicketPaid);
+  const paidRoas =
+    paidCash !== null && metrics?.adSpend ? paidCash / metrics.adSpend : null;
   const notActive = "Not Active";
 
   return (
@@ -190,12 +195,12 @@ export default function OverviewPage() {
           />
           <StatCard
             label="Paid ROAS"
-            value={leadSources?.paidRoas}
+            value={paidRoas}
             format="ratio"
             size="lg"
             override={!adsActive ? notActive : undefined}
-            subtext="Cash Collected (Paid) ÷ Ad Spend."
-            status={adsActive ? kpiStatus(leadSources?.paidRoas, goals?.roasTotal?.min, "higher") : null}
+            subtext="Paid cash collected, low ticket + high ticket, ÷ Ad Spend."
+            status={adsActive ? kpiStatus(paidRoas, goals?.roasTotal?.min, "higher") : null}
             goal={adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null}
           />
           <StatCard
@@ -238,68 +243,14 @@ export default function OverviewPage() {
 
       {/* TIER 2 — REVENUE BREAKDOWN */}
       <DashboardSection title="Revenue Breakdown">
-        <StatCardGrid>
-          <StatCard
-            label="Cash Collected — Low Ticket"
-            value={metrics?.cashCollectedLowTicket}
-            format="currency"
-            subtext="Software front-end cash collected."
-          />
-          <StatCard
-            label="Cash Collected — Low Ticket (Paid)"
-            value={metrics?.cashCollectedLowTicketPaid}
-            format="currency"
-            subtext="From the Marketing Daily Metrics form."
-          />
-          <StatCard
-            label="Cash Collected — Low Ticket (Organic)"
-            value={metrics?.cashCollectedLowTicketOrganic}
-            format="currency"
-            subtext="From the Marketing Daily Metrics form."
-          />
-          <StatCard
-            label="Cash Collected — High Ticket"
-            value={metrics?.cashCollectedHighTicket}
-            format="currency"
-            subtext="Real closer cash, preferred over the form-typed value."
-          />
-          <StatCard
-            label="Revenue — High Ticket"
-            value={metrics?.revenueHighTicket}
-            format="currency"
-            subtext="Booked revenue including payment plans not yet fully collected — reference only, Cash Collected HT is the real number."
-          />
-          <StatCard
-            label="Cash Collected — High Ticket (Paid)"
-            value={metrics?.cashCollectedHighTicketPaid}
-            format="currency"
-            subtext="From the Marketing Daily Metrics form."
-          />
-          <StatCard
-            label="Cash Collected — High Ticket (Organic)"
-            value={metrics?.cashCollectedHighTicketOrganic}
-            format="currency"
-            subtext="From the Marketing Daily Metrics form."
-          />
-          <StatCard
-            label="Cash Collected — Paid"
-            value={leadSources?.cashCollectedPaid}
-            format="currency"
-            subtext="Closes matched to a Paid-source lead by email, plus any lead's own Cash Collected value."
-          />
-          <StatCard
-            label="Cash Collected — Organic"
-            value={leadSources?.cashCollectedOrganic}
-            format="currency"
-            subtext="Closes matched to an Organic-source lead by email, plus any lead's own Cash Collected value."
-          />
-          <StatCard
-            label="Ad Spend"
-            value={metrics?.adSpend}
-            format="currency"
-            subtext="From Marketing Daily Metrics (Ad Spend Meta). $0.00 here is a real number — it means no paid spend ran in this range."
-          />
-        </StatCardGrid>
+        <RevenueBreakdown
+          lowTicketOrganic={metrics?.cashCollectedLowTicketOrganic}
+          lowTicketPaid={metrics?.cashCollectedLowTicketPaid}
+          highTicketOrganic={metrics?.cashCollectedHighTicketOrganic}
+          highTicketPaid={metrics?.cashCollectedHighTicketPaid}
+          revenueHighTicket={metrics?.revenueHighTicket}
+          adSpend={metrics?.adSpend}
+        />
       </DashboardSection>
 
       {/* TIER 3 — ACQUISITION & LEAD FLOW */}

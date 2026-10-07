@@ -217,6 +217,12 @@ const dCashLTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketPaid) : 
 const dCashLTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketOrganic) : null);
 const dCashHTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketPaid) : null);
 const dCashHTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketOrganic) : null);
+/** All paid cash that day, low ticket + high ticket: what ROAS is measured on. */
+const dCashPaid = (c: DayCtx) => {
+  const lt = dCashLTPaid(c);
+  const ht = dCashHTPaid(c);
+  return lt === null && ht === null ? null : (lt ?? 0) + (ht ?? 0);
+};
 
 // --- high-ticket: form first, then EOD Closer, then Affiliate EOD (same
 // order as the Overview cards) ---
@@ -402,12 +408,12 @@ function buildSpecs(
         },
         {
           key: "roasTotal",
-          label: "ROAS (Paid Cash ÷ Ad Spend)",
+          label: "ROAS (Paid Cash LT + HT ÷ Ad Spend)",
           format: "ratio",
           goal: goals.roasTotal?.min ?? null,
           goalDirection: "higher",
-          day: (c) => roas(dCashLTPaid(c), dAdSpend(c)),
-          week: (days) => roas(sum(days.map(dCashLTPaid)), sum(days.map(dAdSpend))),
+          day: (c) => roas(dCashPaid(c), dAdSpend(c)),
+          week: (days) => roas(sum(days.map(dCashPaid)), sum(days.map(dAdSpend))),
         },
         {
           key: "cpaLowTicket",
