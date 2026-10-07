@@ -5,6 +5,7 @@ import { cellStatus } from "@/lib/weekly-scorecard";
 import type { GoalsConfig } from "@/lib/goals";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { CloserLeaderboard } from "@/components/dashboard/CloserLeaderboard";
+import { SetterLeaderboard } from "@/components/dashboard/SetterLeaderboard";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { DataTable, type Column } from "@/components/dashboard/DataTable";
 import { useSharedRange } from "@/lib/range-context";
@@ -65,18 +66,6 @@ type TeamTotalsResponse = {
   totalTalkTimeMinutes: number | null;
 };
 
-type ByRepResponse = {
-  reps: {
-    rep: string;
-    outboundDials: number | null;
-    pickups: number | null;
-    pickupRate: number | null;
-    totalSales: number | null;
-    cashCollected: number | null;
-    totalTalkTimeMinutes: number | null;
-  }[];
-};
-
 /** 4.2 min, 1h 12m, 2d 3h: readable at any size. */
 function formatDuration(minutes: number | null | undefined): string {
   if (minutes === null || minutes === undefined || !Number.isFinite(minutes)) return "—";
@@ -103,32 +92,6 @@ export default function SalesTeamPage() {
     "/api/aval/sales-team/team-totals",
     range
   );
-  const { data: byRep } = useSectionData<ByRepResponse>("/api/aval/sales-team/by-rep", range);
-
-  const repColumns: Column<ByRepResponse["reps"][number]>[] = [
-    { key: "rep", header: "Rep", render: (r) => r.rep },
-    { key: "dials", header: "Outbound Dials", render: (r) => formatStatValue(r.outboundDials), align: "right" },
-    { key: "pickups", header: "Pickups", render: (r) => formatStatValue(r.pickups), align: "right" },
-    {
-      key: "pickupRate",
-      header: "Pickup Rate",
-      render: (r) => formatStatValue(r.pickupRate, "percent"),
-      align: "right",
-    },
-    { key: "sales", header: "Sales", render: (r) => formatStatValue(r.totalSales), align: "right" },
-    {
-      key: "cashCollected",
-      header: "Cash Collected",
-      render: (r) => formatStatValue(r.cashCollected, "currency"),
-      align: "right",
-    },
-    {
-      key: "talkTime",
-      header: "Total Talk Time",
-      render: (r) => formatMinutes(r.totalTalkTimeMinutes),
-      align: "right",
-    },
-  ];
 
   const leadColumns: Column<SpeedToLeadResponse["leads"][number]>[] = [
     { key: "lead", header: "Lead", render: (l) => l.name ?? "Unknown" },
@@ -194,11 +157,19 @@ export default function SalesTeamPage() {
       </DashboardSection>
 
       <DashboardSection title="Closer Leaderboard">
-        <CloserLeaderboard apiPath="/api/aval/sales-team/closer-leaderboard" range={range} />
+        <CloserLeaderboard
+          apiPath="/api/aval/sales-team/closer-leaderboard"
+          range={range}
+          goals={goals}
+        />
       </DashboardSection>
 
-      <DashboardSection title="By Rep">
-        <DataTable columns={repColumns} rows={byRep?.reps ?? []} rowKey={(r) => r.rep} />
+      <DashboardSection title="Setter Leaderboard">
+        <SetterLeaderboard
+          apiPath="/api/aval/sales-team/setter-leaderboard"
+          range={range}
+          goals={goals}
+        />
       </DashboardSection>
 
       <div className="ko-light-panel">
