@@ -54,18 +54,6 @@ function speedBucket(lead: {
   return { label: "Over 10 min", className: "bg-red-100 text-red-800" };
 }
 
-type TeamTotalsResponse = {
-  outboundDials: number | null;
-  pickups: number | null;
-  pickupRate: number | null;
-  softwarePitched: number | null;
-  totalSales: number | null;
-  cashCollected: number | null;
-  highTicketCallsPitched: number | null;
-  newHighTicketCallsBooked: number | null;
-  totalTalkTimeMinutes: number | null;
-};
-
 /** 4.2 min, 1h 12m, 2d 3h: readable at any size. */
 function formatDuration(minutes: number | null | undefined): string {
   if (minutes === null || minutes === undefined || !Number.isFinite(minutes)) return "—";
@@ -86,10 +74,6 @@ export default function SalesTeamPage() {
   const { data: goals } = useSectionData<GoalsConfig>("/api/aval/goals", range);
   const { data: speedToLead } = useSectionData<SpeedToLeadResponse>(
     "/api/aval/sales-team/speed-to-lead",
-    range
-  );
-  const { data: teamTotals } = useSectionData<TeamTotalsResponse>(
-    "/api/aval/sales-team/team-totals",
     range
   );
 
@@ -128,33 +112,6 @@ export default function SalesTeamPage() {
         <h1 className="text-2xl font-bold">Sales Team</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
-
-      <DashboardSection title="Team Totals">
-        <StatCardGrid>
-          <StatCard label="Outbound Dials" value={teamTotals?.outboundDials} format="number" />
-          <StatCard label="Pickups" value={teamTotals?.pickups} format="number" />
-          <StatCard label="Pickup Rate" value={teamTotals?.pickupRate} format="percent" />
-          <StatCard label="Software Pitched" value={teamTotals?.softwarePitched} format="number" />
-          <StatCard label="Total Sales" value={teamTotals?.totalSales} format="number" />
-          <StatCard label="Cash Collected" value={teamTotals?.cashCollected} format="currency" />
-          <StatCard
-            label="High Ticket Pitched"
-            value={teamTotals?.highTicketCallsPitched}
-            format="number"
-          />
-          <StatCard
-            label="New High Ticket Booked"
-            value={teamTotals?.newHighTicketCallsBooked}
-            format="number"
-          />
-          <StatCard
-            label="Total Talk Time"
-            value={teamTotals?.totalTalkTimeMinutes}
-            format="number"
-            subtext={formatMinutes(teamTotals?.totalTalkTimeMinutes ?? null)}
-          />
-        </StatCardGrid>
-      </DashboardSection>
 
       <DashboardSection title="Closer Leaderboard">
         <CloserLeaderboard
