@@ -86,6 +86,7 @@ type Workable = {
 
 const STATUS_COLOR: Record<UpsellStatus, string> = {
   "Not Contacted": "text-[var(--text-muted)]",
+  "No Pick Up": "text-orange-300",
   Pitched: "text-sky-300",
   "Call Booked": "text-emerald-300",
   Upsold: "text-purple-300",
@@ -392,7 +393,7 @@ type ListProps = {
 type CallFilter = "callList" | "all" | "noCall" | "booked";
 
 // The call list is who a setter should ring next: bought the software, no
-// high ticket call booked, nobody has worked them yet.
+// high ticket call booked, and either untouched or tried with no answer.
 const CALL_FILTERS: { key: CallFilter; label: string }[] = [
   { key: "callList", label: "Call List" },
   { key: "all", label: "All" },
@@ -404,7 +405,8 @@ const callMatches = (customer: LowTicketCustomer, filter: CallFilter) =>
   filter === "all"
     ? true
     : filter === "callList"
-      ? !customer.bookedCall && customer.status === "Not Contacted"
+      ? !customer.bookedCall &&
+        (customer.status === "Not Contacted" || customer.status === "No Pick Up")
       : (filter === "booked") === customer.bookedCall;
 
 const repsOf = (customer: LowTicketCustomer) => [
@@ -512,15 +514,22 @@ function LowTicketList({ data, error, today, onSave }: ListProps) {
     (c) => callMatches(c, filter) && (plan === "all" || (plan === "yearly") === c.yearly)
   );
   const customers = inView?.filter((c) => status === "all" || c.status === status);
-  // On the call list, yearly buyers go first; the newest purchase leads within each group.
-  if (filter === "callList") customers?.sort((a, b) => Number(b.yearly) - Number(a.yearly));
+  // On the call list, people nobody has tried yet come before the no pick ups, and yearly
+  // buyers go first within each; the newest purchase leads within each group.
+  if (filter === "callList") {
+    customers?.sort(
+      (a, b) =>
+        Number(a.status === "No Pick Up") - Number(b.status === "No Pick Up") ||
+        Number(b.yearly) - Number(a.yearly)
+    );
+  }
 
   return (
     <div>
       <p className="mb-6 max-w-3xl text-sm text-[var(--text-muted)]">
         Everyone in the Affiliate PCN who has not bought high ticket. One row per customer, newest
-        first. The Call List is who to ring next: no high ticket call booked and not contacted yet,
-        yearly plan buyers first. Anyone who bought both only shows under High Ticket. The same sale entered twice
+        first. The Call List is who to ring next: no high ticket call booked and either not
+        contacted yet or no pick up, yearly plan buyers first. Anyone who bought both only shows under High Ticket. The same sale entered twice
         (same email, name and software) counts once, keeping the latest entry.
       </p>
 

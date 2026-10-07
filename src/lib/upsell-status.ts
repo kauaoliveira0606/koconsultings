@@ -12,6 +12,8 @@ const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 /** Nobody has a row until they are worked: no row means "Not Contacted". */
 export const UPSELL_STATUSES = [
   "Not Contacted",
+  // Tried, nobody answered: still needs another attempt.
+  "No Pick Up",
   "Pitched",
   "Call Booked",
   "Upsold",
@@ -76,6 +78,8 @@ export async function saveUpsellStatus(
     method: "PATCH",
     body: JSON.stringify({
       performUpsert: { fieldsToMergeOn: ["Customer Key"] },
+      // Lets a status added here later create its own option in Airtable.
+      typecast: true,
       records: [
         {
           fields: {
