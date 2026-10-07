@@ -89,15 +89,15 @@ export type PaymentPlansResponse = {
   };
 };
 
-const text = (raw: unknown): string | null =>
+export const text = (raw: unknown): string | null =>
   typeof raw === "string" && raw.trim() !== "" ? raw.trim() : null;
 
-const emailKey = (raw: unknown): string | null => {
+export const emailKey = (raw: unknown): string | null => {
   const email = text(raw)?.toLowerCase().replace(/\s/g, "");
   return email && email.includes("@") ? email : null;
 };
 
-const nameKey = (raw: string | null): string | null =>
+export const nameKey = (raw: string | null): string | null =>
   raw ? raw.toLowerCase().replace(/\s+/g, " ").trim() || null : null;
 
 /** "2026-01-31" + 1 month = "2026-02-28": the day is clamped to the month's length. */
