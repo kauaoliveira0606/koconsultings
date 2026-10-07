@@ -33,6 +33,13 @@ const FOLLOW_UP_PAYMENT_TABLE_ID = "tblIv06rB4qG0msnZ";
 
 const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 
+/**
+ * How long a purchase gives access to the program, per package, for deals
+ * closed on or after `from`. Earlier deals were sold as lifetime access.
+ * A package with no rule here (matched on how its name starts) has no end date.
+ */
+export type AccessRules = { from: string; packages: { match: RegExp; months: number }[] };
+
 export const PAYMENT_PLAN_OFFERS = {
   bronson: {
     baseId: "appiMw8gpaLv2WITA",
@@ -44,12 +51,24 @@ export const PAYMENT_PLAN_OFFERS = {
       repField: "Full Name",
       cashField: "CPA (Payout / Cash Collected)",
     },
+    // Not set up for Bronson yet.
+    access: null as AccessRules | null,
   },
   aval: {
     baseId: "appgEcTIxQjmtRKbP",
     updatesTableId: "tblqY5GaHBYTm1vVt",
     upsellStatusTableId: "tbl3Z2nWIR0iGRrEw",
     affiliatePcn: { tableId: "tblFZy89IvQ6Dcsl0", repField: "Your Name", cashField: "CPA?" },
+    // Per the client: from Sep 30, 2026 the $5K and $3K packages run 6 months and the
+    // $1K runs 3. Everyone sold on Sep 29 or earlier has lifetime access.
+    access: {
+      from: "2026-09-30",
+      packages: [
+        { match: /^flagship/i, months: 6 },
+        { match: /^mid/i, months: 6 },
+        { match: /^downsell/i, months: 3 },
+      ],
+    } as AccessRules | null,
   },
 } as const;
 
@@ -141,7 +160,7 @@ export const nameKey = (raw: string | null): string | null =>
   raw ? raw.toLowerCase().replace(/\s+/g, " ").trim() || null : null;
 
 /** "2026-01-31" + 1 month = "2026-02-28": the day is clamped to the month's length. */
-function addMonths(ymd: string, months: number): string {
+export function addMonths(ymd: string, months: number): string {
   const [y, m, d] = ymd.split("-").map(Number);
   const first = new Date(Date.UTC(y, m - 1 + months, 1));
   const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();

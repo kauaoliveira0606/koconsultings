@@ -7,6 +7,10 @@
  * email (name as a fallback), newest first. Cash is what was collected on
  * those calls plus any Follow Up Payment form entries for the same lead.
  *
+ * Renewals (offers with access rules only): when each high ticket buyer's
+ * access to the program runs out, so they can be renewed or upsold. The end
+ * date is the purchase date plus the months their package gives.
+ *
  * Low ticket: everyone in the Affiliate PCN (software sales), grouped the
  * same way. The same sale entered twice (same email, same name, same
  * software) is a duplicate: the latest entry is kept. Nobody is on both lists: a low ticket buyer who also bought high
@@ -14,13 +18,15 @@
  */
 import { airtableListAll } from "@/lib/airtable/client";
 import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
-import { toEasternDateOnly } from "@/lib/date-range";
+import { easternDateString, toEasternDateOnly } from "@/lib/date-range";
 import { listUpsellStatuses, type UpsellStatus, type UpsellStatusEntry } from "@/lib/upsell-status";
 import {
+  addMonths,
   emailKey,
   getPaymentPlans,
   nameKey,
   text,
+  type AccessRules,
   type PaymentPlanOffer,
 } from "@/lib/payment-plans";
 
@@ -102,7 +108,45 @@ export type LowTicketCustomer = Worked & {
   yearly: boolean;
 };
 
+export type RenewalState = "expired" | "endingSoon" | "active";
+
+/** Access ending within this many days counts as "ending soon". */
+export const RENEWAL_SOON_DAYS = 30;
+
+export type RenewalCustomer = Worked & {
+  id: string;
+  name: string | null;
+  email: string | null;
+  /** The package their access runs on (the one that ends last, if they bought more than once). */
+  packageName: string;
+  months: number;
+  purchased: string;
+  accessEnds: string;
+  /** Negative once access has ended. */
+  daysLeft: number;
+  state: RenewalState;
+  closer: string | null;
+  cashCollected: number;
+};
+
+export type Renewals = {
+  /** Soonest to end (or longest expired) first. */
+  customers: RenewalCustomer[];
+  summary: {
+    tracked: number;
+    expired: number;
+    endingSoon: number;
+    /** Buyers from before the access rules started: lifetime access, not tracked. */
+    lifetime: number;
+    /** Buyers since then whose package has no access length set. */
+    noRule: number;
+    from: string;
+  };
+};
+
 export type UpsellPotentialResponse = {
+  /** Null for offers with no access rules yet. */
+  renewals: Renewals | null;
   customers: UpsellCustomer[];
   summary: {
     customers: number;
@@ -224,6 +268,70 @@ function lowTicketCustomers(
   };
 }
 
+function renewals(customers: UpsellCustomer[], rules: AccessRules): Renewals {
+  const today = easternDateString();
+  const tracked: RenewalCustomer[] = [];
+  let lifetime = 0;
+  let noRule = 0;
+  for (const c of customers) {
+    // A deposit alone isn't access: only full deals (paid in full or on a plan) count.
+    const deals = c.deals.filter((d) => d.type !== "deposit" && d.date !== null);
+    const since = deals.filter((d) => (d.date as string) >= rules.from);
+    if (since.length === 0) {
+      if (deals.length > 0) lifetime += 1;
+      continue;
+    }
+    // Someone who also bought before the cutoff already has lifetime access.
+    if (deals.length > since.length) {
+      lifetime += 1;
+      continue;
+    }
+    // Churned means removed from the program: nothing to renew.
+    if (c.churned) continue;
+    const dated = since.flatMap((d) => {
+      const rule = rules.packages.find((p) => p.match.test(d.offer ?? ""));
+      return rule ? [{ deal: d, months: rule.months, ends: addMonths(d.date as string, rule.months) }] : [];
+    });
+    if (dated.length === 0) {
+      noRule += 1;
+      continue;
+    }
+    const last = dated.reduce((a, b) => (b.ends > a.ends ? b : a));
+    const daysLeft = Math.round(
+      (Date.parse(`${last.ends}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000
+    );
+    tracked.push({
+      id: c.id,
+      key: c.key,
+      status: c.status,
+      statusNote: c.statusNote,
+      statusUpdated: c.statusUpdated,
+      name: c.name,
+      email: c.email,
+      packageName: last.deal.offer as string,
+      months: last.months,
+      purchased: last.deal.date as string,
+      accessEnds: last.ends,
+      daysLeft,
+      state: daysLeft < 0 ? "expired" : daysLeft <= RENEWAL_SOON_DAYS ? "endingSoon" : "active",
+      closer: last.deal.closer,
+      cashCollected: c.cashCollected,
+    });
+  }
+  tracked.sort((a, b) => a.accessEnds.localeCompare(b.accessEnds));
+  return {
+    customers: tracked,
+    summary: {
+      tracked: tracked.length,
+      expired: tracked.filter((r) => r.state === "expired").length,
+      endingSoon: tracked.filter((r) => r.state === "endingSoon").length,
+      lifetime,
+      noRule,
+      from: rules.from,
+    },
+  };
+}
+
 export async function getUpsellPotential(offer: PaymentPlanOffer): Promise<UpsellPotentialResponse> {
   const [noteRecords, followUpRecords, plans, affiliateRecords, statuses] = await Promise.all([
     airtableListAll<Record<string, unknown>>(offer.baseId, POST_CALL_NOTE_TABLE_ID, {
@@ -327,6 +435,7 @@ export async function getUpsellPotential(offer: PaymentPlanOffer): Promise<Upsel
     names: new Set(customers.flatMap((c) => fullNameKey(c.name) ?? [])),
   };
   return {
+    renewals: offer.access ? renewals(customers, offer.access) : null,
     lowTicket: lowTicketCustomers(offer, affiliateRecords, highTicket, statuses),
     customers,
     summary: {

@@ -6,6 +6,8 @@
  *   - the day before a payment is due
  *   - 15 days past due with nothing collected
  *   - 30 days past due: red alert headline, the student is about to be removed
+ *   - (offers with access rules) the day a customer's program access ends:
+ *     time to renew or upsell them
  *
  * `?mode=overdue` instead lists everyone past due right now, for a one-off
  * catch-up post.
@@ -16,6 +18,7 @@
  */
 import { addDaysToDateString, easternDateString } from "@/lib/date-range";
 import { getPaymentPlans, type PaymentPlan, type PaymentPlanOffer } from "@/lib/payment-plans";
+import { getUpsellPotential, type RenewalCustomer } from "@/lib/upsell-potential";
 
 /** Days past due that get a second ping, and the day the red alert goes out. */
 const SECOND_PING_DAY = 15;
@@ -65,6 +68,18 @@ function planBlock(plan: PaymentPlan, today: string): string {
   return [`**${plan.leadName ?? "Unknown lead"}**`, ...lines.map((l) => `> ${l}`)].join("\n");
 }
 
+/** One customer whose program access is up: who they are, what they bought and when it ran. */
+function renewalBlock(r: RenewalCustomer): string {
+  const lines = [
+    `Email: ${r.email ?? "none logged"}`,
+    `Package: ${r.packageName} (${r.months} months of access)`,
+    `Bought: ${day(r.purchased)} · Access ends: **${day(r.accessEnds)}**`,
+    `Closer: ${r.closer ?? "not logged"} · Paid so far: ${money(r.cashCollected)}`,
+    `Upsell status: ${r.status}${r.statusNote ? ` ("${r.statusNote.replace(/\s+/g, " ")}")` : ""}`,
+  ];
+  return [`**${r.name ?? "Unknown customer"}**`, ...lines.map((l) => `> ${l}`)].join("\n");
+}
+
 function section(title: string, plans: PaymentPlan[], today: string) {
   if (plans.length === 0) return [];
   return [[title, ...plans.map((p) => planBlock(p, today))]];
@@ -89,8 +104,11 @@ function pack(sections: string[][]): string[] {
 
 export function paymentRemindersGet(offer: PaymentPlanOffer, dashboardUrl: string) {
   return async (request: Request) => {
-    const mode = new URL(request.url).searchParams.get("mode") === "overdue" ? "overdue" : "daily";
-    const today = easternDateString();
+    const params = new URL(request.url).searchParams;
+    const mode = params.get("mode") === "overdue" ? "overdue" : "daily";
+    // `?date=YYYY-MM-DD` previews what would be posted on another day (nothing is sent from here).
+    const preview = params.get("date") ?? "";
+    const today = /^\d{4}-\d{2}-\d{2}$/.test(preview) ? preview : easternDateString();
     const { plans } = await getPaymentPlans(offer);
     const open = plans.filter((p) => (p.status === "onTrack" || p.status === "overdue") && p.nextDue);
     const pastDue = (p: PaymentPlan) => daysBetween(p.nextDue as string, today);
@@ -130,10 +148,24 @@ export function paymentRemindersGet(offer: PaymentPlanOffer, dashboardUrl: strin
       ];
     }
     if (sections.length > 0) sections.push([link]);
+
+    // Program access running out today (daily run only, offers with access rules).
+    let renewalsToday: RenewalCustomer[] = [];
+    if (mode === "daily" && offer.access) {
+      const { renewals } = await getUpsellPotential(offer);
+      renewalsToday = (renewals?.customers ?? []).filter((r) => r.accessEnds === today);
+      if (renewalsToday.length > 0) {
+        sections.push([
+          `⏳ **${renewalsToday.length} customer${renewalsToday.length === 1 ? "'s" : "s'"} program access ends today**\nTime to renew, resell or upsell them.`,
+          ...renewalsToday.map(renewalBlock),
+          `Track renewals here:\n${dashboardUrl.replace(/payment-plans$/, "upsell-potential")}`,
+        ]);
+      }
+    }
     return Response.json({
       date: today,
       mode,
-      count: included.length,
+      count: included.length + renewalsToday.length,
       messages: pack(sections),
       plans: included,
     });

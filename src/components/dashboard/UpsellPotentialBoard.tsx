@@ -7,6 +7,8 @@ import { easternDateString } from "@/lib/date-range";
 import { formatStatValue } from "@/lib/format";
 import { UPSELL_STATUSES, type UpsellStatus } from "@/lib/upsell-status";
 import type {
+  RenewalCustomer,
+  RenewalState,
   DealType,
   LowTicketCustomer,
   UpsellCustomer,
@@ -786,16 +788,186 @@ function HighTicketList({ data, error, today, onSave }: ListProps) {
   );
 }
 
+const RENEWAL_BADGE: Record<RenewalState, { label: string; className: string }> = {
+  expired: { label: "Access Ended", className: "bg-red-500/20 text-red-300" },
+  endingSoon: { label: "Ending Soon", className: "bg-amber-500/20 text-amber-300" },
+  active: { label: "Active", className: "bg-emerald-500/20 text-emerald-300" },
+};
+
+type RenewalFilter = RenewalState | "all";
+
+const RENEWAL_FILTERS: { key: RenewalFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "expired", label: "Access Ended" },
+  { key: "endingSoon", label: "Ending Soon" },
+  { key: "active", label: "Active" },
+];
+
+function timeLeft(days: number): string {
+  if (days === 0) return "Ends today";
+  const n = Math.abs(days);
+  return days > 0 ? `${n} day${n === 1 ? "" : "s"} left` : `Ended ${n} day${n === 1 ? "" : "s"} ago`;
+}
+
+function RenewalRows({ customer, onSave }: { customer: RenewalCustomer; onSave: SaveStatus }) {
+  const [open, setOpen] = useState(false);
+  const badge = RENEWAL_BADGE[customer.state];
+  return (
+    <Fragment>
+      <tr
+        onClick={() => setOpen((o) => !o)}
+        className="cursor-pointer border-b border-[var(--panel-border)] hover:bg-[var(--panel-subtle)]"
+      >
+        <td className="px-4 py-3">
+          <div className="font-medium text-[var(--text-strong)]">{customer.name ?? "Unknown lead"}</div>
+          <div className="text-xs text-[var(--text-muted)]">{customer.email ?? "No email logged"}</div>
+        </td>
+        <td className="px-4 py-3">
+          <StatusSelect customer={customer} onSave={onSave} />
+        </td>
+        <td className="px-4 py-3">
+          <div className="text-[var(--text-strong)]">{customer.packageName}</div>
+          <div className="text-xs text-[var(--text-muted)]">{customer.months} months of access</div>
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap">{day(customer.purchased)}</td>
+        <td className="px-4 py-3 whitespace-nowrap">
+          <div className="font-semibold text-[var(--text-strong)]">{day(customer.accessEnds)}</div>
+          <div className="text-xs text-[var(--text-muted)]">{timeLeft(customer.daysLeft)}</div>
+        </td>
+        <td className="px-4 py-3">
+          <Badge {...badge} />
+        </td>
+        <td className="px-4 py-3 text-[var(--text-muted)]">{customer.closer ?? "—"}</td>
+        <td className="px-4 py-3 text-right whitespace-nowrap text-emerald-400">
+          {money(customer.cashCollected)}
+        </td>
+      </tr>
+      {open ? (
+        <tr className="border-b border-[var(--panel-border)] bg-[var(--panel-subtle)]">
+          <td colSpan={8} className="px-4 py-3 text-xs text-[var(--text-muted)]">
+            <StatusNote customer={customer} onSave={onSave} />
+          </td>
+        </tr>
+      ) : null}
+    </Fragment>
+  );
+}
+
+/**
+ * When each high ticket customer's access to the program runs out, soonest
+ * first, so they can be renewed, resold or upsold in time. Only offers with
+ * access rules have this list.
+ */
+function RenewalList({ data, error, onSave }: ListProps) {
+  const [filter, setFilter] = useState<RenewalFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const renewals = data?.renewals;
+  const inView = renewals?.customers.filter((c) => filter === "all" || c.state === filter);
+  const customers = inView?.filter((c) => status === "all" || c.status === status);
+  const next = renewals?.customers.find((c) => c.daysLeft >= 0);
+
+  return (
+    <div>
+      <p className="mb-6 max-w-3xl text-sm text-[var(--text-muted)]">
+        When each customer&apos;s access to the program ends: the day they bought plus the months
+        their package gives. Soonest first. Everyone sold before{" "}
+        {renewals ? day(renewals.summary.from) : "the cutoff"} has lifetime access and is not on this
+        list. The reminders channel gets a message the day someone&apos;s access ends.
+      </p>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Tracked Customers"
+          value={renewals?.summary.tracked}
+          size="lg"
+          subtext={
+            renewals
+              ? `${renewals.summary.lifetime} earlier buyers have lifetime access.${renewals.summary.noRule > 0 ? ` ${renewals.summary.noRule} bought a package with no access length set.` : ""}`
+              : undefined
+          }
+        />
+        <StatCard
+          label="Access Ended"
+          value={renewals?.summary.expired}
+          size="lg"
+          status={renewals && renewals.summary.expired > 0 ? "red" : null}
+          subtext="Past their end date: renew, resell or upsell."
+        />
+        <StatCard
+          label="Ending Soon"
+          value={renewals?.summary.endingSoon}
+          size="lg"
+          subtext="Access ends within the next 30 days."
+        />
+        <StatCard
+          label="Next To End"
+          value={next?.daysLeft}
+          size="lg"
+          override={next ? `${next.daysLeft} day${next.daysLeft === 1 ? "" : "s"}` : renewals ? "None" : undefined}
+          subtext={next ? `${next.name ?? "Unknown"} on ${day(next.accessEnds)}.` : "Nobody has access still running."}
+        />
+      </div>
+
+      <div className="mt-8 mb-3 flex flex-wrap gap-2">
+        {RENEWAL_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={FILTER_BUTTON(filter === f.key)}
+          >
+            {f.label}
+            {renewals
+              ? ` (${renewals.customers.filter((c) => f.key === "all" || c.state === f.key).length})`
+              : ""}
+          </button>
+        ))}
+      </div>
+      <StatusFilterRow customers={inView} value={status} onChange={setStatus} />
+
+      <div className="overflow-x-auto rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)]">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--panel-border)] text-left text-xs font-semibold uppercase text-[var(--text-muted)]">
+              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Upsell Status</th>
+              <th className="px-4 py-3">Package</th>
+              <th className="px-4 py-3">Bought</th>
+              <th className="px-4 py-3">Access Ends</th>
+              <th className="px-4 py-3">Access</th>
+              <th className="px-4 py-3">Closer</th>
+              <th className="px-4 py-3 text-right">Cash Collected</th>
+            </tr>
+          </thead>
+          <tbody>
+            {customers?.map((c) => <RenewalRows key={c.id} customer={c} onSave={onSave} />)}
+          </tbody>
+        </table>
+        {!customers || customers.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-[var(--text-muted)]">
+            {error
+              ? "Couldn't load customers, retrying..."
+              : customers
+                ? "Nobody here yet."
+                : "Loading..."}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Everyone who has bought, split into High Ticket (post call notes) and Low
- * Ticket (Affiliate PCN). Nobody is on both: buying high ticket takes a
+ * Ticket (Affiliate PCN), plus a Renewal list (when program access ends) for
+ * offers that have access rules. Nobody is on both: buying high ticket takes a
  * customer off the low ticket list.
  */
 export function UpsellPotentialBoard({ apiPath }: { apiPath: string }) {
   const { data, error, mutate } = useSWR<UpsellPotentialResponse>(apiPath, fetcher, {
     refreshInterval: REFRESH_MS,
   });
-  const [ticket, setTicket] = useState<"high" | "low">("high");
+  const [ticket, setTicket] = useState<"high" | "low" | "renewal">("high");
 
   const saveStatus: SaveStatus = async (customer, edit) => {
     try {
@@ -815,6 +987,10 @@ export function UpsellPotentialBoard({ apiPath }: { apiPath: string }) {
   const tabs = [
     { key: "high" as const, label: "High Ticket", count: data?.summary.customers },
     { key: "low" as const, label: "Low Ticket", count: data?.lowTicket.summary.customers },
+    // Only offers with access rules set up have renewals to track.
+    ...(data?.renewals
+      ? [{ key: "renewal" as const, label: "Renewal", count: data.renewals.summary.tracked }]
+      : []),
   ];
 
   return (
@@ -837,10 +1013,12 @@ export function UpsellPotentialBoard({ apiPath }: { apiPath: string }) {
           </button>
         ))}
       </div>
-      {ticket === "high" ? (
-        <HighTicketList data={data} error={error} today={today} onSave={saveStatus} />
-      ) : (
+      {ticket === "renewal" && data?.renewals ? (
+        <RenewalList data={data} error={error} today={today} onSave={saveStatus} />
+      ) : ticket === "low" ? (
         <LowTicketList data={data} error={error} today={today} onSave={saveStatus} />
+      ) : (
+        <HighTicketList data={data} error={error} today={today} onSave={saveStatus} />
       )}
     </div>
   );
