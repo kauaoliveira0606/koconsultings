@@ -178,9 +178,9 @@ export default function OverviewPage() {
         <LiveCashToday apiPath="/api/bronson/overview/live-cash" />
       </DashboardSection>
 
-      {/* TIER 1 — KEYSTONE METRICS: the four numbers that answer "scale or pull the brake" */}
+      {/* TIER 1 — KEYSTONE METRICS: the five numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <StatCard
             label="Total Cash Collected"
             value={metrics?.totalCashCollected}
@@ -189,6 +189,16 @@ export default function OverviewPage() {
             subtext="Cash actually collected, not revenue booked — payment plans that never fully collect don't count here."
             status={kpiStatus(metrics?.totalCashCollected, goals?.totalCashCollected, "higher")}
             goal={kpiLabel(goals?.totalCashCollected, "higher", "currency")}
+          />
+          <StatCard
+            label="Paid ROAS"
+            value={leadSources?.paidRoas}
+            format="ratio"
+            size="lg"
+            override={!adsActive ? notActive : undefined}
+            subtext="Cash Collected (Paid) ÷ Ad Spend."
+            status={adsActive ? kpiStatus(leadSources?.paidRoas, goals?.roasTotal?.min, "higher") : null}
+            goal={adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null}
           />
           <StatCard
             label="Collected $ / Booked Call (HT)"
@@ -290,15 +300,6 @@ export default function OverviewPage() {
             value={metrics?.adSpend}
             format="currency"
             subtext="From Marketing Daily Metrics (Ad Spend Meta). $0.00 here is a real number — it means no paid spend ran in this range."
-          />
-          <StatCard
-            label="Paid ROAS"
-            value={leadSources?.paidRoas}
-            format="ratio"
-            override={!adsActive ? notActive : undefined}
-            subtext="Cash Collected (Paid) ÷ Ad Spend."
-            status={adsActive ? kpiStatus(leadSources?.paidRoas, goals?.roasTotal?.min, "higher") : null}
-            goal={adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null}
           />
         </StatCardGrid>
       </DashboardSection>
