@@ -4,8 +4,6 @@ import { RecentChanges } from "@/components/dashboard/RecentChanges";
 import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
-import { CashCalendar } from "@/components/dashboard/CashCalendar";
-import { PacingSection } from "@/components/dashboard/PacingSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
@@ -16,7 +14,6 @@ import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
 import { cellStatus, type GoalDirection } from "@/lib/weekly-scorecard";
 import type { GoalsConfig } from "@/lib/goals";
-import { WeeklyScorecard } from "./WeeklyScorecard";
 
 type MetricsResponse = {
   totalCashCollected: number | null;
@@ -615,16 +612,6 @@ export default function OverviewPage() {
 
       <DashboardSection title="Recent Changes">
         <RecentChanges apiPath="/api/bronson/overview/recent-changes" />
-      </DashboardSection>
-
-      <WeeklyScorecard />
-
-      <DashboardSection title="Cash Calendar">
-        <CashCalendar apiPath="/api/bronson/overview/cash-calendar" />
-      </DashboardSection>
-
-      <DashboardSection title="Pacing">
-        <PacingSection apiPath="/api/bronson/overview/pacing" />
       </DashboardSection>
 
       {/* Owner's own reference, not one of the offer's real stats — kept last. */}

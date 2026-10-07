@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { href: "/bronson/overview", label: "Overview" },
+  { href: "/bronson/scorecard", label: "Scorecard" },
+  { href: "/bronson/cash-calendar", label: "Cash Calendar" },
   { href: "/bronson/sales-team", label: "Sales Team" },
   { href: "/bronson/live-calls", label: "Live Calls" },
   { href: "/bronson/payment-plans", label: "Payment Plans" },

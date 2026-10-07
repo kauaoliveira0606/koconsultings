@@ -4,8 +4,6 @@ import { RecentChanges } from "@/components/dashboard/RecentChanges";
 import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
-import { CashCalendar } from "@/components/dashboard/CashCalendar";
-import { PacingSection } from "@/components/dashboard/PacingSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
@@ -15,7 +13,6 @@ import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
 import { cellStatus, type GoalDirection } from "@/lib/weekly-scorecard";
 import type { GoalsConfig } from "@/lib/goals";
-import { WeeklyScorecard } from "./WeeklyScorecard";
 
 type MetricsResponse = {
   totalCashCollected: number | null;
@@ -613,16 +610,6 @@ export default function OverviewPage() {
 
       <DashboardSection title="Recent Changes">
         <RecentChanges apiPath="/api/aval/overview/recent-changes" />
-      </DashboardSection>
-
-      <WeeklyScorecard />
-
-      <DashboardSection title="Cash Calendar">
-        <CashCalendar apiPath="/api/aval/overview/cash-calendar" />
-      </DashboardSection>
-
-      <DashboardSection title="Pacing">
-        <PacingSection apiPath="/api/aval/overview/pacing" />
       </DashboardSection>
     </div>
   );
