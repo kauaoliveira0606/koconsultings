@@ -144,17 +144,6 @@ function kpiLabel(
   return `${direction === "higher" ? "≥" : "≤"} ${formatStatValue(goal, format)}`;
 }
 
-function connectionSubtext(
-  data: ConnectionRateResponse | undefined,
-  source: "paid" | "organic",
-  tag: string
-): string {
-  const base = `Leads tagged "${tag}" with a 1+ min call ÷ ${source === "paid" ? "paid" : "organic"} opt-ins.`;
-  if (!data) return base;
-  const { connected, optIns } = data[source];
-  return `${connected} of ${optIns} opt-ins. ${base} Tracked since ${data.trackingStart}.`;
-}
-
 export default function OverviewPage() {
   const { range, setRange } = useSharedRange();
 
@@ -380,14 +369,25 @@ export default function OverviewPage() {
               ],
             },
             {
-              title: "Connection Rate",
-              value: metrics?.connectionRate,
-              formula: "Pickups ÷ Opt-Ins.",
-              status: kpiStatus(metrics?.connectionRate, goals?.connectionRate?.min, "higher"),
+              title: "Connection Rate (Paid)",
+              value: connectionRate?.paid.rate,
+              formula: "Paid leads with a 1+ min call ÷ paid opt-ins.",
+              status: kpiStatus(connectionRate?.paid.rate, goals?.connectionRate?.min, "higher"),
               goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
               inputs: [
-                { label: "Paid", value: connectionRate?.paid.rate, format: "percent", note: connectionSubtext(connectionRate, "paid", "Base44 Paid") },
-                { label: "Organic", value: connectionRate?.organic.rate, format: "percent", note: connectionSubtext(connectionRate, "organic", "Base44 Organic") },
+                { label: "Connected", value: connectionRate?.paid.connected, note: connectionRate ? `Tracked since ${connectionRate.trackingStart}.` : undefined },
+                { label: "Paid Opt-Ins", value: connectionRate?.paid.optIns },
+              ],
+            },
+            {
+              title: "Connection Rate (Organic)",
+              value: connectionRate?.organic.rate,
+              formula: "Organic leads with a 1+ min call ÷ organic opt-ins.",
+              status: kpiStatus(connectionRate?.organic.rate, goals?.connectionRate?.min, "higher"),
+              goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Connected", value: connectionRate?.organic.connected, note: connectionRate ? `Tracked since ${connectionRate.trackingStart}.` : undefined },
+                { label: "Organic Opt-Ins", value: connectionRate?.organic.optIns },
               ],
             },
             {
