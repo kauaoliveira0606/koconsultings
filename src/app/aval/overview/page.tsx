@@ -1,6 +1,5 @@
 "use client";
 
-import { RecentChanges } from "@/components/dashboard/RecentChanges";
 import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
@@ -641,9 +640,6 @@ export default function OverviewPage() {
         </p>
       </DashboardSection>
 
-      <DashboardSection title="Recent Changes">
-        <RecentChanges apiPath="/api/aval/overview/recent-changes" />
-      </DashboardSection>
     </div>
   );
 }

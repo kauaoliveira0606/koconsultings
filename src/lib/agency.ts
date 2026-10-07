@@ -310,7 +310,7 @@ export function profit(rows: DailyOfferRow[]): number {
   return sumMapValues(profitByDay(rows));
 }
 
-/** Bronson: 50% agency share of Paid profit (after ad spend + sales team + expenses + fees on paid high ticket), plus 20% of Organic top-line cash — per day. */
+/** Bronson: 50% agency share of Paid profit (after ad spend + sales team + expenses + fees on paid high ticket), plus 20% of Organic cash after its high ticket fees (nothing else comes off organic) — per day. */
 export function bronsonAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
@@ -318,7 +318,7 @@ export function bronsonAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, num
     const cashOrganic = r.ltCashOrganic + r.htCashOrganic;
     const { paid: payoutPaid } = sumSalesTeamPayout([r]);
     const paidProfit = cashPaid - r.adSpend - payoutPaid - r.expenses - (r.fees?.paid ?? 0);
-    map.set(r.date, 0.5 * paidProfit + 0.2 * cashOrganic);
+    map.set(r.date, 0.5 * paidProfit + 0.2 * (cashOrganic - (r.fees?.organic ?? 0)));
   }
   return map;
 }

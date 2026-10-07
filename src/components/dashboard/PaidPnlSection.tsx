@@ -38,7 +38,7 @@ function PnlCard({
 
 /**
  * Overview "PNL" for the selected range: what paid traffic brought in and
- * what came off it, then organic cash on its own (no deductions). Low ticket
+ * what came off it, then organic cash on its own (only its high ticket fees come off). Low ticket
  * is true (portal-attributed) cash, with the logged figure alongside.
  */
 export function PaidPnlSection({
@@ -93,7 +93,18 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.organicCash}
-            subtext="True cash: attributed low ticket + high ticket. Nothing comes off it."
+            subtext="True cash: attributed low ticket + high ticket."
+          />
+          <PnlCard
+            label="Fees"
+            value={data?.organicFees}
+            subtext="High ticket only: 3% processing, plus 15% on financed deals. The only thing that comes off organic."
+            cost
+          />
+          <PnlCard
+            label="Organic After Fees"
+            value={data ? data.organicCash - data.organicFees : undefined}
+            subtext="What your 20% is taken on."
           />
           <PnlCard
             label="Low Ticket (Attributed)"

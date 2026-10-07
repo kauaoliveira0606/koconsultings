@@ -1,6 +1,5 @@
 "use client";
 
-import { RecentChanges } from "@/components/dashboard/RecentChanges";
 import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
@@ -641,10 +640,6 @@ export default function OverviewPage() {
           From the Marketing Daily Metrics form — tracked starting 2026-09, so ranges before that
           will show no data.
         </p>
-      </DashboardSection>
-
-      <DashboardSection title="Recent Changes">
-        <RecentChanges apiPath="/api/bronson/overview/recent-changes" />
       </DashboardSection>
 
       {/* Owner's own reference, not one of the offer's real stats — kept last. */}

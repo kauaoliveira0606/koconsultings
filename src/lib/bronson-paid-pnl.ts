@@ -31,8 +31,10 @@ export type PaidPnl = {
   /** Processing + financing fees on paid high ticket cash (from October 2026). */
   fees: number;
   profit: number;
-  /** True organic cash — nothing comes off it. */
+  /** True organic cash, before its high ticket fees. */
   organicCash: number;
+  /** Processing + financing fees on organic high ticket cash (from October 2026): the only thing that comes off organic. */
+  organicFees: number;
   organicCashLowTicket: number;
   organicCashHighTicket: number;
   paidCashLowTicket: number;
@@ -48,7 +50,7 @@ export type PaidPnl = {
 
 /**
  * Bronson's paid-traffic P&L for a range — the base of the agency's 50%
- * profit share — plus the organic cash for the same range (no deductions). Same rows and rules as the Agency page: paid cash and ad
+ * profit share — plus the organic cash for the same range (only its high ticket fees come off). Same rows and rules as the Agency page: paid cash and ad
  * spend from the Marketing Daily Metrics form, actual paid-traffic sales team
  * commissions, and the monthly bills (booked on the 1st of their month).
  *
@@ -98,7 +100,7 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
   const salesTeamCommission = sumSalesTeamPayout(rows).paid;
   const adSpend = sumOf(rows, (r) => r.adSpend);
   const expensesTotal = sumOf(rows, (r) => r.expenses);
-  const fees = sumFees(rows).paid;
+  const { paid: fees, organic: organicFees } = sumFees(rows);
   return {
     cash,
     salesTeamCommission,
@@ -107,6 +109,7 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
     fees,
     profit: cash - salesTeamCommission - adSpend - expensesTotal - fees,
     organicCash: organicCashLowTicket + organicCashHighTicket,
+    organicFees,
     organicCashLowTicket,
     organicCashHighTicket,
     paidCashLowTicket,

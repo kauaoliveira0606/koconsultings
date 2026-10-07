@@ -1,4 +1,5 @@
 import { PacingSection } from "@/components/dashboard/PacingSection";
+import { RecentChanges } from "@/components/dashboard/RecentChanges";
 import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { WeeklyScorecardGrid } from "@/components/dashboard/WeeklyScorecardGrid";
 
@@ -9,6 +10,9 @@ export default function ScorecardPage() {
       <WeeklyScorecardGrid apiPath="/api/bronson/overview/weekly-scorecard" />
       <DashboardSection title="Pacing">
         <PacingSection apiPath="/api/bronson/overview/pacing" />
+      </DashboardSection>
+      <DashboardSection title="Recent Changes">
+        <RecentChanges apiPath="/api/bronson/overview/recent-changes" />
       </DashboardSection>
     </div>
   );
