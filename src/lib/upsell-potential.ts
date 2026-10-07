@@ -71,7 +71,7 @@ export type UpsellCustomer = Worked & {
   lastPurchase: string | null;
   cashCollected: number;
   dealValue: number;
-  /** Already took an upsell: a deal logged as an Upsell, or on the Upsell/Premium tier. */
+  /** Already took an upsell: a deal logged as an Upsell, or on the top tier (Upsell/Premium, Mastermind). */
   upsold: boolean;
   /** Marked churned on the Payment Plans tab. */
   churned: boolean;
@@ -292,7 +292,7 @@ export async function getUpsellPotential(offer: PaymentPlanOffer): Promise<Upsel
     if (name && name.length > (customer.name?.length ?? 0)) customer.name = name;
     customer.cashCollected += cash;
     customer.dealValue += revenue ?? 0;
-    customer.upsold ||= typeOfClose === "Upsell" || (offerName?.startsWith("Upsell") ?? false);
+    customer.upsold ||= typeOfClose === "Upsell" || /^(upsell|mastermind)/i.test(offerName ?? "");
     byCustomer.set(key, customer);
     if (!nameKeys.has(customer)) nameKeys.set(customer, nameKey(name));
   }

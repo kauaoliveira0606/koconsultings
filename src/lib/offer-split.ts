@@ -20,19 +20,22 @@ import { emailKey, nameKey, text, type PaymentPlanOffer } from "@/lib/payment-pl
 // Same table ID in every offer's base (the bases were cloned from one template).
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 
-/** Form answer -> the name the offer goes by on the dashboard. Order is how they are shown. */
+/**
+ * Form answer -> the name the offer goes by on the dashboard. Order is how
+ * they are shown. Matched by how the answer starts, not its full text: the
+ * price in brackets and the top tier's name get reworded in Airtable
+ * ("Mid tier ($3k-$4k)" / "Mid tier ($3k)", "Upsell/Premium" / "Mastermind").
+ */
 const OFFERS = [
-  { key: "downsell", label: "$1K Downsell", answer: "Downsell Package ($500-$1k)" },
-  { key: "mid", label: "$3K", answer: "Mid tier ($3k-$4k)" },
-  { key: "flagship", label: "$5K", answer: "Flagship ($5k)" },
-  { key: "upsell", label: "Upsell", answer: "Upsell/Premium ($8k+)" },
+  { key: "downsell", label: "$1K Downsell", match: /^downsell/i },
+  { key: "mid", label: "$3K", match: /^mid/i },
+  { key: "flagship", label: "$5K", match: /^flagship/i },
+  { key: "upsell", label: "Upsell", match: /^(upsell|premium|mastermind)/i },
 ] as const;
 
 export type OfferSplitRow = {
   key: string;
   label: string;
-  /** The form answer this row counts. */
-  answer: string | null;
   deals: number;
   /** Share of all purchases in the range, 0 to 1. Null when there are none. */
   share: number | null;
@@ -62,10 +65,15 @@ export function offerSplitGet(offer: PaymentPlanOffer) {
       }
     );
 
+    const empty = { deals: 0, share: null, cashCollected: 0, dealValue: 0 };
     const rows: OfferSplitRow[] = [
-      ...OFFERS.map((o) => ({ ...o, deals: 0, share: null, cashCollected: 0, dealValue: 0 })),
+      ...OFFERS.map((o) => ({
+        key: o.key,
+        label: o.key === "upsell" ? (offer.topOfferLabel ?? o.label) : o.label,
+        ...empty,
+      })),
       // A purchase logged with no offer picked (or "No Pitch"): only shown when there is one.
-      { key: "other", label: "No Offer Logged", answer: null, deals: 0, share: null, cashCollected: 0, dealValue: 0 },
+      { key: "other", label: "No Offer Logged", ...empty },
     ];
     const outcomes = { "Closed (PIF)": 0, "Payment Plan": 0, Deposit: 0 };
     const seen = new Set<string>();
@@ -79,8 +87,9 @@ export function offerSplitGet(offer: PaymentPlanOffer) {
       if (seen.has(dealKey)) continue;
       seen.add(dealKey);
       if (!isDateInRange(date, range)) continue;
-      const answer = text(f["Offer Pitched On/Closed"]);
-      const row = rows.find((r) => r.answer === answer) ?? rows[rows.length - 1];
+      const answer = text(f["Offer Pitched On/Closed"]) ?? "";
+      const index = OFFERS.findIndex((o) => o.match.test(answer));
+      const row = rows[index === -1 ? rows.length - 1 : index];
       row.deals += 1;
       if (typeof f["Call Outcome"] === "string" && f["Call Outcome"] in outcomes) {
         outcomes[f["Call Outcome"] as keyof typeof outcomes] += 1;

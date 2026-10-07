@@ -38,6 +38,7 @@ export const PAYMENT_PLAN_OFFERS = {
     baseId: "appiMw8gpaLv2WITA",
     updatesTableId: "tbl1ffNlJM40EyzFh",
     upsellStatusTableId: "tblznQunUKMX2zTVJ",
+    topOfferLabel: undefined as string | undefined,
     // Low ticket sales log, read by the Upsell Potential tab. Column names differ per base.
     affiliatePcn: {
       tableId: "tblXsKo89QNuRawBy",
@@ -49,6 +50,8 @@ export const PAYMENT_PLAN_OFFERS = {
     baseId: "appgEcTIxQjmtRKbP",
     updatesTableId: "tblqY5GaHBYTm1vVt",
     upsellStatusTableId: "tbl3Z2nWIR0iGRrEw",
+    // Aval's top offer on the post call note form is "Mastermind ($10k-$15k+)".
+    topOfferLabel: "Mastermind",
     affiliatePcn: { tableId: "tblFZy89IvQ6Dcsl0", repField: "Your Name", cashField: "CPA?" },
   },
 } as const;

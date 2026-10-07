@@ -508,7 +508,9 @@ export const {
 // the source of truth for pitch/close/lead-source breakdowns.
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 
-const HIGH_TICKET_TIERS = ["Mid tier ($3k-$4k)", "Flagship ($5k)"];
+// Matched by the start of the answer, not the full text: the price in brackets
+// gets reworded per base ("Mid tier ($3k-$4k)" on Bronson, "Mid tier ($3k)" on Aval).
+const HIGH_TICKET_TIER = /^(mid tier|flagship)/i;
 const CLOSED_OUTCOMES = ["Closed (PIF)", "Payment Plan"];
 
 export type PostCallNoteRow = {
@@ -581,7 +583,7 @@ export function wasPitched(row: PostCallNoteRow): boolean {
 }
 
 export function wasHighTicketPitched(row: PostCallNoteRow): boolean {
-  return !!row.offerPitched && HIGH_TICKET_TIERS.includes(row.offerPitched);
+  return !!row.offerPitched && HIGH_TICKET_TIER.test(row.offerPitched);
 }
 
 export function wasClosed(row: PostCallNoteRow): boolean {
