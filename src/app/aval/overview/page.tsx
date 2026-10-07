@@ -19,6 +19,7 @@ type MetricsResponse = {
   collectedPerBookedCallHT: number | null;
   cashCollectedPerOptInPaid: number | null;
   netCash: number | null;
+  frontEndRoas: number | null;
   netRoas: number | null;
   processingFees: number | null;
   financingFees: number | null;
@@ -182,9 +183,9 @@ export default function OverviewPage() {
         <LiveCashToday apiPath="/api/aval/overview/live-cash" />
       </DashboardSection>
 
-      {/* TIER 1 — KEYSTONE METRICS: the six numbers that answer "scale or pull the brake" */}
+      {/* TIER 1 — KEYSTONE METRICS: the seven numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Total Cash Collected"
             value={metrics?.totalCashCollected}
@@ -226,12 +227,20 @@ export default function OverviewPage() {
             subtext="Cash Collected − Ad Spend − commissions (10%/20% weekday/weekend on Low Ticket, flat 15% on High Ticket) − processing and financing fees."
           />
           <StatCard
+            label="Front-End ROAS"
+            value={metrics?.frontEndRoas}
+            format="ratio"
+            size="lg"
+            override={!adsActive ? notActive : undefined}
+            subtext="Paid cash (low ticket + high ticket) after processing and financing fees ÷ Ad Spend."
+          />
+          <StatCard
             label="Net ROAS"
             value={metrics?.netRoas}
             format="ratio"
             size="lg"
             override={!adsActive ? notActive : undefined}
-            subtext="Paid cash (low ticket + high ticket) after processing and financing fees ÷ Ad Spend."
+            subtext="After all expenses: paid cash minus fees and sales team commissions ÷ Ad Spend."
           />
         </div>
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">

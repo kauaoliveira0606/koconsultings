@@ -132,13 +132,28 @@ export async function GET(request: NextRequest) {
     totalCashCollected !== null
       ? totalCashCollected - (adSpend ?? 0) - totalCommissions - fees.totalFees
       : null;
-  // Net ROAS: paid cash (low ticket + high ticket) after its fees, per ad dollar.
+  // Front-End ROAS: paid cash (low ticket + high ticket) after its fees, per ad dollar.
   const paidCash =
     cashLowTicketPaid !== null || cashHighTicketPaidForm !== null
       ? (cashLowTicketPaid ?? 0) + (cashHighTicketPaidForm ?? 0)
       : null;
-  const netRoas =
+  const frontEndRoas =
     adsActive && paidCash !== null ? safeDivide(paidCash - fees.paidFees, adSpend) : null;
+  // Net ROAS: the same, after the sales team's commissions on that paid cash too
+  // (10%/20% weekday/weekend on low ticket, flat 15% on high ticket).
+  const paidCommissions =
+    (sum(
+      inRangeMarketing.map((r) =>
+        r.date === null || r.cashCollectedLowTicketPaid === null
+          ? null
+          : r.cashCollectedLowTicketPaid * (isWeekendDate(r.date) ? 0.2 : 0.1)
+      )
+    ) ?? 0) +
+    (cashHighTicketPaidForm ?? 0) * 0.15;
+  const netRoas =
+    adsActive && paidCash !== null
+      ? safeDivide(paidCash - fees.paidFees - paidCommissions, adSpend)
+      : null;
 
   const costPerCallHT = adsActive ? safeDivide(adSpend, highTicketCallsBooked || null) : null;
 
@@ -195,6 +210,7 @@ export async function GET(request: NextRequest) {
     // not total cash — this is specifically the paid front-end's efficiency.
     cashCollectedPerOptInPaid: safeDivide(cashLowTicketPaid, optInsPaid),
     netCash,
+    frontEndRoas,
     netRoas,
     processingFees: fees.processingFees,
     financingFees: fees.financingFees,

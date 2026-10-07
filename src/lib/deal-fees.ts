@@ -19,8 +19,9 @@ import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
 import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
 import { emailKey, nameKey, text } from "@/lib/payment-plans";
 
-export const PROCESSING_FEE_RATE = 0.03;
-export const FINANCING_FEE_RATE = 0.15;
+import { FINANCING_FEE_RATE, PROCESSING_FEE_RATE } from "@/lib/deal-fee-rates";
+
+export { FINANCING_FEE_RATE, PROCESSING_FEE_RATE };
 
 // Same table IDs in every offer's base (the bases were cloned from one template).
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
@@ -33,11 +34,23 @@ export async function getFinancedHighTicketCash(
   baseId: string,
   range: ResolvedRange
 ): Promise<number> {
+  let financed = 0;
+  for (const [date, cash] of await getFinancedHighTicketCashByDay(baseId)) {
+    if (isDateInRange(date, range)) financed += cash;
+  }
+  return financed;
+}
+
+/** High ticket cash collected through a financing partner, per day, all time. */
+export async function getFinancedHighTicketCashByDay(baseId: string): Promise<Map<string, number>> {
   const [notes, followUps] = await Promise.all([
     airtableListAll<Record<string, unknown>>(baseId, POST_CALL_NOTE_TABLE_ID),
     airtableListAll<Record<string, unknown>>(baseId, FOLLOW_UP_PAYMENT_TABLE_ID),
   ]);
-  let financed = 0;
+  const byDay = new Map<string, number>();
+  const add = (date: string | null, cash: number) => {
+    if (date) byDay.set(date, (byDay.get(date) ?? 0) + cash);
+  };
   // The same deal logged twice (same lead, outcome and deal size) counts once.
   const seen = new Set<string>();
   for (const { id, fields: f } of notes) {
@@ -47,14 +60,14 @@ export async function getFinancedHighTicketCash(
     const key = `${lead}|${f["Call Outcome"]}|${parseNumericText(f["Total Revenue"]) ?? ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (isDateInRange(parseDateOnly(f.Date), range)) financed += cash;
+    add(parseDateOnly(f.Date), cash);
   }
   for (const { fields: f } of followUps) {
     const cash = parseNumericText(f["Cash Collected"]);
     if (!cash || !isFinanced(f["Where Was Payment Collected On"])) continue;
-    if (isDateInRange(parseDateOnly(f["Payment Collected Date"]), range)) financed += cash;
+    add(parseDateOnly(f["Payment Collected Date"]), cash);
   }
-  return financed;
+  return byDay;
 }
 
 /**

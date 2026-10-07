@@ -1,8 +1,11 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
-import { getMarketingDailyMetrics as getBronsonMarketingDailyMetrics } from "@/lib/airtable/tables";
-import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
+import {
+  BRONSON_BASE_ID,
+  getMarketingDailyMetrics as getBronsonMarketingDailyMetrics,
+} from "@/lib/airtable/tables";
+import { AVAL_BASE_ID, getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
 import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
 import {
   EXPENSE_TABLES,
@@ -18,10 +21,12 @@ import {
   withAttributedLowTicket,
   withBronsonActualCommissions,
   withAvalProfitSplit,
+  withDealFees,
   sumCash,
   sumAdSpend,
   sumExpenses,
   sumSalesTeamPayout,
+  sumFees,
   profit,
   bronsonAgencyProfit,
   avalAgencyProfit,
@@ -30,6 +35,7 @@ import {
   ecomSimSalesManagerCut,
   type DailyOfferRow,
 } from "@/lib/agency";
+import { getFinancedHighTicketCashByDay } from "@/lib/deal-fees";
 import {
   COMMISSIONS_OFFERS,
   getPaidCommissionsByDay,
@@ -40,7 +46,9 @@ export const revalidate = 60;
 
 function clientSummary(rows: DailyOfferRow[]) {
   const { paid, organic } = sumSalesTeamPayout(rows);
+  const fees = sumFees(rows);
   return {
+    fees: fees.paid + fees.organic,
     cash: sumCash(rows),
     adSpend: sumAdSpend(rows),
     salesTeamPayout: paid + organic,
@@ -60,6 +68,8 @@ export async function GET(request: NextRequest) {
     ecomExpenses,
     bronsonPaidCommissions,
     bronsonPortalCash,
+    bronsonFinanced,
+    avalFinanced,
   ] = await Promise.all([
     getBronsonMarketingDailyMetrics(),
     getAvalMarketingDailyMetrics(),
@@ -68,6 +78,8 @@ export async function GET(request: NextRequest) {
     listExpenses(EXPENSE_TABLES.ecomSimulation),
     getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
     getPortalCashByDay(COMMISSIONS_OFFERS.bronson),
+    getFinancedHighTicketCashByDay(BRONSON_BASE_ID),
+    getFinancedHighTicketCashByDay(AVAL_BASE_ID),
   ]);
 
   // Everything — cash, ad spend, Paid/Organic splits — comes straight from
@@ -80,15 +92,22 @@ export async function GET(request: NextRequest) {
   const bronsonEffectiveExpenses = effectiveExpenses(EXPENSE_TABLES.bronson, bronsonExpenses);
   // Bronson's low ticket cash is TRUE cash (what the affiliate portal tracked
   // and pays), not what was logged on the form.
-  const bronsonAllRows = withAttributedLowTicket(
-    withBronsonActualCommissions(
-      buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonEffectiveExpenses)),
-      bronsonPaidCommissions
+  // Processing and financing fees on high ticket cash come off both clients' profit.
+  const bronsonAllRows = withDealFees(
+    withAttributedLowTicket(
+      withBronsonActualCommissions(
+        buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonEffectiveExpenses)),
+        bronsonPaidCommissions
+      ),
+      bronsonPortalCash
     ),
-    bronsonPortalCash
+    bronsonFinanced
   );
   // Aval stays on logged cash: it is paid out differently, per the client.
-  const avalAllRows = withAvalProfitSplit(buildDailyOfferRows(avalMarketing));
+  const avalAllRows = withDealFees(
+    withAvalProfitSplit(buildDailyOfferRows(avalMarketing)),
+    avalFinanced
+  );
   const ecomAllRows = untilAndyLeft(
     buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses))
   );
@@ -133,6 +152,7 @@ export async function GET(request: NextRequest) {
   const totalExpenses = bronson.expenses + aval.expenses + ecomSimulation.expenses;
   const totalSalesTeamPayout =
     bronson.salesTeamPayout + aval.salesTeamPayout + ecomSimulation.salesTeamPayout;
+  const totalFees = bronson.fees + aval.fees + ecomSimulation.fees;
   const totalAgencyProfit = bronson.agencyProfit + aval.agencyProfit + ecomSimulation.agencyProfit;
   const salesManagerCut =
     bronson.salesManagerCut + aval.salesManagerCut + ecomSimulation.salesManagerCut;
@@ -158,6 +178,7 @@ export async function GET(request: NextRequest) {
     totalProfit,
     totalSalesTeamPayout,
     totalExpenses,
+    totalFees,
     totalAgencyProfit,
     salesManagerCut,
     myProfit,

@@ -14,6 +14,7 @@ type ClientMetrics = {
   adSpend: number;
   salesTeamPayout: number;
   expenses: number;
+  fees: number;
   profit: number;
   agencyProfit: number;
   salesManagerCut: number;
@@ -26,6 +27,7 @@ type MetricsResponse = {
   totalProfit: number;
   totalSalesTeamPayout: number;
   totalExpenses: number;
+  totalFees: number;
   totalAgencyProfit: number;
   salesManagerCut: number;
   myProfit: number;
@@ -57,6 +59,7 @@ export default function AgencyPage() {
         profit: data.totalProfit,
         salesTeamPayout: data.totalSalesTeamPayout,
         expenses: data.totalExpenses,
+        fees: data.totalFees,
         agencyProfit: data.totalAgencyProfit,
         salesManagerCut: data.salesManagerCut,
         personalProfit: data.myProfit,
@@ -78,8 +81,9 @@ export default function AgencyPage() {
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
             Every client combined. Bronson&apos;s low ticket is real cash: what the affiliate portal
-            actually tracked, not what was logged. Ad spend, sales team payouts and expenses come off first,
-            then each offer&apos;s profit-share.
+            actually tracked, not what was logged. Ad spend, sales team payouts, expenses and high ticket
+            fees (3% processing, plus 15% on financed deals, from October 2026) come off first, then each
+            offer&apos;s profit-share.
           </p>
         </div>
         <RangeFilterBar value={range} onChange={setRange} />
@@ -103,7 +107,7 @@ export default function AgencyPage() {
           value={data?.totalProfit}
           format="currency"
           size="lg"
-          subtext="Cash − Ad Spend − Sales Team Payouts − Expenses, across all clients."
+          subtext="Cash − Ad Spend − Sales Team Payouts − Expenses − Fees, across all clients."
         />
         <StatCard
           label="Total Sales Team Payouts"
@@ -187,6 +191,7 @@ export default function AgencyPage() {
                 <th className="px-4 py-3 text-right">Profit</th>
                 <th className="px-4 py-3 text-right">Sales Team Payout</th>
                 <th className="px-4 py-3 text-right">Expenses</th>
+                <th className="px-4 py-3 text-right">Fees</th>
                 <th className="px-4 py-3 text-right">Agency Profit</th>
                 {hasSalesManagerCut && (
                   <th className="px-4 py-3 text-right">Sales Manager Payout</th>
@@ -218,6 +223,9 @@ export default function AgencyPage() {
                     <td className="px-4 py-3 text-right text-red-400">
                       {formatStatValue(c?.expenses, "currency")}
                     </td>
+                    <td className="px-4 py-3 text-right text-red-400">
+                      {formatStatValue(c?.fees, "currency")}
+                    </td>
                     <td className="px-4 py-3 text-right font-semibold text-emerald-400">
                       {formatStatValue(c?.agencyProfit, "currency")}
                     </td>
@@ -242,6 +250,9 @@ export default function AgencyPage() {
                 </td>
                 <td className="px-4 py-3 text-right text-red-400">
                   {formatStatValue(totalRow?.expenses, "currency")}
+                </td>
+                <td className="px-4 py-3 text-right text-red-400">
+                  {formatStatValue(totalRow?.fees, "currency")}
                 </td>
                 <td className="px-4 py-3 text-right text-emerald-400">
                   {formatStatValue(totalRow?.agencyProfit, "currency")}

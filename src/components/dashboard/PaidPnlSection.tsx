@@ -75,9 +75,15 @@ export function PaidPnlSection({
             cost
           />
           <PnlCard
+            label="Fees"
+            value={data?.fees}
+            subtext="High ticket only: 3% processing, plus 15% on financed deals. From October 2026."
+            cost
+          />
+          <PnlCard
             label="Paid Profit"
             value={data?.profit}
-            subtext="True cash minus the three costs."
+            subtext="True cash minus the four costs."
           />
         </div>
       </DashboardSection>

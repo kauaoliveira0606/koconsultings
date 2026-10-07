@@ -5,6 +5,7 @@
  * stays isolated to its own base; this is the deliberate aggregator.
  */
 import { isDateInRange, type ResolvedRange } from "./date-range";
+import { FINANCING_FEE_RATE, PROCESSING_FEE_RATE } from "./deal-fee-rates";
 import { sumByDate } from "./metrics";
 
 /** Data before this date is out of scope for the agency rollup entirely, per the client. */
@@ -20,6 +21,9 @@ export function untilAndyLeft<T extends { date: string }>(rows: T[]): T[] {
 
 /** Aval moved from a revenue share to a profit split on this day: sales team commissions come off before the 11.5%. */
 export const AVAL_PROFIT_SPLIT_FROM = "2026-10-01";
+
+/** Processing and financing fees on high ticket cash come off profit from this day (agreed 2026-10-07). */
+export const DEAL_FEES_FROM = "2026-10-01";
 
 /** Last day there was a sales manager; no 5% cut on anything dated after it. */
 export const SALES_MANAGER_LAST_DAY = "2026-09-30";
@@ -46,6 +50,8 @@ export type DailyOfferRow = {
   expenses: number;
   /** Set when the offer's sales team payout is known rather than estimated from cash (Bronson, Aval's revenue-share days). */
   salesTeamPayout?: { paid: number; organic: number };
+  /** Processing + financing fees on that day's high ticket cash, by traffic source. Set by `withDealFees`. */
+  fees?: { paid: number; organic: number };
 };
 
 type MarketingRowLike = {
@@ -154,6 +160,56 @@ export function sumExpenses(rows: DailyOfferRow[]): number {
   return rows.reduce((total, r) => total + r.expenses, 0);
 }
 
+export function sumFees(rows: DailyOfferRow[]): { paid: number; organic: number } {
+  let paid = 0;
+  let organic = 0;
+  for (const r of rows) {
+    paid += r.fees?.paid ?? 0;
+    organic += r.fees?.organic ?? 0;
+  }
+  return { paid, organic };
+}
+
+/**
+ * Fees that come off high ticket cash before profit, from `DEAL_FEES_FROM`:
+ * 3% processing on every high ticket dollar, plus a further 15% on financed
+ * deals. Low ticket carries none (it is an affiliate payout, not a payment
+ * we process).
+ *
+ * `financedByDay` is high ticket cash paid through a financing partner, from
+ * the post call notes and follow up payments. Those are dated per deal and
+ * don't say Paid or Organic, while the cash here is the form's daily figure,
+ * so each calendar month's financing fee is spread over that month's high
+ * ticket cash in proportion (and never charged on more cash than the form has).
+ */
+export function withDealFees(
+  rows: DailyOfferRow[],
+  financedByDay: Map<string, number>
+): DailyOfferRow[] {
+  const htByMonth = new Map<string, number>();
+  for (const r of rows) {
+    if (r.date < DEAL_FEES_FROM) continue;
+    const month = r.date.slice(0, 7);
+    htByMonth.set(month, (htByMonth.get(month) ?? 0) + r.htCashPaid + r.htCashOrganic);
+  }
+  const financedByMonth = new Map<string, number>();
+  for (const [date, cash] of financedByDay) {
+    if (date < DEAL_FEES_FROM) continue;
+    const month = date.slice(0, 7);
+    financedByMonth.set(month, (financedByMonth.get(month) ?? 0) + cash);
+  }
+  return rows.map((r) => {
+    if (r.date < DEAL_FEES_FROM) return r;
+    const month = r.date.slice(0, 7);
+    const monthHt = htByMonth.get(month) ?? 0;
+    const financed = Math.min(financedByMonth.get(month) ?? 0, monthHt);
+    // Share of the month's high ticket cash that was financed.
+    const financedShare = monthHt > 0 ? financed / monthHt : 0;
+    const rate = PROCESSING_FEE_RATE + FINANCING_FEE_RATE * financedShare;
+    return { ...r, fees: { paid: r.htCashPaid * rate, organic: r.htCashOrganic * rate } };
+  });
+}
+
 /** Total sales team commission, split by Paid vs Organic traffic. */
 export function sumSalesTeamPayout(rows: DailyOfferRow[]): { paid: number; organic: number } {
   let paid = 0;
@@ -244,7 +300,8 @@ export function profitByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
     const { paid, organic } = sumSalesTeamPayout([r]);
-    map.set(r.date, cash(r) - r.adSpend - (paid + organic) - r.expenses);
+    const fees = (r.fees?.paid ?? 0) + (r.fees?.organic ?? 0);
+    map.set(r.date, cash(r) - r.adSpend - (paid + organic) - r.expenses - fees);
   }
   return map;
 }
@@ -253,14 +310,14 @@ export function profit(rows: DailyOfferRow[]): number {
   return sumMapValues(profitByDay(rows));
 }
 
-/** Bronson: 50% agency share of Paid profit (after ad spend + sales team + expenses), plus 20% of Organic top-line cash — per day. */
+/** Bronson: 50% agency share of Paid profit (after ad spend + sales team + expenses + fees on paid high ticket), plus 20% of Organic top-line cash — per day. */
 export function bronsonAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
     const cashPaid = r.ltCashPaid + r.htCashPaid;
     const cashOrganic = r.ltCashOrganic + r.htCashOrganic;
     const { paid: payoutPaid } = sumSalesTeamPayout([r]);
-    const paidProfit = cashPaid - r.adSpend - payoutPaid - r.expenses;
+    const paidProfit = cashPaid - r.adSpend - payoutPaid - r.expenses - (r.fees?.paid ?? 0);
     map.set(r.date, 0.5 * paidProfit + 0.2 * cashOrganic);
   }
   return map;
@@ -282,12 +339,13 @@ export function withAvalProfitSplit(rows: DailyOfferRow[]): DailyOfferRow[] {
   );
 }
 
-/** Aval: 11.5% of (cash minus ad spend minus sales team) — no expenses — per day. Rows must come through `withAvalProfitSplit`. */
+/** Aval: 11.5% of (cash minus ad spend, sales team and high ticket fees) — no expenses — per day. Rows must come through `withAvalProfitSplit`. */
 export function avalAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
     const { paid, organic } = sumSalesTeamPayout([r]);
-    map.set(r.date, 0.115 * (cash(r) - r.adSpend - paid - organic));
+    const fees = (r.fees?.paid ?? 0) + (r.fees?.organic ?? 0);
+    map.set(r.date, 0.115 * (cash(r) - r.adSpend - paid - organic - fees));
   }
   return map;
 }

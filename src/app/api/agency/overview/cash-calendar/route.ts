@@ -1,6 +1,9 @@
 import type { NextRequest } from "next/server";
-import { getMarketingDailyMetrics as getBronsonMarketingDailyMetrics } from "@/lib/airtable/tables";
-import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
+import {
+  BRONSON_BASE_ID,
+  getMarketingDailyMetrics as getBronsonMarketingDailyMetrics,
+} from "@/lib/airtable/tables";
+import { AVAL_BASE_ID, getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
 import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
 import {
   EXPENSE_TABLES,
@@ -14,6 +17,7 @@ import {
   withAttributedLowTicket,
   withBronsonActualCommissions,
   withAvalProfitSplit,
+  withDealFees,
   cash,
   bronsonAgencyProfitByDay,
   avalAgencyProfitByDay,
@@ -22,6 +26,7 @@ import {
   ecomSimSalesManagerCutByDay,
   type DailyOfferRow,
 } from "@/lib/agency";
+import { getFinancedHighTicketCashByDay } from "@/lib/deal-fees";
 import {
   COMMISSIONS_OFFERS,
   getPaidCommissionsByDay,
@@ -55,6 +60,8 @@ export async function GET(request: NextRequest) {
     ecomExpenses,
     bronsonPaidCommissions,
     bronsonPortalCash,
+    bronsonFinanced,
+    avalFinanced,
   ] = await Promise.all([
     getBronsonMarketingDailyMetrics(),
     getAvalMarketingDailyMetrics(),
@@ -63,24 +70,32 @@ export async function GET(request: NextRequest) {
     listExpenses(EXPENSE_TABLES.ecomSimulation),
     getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
     getPortalCashByDay(COMMISSIONS_OFFERS.bronson),
+    getFinancedHighTicketCashByDay(BRONSON_BASE_ID),
+    getFinancedHighTicketCashByDay(AVAL_BASE_ID),
   ]);
 
   // Everything comes straight from each offer's Marketing Daily Metrics
   // table, per the client — no EOD Closer / Affiliate EOD blending.
   // Bronson's low ticket is true (portal-attributed) cash, not the logged
   // figure — same as the metrics route.
-  const bronsonRows = withAttributedLowTicket(
-    withBronsonActualCommissions(
-      buildDailyOfferRows(
-        bronsonMarketing,
-        expensesByMonth(effectiveExpenses(EXPENSE_TABLES.bronson, bronsonExpenses))
+  const bronsonRows = withDealFees(
+    withAttributedLowTicket(
+      withBronsonActualCommissions(
+        buildDailyOfferRows(
+          bronsonMarketing,
+          expensesByMonth(effectiveExpenses(EXPENSE_TABLES.bronson, bronsonExpenses))
+        ),
+        bronsonPaidCommissions
       ),
-      bronsonPaidCommissions
+      bronsonPortalCash
     ),
-    bronsonPortalCash
+    bronsonFinanced
   );
   // Aval stays on logged cash: it is paid out differently, per the client.
-  const avalRows = withAvalProfitSplit(buildDailyOfferRows(avalMarketing));
+  const avalRows = withDealFees(
+    withAvalProfitSplit(buildDailyOfferRows(avalMarketing)),
+    avalFinanced
+  );
   const ecomRows = untilAndyLeft(buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses)));
 
   const bronsonAgencyByDay = bronsonAgencyProfitByDay(bronsonRows);

@@ -1,12 +1,15 @@
 import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
 import {
   buildDailyOfferRows,
+  sumFees,
   sumSalesTeamPayout,
   withAttributedLowTicket,
   withBronsonActualCommissions,
+  withDealFees,
   type DailyOfferRow,
 } from "@/lib/agency";
-import { getMarketingDailyMetrics } from "@/lib/airtable/tables";
+import { BRONSON_BASE_ID, getMarketingDailyMetrics } from "@/lib/airtable/tables";
+import { getFinancedHighTicketCashByDay } from "@/lib/deal-fees";
 import {
   COMMISSIONS_OFFERS,
   getPaidCommissionsByDay,
@@ -25,6 +28,8 @@ export type PaidPnl = {
   salesTeamCommission: number;
   adSpend: number;
   expenses: number;
+  /** Processing + financing fees on paid high ticket cash (from October 2026). */
+  fees: number;
   profit: number;
   /** True organic cash — nothing comes off it. */
   organicCash: number;
@@ -55,11 +60,12 @@ export type PaidPnl = {
  */
 export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> {
   const offer = COMMISSIONS_OFFERS.bronson;
-  const [marketing, expenses, paidCommissions, portalCashByDay] = await Promise.all([
+  const [marketing, expenses, paidCommissions, portalCashByDay, financedByDay] = await Promise.all([
     getMarketingDailyMetrics(),
     listExpenses(EXPENSE_TABLES.bronson),
     getPaidCommissionsByDay(offer),
     getPortalCashByDay(offer),
+    getFinancedHighTicketCashByDay(BRONSON_BASE_ID),
   ]);
   const loggedRows = withBronsonActualCommissions(
     buildDailyOfferRows(
@@ -71,7 +77,10 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
   const inRange = (r: DailyOfferRow) => isDateInRange(r.date, range);
   const logged = loggedRows.filter(inRange);
   // Exactly the rows the Agency page uses, so the two always agree.
-  const rows = withAttributedLowTicket(loggedRows, portalCashByDay).filter(inRange);
+  const rows = withDealFees(
+    withAttributedLowTicket(loggedRows, portalCashByDay),
+    financedByDay
+  ).filter(inRange);
 
   const sumOf = (list: DailyOfferRow[], pick: (r: DailyOfferRow) => number) =>
     list.reduce((t, r) => t + pick(r), 0);
@@ -89,12 +98,14 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
   const salesTeamCommission = sumSalesTeamPayout(rows).paid;
   const adSpend = sumOf(rows, (r) => r.adSpend);
   const expensesTotal = sumOf(rows, (r) => r.expenses);
+  const fees = sumFees(rows).paid;
   return {
     cash,
     salesTeamCommission,
     adSpend,
     expenses: expensesTotal,
-    profit: cash - salesTeamCommission - adSpend - expensesTotal,
+    fees,
+    profit: cash - salesTeamCommission - adSpend - expensesTotal - fees,
     organicCash: organicCashLowTicket + organicCashHighTicket,
     organicCashLowTicket,
     organicCashHighTicket,
