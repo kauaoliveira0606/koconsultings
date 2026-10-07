@@ -28,7 +28,7 @@ const STATUS_COLOR: Record<Exclude<StatCardStatus, null>, string> = {
  */
 export function MetricGroups({ groups }: { groups: MetricGroup[] }) {
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <div className={`grid grid-cols-1 gap-4 ${groups.length === 2 ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
       {groups.map((group) => (
         <div
           key={group.title}

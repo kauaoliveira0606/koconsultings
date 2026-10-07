@@ -46,6 +46,7 @@ type MetricsResponse = {
   costPerLeadPaid: number | null;
 
   pickups: number | null;
+  dials: number | null;
   pickupRate: number | null;
   softwarePitched: number | null;
   pitchRate: number | null;
@@ -63,6 +64,8 @@ type MetricsResponse = {
   highTicketCloseRate: number | null;
   highTicketBookingRateFromLowTicket: number | null;
   highTicketPitchRate: number | null;
+  softwareClosed: number | null;
+  highTicketCallsPitched: number | null;
   newHighTicketCallsBooked: number | null;
   revenueHighTicket: number | null;
 
@@ -306,73 +309,110 @@ export default function OverviewPage() {
 
       {/* TIER 3 — ACQUISITION & LEAD FLOW */}
       <DashboardSection title="Acquisition & Lead Flow">
-        <StatCardGrid>
-          <StatCard
-            label="Opt-Ins (Paid)"
-            value={metrics?.optInsPaid}
-            format="number"
-            subtext="Real count from the Leads table, source = Paid."
-            status={kpiStatus(metrics?.optInsPaid, goals?.optInsPaid, "higher")}
-            goal={kpiLabel(goals?.optInsPaid, "higher", "number")}
-          />
-          <StatCard
-            label="Opt-Ins (Organic)"
-            value={metrics?.optInsOrganic}
-            format="number"
-            subtext="Real count from the Leads table, source = Organic."
-            status={kpiStatus(metrics?.optInsOrganic, goals?.optInsOrganic, "higher")}
-            goal={kpiLabel(goals?.optInsOrganic, "higher", "number")}
-          />
-          <StatCard
-            label="Cost Per Lead (Paid)"
-            value={metrics?.costPerLeadPaid}
-            format="currency"
-            override={!adsActive ? notActive : undefined}
-            subtext="Straight from the Marketing Daily Metrics form — no calculation needed."
-            status={adsActive ? kpiStatus(metrics?.costPerLeadPaid, goals?.costPerLeadMeta?.max, "lower") : null}
-            goal={adsActive ? kpiLabel(goals?.costPerLeadMeta?.max, "lower", "currency") : null}
-          />
-          <StatCard
-            label="Landing Page Connect Rate"
-            value={metrics?.landingPageConnectRate}
-            format="percent"
-            subtext="From the Marketing Daily Metrics form, averaged across days in range."
-            status={kpiStatus(metrics?.landingPageConnectRate, goals?.landingPageConnectRate?.min, "higher")}
-            goal={kpiLabel(goals?.landingPageConnectRate?.min, "higher", "percent")}
-          />
-          <StatCard
-            label="Opt-In Rate (Paid)"
-            value={metrics?.optInRate}
-            format="percent"
-            subtext="From the form; if blank, paid leads ÷ VSL views (VTurb)."
-            status={kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher")}
-            goal={kpiLabel(goals?.optInRate?.min, "higher", "percent")}
-          />
-        </StatCardGrid>
+        <MetricGroups
+          groups={[
+            {
+              title: "Opt-Ins",
+              metrics: [
+                {
+                  label: "Opt-Ins (Paid)",
+                  value: metrics?.optInsPaid,
+                  format: "number",
+                  subtext: "Leads table, source = Paid.",
+                  status: kpiStatus(metrics?.optInsPaid, goals?.optInsPaid, "higher"),
+                  goal: kpiLabel(goals?.optInsPaid, "higher", "number"),
+                },
+                {
+                  label: "Opt-Ins (Organic)",
+                  value: metrics?.optInsOrganic,
+                  format: "number",
+                  subtext: "Leads table, source = Organic.",
+                  status: kpiStatus(metrics?.optInsOrganic, goals?.optInsOrganic, "higher"),
+                  goal: kpiLabel(goals?.optInsOrganic, "higher", "number"),
+                },
+              ],
+            },
+            {
+              title: "Paid Funnel",
+              metrics: [
+                {
+                  label: "Cost Per Lead (Paid)",
+                  value: metrics?.costPerLeadPaid,
+                  format: "currency",
+                  override: !adsActive ? notActive : undefined,
+                  subtext: "From the daily metrics form.",
+                  status: adsActive ? kpiStatus(metrics?.costPerLeadPaid, goals?.costPerLeadMeta?.max, "lower") : null,
+                  goal: adsActive ? kpiLabel(goals?.costPerLeadMeta?.max, "lower", "currency") : null,
+                },
+                {
+                  label: "Opt-In Rate (Paid)",
+                  value: metrics?.optInRate,
+                  format: "percent",
+                  subtext: "From the form; if blank, paid leads ÷ VSL views.",
+                  status: kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher"),
+                  goal: kpiLabel(goals?.optInRate?.min, "higher", "percent"),
+                },
+                {
+                  label: "Landing Page Connect Rate",
+                  value: metrics?.landingPageConnectRate,
+                  format: "percent",
+                  subtext: "From the form, averaged across the days in range.",
+                  status: kpiStatus(metrics?.landingPageConnectRate, goals?.landingPageConnectRate?.min, "higher"),
+                  goal: kpiLabel(goals?.landingPageConnectRate?.min, "higher", "percent"),
+                },
+              ],
+            },
+          ]}
+        />
       </DashboardSection>
 
-      {/* TIER 4 — FRONT-END SALES CONVERSION */}
+      {/* TIER 4 — FRONT-END SALES CONVERSION: the setter funnel left to right, dial to close */}
       <DashboardSection title="Front-End Sales Conversion">
-        <StatCardGrid>
-          <StatCard label="Pickups" value={metrics?.pickups} format="number" subtext="Affiliate EOD, summed across setters." />
-          <StatCard
-            label="Pickup Rate"
-            value={metrics?.pickupRate}
-            format="percent"
-            subtext="Pickups ÷ Dials."
-          />
-          <StatCard
-            label="Software Pitched"
-            value={metrics?.softwarePitched}
-            format="number"
-            subtext="Low-ticket software pitches, from Affiliate EOD."
-          />
-          <StatCard
-            label="Pitch Rate"
-            value={metrics?.pitchRate}
-            format="percent"
-            subtext="Software Pitched ÷ Pickups."
-          />
+        <RateColumns
+          columns={[
+            {
+              title: "Pickup Rate",
+              value: metrics?.pickupRate,
+              formula: "Pickups ÷ Dials.",
+              inputs: [
+                { label: "Pickups", value: metrics?.pickups, note: "Setters' Affiliate EOD." },
+                { label: "Dials", value: metrics?.dials },
+              ],
+            },
+            {
+              title: "Connection Rate",
+              value: metrics?.connectionRate,
+              formula: "Pickups ÷ Opt-Ins.",
+              status: kpiStatus(metrics?.connectionRate, goals?.connectionRate?.min, "higher"),
+              goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Paid", value: connectionRate?.paid.rate, format: "percent", note: connectionSubtext(connectionRate, "paid", "Base44 Paid") },
+                { label: "Organic", value: connectionRate?.organic.rate, format: "percent", note: connectionSubtext(connectionRate, "organic", "Base44 Organic") },
+              ],
+            },
+            {
+              title: "Pitch Rate",
+              value: metrics?.pitchRate,
+              formula: "Software Pitched ÷ Pickups.",
+              inputs: [
+                { label: "Software Pitched", value: metrics?.softwarePitched, note: "Setters' Affiliate EOD." },
+                { label: "Pickups", value: metrics?.pickups },
+              ],
+            },
+            {
+              title: "Close Rate (Low Ticket)",
+              value: metrics?.closeRateLowTicket,
+              formula: "Software Closed ÷ Software Pitched.",
+              status: kpiStatus(metrics?.closeRateLowTicket, goals?.closeRateLowTicket?.min, "higher"),
+              goal: kpiLabel(goals?.closeRateLowTicket?.min, "higher", "percent"),
+              inputs: [
+                { label: "Software Closed", value: metrics?.softwareClosed },
+                { label: "Software Pitched", value: metrics?.softwarePitched },
+              ],
+            },
+          ]}
+        />
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard
             label="Sales — Low Ticket"
             value={metrics?.sales}
@@ -380,14 +420,6 @@ export default function OverviewPage() {
             subtext="From Marketing Daily Metrics."
             status={kpiStatus(metrics?.sales, goals?.salesLowTicket, "higher")}
             goal={kpiLabel(goals?.salesLowTicket, "higher", "number")}
-          />
-          <StatCard
-            label="Close Rate — Low Ticket"
-            value={metrics?.closeRateLowTicket}
-            format="percent"
-            subtext="Software Closed ÷ Software Pitched."
-            status={kpiStatus(metrics?.closeRateLowTicket, goals?.closeRateLowTicket?.min, "higher")}
-            goal={kpiLabel(goals?.closeRateLowTicket?.min, "higher", "percent")}
           />
           <StatCard
             label="AOV — Low Ticket"
@@ -401,27 +433,7 @@ export default function OverviewPage() {
             format="currency"
             subtext="Cash Collected — High Ticket ÷ HT Deals Closed."
           />
-          <StatCard
-            label="Connection Rate"
-            value={metrics?.connectionRate}
-            format="percent"
-            subtext="Pickups ÷ Opt-Ins."
-            status={kpiStatus(metrics?.connectionRate, goals?.connectionRate?.min, "higher")}
-            goal={kpiLabel(goals?.connectionRate?.min, "higher", "percent")}
-          />
-          <StatCard
-            label="Connection Rate (Paid)"
-            value={connectionRate?.paid.rate}
-            format="percent"
-            subtext={connectionSubtext(connectionRate, "paid", "Base44 Paid")}
-          />
-          <StatCard
-            label="Connection Rate (Organic)"
-            value={connectionRate?.organic.rate}
-            format="percent"
-            subtext={connectionSubtext(connectionRate, "organic", "Base44 Organic")}
-          />
-        </StatCardGrid>
+        </div>
       </DashboardSection>
 
       {/* TIER 5 — HIGH-TICKET BACKEND */}
@@ -453,10 +465,10 @@ export default function OverviewPage() {
             {
               title: "Pitch Rate",
               value: metrics?.highTicketPitchRate,
-              formula: "HT Pitched ÷ Low Ticket Sales: the upsell-into-HT rate.",
+              formula: "Pitched high ticket calls ÷ software closes.",
               inputs: [
-                { label: "Pitched (HT)", value: metrics?.highTicketPitched, note: "Post Call Note with a mid tier or flagship offer pitched." },
-                { label: "Low Ticket Sales", value: metrics?.sales },
+                { label: "Pitched High Ticket Calls", value: metrics?.highTicketCallsPitched, note: "Setters' Affiliate EOD." },
+                { label: "Software Closes", value: metrics?.softwareClosed, note: "Setters' Affiliate EOD." },
               ],
             },
             {

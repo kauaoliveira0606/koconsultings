@@ -9,7 +9,7 @@ export type RateColumn = {
   /** How the rate is worked out, in words. */
   formula: string;
   /** The counts the rate is built from, top (numerator) to bottom. */
-  inputs: { label: string; value: number | null | undefined; note?: string }[];
+  inputs: { label: string; value: number | null | undefined; format?: StatFormat; note?: string }[];
   status?: StatCardStatus;
   goal?: string | null;
 };
@@ -63,7 +63,7 @@ export function RateColumns({ columns }: { columns: RateColumn[] }) {
                 <div className="flex items-baseline justify-between gap-3 text-sm">
                   <span className="text-[var(--text-muted)]">{input.label}</span>
                   <span className="font-semibold text-[var(--text-strong)]">
-                    {formatStatValue(input.value, "number")}
+                    {formatStatValue(input.value, input.format ?? "number")}
                   </span>
                 </div>
                 {input.note ? (

@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
   const dials = sum(inRangeEod.map((r) => r.outboundDials));
   const softwarePitched = sum(inRangeEod.map((r) => r.softwarePitched));
   const softwareClosed = sum(inRangeEod.map((r) => r.softwareClosed));
+  const highTicketCallsPitched = sum(inRangeEod.map((r) => r.highTicketCallsPitched));
   const newHighTicketCallsBooked = sum(inRangeEod.map((r) => r.newHighTicketCallsBooked));
 
   const highTicketPitched = inRangePostCallNotes.filter(wasHighTicketPitched).length;
@@ -250,6 +251,7 @@ export async function GET(request: NextRequest) {
 
     // Tier 4 — Front-end conversion
     pickups,
+    dials,
     pickupRate: safeDivide(pickups, dials),
     softwarePitched,
     pitchRate: safeDivide(softwarePitched, pickups),
@@ -274,7 +276,11 @@ export async function GET(request: NextRequest) {
     highTicketCloseRate: safeDivide(highTicketClosed, highTicketCallsShowed || null),
     newHighTicketCallsBooked,
     highTicketBookingRateFromLowTicket: safeDivide(newHighTicketCallsBooked, salesCount || null),
-    highTicketPitchRate: safeDivide(highTicketPitched, salesCount || null),
+    // Per the client: of the software the setters closed, how many of those
+    // buyers they pitched a high ticket call to. Both from the Affiliate EOD.
+    softwareClosed,
+    highTicketCallsPitched,
+    highTicketPitchRate: safeDivide(highTicketCallsPitched, softwareClosed || null),
     revenueHighTicket,
 
     // Tier 6 — Unit economics (paid only — CAC is inherently a paid concept)

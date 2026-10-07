@@ -34,6 +34,9 @@ export function rangeToQuery(range: RangeState): string {
 
 export function useSectionData<T>(path: string, range: RangeState) {
   const query = rangeToQuery(range);
-  const { data, error, isLoading } = useSWR<T>(`${path}?${query}`, fetcher);
+  // Keep showing the last numbers while a new date range loads, instead of blanking the section.
+  const { data, error, isLoading } = useSWR<T>(`${path}?${query}`, fetcher, {
+    keepPreviousData: true,
+  });
   return { data, error, isLoading };
 }

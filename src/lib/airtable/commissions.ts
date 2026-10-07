@@ -1,4 +1,4 @@
-import { airtableListAll } from "./client";
+import { airtableListAll, airtableListAllIncremental } from "./client";
 import { listClawbacks, type Clawback, type ClawbacksTable } from "./clawbacks";
 import { parseDateOnly, parseNumericText } from "./parse";
 import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date-range";
@@ -315,7 +315,10 @@ async function computeCommissions(
     list(offer.affiliatePcnTableId),
     list(POST_CALL_NOTE_TABLE_ID),
     list(FOLLOW_UP_PAYMENT_TABLE_ID),
-    offer.leadsTableId ? list(offer.leadsTableId) : Promise.resolve([]),
+    // The Leads table is big: same partitioned read as the rest of the dashboard.
+    offer.leadsTableId
+      ? airtableListAllIncremental<Record<string, unknown>>(baseId, offer.leadsTableId)
+      : Promise.resolve([]),
     withClawbacks ? listClawbacks(clawbacksTable(offer)) : Promise.resolve([]),
   ]);
 

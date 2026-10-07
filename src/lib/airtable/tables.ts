@@ -1,4 +1,4 @@
-import { airtableListAll } from "./client";
+import { airtableListAll, airtableListAllIncremental } from "./client";
 import { parseDateOnly, parseNumericText } from "./parse";
 import { toEasternDateOnly } from "@/lib/date-range";
 
@@ -170,7 +170,7 @@ export function createAirtableTables(
   formOptions: MarketingFormOptions = {}
 ) {
   async function getLeads(): Promise<LeadRow[]> {
-    const records = await airtableListAll<{
+    const records = await airtableListAllIncremental<{
       Name?: string;
       Email?: string;
       Phone?: string;
@@ -448,7 +448,7 @@ export function createAirtableTables(
   }
 
   async function getSpeedToLead(): Promise<SpeedToLeadRow[]> {
-    const records = await airtableListAll<{
+    const records = await airtableListAllIncremental<{
       Name?: string;
       "Lead Time"?: string;
       "Created At"?: string;

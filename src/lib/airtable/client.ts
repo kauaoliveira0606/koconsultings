@@ -174,3 +174,80 @@ export async function airtableListAll<TFields = Record<string, unknown>>(
   const records = await cachedWalkAllPages(baseId, tableId, params, revalidateSeconds);
   return records as AirtableRecord<TFields>[];
 }
+
+/**
+ * How long a partition of a big table is kept before it is read again, and
+ * how far back the "recently changed" read looks. The second MUST be longer
+ * than the first, so any row changed since a partition was last read is
+ * always picked up by the recent read.
+ */
+const PARTITION_TTL_SECONDS = 12 * 60 * 60;
+const RECENT_HOURS = 13;
+/** Half-months read on their own; everything older than this many months is one partition. */
+const PARTITION_MONTHS = 4;
+
+const cachedPartition = unstable_cache(walkAllPagesWithRetry, ["airtable-partition"], {
+  revalidate: PARTITION_TTL_SECONDS,
+});
+const cachedRecent = unstable_cache(walkAllPagesWithRetry, ["airtable-recent"], {
+  revalidate: 60,
+});
+
+/** Formulas that split a table by when each row was created, with no row in two of them. */
+function creationPartitions(now: Date): string[] {
+  const months: string[] = [];
+  for (let i = PARTITION_MONTHS - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    months.push(d.toISOString().slice(0, 7));
+  }
+  const month = (m: string) => `DATETIME_FORMAT(CREATED_TIME(),'YYYY-MM')='${m}'`;
+  return [
+    `IS_BEFORE(CREATED_TIME(),'${months[0]}-01')`,
+    ...months.flatMap((m) => [
+      `AND(${month(m)},DAY(CREATED_TIME())<=15)`,
+      `AND(${month(m)},DAY(CREATED_TIME())>15)`,
+    ]),
+  ];
+}
+
+/**
+ * `airtableListAll` for big, append-mostly tables (Leads, Speed to Lead).
+ *
+ * Reading one of those start to finish takes many seconds (Airtable hands
+ * out 100 rows per request, one request at a time), and the 60 second cache
+ * above made some visitor pay for that every minute. It was also one cache
+ * entry per table, which stops being stored at all once it passes 2MB.
+ *
+ * Here the table is split by creation date into half-month partitions, each
+ * its own cache entry kept for 12 hours, and what makes the result current
+ * is a small extra read, refreshed every minute, of just the rows created or
+ * edited in the last 13 hours. Those are laid over the partitions by record
+ * ID. New rows and edits therefore still show within a minute; a DELETED row
+ * can linger until its partition is next read (up to 12 hours).
+ */
+export async function airtableListAllIncremental<TFields = Record<string, unknown>>(
+  baseId: string,
+  tableId: string
+): Promise<AirtableRecord<TFields>[]> {
+  const formulas = creationPartitions(new Date());
+  const merged = new Map<string, AirtableRecord<unknown>>();
+  // A few at a time: Airtable allows 5 requests a second per base.
+  for (let i = 0; i < formulas.length; i += 3) {
+    const batch = await Promise.all(
+      formulas
+        .slice(i, i + 3)
+        .map((filterByFormula) => cachedPartition(baseId, tableId, { filterByFormula }, 60))
+    );
+    for (const records of batch) for (const r of records) merged.set(r.id, r);
+  }
+  const recent = await cachedRecent(
+    baseId,
+    tableId,
+    {
+      filterByFormula: `OR(DATETIME_DIFF(NOW(),CREATED_TIME(),'hours')<${RECENT_HOURS},DATETIME_DIFF(NOW(),LAST_MODIFIED_TIME(),'hours')<${RECENT_HOURS})`,
+    },
+    60
+  );
+  for (const r of recent) merged.set(r.id, r);
+  return [...merged.values()] as AirtableRecord<TFields>[];
+}
