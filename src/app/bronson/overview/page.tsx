@@ -5,6 +5,7 @@ import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardG
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
+import { MetricGroups } from "@/components/dashboard/MetricGroups";
 import { PieSplit } from "@/components/dashboard/PieSplit";
 import { RateColumns } from "@/components/dashboard/RateColumns";
 import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
@@ -187,73 +188,82 @@ export default function OverviewPage() {
         <LiveCashToday apiPath="/api/bronson/overview/live-cash" />
       </DashboardSection>
 
-      {/* TIER 1 — KEYSTONE METRICS: the eight numbers that answer "scale or pull the brake" */}
+      {/* TIER 1 — KEYSTONE METRICS, grouped Cash | ROAS | Efficiency: the numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Total Cash Collected"
-            value={metrics?.totalCashCollected}
-            format="currency"
-            size="lg"
-            subtext="Cash actually collected, not revenue booked — payment plans that never fully collect don't count here."
-            status={kpiStatus(metrics?.totalCashCollected, goals?.totalCashCollected, "higher")}
-            goal={kpiLabel(goals?.totalCashCollected, "higher", "currency")}
-          />
-          <StatCard
-            label="Ad Spend"
-            value={metrics?.adSpend}
-            format="currency"
-            size="lg"
-            subtext="From Marketing Daily Metrics (Ad Spend Meta). $0.00 means no paid spend ran in this range."
-          />
-          <StatCard
-            label="Paid ROAS"
-            value={paidRoas}
-            format="ratio"
-            size="lg"
-            override={!adsActive ? notActive : undefined}
-            subtext="Paid cash collected, low ticket + high ticket, ÷ Ad Spend."
-            status={adsActive ? kpiStatus(paidRoas, goals?.roasTotal?.min, "higher") : null}
-            goal={adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null}
-          />
-          <StatCard
-            label="Collected $ / Booked Call (HT)"
-            value={metrics?.collectedPerBookedCallHT}
-            format="currency"
-            size="lg"
-            subtext="Cash Collected (HT) ÷ Calls Booked. One number for show rate, close rate, price, and collections combined — climbing means scale, dropping means diagnose."
-          />
-          <StatCard
-            label="Cash Collected / Opt-In (Paid)"
-            value={metrics?.cashCollectedPerOptInPaid}
-            format="currency"
-            size="lg"
-            subtext="Front-end keystone: Cash Collected — Low Ticket (Paid) ÷ Paid Opt-Ins."
-          />
-          <StatCard
-            label="Net Cash"
-            value={metrics?.netCash}
-            format="currency"
-            size="lg"
-            subtext="Cash Collected − Ad Spend − commissions (10%/20% weekday/weekend on Low Ticket, flat 15% on High Ticket) − processing and financing fees."
-          />
-          <StatCard
-            label="Front-End ROAS"
-            value={metrics?.frontEndRoas}
-            format="ratio"
-            size="lg"
-            override={!adsActive ? notActive : undefined}
-            subtext="Paid cash (low ticket + high ticket) after processing and financing fees ÷ Ad Spend."
-          />
-          <StatCard
-            label="Net ROAS"
-            value={metrics?.netRoas}
-            format="ratio"
-            size="lg"
-            override={!adsActive ? notActive : undefined}
-            subtext="After all expenses: paid cash minus fees and sales team commissions ÷ Ad Spend."
-          />
-        </div>
+        <MetricGroups
+          groups={[
+            {
+              title: "Cash",
+              metrics: [
+                {
+                  label: "Total Cash Collected",
+                  value: metrics?.totalCashCollected,
+                  format: "currency",
+                  subtext: "Cash actually collected, not revenue booked.",
+                  status: kpiStatus(metrics?.totalCashCollected, goals?.totalCashCollected, "higher"),
+                  goal: kpiLabel(goals?.totalCashCollected, "higher", "currency"),
+                },
+                {
+                  label: "Ad Spend",
+                  value: metrics?.adSpend,
+                  format: "currency",
+                  subtext: "Meta ad spend from the daily metrics form.",
+                },
+                {
+                  label: "Net Cash",
+                  value: metrics?.netCash,
+                  format: "currency",
+                  subtext: "Cash − ad spend − commissions − processing and financing fees.",
+                },
+              ],
+            },
+            {
+              title: "ROAS",
+              metrics: [
+                {
+                  label: "Paid ROAS",
+                  value: paidRoas,
+                  format: "ratio",
+                  override: !adsActive ? notActive : undefined,
+                  subtext: "Paid cash (low + high ticket) ÷ ad spend.",
+                  status: adsActive ? kpiStatus(paidRoas, goals?.roasTotal?.min, "higher") : null,
+                  goal: adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null,
+                },
+                {
+                  label: "Front-End ROAS",
+                  value: metrics?.frontEndRoas,
+                  format: "ratio",
+                  override: !adsActive ? notActive : undefined,
+                  subtext: "Paid cash after processing and financing fees ÷ ad spend.",
+                },
+                {
+                  label: "Net ROAS",
+                  value: metrics?.netRoas,
+                  format: "ratio",
+                  override: !adsActive ? notActive : undefined,
+                  subtext: "After all expenses: fees and sales team commissions.",
+                },
+              ],
+            },
+            {
+              title: "Efficiency",
+              metrics: [
+                {
+                  label: "Collected $ / Booked Call (HT)",
+                  value: metrics?.collectedPerBookedCallHT,
+                  format: "currency",
+                  subtext: "High ticket cash ÷ calls booked. Show rate, close rate, price and collections in one number.",
+                },
+                {
+                  label: "Cash Collected / Opt-In (Paid)",
+                  value: metrics?.cashCollectedPerOptInPaid,
+                  format: "currency",
+                  subtext: "Low ticket paid cash ÷ paid opt-ins.",
+                },
+              ],
+            },
+          ]}
+        />
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
           <span>
             Low Ticket commission this range:{" "}

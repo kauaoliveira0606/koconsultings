@@ -4,6 +4,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { cellStatus } from "@/lib/weekly-scorecard";
 import type { GoalsConfig } from "@/lib/goals";
 import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
+import { CloserLeaderboard } from "@/components/dashboard/CloserLeaderboard";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { DataTable, type Column } from "@/components/dashboard/DataTable";
 import { useSharedRange } from "@/lib/range-context";
@@ -190,6 +191,10 @@ export default function SalesTeamPage() {
             subtext={formatMinutes(teamTotals?.totalTalkTimeMinutes ?? null)}
           />
         </StatCardGrid>
+      </DashboardSection>
+
+      <DashboardSection title="Closer Leaderboard">
+        <CloserLeaderboard apiPath="/api/bronson/sales-team/closer-leaderboard" range={range} />
       </DashboardSection>
 
       <DashboardSection title="By Rep">
