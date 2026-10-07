@@ -64,10 +64,15 @@ function entry(c: CloserStats, goals: GoalsConfig | undefined): LeaderboardEntry
       {
         title: "Cash",
         rows: [
+          { label: "Cash Collected", value: c.cash, format: "currency" },
+          { label: "AOV", value: c.aov, format: "currency", note: "Cash collected ÷ deals won" },
           { label: "Cash Per Call", value: c.cashPerCall, format: "currency" },
           { label: "Cash Per Lead", value: c.cashPerLead, format: "currency" },
-          { label: "Booked Revenue", value: c.bookedRevenue, format: "currency", note: "Reference only" },
         ],
+      },
+      {
+        title: "Revenue",
+        rows: [{ label: "Revenue", value: c.revenue, format: "currency" }],
       },
       {
         title: "Pay",

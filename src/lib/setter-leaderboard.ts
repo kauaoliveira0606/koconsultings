@@ -39,6 +39,8 @@ export type SetterStats = {
   cashLowTicket: number;
   cashHighTicket: number;
   cashPerPickup: number | null;
+  /** Average order value: low ticket cash ÷ software closed. */
+  aov: number | null;
   /** Low ticket + high ticket setter commission, this calendar month so far. */
   commissionMtd: number;
   /** Commission this month ÷ hours of talk time this month. */
@@ -117,6 +119,7 @@ function stats(setter: string, range: Tally, month: Tally, commissionMtd: number
     cashLowTicket: range.cashLt,
     cashHighTicket: range.cashHt,
     cashPerPickup: safeDivide(cash, range.pickups || null),
+    aov: safeDivide(range.cashLt, range.closed || null),
     commissionMtd,
     effectiveHourlyRate: safeDivide(commissionMtd, month.talk / 60 || null),
     companyHourlyRate: safeDivide(cash, range.talk / 60 || null),

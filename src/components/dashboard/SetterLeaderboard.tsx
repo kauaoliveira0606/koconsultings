@@ -75,7 +75,11 @@ function entry(s: SetterStats, goals: GoalsConfig | undefined): LeaderboardEntry
       },
       {
         title: "Cash",
-        rows: [{ label: "Cash Per Pickup", value: s.cashPerPickup, format: "currency" }],
+        rows: [
+          { label: "Cash Collected", value: s.cash, format: "currency" },
+          { label: "AOV", value: s.aov, format: "currency", note: "Low ticket cash ÷ software closed" },
+          { label: "Cash Per Pickup", value: s.cashPerPickup, format: "currency" },
+        ],
       },
       {
         title: "Pay",

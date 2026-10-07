@@ -43,8 +43,10 @@ export type CloserStats = {
   cash: number;
   cashPerCall: number | null;
   cashPerLead: number | null;
-  /** Booked revenue (payment plans included). Reference only. */
-  bookedRevenue: number;
+  /** Average order value: cash collected ÷ deals won. */
+  aov: number | null;
+  /** Revenue as the closer logged it (deal size, payment plans included). Never mixed into the cash rows. */
+  revenue: number;
   /** High ticket closer commission, this calendar month so far. */
   commissionMtd: number;
   /** Commission this month ÷ calls showed this month: what the closer earns per showed call. */
@@ -89,7 +91,8 @@ function stats(closer: string, range: Tally, month: Tally, commissionMtd: number
     cash: range.cash,
     cashPerCall: safeDivide(range.cash, range.calls || null),
     cashPerLead: safeDivide(range.cash, range.leads || null),
-    bookedRevenue: range.revenue,
+    aov: safeDivide(range.cash, range.won || null),
+    revenue: range.revenue,
     commissionMtd,
     effectiveHourlyRate: safeDivide(commissionMtd, month.show || null),
     companyHourlyRate: safeDivide(range.cash, range.show || null),
