@@ -122,7 +122,7 @@ export function SetterLeaderboard({
       entries={data?.setters.map((s) => entry(s, goals))}
       team={data ? entry(data.team, goals) : undefined}
       emptyText="No setter EOD reports in this range."
-      footnote={`Setters, ranked by cash collected (${formatStatValue(data?.team.cash, "currency")} as a team). Everything comes from each setter's Affiliate EOD report. Commission MTD and the setter's own hourly rate are for this calendar month, whatever range is selected.`}
+      footnote={`Setters, ranked by cash collected (${formatStatValue(data?.team.cash, "currency")} as a team). A 🥇 on a line marks who is #1 on that metric. Everything comes from each setter's Affiliate EOD report. Commission MTD and the setter's own hourly rate are for this calendar month, whatever range is selected.`}
     />
   );
 }

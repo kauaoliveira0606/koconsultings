@@ -48,6 +48,7 @@ function entry(c: CloserStats, goals: GoalsConfig | undefined): LeaderboardEntry
             label: "DQ Rate",
             value: c.dqRate,
             format: "percent",
+            best: "low",
             status: kpi(c.dqRate, DQ_RATE_MAX, "under"),
             goal: `under ${pct(DQ_RATE_MAX)}`,
           },
@@ -115,7 +116,7 @@ export function CloserLeaderboard({
       entries={data?.closers.map((c) => entry(c, goals))}
       team={data ? entry(data.team, goals) : undefined}
       emptyText="No closer EOD reports in this range."
-      footnote={`High ticket closers, ranked by cash collected (${formatStatValue(data?.team.cash, "currency")} as a team). Counts and cash come from each closer's EOD report. Commission MTD and the closer's own hourly rate are for this calendar month, whatever range is selected.`}
+      footnote={`High ticket closers, ranked by cash collected (${formatStatValue(data?.team.cash, "currency")} as a team). A 🥇 on a line marks who is #1 on that metric. Counts and cash come from each closer's EOD report. Commission MTD and the closer's own hourly rate are for this calendar month, whatever range is selected.`}
     />
   );
 }

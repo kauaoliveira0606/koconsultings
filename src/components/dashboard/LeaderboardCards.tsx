@@ -10,6 +10,11 @@ export type LeaderboardRow = {
   /** KPI check against a target: green = hitting it, red = missing it. */
   status?: "green" | "red" | null;
   goal?: string;
+  /**
+   * Which way wins this row's #1 medal across the board. Defaults to "high"
+   * (the biggest number wins); "low" for rates where smaller is better.
+   */
+  best?: "high" | "low";
 };
 
 export type LeaderboardEntry = {
@@ -35,7 +40,35 @@ export function kpi(
   return (direction === "atLeast" ? value >= target : value < target) ? "green" : "red";
 }
 
-function Rows({ rows }: { rows: LeaderboardRow[] }) {
+/** "Funnel|Calls" -> the winning value for that row among everyone on the board. */
+type Winners = Map<string, number>;
+
+const rowKey = (group: string, label: string) => `${group}|${label}`;
+
+/**
+ * The best value on every row, so whoever holds it gets a #1 medal on that
+ * line. Needs at least two people, ignores blanks and zeros, and a tie gives
+ * the medal to everyone tied.
+ */
+function findWinners(entries: LeaderboardEntry[]): Winners {
+  const winners: Winners = new Map();
+  if (entries.length < 2) return winners;
+  for (const group of entries[0].groups) {
+    for (const row of group.rows) {
+      const key = rowKey(group.title, row.label);
+      const values = entries
+        .map((e) => e.groups.find((g) => g.title === group.title)?.rows.find((r) => r.label === row.label)?.value)
+        .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+      // A "low is better" row still needs someone to have a real figure above zero to beat.
+      const ranked = row.best === "low" ? values : values.filter((v) => v > 0);
+      if (ranked.length === 0 || (row.best === "low" && values.length < 2)) continue;
+      winners.set(key, row.best === "low" ? Math.min(...ranked) : Math.max(...ranked));
+    }
+  }
+  return winners;
+}
+
+function Rows({ group, rows, winners }: { group: string; rows: LeaderboardRow[]; winners?: Winners }) {
   return (
     <dl className="space-y-1.5">
       {rows.map((row) => (
@@ -56,6 +89,11 @@ function Rows({ rows }: { rows: LeaderboardRow[] }) {
             {row.status ? (
               <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[row.status]}`} aria-hidden="true" />
             ) : null}
+            {winners && typeof row.value === "number" && winners.get(rowKey(group, row.label)) === row.value ? (
+              <span title={`#1 on ${row.label}`} aria-label={`Number 1 on ${row.label}`}>
+                🥇
+              </span>
+            ) : null}
             {row.text ?? formatStatValue(row.value, row.format)}
           </dd>
         </div>
@@ -64,7 +102,15 @@ function Rows({ rows }: { rows: LeaderboardRow[] }) {
   );
 }
 
-function Card({ entry, rank }: { entry: LeaderboardEntry; rank: number | null }) {
+function Card({
+  entry,
+  rank,
+  winners,
+}: {
+  entry: LeaderboardEntry;
+  rank: number | null;
+  winners?: Winners;
+}) {
   return (
     <div
       className={`flex flex-col rounded-lg border bg-[var(--panel-bg)] backdrop-blur-sm ${
@@ -94,7 +140,7 @@ function Card({ entry, rank }: { entry: LeaderboardEntry; rank: number | null })
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-strong)]">
               {group.title}
             </div>
-            <Rows rows={group.rows} />
+            <Rows group={group.title} rows={group.rows} winners={winners} />
           </div>
         ))}
       </div>
@@ -105,7 +151,7 @@ function Card({ entry, rank }: { entry: LeaderboardEntry; rank: number | null })
 /**
  * A leaderboard as one card per person, best first: name and medal, the
  * number they are ranked on in big type, then their other stats in small
- * titled groups. The team's totals sit in a card of their own at the end.
+ * titled groups. Whoever is #1 on any single line gets a medal on that line. The team's totals sit in a card of their own at the end.
  */
 export function LeaderboardCards({
   entries,
@@ -126,11 +172,12 @@ export function LeaderboardCards({
       </div>
     );
   }
+  const winners = findWinners(entries);
   return (
     <div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {entries.map((entry, i) => (
-          <Card key={entry.name} entry={entry} rank={i} />
+          <Card key={entry.name} entry={entry} rank={i} winners={winners} />
         ))}
         {team && entries.length > 1 ? <Card entry={team} rank={null} /> : null}
       </div>
