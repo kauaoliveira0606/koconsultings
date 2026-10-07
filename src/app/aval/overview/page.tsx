@@ -6,6 +6,7 @@ import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardG
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { CashCalendar } from "@/components/dashboard/CashCalendar";
 import { PacingSection } from "@/components/dashboard/PacingSection";
+import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
@@ -502,6 +503,10 @@ export default function OverviewPage() {
             </div>
           )}
         </div>
+      </DashboardSection>
+
+      <DashboardSection title="Offer Split & PIF Rate">
+        <OfferSplitSection apiPath="/api/aval/overview/offer-split" range={range} />
       </DashboardSection>
 
       {/* TIER 6 — UNIT ECONOMICS */}
