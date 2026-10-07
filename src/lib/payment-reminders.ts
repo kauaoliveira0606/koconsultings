@@ -5,7 +5,7 @@
  *
  *   - the day before a payment is due
  *   - 15 days past due with nothing collected
- *   - 30 days past due: red alert, the student is about to be removed
+ *   - 30 days past due: red alert headline, the student is about to be removed
  *
  * `?mode=overdue` instead lists everyone past due right now, for a one-off
  * catch-up post.
@@ -36,38 +36,34 @@ function day(ymd: string | null): string {
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
-/** Everything the sales team needs to chase one payment. `loud` = every line bold (red alert). */
-function planBlock(plan: PaymentPlan, today: string, loud: boolean): string {
+/**
+ * Everything the sales team needs to chase one payment: the name on its own
+ * line, then one labelled line per fact inside a Discord quote block. Only
+ * the name, the amount owed and the days late are bold, so they are what the
+ * eye lands on.
+ */
+function planBlock(plan: PaymentPlan, today: string): string {
   const overdue = plan.nextDue ? daysBetween(plan.nextDue, today) : 0;
-  const made = plan.payments.length;
+  const late = overdue > 0 ? ` · **${overdue} day${overdue === 1 ? "" : "s"} late**` : "";
+  const assumed = plan.nextDueLogged ? "" : " (assumed date, none logged)";
+  const split = plan.installments
+    ? `, ${plan.installments} split pay${plan.installments === 1 ? "" : "s"}`
+    : "";
+  const structure = plan.structure ? `, "${plan.structure.replace(/\s+/g, " ")}"` : "";
   const lines = [
-    `${plan.leadName ?? "Unknown lead"} · ${plan.leadEmail ?? "no email logged"}`,
-    `Owes ${money(plan.remaining)} of ${money(plan.total)} · paid ${money(plan.paid)} so far in ${made} payment${made === 1 ? "" : "s"}`,
-    `Due ${day(plan.nextDue)}${overdue > 0 ? ` · ${overdue} day${overdue === 1 ? "" : "s"} past due` : ""}${plan.nextDueLogged ? "" : " · date assumed, none logged"}`,
-    [
-      plan.kind === "deposit" ? "Deposit" : "Payment plan",
-      plan.installments ? `${plan.installments} split pay${plan.installments === 1 ? "" : "s"}` : null,
-      plan.structure ? `"${plan.structure.replace(/\s+/g, " ")}"` : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-    [
-      `Closer ${plan.closer ?? "not logged"}`,
-      `set by ${plan.setter ?? "not logged"}`,
-      plan.offer,
-      plan.collectedOn ? `paid via ${plan.collectedOn}` : null,
-      `started ${day(plan.startDate)}`,
-    ]
-      .filter(Boolean)
-      .join(" · "),
+    `Email: ${plan.leadEmail ?? "none logged"}`,
+    `Owes: **${money(plan.remaining)}** of ${money(plan.total)} (paid ${money(plan.paid)} so far)`,
+    `Due: ${day(plan.nextDue)}${late}${assumed}`,
+    `Plan: ${plan.kind === "deposit" ? "Deposit" : "Payment plan"}${split}${structure}`,
+    `Closer: ${plan.closer ?? "not logged"} · Setter: ${plan.setter ?? "not logged"}`,
+    `Offer: ${[plan.offer, plan.collectedOn ? `paid via ${plan.collectedOn}` : null, `started ${day(plan.startDate)}`].filter(Boolean).join(", ")}`,
   ];
-  if (loud) return lines.map((l) => `**${l}**`).join("\n");
-  return [`**${lines[0]}**`, ...lines.slice(1)].join("\n");
+  return [`**${plan.leadName ?? "Unknown lead"}**`, ...lines.map((l) => `> ${l}`)].join("\n");
 }
 
-function section(title: string, plans: PaymentPlan[], today: string, loud = false, footer?: string) {
+function section(title: string, plans: PaymentPlan[], today: string) {
   if (plans.length === 0) return [];
-  return [[title, ...plans.map((p) => planBlock(p, today, loud)), ...(footer ? [footer] : [])]];
+  return [[title, ...plans.map((p) => planBlock(p, today))]];
 }
 
 /** Packs blocks into as few Discord messages as fit, never splitting one customer in two. */
@@ -94,9 +90,9 @@ export function paymentRemindersGet(offer: PaymentPlanOffer, dashboardUrl: strin
     const { plans } = await getPaymentPlans(offer);
     const open = plans.filter((p) => (p.status === "onTrack" || p.status === "overdue") && p.nextDue);
     const pastDue = (p: PaymentPlan) => daysBetween(p.nextDue as string, today);
-    const link = `Log each payment on the Follow Up Payment form, or update the plan here: ${dashboardUrl}`;
-    const redTitle = `🚨🚨🚨 **RED ALERT: ${RED_ALERT_DAY}+ DAYS PAST DUE, NOTHING COLLECTED** 🚨🚨🚨`;
-    const redFooter = "**IF THIS IS NOT COLLECTED NOW, THE STUDENT GETS REMOVED.**";
+    const link = `Once it's paid, log it on the Follow Up Payment form or update the plan here:\n${dashboardUrl}`;
+    // The red alert is loud in its headline only; the customer details stay as readable as any other.
+    const redTitle = `🚨 **RED ALERT: ${RED_ALERT_DAY}+ DAYS PAST DUE** 🚨\nNothing collected. If this is not paid now, the student gets removed.`;
 
     let sections: string[][];
     let included: PaymentPlan[];
@@ -106,7 +102,7 @@ export function paymentRemindersGet(offer: PaymentPlanOffer, dashboardUrl: strin
       const rest = overdue.filter((p) => pastDue(p) < RED_ALERT_DAY);
       included = overdue;
       sections = [
-        ...section(redTitle, red, today, true, redFooter),
+        ...section(redTitle, red, today),
         ...section(`⚠️ **${rest.length} payment${rest.length === 1 ? "" : "s"} past due**`, rest, today),
       ];
     } else {
@@ -116,7 +112,7 @@ export function paymentRemindersGet(offer: PaymentPlanOffer, dashboardUrl: strin
       const red = open.filter((p) => pastDue(p) === RED_ALERT_DAY);
       included = [...red, ...second, ...dueTomorrow];
       sections = [
-        ...section(redTitle, red, today, true, redFooter),
+        ...section(redTitle, red, today),
         ...section(
           `⚠️ **${SECOND_PING_DAY} days past due, still not collected**`,
           second,
