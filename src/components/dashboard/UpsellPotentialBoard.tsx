@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { easternDateString } from "@/lib/date-range";
 import { formatStatValue } from "@/lib/format";
+import { UPSELL_STATUSES, type UpsellStatus } from "@/lib/upsell-status";
 import type {
   DealType,
   LowTicketCustomer,
@@ -57,11 +58,128 @@ function daysAgo(ymd: string | null, today: string): string | null {
 
 const money = (value: number | null) => formatStatValue(value, "currency");
 
+const FILTER_BUTTON = (active: boolean) =>
+  `rounded-md px-3 py-1.5 text-sm font-medium ${
+    active
+      ? "bg-[var(--btn-active-bg)] text-[var(--btn-active-fg)]"
+      : "border border-[var(--panel-border)] text-[var(--text-muted)] hover:text-[var(--text-strong)]"
+  }`;
+
 const Badge = ({ label, className }: { label: string; className: string }) => (
   <span className={`rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${className}`}>
     {label}
   </span>
 );
+
+type StatusEdit = { status?: UpsellStatus; note?: string };
+type SaveStatus = (
+  customer: { key: string; name: string | null },
+  edit: StatusEdit
+) => Promise<boolean>;
+type Workable = {
+  key: string;
+  name: string | null;
+  status: UpsellStatus;
+  statusNote: string | null;
+  statusUpdated: string | null;
+};
+
+const STATUS_COLOR: Record<UpsellStatus, string> = {
+  "Not Contacted": "text-[var(--text-muted)]",
+  Pitched: "text-sky-300",
+  "Call Booked": "text-emerald-300",
+  Upsold: "text-purple-300",
+  "Not Interested": "text-red-300",
+  "Financial DQ": "text-amber-300",
+};
+
+/** Upsell status dropdown, saved the moment it changes. */
+function StatusSelect({ customer, onSave }: { customer: Workable; onSave: SaveStatus }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <select
+      value={customer.status}
+      disabled={busy}
+      aria-label={`Upsell status for ${customer.name ?? "this customer"}`}
+      onClick={(e) => e.stopPropagation()}
+      onChange={async (e) => {
+        setBusy(true);
+        await onSave(customer, { status: e.target.value as UpsellStatus });
+        setBusy(false);
+      }}
+      className={`rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-1 text-xs font-semibold disabled:opacity-40 ${STATUS_COLOR[customer.status]}`}
+    >
+      {UPSELL_STATUSES.map((s) => (
+        <option key={s} value={s}>
+          {s}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Free-text note on where the upsell stands, shown in the opened row. */
+function StatusNote({ customer, onSave }: { customer: Workable; onSave: SaveStatus }) {
+  const [note, setNote] = useState(customer.statusNote ?? "");
+  const [state, setState] = useState<"idle" | "busy" | "saved" | "error">("idle");
+  return (
+    <form
+      className="flex max-w-xl flex-wrap items-center gap-2"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setState("busy");
+        setState((await onSave(customer, { note })) ? "saved" : "error");
+      }}
+    >
+      <input
+        value={note}
+        onChange={(e) => {
+          setNote(e.target.value);
+          setState("idle");
+        }}
+        placeholder="Upsell note (what was said, when to follow up)"
+        aria-label={`Upsell note for ${customer.name ?? "this customer"}`}
+        className="min-w-0 flex-1 rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-1.5 text-sm text-[var(--text-strong)] placeholder:text-[var(--text-muted)]"
+      />
+      <button
+        type="submit"
+        disabled={state === "busy" || note.trim() === (customer.statusNote ?? "")}
+        className="rounded-md bg-[var(--btn-active-bg)] px-3 py-1.5 text-sm font-medium text-[var(--btn-active-fg)] disabled:opacity-40"
+      >
+        {state === "busy" ? "..." : "Save Note"}
+      </button>
+      {state === "error" ? <span className="text-[var(--cell-red-text)]">Couldn&apos;t save, try again.</span> : null}
+      {customer.statusUpdated ? <span>Last updated {day(customer.statusUpdated)}.</span> : null}
+    </form>
+  );
+}
+
+type StatusFilter = UpsellStatus | "all";
+
+/** "Upsell status" filter row with a count on every status. */
+function StatusFilterRow({
+  customers,
+  value,
+  onChange,
+}: {
+  customers: Workable[] | undefined;
+  value: StatusFilter;
+  onChange: (value: StatusFilter) => void;
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        Upsell Status
+      </span>
+      {(["all", ...UPSELL_STATUSES] as StatusFilter[]).map((s) => (
+        <button key={s} type="button" onClick={() => onChange(s)} className={FILTER_BUTTON(value === s)}>
+          {s === "all" ? "All" : s}
+          {customers ? ` (${customers.filter((c) => s === "all" || c.status === s).length})` : ""}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** Financed deals (Clarity, Klarna, ...) change how the upsell call is run, so they stand out. */
 const isFinanced = (paidVia: string) => /financ/i.test(paidVia);
@@ -81,7 +199,15 @@ const closersOf = (customer: UpsellCustomer) => [
   ...new Set(customer.deals.flatMap((d) => (d.closer ? [d.closer] : []))),
 ];
 
-function CustomerRows({ customer, today }: { customer: UpsellCustomer; today: string }) {
+function CustomerRows({
+  customer,
+  today,
+  onSave,
+}: {
+  customer: UpsellCustomer;
+  today: string;
+  onSave: SaveStatus;
+}) {
   const [open, setOpen] = useState(false);
   const latest = customer.deals[0];
   const types = [...new Set(customer.deals.map((d) => d.type))];
@@ -95,6 +221,9 @@ function CustomerRows({ customer, today }: { customer: UpsellCustomer; today: st
         <td className="px-4 py-3">
           <div className="font-medium text-[var(--text-strong)]">{customer.name ?? "Unknown lead"}</div>
           <div className="text-xs text-[var(--text-muted)]">{customer.email ?? "No email logged"}</div>
+        </td>
+        <td className="px-4 py-3">
+          <StatusSelect customer={customer} onSave={onSave} />
         </td>
         <td className="px-4 py-3">
           <div className="flex flex-wrap gap-1">
@@ -133,8 +262,9 @@ function CustomerRows({ customer, today }: { customer: UpsellCustomer; today: st
       </tr>
       {open ? (
         <tr className="border-b border-[var(--panel-border)] bg-[var(--panel-subtle)]">
-          <td colSpan={8} className="px-4 py-3 text-xs text-[var(--text-muted)]">
+          <td colSpan={9} className="px-4 py-3 text-xs text-[var(--text-muted)]">
             <div className="space-y-3">
+              <StatusNote customer={customer} onSave={onSave} />
               {customer.deals.map((d) => (
                 <div key={d.id}>
                   <div className="font-semibold text-[var(--text-strong)]">
@@ -169,30 +299,43 @@ function CustomerRows({ customer, today }: { customer: UpsellCustomer; today: st
   );
 }
 
-type ListProps = { data: UpsellPotentialResponse | undefined; error: unknown; today: string };
+type ListProps = {
+  data: UpsellPotentialResponse | undefined;
+  error: unknown;
+  today: string;
+  onSave: SaveStatus;
+};
 
-const FILTER_BUTTON = (active: boolean) =>
-  `rounded-md px-3 py-1.5 text-sm font-medium ${
-    active
-      ? "bg-[var(--btn-active-bg)] text-[var(--btn-active-fg)]"
-      : "border border-[var(--panel-border)] text-[var(--text-muted)] hover:text-[var(--text-strong)]"
-  }`;
+type CallFilter = "callList" | "all" | "noCall" | "booked";
 
-type CallFilter = "all" | "noCall" | "booked";
-
+// The call list is who a setter should ring next: bought the software, no
+// high ticket call booked, nobody has worked them yet.
 const CALL_FILTERS: { key: CallFilter; label: string }[] = [
+  { key: "callList", label: "Call List" },
   { key: "all", label: "All" },
   { key: "noCall", label: "No Call Booked" },
   { key: "booked", label: "Call Booked" },
 ];
 
 const callMatches = (customer: LowTicketCustomer, filter: CallFilter) =>
-  filter === "all" || (filter === "booked") === customer.bookedCall;
+  filter === "all"
+    ? true
+    : filter === "callList"
+      ? !customer.bookedCall && customer.status === "Not Contacted"
+      : (filter === "booked") === customer.bookedCall;
 
 const product = (sale: { software: string | null; plan: string | null }) =>
   [sale.software, sale.plan].filter(Boolean).join(" ") || "—";
 
-function LowTicketRows({ customer, today }: { customer: LowTicketCustomer; today: string }) {
+function LowTicketRows({
+  customer,
+  today,
+  onSave,
+}: {
+  customer: LowTicketCustomer;
+  today: string;
+  onSave: SaveStatus;
+}) {
   const [open, setOpen] = useState(false);
   const latest = customer.sales[0];
   const products = [...new Set(customer.sales.map(product))];
@@ -207,7 +350,17 @@ function LowTicketRows({ customer, today }: { customer: LowTicketCustomer; today
           <div className="text-xs text-[var(--text-muted)]">{customer.email ?? "No email logged"}</div>
         </td>
         <td className="px-4 py-3">
-          <div className="text-[var(--text-strong)]">{products.join(", ")}</div>
+          <StatusSelect customer={customer} onSave={onSave} />
+        </td>
+        <td className="px-4 py-3">
+          <div className="text-[var(--text-strong)]">
+            {products.join(", ")}
+            {customer.yearly ? (
+              <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300">
+                Yearly
+              </span>
+            ) : null}
+          </div>
           {customer.sales.length > 1 ? (
             <div className="text-xs text-[var(--text-muted)]">{customer.sales.length} sales</div>
           ) : null}
@@ -230,7 +383,10 @@ function LowTicketRows({ customer, today }: { customer: LowTicketCustomer; today
       </tr>
       {open ? (
         <tr className="border-b border-[var(--panel-border)] bg-[var(--panel-subtle)]">
-          <td colSpan={6} className="px-4 py-3 text-xs text-[var(--text-muted)]">
+          <td colSpan={7} className="px-4 py-3 text-xs text-[var(--text-muted)]">
+            <div className="mb-3">
+              <StatusNote customer={customer} onSave={onSave} />
+            </div>
             <ul className="space-y-1">
               {customer.sales.map((s) => (
                 <li key={s.id}>
@@ -260,16 +416,24 @@ function LowTicketRows({ customer, today }: { customer: LowTicketCustomer; today
 }
 
 /** Low ticket customers: everyone in the Affiliate PCN who has not bought high ticket. */
-function LowTicketList({ data, error, today }: ListProps) {
-  const [filter, setFilter] = useState<CallFilter>("all");
+function LowTicketList({ data, error, today, onSave }: ListProps) {
+  const [filter, setFilter] = useState<CallFilter>("callList");
+  const [plan, setPlan] = useState<"all" | "yearly" | "monthly">("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
   const low = data?.lowTicket;
-  const customers = low?.customers.filter((c) => callMatches(c, filter));
+  const inView = low?.customers.filter(
+    (c) => callMatches(c, filter) && (plan === "all" || (plan === "yearly") === c.yearly)
+  );
+  const customers = inView?.filter((c) => status === "all" || c.status === status);
+  // On the call list, yearly buyers go first; the newest purchase leads within each group.
+  if (filter === "callList") customers?.sort((a, b) => Number(b.yearly) - Number(a.yearly));
 
   return (
     <div>
       <p className="mb-6 max-w-3xl text-sm text-[var(--text-muted)]">
         Everyone in the Affiliate PCN who has not bought high ticket. One row per customer, newest
-        first. Anyone who bought both only shows under High Ticket. The same sale entered twice
+        first. The Call List is who to ring next: no high ticket call booked and not contacted yet,
+        yearly plan buyers first. Anyone who bought both only shows under High Ticket. The same sale entered twice
         (same email, name and software) counts once, keeping the latest entry.
       </p>
 
@@ -321,13 +485,21 @@ function LowTicketList({ data, error, today }: ListProps) {
             {low ? ` (${low.customers.filter((c) => callMatches(c, f.key)).length})` : ""}
           </button>
         ))}
+        <span className="mx-1 self-center text-[var(--text-muted)]">|</span>
+        {(["all", "yearly", "monthly"] as const).map((p) => (
+          <button key={p} type="button" onClick={() => setPlan(p)} className={FILTER_BUTTON(plan === p)}>
+            {p === "all" ? "All Plans" : p === "yearly" ? "Yearly" : "Monthly"}
+          </button>
+        ))}
       </div>
+      <StatusFilterRow customers={inView} value={status} onChange={setStatus} />
 
       <div className="overflow-x-auto rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)]">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--panel-border)] text-left text-xs font-semibold uppercase text-[var(--text-muted)]">
               <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Upsell Status</th>
               <th className="px-4 py-3">Bought</th>
               <th className="px-4 py-3">Sold By</th>
               <th className="px-4 py-3">Last Purchase</th>
@@ -336,7 +508,9 @@ function LowTicketList({ data, error, today }: ListProps) {
             </tr>
           </thead>
           <tbody>
-            {customers?.map((c) => <LowTicketRows key={c.id} customer={c} today={today} />)}
+            {customers?.map((c) => (
+              <LowTicketRows key={c.id} customer={c} today={today} onSave={onSave} />
+            ))}
           </tbody>
         </table>
         {!customers || customers.length === 0 ? (
@@ -354,8 +528,9 @@ function LowTicketList({ data, error, today }: ListProps) {
 }
 
 /** High ticket customers: Post Call Note with Call Outcome = Deposit, Payment Plan or Closed. */
-function HighTicketList({ data, error, today }: ListProps) {
+function HighTicketList({ data, error, today, onSave }: ListProps) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
   const [closer, setCloser] = useState<string | null>(null);
 
   // Closers ranked by how many customers they closed. A customer with deals
@@ -370,7 +545,8 @@ function HighTicketList({ data, error, today }: ListProps) {
 
   // Everything below (cards, counts, table) follows the selected closer.
   const mine = data?.customers.filter((c) => selected === null || closersOf(c).includes(selected));
-  const customers = mine?.filter((c) => matches(c, filter));
+  const inView = mine?.filter((c) => matches(c, filter));
+  const customers = inView?.filter((c) => status === "all" || c.status === status);
   const count = (type: DealType) => mine?.filter((c) => matches(c, type)).length ?? 0;
   const cashCollected = mine?.reduce((t, c) => t + c.cashCollected, 0);
   const dealValue = mine?.reduce((t, c) => t + c.dealValue, 0);
@@ -457,12 +633,14 @@ function HighTicketList({ data, error, today }: ListProps) {
           </button>
         ))}
       </div>
+      <StatusFilterRow customers={inView} value={status} onChange={setStatus} />
 
       <div className="overflow-x-auto rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)]">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--panel-border)] text-left text-xs font-semibold uppercase text-[var(--text-muted)]">
               <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Upsell Status</th>
               <th className="px-4 py-3">Deal Type</th>
               <th className="px-4 py-3">Bought</th>
               <th className="px-4 py-3">Closer</th>
@@ -473,7 +651,9 @@ function HighTicketList({ data, error, today }: ListProps) {
             </tr>
           </thead>
           <tbody>
-            {customers?.map((c) => <CustomerRows key={c.id} customer={c} today={today} />)}
+            {customers?.map((c) => (
+              <CustomerRows key={c.id} customer={c} today={today} onSave={onSave} />
+            ))}
           </tbody>
         </table>
         {!customers || customers.length === 0 ? (
@@ -496,10 +676,25 @@ function HighTicketList({ data, error, today }: ListProps) {
  * customer off the low ticket list.
  */
 export function UpsellPotentialBoard({ apiPath }: { apiPath: string }) {
-  const { data, error } = useSWR<UpsellPotentialResponse>(apiPath, fetcher, {
+  const { data, error, mutate } = useSWR<UpsellPotentialResponse>(apiPath, fetcher, {
     refreshInterval: REFRESH_MS,
   });
   const [ticket, setTicket] = useState<"high" | "low">("high");
+
+  const saveStatus: SaveStatus = async (customer, edit) => {
+    try {
+      const res = await fetch(`${apiPath}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: customer.key, customer: customer.name ?? "", ...edit }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      await mutate();
+      return true;
+    } catch {
+      return false;
+    }
+  };
   const today = easternDateString();
   const tabs = [
     { key: "high" as const, label: "High Ticket", count: data?.summary.customers },
@@ -527,9 +722,9 @@ export function UpsellPotentialBoard({ apiPath }: { apiPath: string }) {
         ))}
       </div>
       {ticket === "high" ? (
-        <HighTicketList data={data} error={error} today={today} />
+        <HighTicketList data={data} error={error} today={today} onSave={saveStatus} />
       ) : (
-        <LowTicketList data={data} error={error} today={today} />
+        <LowTicketList data={data} error={error} today={today} onSave={saveStatus} />
       )}
     </div>
   );

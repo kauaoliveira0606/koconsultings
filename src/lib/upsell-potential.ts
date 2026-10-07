@@ -15,6 +15,7 @@
 import { airtableListAll } from "@/lib/airtable/client";
 import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
 import { toEasternDateOnly } from "@/lib/date-range";
+import { listUpsellStatuses, type UpsellStatus, type UpsellStatusEntry } from "@/lib/upsell-status";
 import {
   emailKey,
   getPaymentPlans,
@@ -51,7 +52,17 @@ export type UpsellDeal = {
   fathomLink: string | null;
 };
 
-export type UpsellCustomer = {
+/** Where the customer stands on the upsell, set by hand on the tab. */
+type Worked = { key: string; status: UpsellStatus; statusNote: string | null; statusUpdated: string | null };
+
+const NOT_WORKED = { status: "Not Contacted", statusNote: null, statusUpdated: null } as const;
+
+const worked = (entry: UpsellStatusEntry | undefined) =>
+  entry
+    ? { status: entry.status, statusNote: entry.note, statusUpdated: entry.updated }
+    : NOT_WORKED;
+
+export type UpsellCustomer = Worked & {
   id: string;
   name: string | null;
   email: string | null;
@@ -77,7 +88,7 @@ export type LowTicketSale = {
   fathomLink: string | null;
 };
 
-export type LowTicketCustomer = {
+export type LowTicketCustomer = Worked & {
   id: string;
   name: string | null;
   email: string | null;
@@ -87,6 +98,8 @@ export type LowTicketCustomer = {
   cashCollected: number;
   /** Any of their sales was logged with a high ticket call booked. */
   bookedCall: boolean;
+  /** Bought a yearly plan: the strongest buying signal on this list. */
+  yearly: boolean;
 };
 
 export type UpsellPotentialResponse = {
@@ -123,7 +136,8 @@ const fullNameKey = (raw: string | null): string | null => {
 function lowTicketCustomers(
   offer: PaymentPlanOffer,
   records: { id: string; createdTime: string; fields: Record<string, unknown> }[],
-  highTicket: { emails: Set<string>; names: Set<string> }
+  highTicket: { emails: Set<string>; names: Set<string> },
+  statuses: Map<string, UpsellStatusEntry>
 ): UpsellPotentialResponse["lowTicket"] {
   const { repField, cashField } = offer.affiliatePcn;
   const rows = records
@@ -166,12 +180,15 @@ function lowTicketCustomers(
     }
     const customer = byCustomer.get(key) ?? {
       id,
+      key,
+      ...worked(statuses.get(key)),
       name,
       email,
       sales: [],
       lastPurchase: null,
       cashCollected: 0,
       bookedCall: false,
+      yearly: false,
     };
     const sales = kept.get(customer) ?? new Map<string, LowTicketSale>();
     const saleKey = `${nameKey(name) ?? ""}|${sale.software?.toLowerCase() ?? ""}`;
@@ -187,6 +204,7 @@ function lowTicketCustomers(
     customer.lastPurchase = customer.sales[0]?.date ?? null;
     customer.cashCollected = customer.sales.reduce((t, s) => t + s.cash, 0);
     customer.bookedCall = customer.sales.some((s) => s.bookedCall);
+    customer.yearly = customer.sales.some((s) => s.plan === "Yearly");
   }
 
   const customers = [...byCustomer.values()].sort((a, b) =>
@@ -207,7 +225,7 @@ function lowTicketCustomers(
 }
 
 export async function getUpsellPotential(offer: PaymentPlanOffer): Promise<UpsellPotentialResponse> {
-  const [noteRecords, followUpRecords, plans, affiliateRecords] = await Promise.all([
+  const [noteRecords, followUpRecords, plans, affiliateRecords, statuses] = await Promise.all([
     airtableListAll<Record<string, unknown>>(offer.baseId, POST_CALL_NOTE_TABLE_ID, {
       filterByFormula: `OR(${Object.keys(OUTCOMES)
         .map((o) => `{Call Outcome}='${o}'`)
@@ -216,6 +234,7 @@ export async function getUpsellPotential(offer: PaymentPlanOffer): Promise<Upsel
     airtableListAll<Record<string, unknown>>(offer.baseId, FOLLOW_UP_PAYMENT_TABLE_ID),
     getPaymentPlans(offer),
     airtableListAll<Record<string, unknown>>(offer.baseId, offer.affiliatePcn.tableId),
+    listUpsellStatuses(offer),
   ]);
 
   const notes = noteRecords
@@ -240,6 +259,8 @@ export async function getUpsellPotential(offer: PaymentPlanOffer): Promise<Upsel
 
     const customer = byCustomer.get(key) ?? {
       id,
+      key,
+      ...worked(statuses.get(key)),
       name,
       email,
       deals: [],
@@ -306,7 +327,7 @@ export async function getUpsellPotential(offer: PaymentPlanOffer): Promise<Upsel
     names: new Set(customers.flatMap((c) => fullNameKey(c.name) ?? [])),
   };
   return {
-    lowTicket: lowTicketCustomers(offer, affiliateRecords, highTicket),
+    lowTicket: lowTicketCustomers(offer, affiliateRecords, highTicket, statuses),
     customers,
     summary: {
       customers: customers.length,

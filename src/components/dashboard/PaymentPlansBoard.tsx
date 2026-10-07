@@ -21,21 +21,26 @@ const BADGE: Record<PaymentPlanStatus, { label: string; className: string }> = {
   churned: { label: "Churned", className: "bg-amber-500/20 text-amber-300" },
 };
 
-type Filter = PaymentPlanStatus | "active";
+type Filter = PaymentPlanStatus | "active" | "deposit";
 
 // Paid off and churned plans are off the list: they only show under their own filter.
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "active", label: "Active" },
   { key: "overdue", label: "Overdue" },
   { key: "onTrack", label: "On Track" },
+  { key: "deposit", label: "Deposits" },
   { key: "paidOff", label: "Paid Off" },
   { key: "churned", label: "Churned" },
 ];
 
+const isActive = (plan: PaymentPlan) => plan.status === "overdue" || plan.status === "onTrack";
+
 const matches = (plan: PaymentPlan, filter: Filter) =>
   filter === "active"
-    ? plan.status === "overdue" || plan.status === "onTrack"
-    : plan.status === filter;
+    ? isActive(plan)
+    : filter === "deposit"
+      ? isActive(plan) && plan.kind === "deposit"
+      : plan.status === filter;
 
 type PlanEdit = { amountOwed?: number; status?: "Active" | "Paid Off" | "Churned" };
 
@@ -170,7 +175,14 @@ function PlanRows({
         className="cursor-pointer border-b border-[var(--panel-border)] hover:bg-[var(--panel-subtle)]"
       >
         <td className="px-4 py-3">
-          <div className="font-medium text-[var(--text-strong)]">{plan.leadName ?? "Unknown lead"}</div>
+          <div className="font-medium text-[var(--text-strong)]">
+            {plan.leadName ?? "Unknown lead"}
+            {plan.kind === "deposit" ? (
+              <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                Deposit
+              </span>
+            ) : null}
+          </div>
           <div className="text-xs text-[var(--text-muted)]">{plan.leadEmail ?? "No email logged"}</div>
         </td>
         <td className="px-4 py-3 text-[var(--text-muted)]">
@@ -180,7 +192,11 @@ function PlanRows({
         <td className="px-4 py-3 whitespace-nowrap">{day(plan.startDate)}</td>
         <td className="px-4 py-3">
           <div className="font-medium text-[var(--text-strong)]">
-            {plan.installments ? `${plan.installments} split pay${plan.installments === 1 ? "" : "s"}` : "—"}
+            {plan.installments
+              ? `${plan.installments} split pay${plan.installments === 1 ? "" : "s"}`
+              : plan.kind === "deposit"
+                ? "Deposit"
+                : "—"}
           </div>
           <div className="max-w-[16rem] truncate text-xs text-[var(--text-muted)]">
             {plan.structure ?? "No structure logged"}
@@ -195,7 +211,12 @@ function PlanRows({
         <td className="px-4 py-3 text-right font-semibold whitespace-nowrap text-[var(--text-strong)]">
           {money(plan.remaining)}
         </td>
-        <td className="px-4 py-3 whitespace-nowrap">{day(plan.nextDue)}</td>
+        <td className="px-4 py-3 whitespace-nowrap">
+          <div>{day(plan.nextDue)}</div>
+          {plan.nextDue && !plan.nextDueLogged ? (
+            <div className="text-xs text-[var(--text-muted)]">Assumed</div>
+          ) : null}
+        </td>
         <td className="px-4 py-3">
           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${badge.className}`}>
             {badge.label}
@@ -273,9 +294,9 @@ export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
   return (
     <div>
       <p className="-mt-4 mb-6 max-w-3xl text-sm text-[var(--text-muted)]">
-        Every post call note with Call Outcome set to Payment Plan. Later installments count once
-        they are logged on the Follow Up Payment form. Next payment assumes one payment a month from
-        the day the plan started. Click a plan to update what they owe, or to take them off the list
+        Every post call note with Call Outcome set to Payment Plan or Deposit. Later payments count
+        once they are logged on the Follow Up Payment form. Next payment is the date the closer put
+        on the form; when there is none it is assumed one month out. Click a plan to update what they owe, or to take them off the list
         as paid in full or churned.
       </p>
 
@@ -284,7 +305,11 @@ export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
           label="Active Plans"
           value={data?.summary.active}
           size="lg"
-          subtext="Payment plans with a balance still owed."
+          subtext={
+            data
+              ? `Payment plans and deposits with a balance still owed. ${data.summary.deposits} ${data.summary.deposits === 1 ? "is a deposit" : "are deposits"}.`
+              : undefined
+          }
         />
         <StatCard
           label="Still Owed"
@@ -301,7 +326,7 @@ export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
           status={data && data.summary.overdue > 0 ? "red" : null}
           subtext={
             data
-              ? `${data.summary.overdue} plan${data.summary.overdue === 1 ? "" : "s"} past the next monthly payment with no follow up payment logged.`
+              ? `${data.summary.overdue} past their next payment date with no follow up payment logged.`
               : undefined
           }
         />
