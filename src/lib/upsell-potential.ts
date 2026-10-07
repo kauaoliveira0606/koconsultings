@@ -8,7 +8,8 @@
  * those calls plus any Follow Up Payment form entries for the same lead.
  *
  * Low ticket: everyone in the Affiliate PCN (software sales), grouped the
- * same way. Nobody is on both lists: a low ticket buyer who also bought high
+ * same way. The same sale entered twice (same email, same name, same
+ * software) is a duplicate: the latest entry is kept. Nobody is on both lists: a low ticket buyer who also bought high
  * ticket only shows under high ticket.
  */
 import { airtableListAll } from "@/lib/airtable/client";
@@ -44,6 +45,8 @@ export type UpsellDeal = {
   setter: string | null;
   cash: number;
   revenue: number | null;
+  /** "Where Was Payment Collected On": Whop, Stripe, Financed (Clarity), ... */
+  paidVia: string | null;
   notes: string | null;
   fathomLink: string | null;
 };
@@ -105,6 +108,8 @@ export type UpsellPotentialResponse = {
       cashCollected: number;
       /** Low ticket buyers left off this list because they are on the high ticket one. */
       alsoHighTicket: number;
+      /** Affiliate PCN entries dropped as a repeat of a later one. */
+      duplicatesRemoved: number;
     };
   };
 };
@@ -127,6 +132,7 @@ function lowTicketCustomers(
       const f = Object.fromEntries(Object.entries(r.fields).map(([k, v]) => [k.toLowerCase(), v]));
       return {
         id: r.id,
+        created: r.createdTime,
         name: text(f["lead name"]),
         email: emailKey(f["lead email"]),
         sale: {
@@ -141,10 +147,16 @@ function lowTicketCustomers(
         },
       };
     })
-    .sort((a, b) => (a.sale.date ?? "").localeCompare(b.sale.date ?? ""));
+    .sort(
+      (a, b) =>
+        (a.sale.date ?? "").localeCompare(b.sale.date ?? "") || a.created.localeCompare(b.created)
+    );
 
   const byCustomer = new Map<string, LowTicketCustomer>();
   const moved = new Set<string>();
+  // Customer -> "name|software" -> the sale kept for it (the latest entry wins).
+  const kept = new Map<LowTicketCustomer, Map<string, LowTicketSale>>();
+  let duplicatesRemoved = 0;
   for (const { id, name, email, sale } of rows) {
     const full = fullNameKey(name);
     const key = email ?? full ?? id;
@@ -161,12 +173,20 @@ function lowTicketCustomers(
       cashCollected: 0,
       bookedCall: false,
     };
-    customer.sales.unshift(sale);
-    customer.lastPurchase = sale.date ?? customer.lastPurchase;
-    customer.cashCollected += sale.cash;
-    customer.bookedCall ||= sale.bookedCall;
+    const sales = kept.get(customer) ?? new Map<string, LowTicketSale>();
+    const saleKey = `${nameKey(name) ?? ""}|${sale.software?.toLowerCase() ?? ""}`;
+    if (email && sales.has(saleKey)) duplicatesRemoved += 1;
+    // Rows without an email can't be told apart from a repeat, so they all stay.
+    sales.set(email ? saleKey : sale.id, sale);
+    kept.set(customer, sales);
     if (name && name.length > (customer.name?.length ?? 0)) customer.name = name;
     byCustomer.set(key, customer);
+  }
+  for (const [customer, sales] of kept) {
+    customer.sales = [...sales.values()].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    customer.lastPurchase = customer.sales[0]?.date ?? null;
+    customer.cashCollected = customer.sales.reduce((t, s) => t + s.cash, 0);
+    customer.bookedCall = customer.sales.some((s) => s.bookedCall);
   }
 
   const customers = [...byCustomer.values()].sort((a, b) =>
@@ -181,6 +201,7 @@ function lowTicketCustomers(
       noCall: customers.length - booked,
       cashCollected: customers.reduce((t, c) => t + c.cashCollected, 0),
       alsoHighTicket: moved.size,
+      duplicatesRemoved,
     },
   };
 }
@@ -241,6 +262,7 @@ export async function getUpsellPotential(offer: PaymentPlanOffer): Promise<Upsel
       setter: text(f["Setters Full Name"]) ?? text(f["Setters Name"]),
       cash,
       revenue,
+      paidVia: text(f["Where Was Payment Collected On"]),
       notes: text(f["Prospect Notes"]),
       fathomLink: text(f["Fathom Link"]),
     });

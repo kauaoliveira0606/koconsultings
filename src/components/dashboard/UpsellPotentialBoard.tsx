@@ -63,10 +63,29 @@ const Badge = ({ label, className }: { label: string; className: string }) => (
   </span>
 );
 
+/** Financed deals (Clarity, Klarna, ...) change how the upsell call is run, so they stand out. */
+const isFinanced = (paidVia: string) => /financ/i.test(paidVia);
+
+const PaidVia = ({ method }: { method: string }) =>
+  isFinanced(method) ? (
+    <Badge label={method} className="bg-amber-500/20 text-amber-300" />
+  ) : (
+    <Badge label={method} className="bg-[var(--panel-subtle)] text-[var(--text-muted)]" />
+  );
+
+const paidViaOf = (customer: UpsellCustomer) => [
+  ...new Set(customer.deals.flatMap((d) => (d.paidVia ? [d.paidVia] : []))),
+];
+
+const closersOf = (customer: UpsellCustomer) => [
+  ...new Set(customer.deals.flatMap((d) => (d.closer ? [d.closer] : []))),
+];
+
 function CustomerRows({ customer, today }: { customer: UpsellCustomer; today: string }) {
   const [open, setOpen] = useState(false);
   const latest = customer.deals[0];
   const types = [...new Set(customer.deals.map((d) => d.type))];
+  const methods = paidViaOf(customer);
   return (
     <Fragment>
       <tr
@@ -96,6 +115,11 @@ function CustomerRows({ customer, today }: { customer: UpsellCustomer; today: st
           <div>{latest?.closer ?? "—"}</div>
           <div className="text-xs">Set by {latest?.setter ?? "—"}</div>
         </td>
+        <td className="px-4 py-3">
+          <div className="flex flex-wrap gap-1">
+            {methods.length > 0 ? methods.map((m) => <PaidVia key={m} method={m} />) : "—"}
+          </div>
+        </td>
         <td className="px-4 py-3 whitespace-nowrap">
           <div>{day(customer.lastPurchase)}</div>
           <div className="text-xs text-[var(--text-muted)]">{daysAgo(customer.lastPurchase, today)}</div>
@@ -109,7 +133,7 @@ function CustomerRows({ customer, today }: { customer: UpsellCustomer; today: st
       </tr>
       {open ? (
         <tr className="border-b border-[var(--panel-border)] bg-[var(--panel-subtle)]">
-          <td colSpan={7} className="px-4 py-3 text-xs text-[var(--text-muted)]">
+          <td colSpan={8} className="px-4 py-3 text-xs text-[var(--text-muted)]">
             <div className="space-y-3">
               {customer.deals.map((d) => (
                 <div key={d.id}>
@@ -119,8 +143,9 @@ function CustomerRows({ customer, today }: { customer: UpsellCustomer; today: st
                       .join(" · ")}
                   </div>
                   <div>
-                    {money(d.cash)} collected on the call of a {money(d.revenue)} deal · Closed by{" "}
-                    {d.closer ?? "—"}, set by {d.setter ?? "—"}
+                    {money(d.cash)} collected on the call of a {money(d.revenue)} deal
+                    {d.paidVia ? `, paid via ${d.paidVia}` : ""} · Closed by {d.closer ?? "—"}, set by{" "}
+                    {d.setter ?? "—"}
                   </div>
                   {d.notes ? <div className="mt-1 max-w-3xl whitespace-pre-wrap">{d.notes}</div> : null}
                   {d.fathomLink?.startsWith("http") ? (
@@ -244,7 +269,8 @@ function LowTicketList({ data, error, today }: ListProps) {
     <div>
       <p className="mb-6 max-w-3xl text-sm text-[var(--text-muted)]">
         Everyone in the Affiliate PCN who has not bought high ticket. One row per customer, newest
-        first. Anyone who bought both only shows under High Ticket.
+        first. Anyone who bought both only shows under High Ticket. The same sale entered twice
+        (same email, name and software) counts once, keeping the latest entry.
       </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -275,7 +301,11 @@ function LowTicketList({ data, error, today }: ListProps) {
           value={low?.summary.cashCollected}
           format="currency"
           size="lg"
-          subtext="CPA logged on the Affiliate PCN for these customers."
+          subtext={
+            low
+              ? `CPA logged on the Affiliate PCN for these customers. ${low.summary.duplicatesRemoved} duplicate entr${low.summary.duplicatesRemoved === 1 ? "y" : "ies"} left out.`
+              : undefined
+          }
         />
       </div>
 
@@ -326,8 +356,25 @@ function LowTicketList({ data, error, today }: ListProps) {
 /** High ticket customers: Post Call Note with Call Outcome = Deposit, Payment Plan or Closed. */
 function HighTicketList({ data, error, today }: ListProps) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [closer, setCloser] = useState<string | null>(null);
 
-  const customers = data?.customers.filter((c) => matches(c, filter));
+  // Closers ranked by how many customers they closed. A customer with deals
+  // from two closers counts for both.
+  const closers = [...new Set(data?.customers.flatMap(closersOf) ?? [])]
+    .map((name) => ({
+      name,
+      count: data?.customers.filter((c) => closersOf(c).includes(name)).length ?? 0,
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const selected = closers.some((c) => c.name === closer) ? closer : null;
+
+  // Everything below (cards, counts, table) follows the selected closer.
+  const mine = data?.customers.filter((c) => selected === null || closersOf(c).includes(selected));
+  const customers = mine?.filter((c) => matches(c, filter));
+  const count = (type: DealType) => mine?.filter((c) => matches(c, type)).length ?? 0;
+  const cashCollected = mine?.reduce((t, c) => t + c.cashCollected, 0);
+  const dealValue = mine?.reduce((t, c) => t + c.dealValue, 0);
+  const financed = mine?.filter((c) => paidViaOf(c).some(isFinanced)).length;
 
   return (
     <div>
@@ -337,37 +384,59 @@ function HighTicketList({ data, error, today }: ListProps) {
         call recording.
       </p>
 
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+          Closer
+        </span>
+        <button type="button" onClick={() => setCloser(null)} className={FILTER_BUTTON(selected === null)}>
+          All{data ? ` (${data.customers.length})` : ""}
+        </button>
+        {closers.map((c) => (
+          <button
+            key={c.name}
+            type="button"
+            onClick={() => setCloser(c.name)}
+            className={FILTER_BUTTON(selected === c.name)}
+          >
+            {c.name} ({c.count})
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Customers"
-          value={data?.summary.customers}
+          label={selected ? `${selected}'s Customers` : "Customers"}
+          value={mine?.length}
           size="lg"
           subtext={
-            data
-              ? `${data.summary.closed} closed, ${data.summary.paymentPlans} on a payment plan, ${data.summary.deposits} deposit${data.summary.deposits === 1 ? "" : "s"}.`
+            mine
+              ? `${count("closed")} closed, ${count("paymentPlan")} on a payment plan, ${count("deposit")} deposit${count("deposit") === 1 ? "" : "s"}.`
               : undefined
           }
         />
         <StatCard
           label="Cash Collected"
-          value={data?.summary.cashCollected}
+          value={cashCollected}
           format="currency"
           size="lg"
           subtext="Collected on the calls plus follow up payments logged for these customers."
         />
         <StatCard
           label="Deal Value"
-          value={data?.summary.dealValue}
+          value={dealValue}
           format="currency"
           size="lg"
-          subtext="Total Revenue across every closed deal."
+          subtext={
+            mine && mine.length > 0 && dealValue !== undefined
+              ? `Total Revenue across these deals. ${formatStatValue(dealValue / mine.length, "currency")} per customer.`
+              : "Total Revenue across these deals."
+          }
         />
         <StatCard
-          label="Average Deal"
-          value={data && data.summary.customers > 0 ? data.summary.dealValue / data.summary.customers : null}
-          format="currency"
+          label="Financed"
+          value={financed}
           size="lg"
-          subtext="Deal Value divided by customers."
+          subtext="Customers who paid through a financing partner (Clarity, Klarna, ...). Run these calls differently."
         />
       </div>
 
@@ -384,7 +453,7 @@ function HighTicketList({ data, error, today }: ListProps) {
             }`}
           >
             {f.label}
-            {data ? ` (${data.customers.filter((c) => matches(c, f.key)).length})` : ""}
+            {mine ? ` (${mine.filter((c) => matches(c, f.key)).length})` : ""}
           </button>
         ))}
       </div>
@@ -397,6 +466,7 @@ function HighTicketList({ data, error, today }: ListProps) {
               <th className="px-4 py-3">Deal Type</th>
               <th className="px-4 py-3">Bought</th>
               <th className="px-4 py-3">Closer</th>
+              <th className="px-4 py-3">Paid Via</th>
               <th className="px-4 py-3">Last Purchase</th>
               <th className="px-4 py-3 text-right">Cash Collected</th>
               <th className="px-4 py-3 text-right">Deal Value</th>
