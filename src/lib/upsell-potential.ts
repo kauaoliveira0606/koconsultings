@@ -136,7 +136,7 @@ export type Renewals = {
     tracked: number;
     expired: number;
     endingSoon: number;
-    /** Buyers from before the access rules started: lifetime access, not tracked. */
+    /** Lifetime access, not tracked: bought before the access rules started, or bought a lifetime package. */
     lifetime: number;
     /** Buyers since then whose package has no access length set. */
     noRule: number;
@@ -288,10 +288,20 @@ function renewals(customers: UpsellCustomer[], rules: AccessRules): Renewals {
     }
     // Churned means removed from the program: nothing to renew.
     if (c.churned) continue;
-    const dated = since.flatMap((d) => {
+    const matched = since.flatMap((d) => {
       const rule = rules.packages.find((p) => p.match.test(d.offer ?? ""));
-      return rule ? [{ deal: d, months: rule.months, ends: addMonths(d.date as string, rule.months) }] : [];
+      return rule ? [{ deal: d, months: rule.months }] : [];
     });
+    // Any lifetime package (the Mastermind) means their access never ends.
+    if (matched.some((m) => m.months === null)) {
+      lifetime += 1;
+      continue;
+    }
+    const dated = matched.flatMap((m) =>
+      m.months === null
+        ? []
+        : [{ deal: m.deal, months: m.months, ends: addMonths(m.deal.date as string, m.months) }]
+    );
     if (dated.length === 0) {
       noRule += 1;
       continue;

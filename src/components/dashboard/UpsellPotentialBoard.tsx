@@ -872,7 +872,8 @@ function RenewalList({ data, error, onSave }: ListProps) {
         When each customer&apos;s access to the program ends: the day they bought plus the months
         their package gives. Soonest first. Everyone sold before{" "}
         {renewals ? day(renewals.summary.from) : "the cutoff"} has lifetime access and is not on this
-        list. The reminders channel gets a message the day someone&apos;s access ends.
+        list. The reminders channel gets a message a week before someone&apos;s access ends, and
+        again the day it ends.
       </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -882,7 +883,7 @@ function RenewalList({ data, error, onSave }: ListProps) {
           size="lg"
           subtext={
             renewals
-              ? `${renewals.summary.lifetime} earlier buyers have lifetime access.${renewals.summary.noRule > 0 ? ` ${renewals.summary.noRule} bought a package with no access length set.` : ""}`
+              ? `${renewals.summary.lifetime} others have lifetime access (bought before the cutoff, or bought the Mastermind).${renewals.summary.noRule > 0 ? ` ${renewals.summary.noRule} bought a package with no access length set.` : ""}`
               : undefined
           }
         />

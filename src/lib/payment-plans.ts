@@ -36,9 +36,13 @@ const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 /**
  * How long a purchase gives access to the program, per package, for deals
  * closed on or after `from`. Earlier deals were sold as lifetime access.
- * A package with no rule here (matched on how its name starts) has no end date.
+ * `months: null` is a lifetime package (nothing left to sell them on top). A
+ * package with no rule here (matched on how its name starts) has no end date.
  */
-export type AccessRules = { from: string; packages: { match: RegExp; months: number }[] };
+export type AccessRules = {
+  from: string;
+  packages: { match: RegExp; months: number | null }[];
+};
 
 export const PAYMENT_PLAN_OFFERS = {
   bronson: {
@@ -67,6 +71,8 @@ export const PAYMENT_PLAN_OFFERS = {
         { match: /^flagship/i, months: 6 },
         { match: /^mid/i, months: 6 },
         { match: /^downsell/i, months: 3 },
+        // The Mastermind is lifetime access.
+        { match: /^mastermind/i, months: null },
       ],
     } as AccessRules | null,
   },

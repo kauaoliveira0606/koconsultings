@@ -6,8 +6,8 @@
  *   - the day before a payment is due
  *   - 15 days past due with nothing collected
  *   - 30 days past due: red alert headline, the student is about to be removed
- *   - (offers with access rules) the day a customer's program access ends:
- *     time to renew or upsell them
+ *   - (offers with access rules) a week before a customer's program access
+ *     ends, and again the day it ends: time to renew or upsell them
  *
  * `?mode=overdue` instead lists everyone past due right now, for a one-off
  * catch-up post.
@@ -23,6 +23,9 @@ import { getUpsellPotential, type RenewalCustomer } from "@/lib/upsell-potential
 /** Days past due that get a second ping, and the day the red alert goes out. */
 const SECOND_PING_DAY = 15;
 const RED_ALERT_DAY = 30;
+
+/** Days before program access ends that the heads-up goes out. */
+const RENEWAL_HEADS_UP_DAYS = 7;
 
 /** Discord rejects anything over 2000 characters. */
 const MESSAGE_LIMIT = 1900;
@@ -149,18 +152,38 @@ export function paymentRemindersGet(offer: PaymentPlanOffer, dashboardUrl: strin
     }
     if (sections.length > 0) sections.push([link]);
 
-    // Program access running out today (daily run only, offers with access rules).
+    // Program access running out: a heads-up a week ahead, then the day it ends
+    // (daily run only, offers with access rules).
     let renewalsToday: RenewalCustomer[] = [];
     if (mode === "daily" && offer.access) {
       const { renewals } = await getUpsellPotential(offer);
-      renewalsToday = (renewals?.customers ?? []).filter((r) => r.accessEnds === today);
+      const all = renewals?.customers ?? [];
+      const ending = all.filter((r) => r.accessEnds === today);
+      const inAWeek = addDaysToDateString(today, RENEWAL_HEADS_UP_DAYS);
+      const soon = all.filter((r) => r.accessEnds === inAWeek);
+      renewalsToday = [...ending, ...soon];
+      const whose = (n: number) => `${n} customer${n === 1 ? "'s" : "s'"} program access`;
+      if (ending.length > 0) {
+        sections.push([
+          `⏳ **${whose(ending.length)} ends today**\nTime to renew, resell or upsell them.`,
+          ...ending.map(renewalBlock),
+        ]);
+      }
+      if (soon.length > 0) {
+        sections.push([
+          `👀 **${whose(soon.length)} ends in ${RENEWAL_HEADS_UP_DAYS} days (${day(inAWeek)})**\nReach out now and pitch the renewal or upsell before they lose access.`,
+          ...soon.map(renewalBlock),
+        ]);
+      }
       if (renewalsToday.length > 0) {
         sections.push([
-          `⏳ **${renewalsToday.length} customer${renewalsToday.length === 1 ? "'s" : "s'"} program access ends today**\nTime to renew, resell or upsell them.`,
-          ...renewalsToday.map(renewalBlock),
           `Track renewals here:\n${dashboardUrl.replace(/payment-plans$/, "upsell-potential")}`,
         ]);
       }
+    }
+    // `?test=1` labels the post so nobody acts on a preview.
+    if (params.get("test") === "1" && sections.length > 0) {
+      sections.unshift(["🧪 **TEST RUN: this is only a preview of the reminder, no action needed.**"]);
     }
     return Response.json({
       date: today,
