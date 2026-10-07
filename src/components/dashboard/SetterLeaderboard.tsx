@@ -78,7 +78,12 @@ function entry(s: SetterStats, goals: GoalsConfig | undefined): LeaderboardEntry
         rows: [
           { label: "Cash Collected", value: s.cash, format: "currency" },
           { label: "AOV", value: s.aov, format: "currency", note: "Low ticket cash ÷ software closed" },
-          { label: "Cash Per Pickup", value: s.cashPerPickup, format: "currency" },
+          {
+            label: "Cash Per Booked Call",
+            value: s.cashPerBookedCall,
+            format: "currency",
+            note: "High ticket cash ÷ HT calls booked",
+          },
         ],
       },
       {
