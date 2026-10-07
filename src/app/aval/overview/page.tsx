@@ -283,6 +283,75 @@ export default function OverviewPage() {
         </div>
       </DashboardSection>
 
+      {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. Kept right under the keystones. */}
+      <DashboardSection title="Unit Economics">
+        <MetricGroups
+          groups={[
+            {
+              title: "Low Ticket",
+              metrics: [
+                {
+                  label: "CAC (Paid)",
+                  value: metrics?.cacLowTicketPaid,
+                  format: "currency",
+                  override: !adsActive ? notActive : undefined,
+                  subtext: "Ad spend ÷ low ticket sales from paid.",
+                  status: adsActive ? kpiStatus(metrics?.cacLowTicketPaid, goals?.cpaLowTicket?.max, "lower") : null,
+                  goal: adsActive ? kpiLabel(goals?.cpaLowTicket?.max, "lower", "currency") : null,
+                },
+                {
+                  label: "AOV",
+                  value: metrics?.averageOrderValueLowTicket,
+                  format: "currency",
+                  subtext: "Low ticket cash ÷ low ticket sales.",
+                },
+              ],
+            },
+            {
+              title: "High Ticket",
+              metrics: [
+                {
+                  label: "CAC (Paid)",
+                  value: metrics?.cacHighTicketPaid,
+                  format: "currency",
+                  subtext: "Ad spend ÷ high ticket deals closed from paid.",
+                },
+                {
+                  label: "AOV",
+                  value: metrics?.averageOrderValueHighTicket,
+                  format: "currency",
+                  subtext: "High ticket cash ÷ high ticket deals closed.",
+                },
+                {
+                  label: "Cost Per Call",
+                  value: metrics?.costPerCallHT,
+                  format: "currency",
+                  override: !adsActive ? notActive : undefined,
+                  subtext: "Ad spend ÷ high ticket calls booked.",
+                },
+              ],
+            },
+            {
+              title: "Conversion",
+              metrics: [
+                {
+                  label: "Lead-To-Close Rate",
+                  value: metrics?.leadToCloseRate,
+                  format: "percent",
+                  subtext: "Low ticket sales ÷ tracked leads.",
+                },
+                {
+                  label: "Time To Close (Avg Days)",
+                  value: metrics?.avgDaysToClose,
+                  format: "number",
+                  subtext: "Days from opt-in to the call that collected their cash.",
+                },
+              ],
+            },
+          ]}
+        />
+      </DashboardSection>
+
       {/* TIER 2 — REVENUE BREAKDOWN */}
       <DashboardSection title="Revenue Breakdown">
         <RevenueBreakdown
@@ -407,32 +476,11 @@ export default function OverviewPage() {
               inputs: [
                 { label: "Software Closed", value: metrics?.softwareClosed },
                 { label: "Software Pitched", value: metrics?.softwarePitched },
+                { label: "Low Ticket Sales", value: metrics?.sales, note: "As logged on the daily metrics form." },
               ],
             },
           ]}
         />
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard
-            label="Sales — Low Ticket"
-            value={metrics?.sales}
-            format="number"
-            subtext="From Marketing Daily Metrics."
-            status={kpiStatus(metrics?.sales, goals?.salesLowTicket, "higher")}
-            goal={kpiLabel(goals?.salesLowTicket, "higher", "number")}
-          />
-          <StatCard
-            label="AOV — Low Ticket"
-            value={metrics?.averageOrderValueLowTicket}
-            format="currency"
-            subtext="Cash Collected — Low Ticket ÷ Sales."
-          />
-          <StatCard
-            label="AOV — High Ticket"
-            value={metrics?.averageOrderValueHighTicket}
-            format="currency"
-            subtext="Cash Collected — High Ticket ÷ HT Deals Closed."
-          />
-        </div>
       </DashboardSection>
 
       {/* TIER 5 — HIGH-TICKET BACKEND */}
@@ -531,96 +579,64 @@ export default function OverviewPage() {
         <OfferSplitSection apiPath="/api/aval/overview/offer-split" range={range} />
       </DashboardSection>
 
-      {/* TIER 6 — UNIT ECONOMICS */}
-      <DashboardSection title="Unit Economics">
-        <StatCardGrid>
-          <StatCard
-            label="CAC — Low Ticket (Paid)"
-            value={metrics?.cacLowTicketPaid}
-            format="currency"
-            override={!adsActive ? notActive : undefined}
-            subtext="Ad Spend ÷ Low-Ticket Sales (Paid). Organic isn't shown — CAC is inherently a paid-acquisition metric."
-            status={adsActive ? kpiStatus(metrics?.cacLowTicketPaid, goals?.cpaLowTicket?.max, "lower") : null}
-            goal={adsActive ? kpiLabel(goals?.cpaLowTicket?.max, "lower", "currency") : null}
-          />
-          <StatCard
-            label="CAC — High Ticket (Paid)"
-            value={metrics?.cacHighTicketPaid}
-            format="currency"
-            subtext="Ad Spend ÷ High Ticket Deals Closed (Paid)."
-          />
-          <StatCard
-            label="Cost Per Call (HT)"
-            value={metrics?.costPerCallHT}
-            format="currency"
-            override={!adsActive ? notActive : undefined}
-            subtext="Ad Spend ÷ HT Calls Booked — efficiency of booking a call, before you even look at close rate."
-          />
-          <StatCard
-            label="Lead-to-Close Rate"
-            value={metrics?.leadToCloseRate}
-            format="percent"
-            subtext="Low-ticket sales ÷ tracked leads."
-          />
-          <StatCard
-            label="Time to Close (avg)"
-            value={metrics?.avgDaysToClose}
-            format="number"
-            subtext="Average days from opt-in to the call that collected their cash. Stretching out means cash flow is tighter than it looks."
-          />
-          <StatCard
-            label="Cash Collected / Opt-In (Paid)"
-            value={metrics?.cashCollectedPerOptInPaid}
-            format="currency"
-            subtext="Reference — also shown as a Tier 1 keystone above."
-          />
-        </StatCardGrid>
-      </DashboardSection>
-
       {/* TIER 7 — FUNNEL & MARKETING HEALTH (diagnostic only) */}
       <DashboardSection title="Funnel & Marketing Health — Diagnostic Only">
         <p className="mb-3 text-sm text-[var(--text-muted)]">
           Check this tier when something upstream breaks — not part of the daily glance.
         </p>
-        <StatCardGrid>
-          <StatCard
-            label="VSL Views"
-            value={metrics?.vslViews}
-            format="number"
-            status={kpiStatus(metrics?.vslViews, goals?.vslViews, "higher")}
-            goal={kpiLabel(goals?.vslViews, "higher", "number")}
-          />
-          <StatCard
-            label="VSL Play Rate (Paid)"
-            value={metrics?.vslPlayRate}
-            format="percent"
-            status={kpiStatus(metrics?.vslPlayRate, goals?.vslPlayRate?.min, "higher")}
-            goal={kpiLabel(goals?.vslPlayRate?.min, "higher", "percent")}
-          />
-          <StatCard
-            label="VSL Engagement Rate (Paid)"
-            value={metrics?.vslEngagementRate}
-            format="percent"
-            status={kpiStatus(metrics?.vslEngagementRate, goals?.vslEngagementRate?.min, "higher")}
-            goal={kpiLabel(goals?.vslEngagementRate?.min, "higher", "percent")}
-          />
-          <StatCard
-            label="Funnel Conversion Rate (Paid)"
-            value={metrics?.funnelConversionRatePaid}
-            format="percent"
-            subtext="Low ticket sales from paid ÷ paid opt-ins."
-            status={kpiStatus(metrics?.funnelConversionRatePaid, goals?.funnelConversionRate?.min, "higher")}
-            goal={kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent")}
-          />
-          <StatCard
-            label="Funnel Conversion Rate (Organic)"
-            value={metrics?.funnelConversionRateOrganic}
-            format="percent"
-            subtext="Low ticket sales from organic ÷ organic opt-ins."
-            status={kpiStatus(metrics?.funnelConversionRateOrganic, goals?.funnelConversionRate?.min, "higher")}
-            goal={kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent")}
-          />
-        </StatCardGrid>
+        <MetricGroups
+          groups={[
+            {
+              title: "VSL",
+              metrics: [
+                {
+                  label: "VSL Views",
+                  value: metrics?.vslViews,
+                  format: "number",
+                  status: kpiStatus(metrics?.vslViews, goals?.vslViews, "higher"),
+                  goal: kpiLabel(goals?.vslViews, "higher", "number"),
+                },
+                {
+                  label: "Play Rate (Paid)",
+                  value: metrics?.vslPlayRate,
+                  format: "percent",
+                  subtext: "Plays ÷ views, from VTurb.",
+                  status: kpiStatus(metrics?.vslPlayRate, goals?.vslPlayRate?.min, "higher"),
+                  goal: kpiLabel(goals?.vslPlayRate?.min, "higher", "percent"),
+                },
+                {
+                  label: "Engagement Rate (Paid)",
+                  value: metrics?.vslEngagementRate,
+                  format: "percent",
+                  subtext: "From VTurb.",
+                  status: kpiStatus(metrics?.vslEngagementRate, goals?.vslEngagementRate?.min, "higher"),
+                  goal: kpiLabel(goals?.vslEngagementRate?.min, "higher", "percent"),
+                },
+              ],
+            },
+            {
+              title: "Funnel Conversion",
+              metrics: [
+                {
+                  label: "Paid",
+                  value: metrics?.funnelConversionRatePaid,
+                  format: "percent",
+                  subtext: "Low ticket sales from paid ÷ paid opt-ins.",
+                  status: kpiStatus(metrics?.funnelConversionRatePaid, goals?.funnelConversionRate?.min, "higher"),
+                  goal: kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent"),
+                },
+                {
+                  label: "Organic",
+                  value: metrics?.funnelConversionRateOrganic,
+                  format: "percent",
+                  subtext: "Low ticket sales from organic ÷ organic opt-ins.",
+                  status: kpiStatus(metrics?.funnelConversionRateOrganic, goals?.funnelConversionRate?.min, "higher"),
+                  goal: kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent"),
+                },
+              ],
+            },
+          ]}
+        />
       </DashboardSection>
 
       {/* Lead Sources detail — attribution detail lives here */}
