@@ -1,7 +1,7 @@
 "use client";
 
 import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
-import { StatCardGrid, DashboardSection } from "@/components/dashboard/StatCardGrid";
+import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
@@ -581,7 +581,7 @@ export default function OverviewPage() {
       </DashboardSection>
 
       {/* TIER 7 — FUNNEL & MARKETING HEALTH (diagnostic only) */}
-      <DashboardSection title="Funnel & Marketing Health — Diagnostic Only">
+      <DashboardSection title="Funnel, Marketing Health & Lead Sources — Diagnostic Only">
         <p className="mb-3 text-sm text-[var(--text-muted)]">
           Check this tier when something upstream breaks — not part of the daily glance.
         </p>
@@ -636,17 +636,25 @@ export default function OverviewPage() {
                 },
               ],
             },
+            {
+              title: "Lead Sources",
+              metrics: [
+                {
+                  label: "Paid Leads (Tracked)",
+                  value: leadSources?.paidLeadsTracked,
+                  format: "number",
+                  subtext: "Leads table, source = Paid.",
+                },
+                {
+                  label: "Organic Leads (Tracked)",
+                  value: leadSources?.organicLeadsTracked,
+                  format: "number",
+                  subtext: "Leads table, source = Organic.",
+                },
+              ],
+            },
           ]}
         />
-      </DashboardSection>
-
-      {/* Lead Sources detail — attribution detail lives here */}
-      <DashboardSection title="Lead Sources — Attribution Detail">
-        <StatCardGrid>
-          <StatCard label="Paid Leads (Tracked)" value={leadSources?.paidLeadsTracked} format="number" />
-          <StatCard label="Organic Leads (Tracked)" value={leadSources?.organicLeadsTracked} format="number" />
-        </StatCardGrid>
-
         <div className="mt-4 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm backdrop-blur-sm">
           <p className="text-[var(--text)]">
             {leadSources ? (
@@ -682,21 +690,40 @@ export default function OverviewPage() {
       </DashboardSection>
 
       <DashboardSection title="Refund / Chargeback">
-        <StatCardGrid>
-          <StatCard
-            label="Refund / Chargeback Rate"
-            value={metrics?.refundChargebackRate}
-            format="percent"
-            subtext="(Refund $ + Chargeback $) ÷ Total Cash Collected. Protects against the illusion of healthy cash collected."
-          />
-          <StatCard label="Refund Count" value={metrics?.refundCount} format="number" />
-          <StatCard label="Refund Dollars" value={metrics?.refundDollars} format="currency" />
-          <StatCard label="Chargeback Count" value={metrics?.chargebackCount} format="number" />
-          <StatCard label="Chargeback Dollars" value={metrics?.chargebackDollars} format="currency" />
-        </StatCardGrid>
+        <MetricGroups
+          groups={[
+            {
+              title: "Rate",
+              metrics: [
+                {
+                  label: "Refund / Chargeback Rate",
+                  value: metrics ? (metrics.refundChargebackRate ?? 0) : undefined,
+                  format: "percent",
+                  subtext: "(Refund $ + chargeback $) ÷ total cash collected.",
+                },
+              ],
+            },
+            {
+              title: "Refunds",
+              metrics: [
+                { label: "Count", value: metrics ? (metrics.refundCount ?? 0) : undefined, format: "number" },
+                { label: "Dollars", value: metrics ? (metrics.refundDollars ?? 0) : undefined, format: "currency" },
+              ],
+            },
+            {
+              title: "Chargebacks",
+              metrics: [
+                { label: "Count", value: metrics ? (metrics.chargebackCount ?? 0) : undefined, format: "number" },
+                { label: "Dollars", value: metrics ? (metrics.chargebackDollars ?? 0) : undefined, format: "currency" },
+              ],
+            },
+          ]}
+        />
         <p className="mt-3 text-sm text-[var(--text-muted)]">
-          From the Marketing Daily Metrics form — tracked starting 2026-09, so ranges before that
-          will show no data.
+          {metrics && !metrics.refundCount && !metrics.chargebackCount && !metrics.refundChargebackDollars
+            ? "No refunds or chargebacks logged in this range. "
+            : ""}
+          From the Marketing Daily Metrics form, tracked from September 2026.
         </p>
       </DashboardSection>
 
