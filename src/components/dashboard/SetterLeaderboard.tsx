@@ -71,6 +71,18 @@ function entry(s: SetterStats, goals: GoalsConfig | undefined): LeaderboardEntry
             goal: showGoal ? `≥ ${pct(showGoal)}` : undefined,
           },
           { label: "HT Sets Closed", value: s.highTicketSetClosed, format: "number" },
+          {
+            label: "Set To Close (Shown)",
+            value: s.setToCloseShown,
+            format: "percent",
+            note: "Closed deals ÷ calls shown",
+          },
+          {
+            label: "Set To Close (Booked)",
+            value: s.setToCloseBooked,
+            format: "percent",
+            note: "Closed deals ÷ calls booked",
+          },
         ],
       },
       {

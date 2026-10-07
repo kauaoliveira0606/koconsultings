@@ -34,6 +34,10 @@ export type SetterStats = {
   /** Their set calls that showed ÷ their calls on the calendar. */
   highTicketShowRate: number | null;
   highTicketSetClosed: number;
+  /** Set to close: their sets that closed ÷ their set calls that showed. */
+  setToCloseShown: number | null;
+  /** Set to close: their sets that closed ÷ the high ticket calls they booked. */
+  setToCloseBooked: number | null;
   /** Low ticket + high ticket cash: what the board is ranked on. */
   cash: number;
   cashLowTicket: number;
@@ -116,6 +120,8 @@ function stats(setter: string, range: Tally, month: Tally, commissionMtd: number
     highTicketShowed: range.htShowed,
     highTicketShowRate: safeDivide(range.htShowed, range.htOnCalendar || null),
     highTicketSetClosed: range.htClosed,
+    setToCloseShown: safeDivide(range.htClosed, range.htShowed || null),
+    setToCloseBooked: safeDivide(range.htClosed, range.htBooked || null),
     cash,
     cashLowTicket: range.cashLt,
     cashHighTicket: range.cashHt,
