@@ -12,6 +12,7 @@
  */
 import type { NextRequest } from "next/server";
 import { COMMISSIONS_OFFERS, UNASSIGNED_SHARED_ID, getCommissions } from "@/lib/airtable/commissions";
+import { attributionThrough } from "@/lib/attribution";
 
 export type RepAttribution = {
   rep: string;
@@ -43,7 +44,18 @@ export function attributionByRepGet(offer: keyof typeof COMMISSIONS_OFFERS) {
     }
     const config = COMMISSIONS_OFFERS[offer];
     const countedFrom = start < config.sharedIdTrackingStart ? config.sharedIdTrackingStart : start;
-    const commissions = await getCommissions(config, { start: countedFrom, end });
+    // Today never counts: the portal is still catching up on it (see attribution.ts).
+    const through = attributionThrough();
+    const countedTo = end > through ? through : end;
+    if (countedTo < countedFrom) {
+      return Response.json({
+        reps: [],
+        unassigned: 0,
+        trackingStart: config.sharedIdTrackingStart,
+        countedFrom,
+      } satisfies AttributionByRepResponse);
+    }
+    const commissions = await getCommissions(config, { start: countedFrom, end: countedTo });
     const isUnassigned = (rep: string) => rep.toLowerCase() === UNASSIGNED_SHARED_ID.toLowerCase();
     const reps = commissions.lowTicket
       .filter((r) => !isUnassigned(r.rep) && (r.trackedSales > 0 || r.submittedSales > 0))

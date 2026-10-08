@@ -9,6 +9,10 @@
  * Denominator: rows in the team's "Affiliate PCN" close log.
  * Both are filtered to the given brands and to on/after `dataFloor`.
  *
+ * Today never counts, on either side: the portal takes 1 to 8 hours to show a
+ * sale, so today's purchases would be divided by closes it hasn't caught up
+ * with yet. Everything stops at yesterday (Eastern).
+ *
  * Two per-offer dates:
  *  - periodsFrom: which period buckets to list (Bronson Aug 2026; Aval Sep 2026).
  *  - dataFloor:   earliest close/purchase date that counts. The oldest bucket is
@@ -17,7 +21,13 @@
  *    Sep 1) still land in the first real period instead of a throwaway bucket.
  */
 
+import { addDaysToDateString, easternDateString } from "./date-range";
+
 export const ATTRIBUTION_START_DATE = "2026-08-01";
+
+/** Last day attribution counts: yesterday, Eastern. Today is still filling in on the portal. */
+export const attributionThrough = (now: Date = new Date()): string =>
+  addDaysToDateString(easternDateString(now), -1);
 /** The date the portal switched Base44/Wix from monthly to weekly payouts. */
 const PORTAL_WENT_WEEKLY = "2026-09-01";
 
@@ -135,8 +145,14 @@ export function buildAttributionPeriods(
   return periods.reverse();
 }
 
-function inClosedRange(date: string | null, start: string, end: string, floor: string): boolean {
-  if (!date || date < floor) return false;
+function inClosedRange(
+  date: string | null,
+  start: string,
+  end: string,
+  floor: string,
+  through: string
+): boolean {
+  if (!date || date < floor || date > through) return false;
   return date >= start && date <= end;
 }
 
@@ -145,7 +161,8 @@ export function computeAttributionBuckets(
   portalRows: PortalRow[],
   pcnRows: DatedBrandRow[],
   brands: string[],
-  dataFloor: string = ATTRIBUTION_START_DATE
+  dataFloor: string = ATTRIBUTION_START_DATE,
+  through: string = attributionThrough()
 ): AttributionBucket[] {
   const matches = brandMatcher(brands);
   const portal = portalRows.filter((r) => matches(r.brand));
@@ -153,9 +170,11 @@ export function computeAttributionBuckets(
 
   return periods.map((p) => {
     const portalPurchases = portal
-      .filter((r) => inClosedRange(r.date, p.start, p.end, dataFloor))
+      .filter((r) => inClosedRange(r.date, p.start, p.end, dataFloor, through))
       .reduce((sum, r) => sum + (r.purchases ?? 0), 0);
-    const pcnCloses = pcn.filter((r) => inClosedRange(r.date, p.start, p.end, dataFloor)).length;
+    const pcnCloses = pcn.filter((r) =>
+      inClosedRange(r.date, p.start, p.end, dataFloor, through)
+    ).length;
     const rate = pcnCloses > 0 ? portalPurchases / pcnCloses : null;
     return { ...p, portalPurchases, pcnCloses, rate };
   });

@@ -238,7 +238,8 @@ export function AttributionSection({
       <div className={`mt-3 ${t.muted}`}>
         Portal purchases {brandLabel.toLowerCase()} the affiliate network tracked, divided by
         purchases the team logged as closed in Affiliate PCN for {selected?.label ?? "the period"}.
-        Ignores everything before Aug 2026; weekly view starts Sep 2026.
+        Ignores everything before Aug 2026; weekly view starts Sep 2026. Today is never counted:
+        the portal takes up to 8 hours to show a sale, so the numbers run through yesterday.
       </div>
     </div>
   );
