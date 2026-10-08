@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { formatStatValue } from "@/lib/format";
 import type { AttributionBucket, AttributionGranularity } from "@/lib/attribution";
+import type { AttributionByRepResponse } from "@/lib/attribution-by-rep";
 import { cellStatus } from "@/lib/weekly-scorecard";
 
 type AttributionResponse = {
@@ -30,6 +31,7 @@ const THEME = {
     label: "text-xs font-semibold uppercase tracking-wide text-black/60",
     muted: "text-xs text-black/50",
     value: "text-lg font-semibold text-black",
+    divider: "border-black/10",
   },
   dark: {
     card: "rounded-lg border border-white/10 bg-[#111826] p-4",
@@ -40,6 +42,7 @@ const THEME = {
     label: "text-xs font-semibold uppercase tracking-wide text-white/70",
     muted: "text-xs text-white/50",
     value: "text-lg font-semibold font-mono text-white",
+    divider: "border-white/10",
   },
   deepspace: {
     card: "rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm",
@@ -51,6 +54,7 @@ const THEME = {
     label: "text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]",
     muted: "text-xs text-[var(--text-muted)]",
     value: "text-lg font-semibold font-mono text-[var(--text-strong)]",
+    divider: "border-[var(--panel-border)]",
   },
 } as const;
 
@@ -59,12 +63,15 @@ export function AttributionSection({
   theme = "light",
   brandLabel,
   goal,
+  byRepPath,
 }: {
   apiPath: string;
   theme?: "light" | "dark" | "deepspace";
   brandLabel: string;
   /** Minimum attribution rate target; same green/yellow/red scale as StatCard. */
   goal?: number | null;
+  /** Endpoint for the per-rep split of the selected period. Omit to hide it. */
+  byRepPath?: string;
 }) {
   const t = THEME[theme];
   const { data } = useSWR<AttributionResponse>(apiPath, fetcher);
@@ -76,6 +83,12 @@ export function AttributionSection({
     buckets.find((b) => b.key === periodKey) ?? buckets[0] ?? null;
   const status =
     selected && goal != null ? cellStatus(selected.rate ?? null, goal, "higher") : null;
+  // Same formula, split by rep, for whichever period is selected.
+  const { data: byRep } = useSWR<AttributionByRepResponse>(
+    byRepPath && selected ? `${byRepPath}?start=${selected.start}&end=${selected.end}` : null,
+    fetcher,
+    { keepPreviousData: true }
+  );
 
   return (
     <div className={t.card}>
@@ -147,6 +160,80 @@ export function AttributionSection({
       ) : (
         <div className={t.muted}>No periods available yet.</div>
       )}
+
+      {byRepPath && selected ? (
+        <div className={`mt-5 border-t pt-4 ${t.divider}`}>
+          <div className={t.label}>Attribution Rate By Rep</div>
+          {!byRep ? (
+            <div className={`mt-2 ${t.muted}`}>Loading...</div>
+          ) : selected.end < byRep.trackingStart ? (
+            <div className={`mt-2 ${t.muted}`}>
+              The portal only started tagging sales with each rep&apos;s Shared ID on{" "}
+              {byRep.trackingStart}, so this period can&apos;t be split by rep.
+            </div>
+          ) : byRep.reps.length === 0 ? (
+            <div className={`mt-2 ${t.muted}`}>No purchases logged or tracked for a rep in this period.</div>
+          ) : (
+            <>
+              <table className="mt-2 w-full text-sm">
+                <thead>
+                  <tr className={`border-b text-left ${t.divider} ${t.muted}`}>
+                    <th className="py-2 pr-3 font-semibold uppercase tracking-wide">Rep</th>
+                    <th className="py-2 pr-3 text-right font-semibold uppercase tracking-wide">
+                      Attribution Rate
+                    </th>
+                    <th className="py-2 pr-3 text-right font-semibold uppercase tracking-wide">
+                      Portal Tracked
+                    </th>
+                    <th className="py-2 text-right font-semibold uppercase tracking-wide">
+                      Logged (PCN)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byRep.reps.map((r) => {
+                    const repStatus =
+                      goal != null && r.rate !== null ? cellStatus(r.rate, goal, "higher") : null;
+                    return (
+                      <tr key={r.rep} className={`border-b last:border-0 ${t.divider}`}>
+                        <td className={`py-2 pr-3 font-medium ${t.value} text-sm`}>{r.rep}</td>
+                        <td className={`py-2 pr-3 text-right ${t.value} text-sm`}>
+                          <span className="inline-flex items-center justify-end gap-2">
+                            {repStatus ? (
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-full"
+                                style={{ background: STATUS_DOT[repStatus] }}
+                                aria-label={`KPI status: ${repStatus}`}
+                              />
+                            ) : null}
+                            {formatStatValue(r.rate, "percent")}
+                          </span>
+                        </td>
+                        <td className={`py-2 pr-3 text-right ${t.value} text-sm`}>
+                          {formatStatValue(r.tracked, "number")}
+                        </td>
+                        <td className={`py-2 text-right ${t.value} text-sm`}>
+                          {formatStatValue(r.logged, "number")}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className={`mt-2 ${t.muted}`}>
+                Same formula per rep: portal sales under their Shared ID ÷ purchases they logged in
+                Affiliate PCN.
+                {byRep.countedFrom > selected.start
+                  ? ` Counted from ${byRep.countedFrom}, the day the portal started tagging sales by rep, so these add up to less than the totals above.`
+                  : ""}
+                {byRep.unassigned > 0
+                  ? ` ${byRep.unassigned} portal sale${byRep.unassigned === 1 ? "" : "s"} in this period had no Shared ID, so ${byRep.unassigned === 1 ? "it counts" : "they count"} for nobody here.`
+                  : ""}
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
 
       <div className={`mt-3 ${t.muted}`}>
         Portal purchases {brandLabel.toLowerCase()} the affiliate network tracked, divided by

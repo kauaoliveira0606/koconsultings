@@ -682,6 +682,7 @@ export default function OverviewPage() {
       <DashboardSection title="Attribution — Base 44">
         <AttributionSection
           apiPath="/api/aval/overview/attribution"
+          byRepPath="/api/aval/overview/attribution/by-rep"
           brandLabel="Base 44"
           theme="deepspace"
           goal={goals?.attributionRate?.min}

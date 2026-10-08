@@ -683,6 +683,7 @@ export default function OverviewPage() {
       <DashboardSection title="Attribution — Base 44 + Wix">
         <AttributionSection
           apiPath="/api/bronson/overview/attribution"
+          byRepPath="/api/bronson/overview/attribution/by-rep"
           brandLabel="Base 44 + Wix"
           theme="deepspace"
           goal={goals?.attributionRate?.min}
