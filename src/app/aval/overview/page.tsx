@@ -269,7 +269,7 @@ export default function OverviewPage() {
             </span>
           </span>
           <span>
-            Processing fees (3% of high ticket cash):{" "}
+            Processing fees (2.5% of high ticket cash):{" "}
             <span className="font-semibold text-[var(--text)]">
               {formatStatValue(metrics?.processingFees, "currency")}
             </span>

@@ -17,7 +17,7 @@ import { DEAL_FEE_RATES, type DealFeeRates } from "@/lib/deal-fee-rates";
  *  - Submitted cash = what the rep logged themselves in "Affiliate PCN".
  *
  * High ticket ("Post Call Note"): closer 10%, setter 5% of cash collected
- * after fees: the offer's processing rate on every deal (Bronson 2.5%), plus
+ * after fees: the offer's processing rate on every deal (2.5%), plus
  * a further 15% when "Where Was Payment Collected On" is a financing option.
  * The same fees come off before the agency's own split.
  * A rep who both set and closed the deal gets both (15%). Later installments

@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
   );
   const highTicketCommission = cashHighTicket !== null ? cashHighTicket * 0.15 : null;
   const totalCommissions = (lowTicketCommission ?? 0) + (highTicketCommission ?? 0);
-  // Processing (3% of all high ticket cash) and financing (a further 15% of
+  // Processing (2.5% of all high ticket cash) and financing (a further 15% of
   // financed deals) come off before anything counts as net.
   const fees = dealFees({
     cashHighTicket,

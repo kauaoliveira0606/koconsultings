@@ -1,9 +1,9 @@
 /**
  * Fees that come off high ticket cash before it is really ours:
  *
- *   - processing on every high ticket dollar collected (2.5% Bronson, 3% Aval)
+ *   - processing on every high ticket dollar collected (2.5%)
  *   - a further 15% on anything financed (Clarity, Klarna, ...), so a financed
- *     deal loses 17.5% / 18% in total
+ *     deal loses 17.5% in total
  *
  * Low ticket is an affiliate payout, not a payment we process, so it carries
  * no fee here.
