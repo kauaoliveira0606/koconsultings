@@ -118,6 +118,8 @@ export type DataCheckResponse = {
   days: DataCheckDay[];
   /** Records submitted more than once, newest first. */
   duplicates: DataCheckDuplicate[];
+  /** Duplicates dated outside the selected range, so an empty list isn't read as "none anywhere". */
+  duplicatesOutsideRange: { count: number; latestDate: string | null };
   /** Latest day checked; today is skipped because it is still being logged. */
   checkedThrough: string;
 };
@@ -184,14 +186,13 @@ const firstText = (fields: Record<string, unknown>, names: string[]): string | n
 
 async function findDuplicates(
   baseId: string,
-  check: DuplicateCheck,
-  range: ResolvedRange
+  check: DuplicateCheck
 ): Promise<DataCheckDuplicate[]> {
   const records = await airtableListAll<Record<string, unknown>>(baseId, check.tableId);
   const groups = new Map<string, DataCheckDuplicate>();
   for (const r of records) {
     const date = rowEasternDate(r.fields[check.dateField ?? "Date"], r.createdTime);
-    if (!date || !isDateInRange(date, range)) continue;
+    if (!date) continue;
     const parts = check.identity.map((group) => firstText(r.fields, group));
     if (!parts[0]) continue;
     let cash: number | null = null;
@@ -235,10 +236,10 @@ export async function getDataCheck(
 ): Promise<DataCheckResponse> {
   const [formRows, duplicateLists, ...sourceDays] = await Promise.all([
     config.getForm(),
-    Promise.all((config.duplicateChecks ?? []).map((c) => findDuplicates(config.baseId, c, range))),
+    Promise.all((config.duplicateChecks ?? []).map((c) => findDuplicates(config.baseId, c))),
     ...config.sources.map((s) => sumSourceByDay(config.baseId, s)),
   ]);
-  const duplicates = duplicateLists.flat();
+  const allDuplicates = duplicateLists.flat();
 
   // The getter adds a synthetic "vsl-" row on days VTurb has numbers but the
   // team hasn't submitted the form; those are not form entries.
@@ -342,8 +343,8 @@ export async function getDataCheck(
   // More than one form entry for a day: they are added together, so a
   // resubmission doubles that day's numbers.
   for (const [date, records] of formEntries) {
-    if (records.length > 1 && isDateInRange(date, range)) {
-      duplicates.push({
+    if (records.length > 1) {
+      allDuplicates.push({
         source: "Daily Metrics form",
         date,
         who: null,
@@ -354,13 +355,16 @@ export async function getDataCheck(
       });
     }
   }
-  duplicates.sort((a, b) => b.date.localeCompare(a.date) || a.source.localeCompare(b.source));
+  allDuplicates.sort((a, b) => b.date.localeCompare(a.date) || a.source.localeCompare(b.source));
+  const duplicates = allDuplicates.filter((d) => isDateInRange(d.date, range));
+  const outside = allDuplicates.filter((d) => !isDateInRange(d.date, range));
 
   days.sort((a, b) => b.date.localeCompare(a.date));
   return {
     flagCount: days.reduce((n, d) => n + d.flags.length, 0),
     days,
     duplicates,
+    duplicatesOutsideRange: { count: outside.length, latestDate: outside[0]?.date ?? null },
     checkedThrough: yesterday,
   };
 }

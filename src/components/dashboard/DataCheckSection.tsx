@@ -166,9 +166,33 @@ function duplicateLine(d: DataCheckDuplicate): string {
   );
 }
 
-/** Records submitted more than once in a log. */
-function Duplicates({ duplicates }: { duplicates: DataCheckDuplicate[] }) {
+/** Records submitted more than once in a log. Always shown, even when there are none. */
+function Duplicates({
+  duplicates,
+  outside,
+}: {
+  duplicates: DataCheckDuplicate[];
+  outside: DataCheckResponse["duplicatesOutsideRange"];
+}) {
   const extraCash = duplicates.reduce((sum, d) => sum + d.extraCash, 0);
+  const outsideNote =
+    outside.count > 0 && outside.latestDate
+      ? `${outside.count} more outside this date range (latest ${formatDay(outside.latestDate)}). Pick All Time above to see them.`
+      : null;
+
+  if (duplicates.length === 0) {
+    return (
+      <div className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2.5 text-sm text-[var(--text-strong)]">
+        <span className="font-semibold">Duplicate records:</span>{" "}
+        <span className="font-semibold text-emerald-400">none in this date range</span>
+        <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+          Checks every log for the same lead, day and cash submitted twice, and for a rep
+          submitting two end of day reports for one day.{outsideNote ? ` ${outsideNote}` : ""}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <details className="group rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)]" open>
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
@@ -178,6 +202,9 @@ function Duplicates({ duplicates }: { duplicates: DataCheckDuplicate[] }) {
             {duplicates.length} record{duplicates.length === 1 ? "" : "s"} submitted more than once
             {extraCash > 0 ? `, ${money(extraCash)} counted more than once` : ""}
           </span>
+          {outsideNote ? (
+            <div className="mt-0.5 text-xs text-[var(--text-muted)]">{outsideNote}</div>
+          ) : null}
         </div>
       </summary>
       <p className="border-t border-[var(--panel-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
@@ -244,6 +271,9 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         records and matches the
         Marketing Daily Metrics form, the once a day numbers entry this dashboard is built from,
         for this range (checked through {formatDay(data.checkedThrough)}).
+        <div className="mt-3">
+          <Duplicates duplicates={data.duplicates} outside={data.duplicatesOutsideRange} />
+        </div>
       </div>
     );
   }
@@ -274,7 +304,7 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         two apart is already matched up and not flagged.
       </p>
       <div className="mt-3 space-y-2">
-        {data.duplicates.length > 0 ? <Duplicates duplicates={data.duplicates} /> : null}
+        <Duplicates duplicates={data.duplicates} outside={data.duplicatesOutsideRange} />
         {mismatches.map((mismatch) => (
           <MismatchRow key={mismatch.key} mismatch={mismatch} />
         ))}
