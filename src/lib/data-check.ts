@@ -116,10 +116,8 @@ export type DataCheckDay = {
 export type DataCheckResponse = {
   flagCount: number;
   days: DataCheckDay[];
-  /** Records submitted more than once, newest first. */
+  /** Records submitted more than once, newest first. All time: not tied to the date range. */
   duplicates: DataCheckDuplicate[];
-  /** Duplicates dated outside the selected range, so an empty list isn't read as "none anywhere". */
-  duplicatesOutsideRange: { count: number; latestDate: string | null };
   /** Latest day checked; today is skipped because it is still being logged. */
   checkedThrough: string;
 };
@@ -356,15 +354,14 @@ export async function getDataCheck(
     }
   }
   allDuplicates.sort((a, b) => b.date.localeCompare(a.date) || a.source.localeCompare(b.source));
-  const duplicates = allDuplicates.filter((d) => isDateInRange(d.date, range));
-  const outside = allDuplicates.filter((d) => !isDateInRange(d.date, range));
+  // Duplicates are shown in total, whatever date range is picked.
+  const duplicates = allDuplicates;
 
   days.sort((a, b) => b.date.localeCompare(a.date));
   return {
     flagCount: days.reduce((n, d) => n + d.flags.length, 0),
     days,
     duplicates,
-    duplicatesOutsideRange: { count: outside.length, latestDate: outside[0]?.date ?? null },
     checkedThrough: yesterday,
   };
 }
