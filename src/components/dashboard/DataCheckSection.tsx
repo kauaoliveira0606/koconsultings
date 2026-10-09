@@ -3,7 +3,7 @@
 import type { RangeState } from "@/components/dashboard/RangeFilterBar";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue } from "@/lib/format";
-import type { DataCheckFlag, DataCheckResponse } from "@/lib/data-check";
+import type { DataCheckDuplicate, DataCheckFlag, DataCheckResponse } from "@/lib/data-check";
 
 const METRIC_LABELS: Record<DataCheckFlag["metric"], string> = {
   highTicket: "High Ticket Cash",
@@ -152,6 +152,50 @@ function MismatchRow({ mismatch }: { mismatch: Mismatch }) {
   );
 }
 
+function duplicateLine(d: DataCheckDuplicate): string {
+  const times = d.count === 2 ? "twice" : `${d.count} times`;
+  if (d.who === null) {
+    return `${d.count} entries for ${formatDay(d.date, true)}. They are added together, so that day's numbers are inflated if one is a resubmission.`;
+  }
+  if (d.cash === null) {
+    return `${d.who} submitted ${times} for ${formatDay(d.date, true)}.`;
+  }
+  return (
+    `${d.who} was logged ${times} on ${formatDay(d.date, true)}` +
+    (d.cash > 0 ? `, ${money(d.cash)} each. ${money(d.extraCash)} is counted more than once.` : ", no cash.")
+  );
+}
+
+/** Records submitted more than once in a log. */
+function Duplicates({ duplicates }: { duplicates: DataCheckDuplicate[] }) {
+  const extraCash = duplicates.reduce((sum, d) => sum + d.extraCash, 0);
+  return (
+    <details className="group rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)]" open>
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+        <div className="text-sm text-[var(--text-strong)]">
+          <span className="font-semibold">Duplicate records:</span>{" "}
+          <span className="font-semibold text-red-400">
+            {duplicates.length} record{duplicates.length === 1 ? "" : "s"} submitted more than once
+            {extraCash > 0 ? `, ${money(extraCash)} counted more than once` : ""}
+          </span>
+        </div>
+      </summary>
+      <p className="border-t border-[var(--panel-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
+        Same lead, same day and same cash in one log (or the same rep&apos;s end of day report
+        twice). Duplicates are not removed automatically: a repeated post call note or follow up
+        payment pays its commission twice until the extra record is deleted in Airtable.
+      </p>
+      <ul className="divide-y divide-[var(--panel-border)] border-t border-[var(--panel-border)] px-3">
+        {duplicates.map((d) => (
+          <li key={`${d.source}-${d.date}-${d.who}-${d.cash}`} className="py-2 text-sm text-[var(--text-strong)]">
+            <span className="font-semibold">{d.source}:</span> {duplicateLine(d)}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 /**
  * Says which team logs (Post Call Notes, Follow Up Payment, EOD Closer,
  * Affiliate PCN, Affiliate EOD) don't match the Marketing Daily Metrics form
@@ -169,11 +213,12 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
     );
   }
 
-  if (data.flagCount === 0) {
+  if (data.flagCount === 0 && data.duplicates.length === 0) {
     return (
       <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm text-[var(--text-strong)] backdrop-blur-sm">
         <span className="font-semibold text-emerald-400">All clear.</span> The cash the reps logged
-        (post call notes, follow up payments, end of day reports, Affiliate PCN) matches the
+        (post call notes, follow up payments, end of day reports, Affiliate PCN) has no duplicate
+        records and matches the
         Marketing Daily Metrics form, the once a day numbers entry this dashboard is built from,
         for this range (checked through {formatDay(data.checkedThrough)}).
       </div>
@@ -185,7 +230,12 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
     <div className="rounded-lg border border-red-500/40 bg-red-500/5 p-4 backdrop-blur-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="text-sm font-semibold text-red-400">
-          Cash isn&apos;t matching in {mismatches.length} place{mismatches.length === 1 ? "" : "s"}
+          {mismatches.length > 0
+            ? `Cash isn't matching in ${mismatches.length} place${mismatches.length === 1 ? "" : "s"}`
+            : "Cash matches"}
+          {data.duplicates.length > 0
+            ? ` · ${data.duplicates.length} duplicate record${data.duplicates.length === 1 ? "" : "s"}`
+            : ""}
         </div>
         <div className="text-xs text-[var(--text-muted)]">Click a line for the days.</div>
       </div>
@@ -201,6 +251,7 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         two apart is already matched up and not flagged.
       </p>
       <div className="mt-3 space-y-2">
+        {data.duplicates.length > 0 ? <Duplicates duplicates={data.duplicates} /> : null}
         {mismatches.map((mismatch) => (
           <MismatchRow key={mismatch.key} mismatch={mismatch} />
         ))}

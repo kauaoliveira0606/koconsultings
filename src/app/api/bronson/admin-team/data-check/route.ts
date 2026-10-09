@@ -57,6 +57,43 @@ export async function GET(request: NextRequest) {
             ],
           },
         ],
+        duplicateChecks: [
+          {
+            label: "Post Call Notes",
+            tableId: "tbltiRXQvojxiTJaM",
+            identity: [["Email (Lead)", "Full Name (Lead)"], ["Call Outcome"]],
+            cashFields: ["Cash Collected"],
+            displayFields: ["Full Name (Lead)"],
+          },
+          {
+            label: "Follow Up Payment",
+            tableId: "tblIv06rB4qG0msnZ",
+            dateField: "Payment Collected Date",
+            identity: [["Lead Email", "Lead First Name"]],
+            cashFields: ["Cash Collected"],
+            displayFields: ["Lead First Name"],
+          },
+          {
+            label: "Affiliate PCN",
+            tableId: "tblXsKo89QNuRawBy",
+            identity: [
+              ["lead email", "Lead Email", "Lead name", "Lead Name"],
+              ["Which software", "Which Software"],
+            ],
+            cashFields: ["CPA (Payout / Cash Collected)", "CPA?"],
+            displayFields: ["Lead name", "Lead Name"],
+          },
+          {
+            label: "EOD Closer",
+            tableId: "tbl0xIvtCZIjemZRZ",
+            identity: [["Closer Name"], ["Type Of Form Submission", "Type Of Form"]],
+          },
+          {
+            label: "Affiliate EOD",
+            tableId: "tblezCVnizBHKPL4Q",
+            identity: [["Your name", "Your Name"]],
+          },
+        ],
       },
       parseRangeFromRequest(request)
     )
