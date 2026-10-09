@@ -2,20 +2,24 @@ import { airtableListAll, airtableListAllIncremental } from "./client";
 import { listClawbacks, type Clawback, type ClawbacksTable } from "./clawbacks";
 import { parseDateOnly, parseNumericText } from "./parse";
 import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date-range";
+import { DEAL_FEE_RATES, type DealFeeRates } from "@/lib/deal-fee-rates";
 
 /**
  * Sales-team commissions (Bronson and Aval share the rules), split by ticket size.
  *
- * Low ticket (Base44 / Wix software, setter is full cycle): 10% flat, paid
- * ONLY on real (attributed) cash. Submitted cash is shown for comparison.
+ * Low ticket (Base44 / Wix software, setter is full cycle): 10% flat, every
+ * day of the week, no fees. Worked out both ways, by what the rep logged in
+ * Affiliate PCN and by what was actually attributed; the payout is on the
+ * attributed (real) cash.
  *  - Real cash      = what the affiliate portal actually tracked for the rep's
  *                     Shared ID ("Affiliate Portal By Rep", synced daily by the
  *                     n8n Base44/Wix Attribution Collector; sub_id_2 = the rep).
  *  - Submitted cash = what the rep logged themselves in "Affiliate PCN".
  *
  * High ticket ("Post Call Note"): closer 10%, setter 5% of cash collected
- * after fees (3% processing, or 18% when "Where Was Payment Collected On" is a
- * financing option).
+ * after fees: the offer's processing rate on every deal (Bronson 2.5%), plus
+ * a further 15% when "Where Was Payment Collected On" is a financing option.
+ * The same fees come off before the agency's own split.
  * A rep who both set and closed the deal gets both (15%). Later installments
  * logged in "Follow Up Payment" pay the same way.
  *
@@ -35,6 +39,8 @@ export type CommissionsOffer = {
   affiliatePcnRepField: string;
   affiliatePcnCashField: string;
   clawbacksTableId: string;
+  /** Fees that come off high ticket cash before commission. */
+  feeRates: DealFeeRates;
   /** The portal only started stamping Shared IDs on sales from this date. */
   sharedIdTrackingStart: string;
   /**
@@ -60,6 +66,7 @@ export const COMMISSIONS_OFFERS = {
     affiliatePcnRepField: "Full Name",
     affiliatePcnCashField: "CPA (Payout / Cash Collected)",
     clawbacksTableId: "tblEWLBxlRGjhDmyJ",
+    feeRates: DEAL_FEE_RATES.bronson,
     sharedIdTrackingStart: "2026-09-08",
     leadsTableId: "tbl4E1VNyL7ZbTi5C",
   },
@@ -70,6 +77,7 @@ export const COMMISSIONS_OFFERS = {
     affiliatePcnRepField: "Your Name",
     affiliatePcnCashField: "CPA?",
     clawbacksTableId: "tblXW3TcyTcWdYYtV",
+    feeRates: DEAL_FEE_RATES.aval,
     sharedIdTrackingStart: "2026-09-11",
     // "Keizer" is how Khizer's link is spelled on the portal; K and R can only
     // be Khizer and Rashardo. M / J / S are ambiguous (Moe/Melissa/Mohamad,
@@ -81,9 +89,6 @@ export const COMMISSIONS_OFFERS = {
 export const LOW_TICKET_RATE = 0.1;
 export const HIGH_TICKET_CLOSER_RATE = 0.1;
 export const HIGH_TICKET_SETTER_RATE = 0.05;
-/** Fees come off high ticket cash before commission: processing, or financing when the deal was financed. */
-export const HIGH_TICKET_PROCESSING_FEE = 0.03;
-export const HIGH_TICKET_FINANCING_FEE = 0.18;
 const FINANCED = /^financed/i;
 
 /** Portal sales that came through without a Shared ID — nobody is paid on these. */
@@ -113,6 +118,8 @@ export type LowTicketRepRow = {
   attributionRate: number | null;
   /** Paid on real (attributed) cash only. */
   commission: number;
+  /** What the same rate would pay on the cash the rep logged in Affiliate PCN. */
+  submittedCommission: number;
   /**
    * Part of `commission` that came from paid traffic. The portal doesn't say
    * which lead bought, so each day's real commission is split by the paid
@@ -128,9 +135,12 @@ export type HighTicketRepRow = {
   rep: string;
   closedDeals: number;
   closedCash: number;
+  /** Closed cash after processing and financing fees. */
+  closedNetCash: number;
   closerCommission: number;
   setDeals: number;
   setCash: number;
+  setNetCash: number;
   setterCommission: number;
   commission: number;
 };
@@ -147,7 +157,12 @@ export type HighTicketDeal = {
   outcome: string | null;
   cashCollected: number;
   paymentMethod: string | null;
+  /** "Where Was Payment Collected On" is a financing option. */
+  financed: boolean;
   feeRate: number;
+  processingFee: number;
+  /** The extra cut on a financed deal; 0 otherwise. */
+  financingFee: number;
   /** Cash collected minus the fee — what commission is paid on. */
   netCash: number;
   closerCommission: number;
@@ -184,6 +199,7 @@ export type CommissionsResponse = {
     highTicketCloser: number;
     highTicketSetter: number;
     highTicketProcessingFee: number;
+    /** Extra on a financed deal, on top of processing. */
     highTicketFinancingFee: number;
   };
   sharedIdTrackingStart: string;
@@ -193,6 +209,8 @@ export type CommissionsResponse = {
     highTicketCommission: number;
     lowTicketRealCash: number;
     lowTicketSubmittedCash: number;
+    /** What low ticket would pay on logged (Affiliate PCN) cash instead of attributed. */
+    lowTicketSubmittedCommission: number;
     /** Team-wide: portal sales with a Shared ID / Affiliate PCN submissions. */
     lowTicketAttributionRate: number | null;
     lowTicketTrackedSales: number;
@@ -201,6 +219,11 @@ export type CommissionsResponse = {
     unassignedSales: number;
     highTicketCash: number;
     highTicketNetCash: number;
+    highTicketFinancedCash: number;
+    highTicketProcessingFees: number;
+    highTicketFinancingFees: number;
+    highTicketCloserCommission: number;
+    highTicketSetterCommission: number;
     clawbacks: number;
     /** Commission from paid traffic / everything else, before clawbacks. */
     paidCommission: number;
@@ -363,6 +386,7 @@ async function computeCommissions(
     trackedSales: 0,
     attributionRate: null,
     commission: 0,
+    submittedCommission: 0,
     paidCommission: 0,
     submittedPaidCash: 0,
     submittedUnmatchedSales: 0,
@@ -442,6 +466,7 @@ async function computeCommissions(
     row.trackedSales = row.realSales + row.reversedSales;
     row.attributionRate = row.submittedSales > 0 ? row.trackedSales / row.submittedSales : null;
     row.commission = row.realCash * LOW_TICKET_RATE;
+    row.submittedCommission = row.submittedCash * LOW_TICKET_RATE;
   }
   lowTicketRows.sort((a, b) => b.realCash - a.realCash || b.submittedCash - a.submittedCash);
 
@@ -450,9 +475,11 @@ async function computeCommissions(
     rep,
     closedDeals: 0,
     closedCash: 0,
+    closedNetCash: 0,
     closerCommission: 0,
     setDeals: 0,
     setCash: 0,
+    setNetCash: 0,
     setterCommission: 0,
     commission: 0,
   }));
@@ -473,11 +500,11 @@ async function computeCommissions(
   }) => {
     const { closer, cash, paymentMethod } = deal;
     const setter = deal.setterRaw && !NO_SETTER.test(deal.setterRaw) ? deal.setterRaw : null;
-    const feeRate =
-      paymentMethod && FINANCED.test(paymentMethod)
-        ? HIGH_TICKET_FINANCING_FEE
-        : HIGH_TICKET_PROCESSING_FEE;
-    const netCash = cash * (1 - feeRate);
+    const financed = Boolean(paymentMethod && FINANCED.test(paymentMethod));
+    const processingFee = cash * offer.feeRates.processing;
+    const financingFee = financed ? cash * offer.feeRates.financing : 0;
+    const feeRate = offer.feeRates.processing + (financed ? offer.feeRates.financing : 0);
+    const netCash = cash - processingFee - financingFee;
     const closerCommission = closer ? netCash * HIGH_TICKET_CLOSER_RATE : 0;
     const setterCommission = setter ? netCash * HIGH_TICKET_SETTER_RATE : 0;
 
@@ -485,12 +512,14 @@ async function computeCommissions(
       const row = highTicket.get(closer);
       row.closedDeals += 1;
       row.closedCash += cash;
+      row.closedNetCash += netCash;
       row.closerCommission += closerCommission;
     }
     if (setter) {
       const row = highTicket.get(setter);
       row.setDeals += 1;
       row.setCash += cash;
+      row.setNetCash += netCash;
       row.setterCommission += setterCommission;
     }
 
@@ -519,7 +548,10 @@ async function computeCommissions(
       outcome: deal.outcome,
       cashCollected: cash,
       paymentMethod,
+      financed,
       feeRate,
+      processingFee,
+      financingFee,
       netCash,
       closerCommission,
       setterCommission,
@@ -621,8 +653,8 @@ async function computeCommissions(
       lowTicket: LOW_TICKET_RATE,
       highTicketCloser: HIGH_TICKET_CLOSER_RATE,
       highTicketSetter: HIGH_TICKET_SETTER_RATE,
-      highTicketProcessingFee: HIGH_TICKET_PROCESSING_FEE,
-      highTicketFinancingFee: HIGH_TICKET_FINANCING_FEE,
+      highTicketProcessingFee: offer.feeRates.processing,
+      highTicketFinancingFee: offer.feeRates.financing,
     },
     sharedIdTrackingStart: offer.sharedIdTrackingStart,
     totals: {
@@ -631,6 +663,7 @@ async function computeCommissions(
       highTicketCommission,
       lowTicketRealCash: lowTicketRows.reduce((s, r) => s + r.realCash, 0),
       lowTicketSubmittedCash: lowTicketRows.reduce((s, r) => s + r.submittedCash, 0),
+      lowTicketSubmittedCommission: lowTicketRows.reduce((s, r) => s + r.submittedCommission, 0),
       lowTicketAttributionRate:
         lowTicketSubmittedSales > 0 ? lowTicketTrackedSales / lowTicketSubmittedSales : null,
       lowTicketTrackedSales,
@@ -639,6 +672,11 @@ async function computeCommissions(
       unassignedSales,
       highTicketCash: highTicketDeals.reduce((s, d) => s + d.cashCollected, 0),
       highTicketNetCash: highTicketDeals.reduce((s, d) => s + d.netCash, 0),
+      highTicketFinancedCash: highTicketDeals.reduce((s, d) => s + (d.financed ? d.cashCollected : 0), 0),
+      highTicketProcessingFees: highTicketDeals.reduce((s, d) => s + d.processingFee, 0),
+      highTicketFinancingFees: highTicketDeals.reduce((s, d) => s + d.financingFee, 0),
+      highTicketCloserCommission: highTicketRows.reduce((s, r) => s + r.closerCommission, 0),
+      highTicketSetterCommission: highTicketRows.reduce((s, r) => s + r.setterCommission, 0),
       clawbacks: clawbackTotal,
       paidCommission,
       organicCommission: lowTicketCommission + highTicketCommission - paidCommission,

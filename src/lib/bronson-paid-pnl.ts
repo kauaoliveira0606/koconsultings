@@ -9,6 +9,7 @@ import {
   type DailyOfferRow,
 } from "@/lib/agency";
 import { BRONSON_BASE_ID, getMarketingDailyMetrics } from "@/lib/airtable/tables";
+import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { getFinancedHighTicketCashByDay } from "@/lib/deal-fees";
 import {
   COMMISSIONS_OFFERS,
@@ -81,7 +82,8 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
   // Exactly the rows the Agency page uses, so the two always agree.
   const rows = withDealFees(
     withAttributedLowTicket(loggedRows, portalCashByDay),
-    financedByDay
+    financedByDay,
+    DEAL_FEE_RATES.bronson
   ).filter(inRange);
 
   const sumOf = (list: DailyOfferRow[], pick: (r: DailyOfferRow) => number) =>

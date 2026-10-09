@@ -13,11 +13,13 @@ import type {
   CommissionsResponse,
   CommissionTotalRow,
   HighTicketDeal,
+  HighTicketRepRow,
   LowTicketRepRow,
 } from "@/lib/airtable/commissions";
 
 const money = (value: number | null | undefined) => formatStatValue(value, "currency");
-const pct = (rate: number | undefined) => (rate === undefined ? "" : `${Math.round(rate * 100)}%`);
+// One decimal when the rate needs it (2.5%, 17.5%), none when it doesn't (10%).
+const pct = (rate: number | undefined) => (rate === undefined ? "" : `${+(rate * 100).toFixed(1)}%`);
 const sameRep = (a: string | null, b: string) => (a ?? "").trim().toLowerCase() === b.toLowerCase();
 
 function formatDay(date: string | null): string {
@@ -29,18 +31,61 @@ function formatDay(date: string | null): string {
   });
 }
 
-/** One line of a rep's math: what it is, how it was worked out, what it pays. */
-function MathLine({ label, math, amount }: { label: string; math: string; amount: number }) {
+/**
+ * One line of a rep's math: what it is, how it was worked out, what it pays.
+ * `notPaid` lines are there for comparison and don't count toward the total.
+ */
+function MathLine({
+  label,
+  math,
+  amount,
+  notPaid,
+}: {
+  label: string;
+  math: string;
+  amount: number;
+  notPaid?: boolean;
+}) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
       <div className="min-w-0">
         <div className="text-sm font-medium text-[var(--text-strong)]">{label}</div>
         <div className="text-xs text-[var(--text-muted)]">{math}</div>
       </div>
-      <div className="text-sm font-semibold text-[var(--text-strong)]">{money(amount)}</div>
+      <div
+        className={`text-sm font-semibold ${notPaid ? "text-[var(--text-muted)]" : "text-[var(--text-strong)]"}`}
+      >
+        {notPaid ? `(${money(amount)})` : money(amount)}
+      </div>
     </div>
   );
 }
+
+/** Heading for one role's lines inside a rep card, with what that role pays. */
+function RoleHeading({ title, amount }: { title: string; amount: number }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 pt-4 pb-1">
+      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        {title}
+      </div>
+      <div className="text-xs font-semibold text-[var(--text-muted)]">{money(amount)}</div>
+    </div>
+  );
+}
+
+/** "$5,000 via Whop - 2.5% processing - 15% financing = $4,125 x 10%" */
+function dealMath(deal: HighTicketDeal, rate: number, rates: CommissionsResponse["rates"]): string {
+  return (
+    `${formatDay(deal.date)} · ${money(deal.cashCollected)}` +
+    ` via ${deal.paymentMethod ?? "payment method not logged"}` +
+    ` - ${pct(rates.highTicketProcessingFee)} processing` +
+    (deal.financed ? ` - ${pct(rates.highTicketFinancingFee)} financing` : "") +
+    ` = ${money(deal.netCash)} x ${pct(rate)}`
+  );
+}
+
+const dealLabel = (deal: HighTicketDeal) =>
+  `${deal.kind === "follow_up" ? "Follow Up Payment · " : ""}${deal.lead ?? "Unknown lead"}`;
 
 const inputClass =
   "rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-1 text-sm text-[var(--text-strong)] placeholder:text-[var(--text-muted)]";
@@ -206,15 +251,8 @@ function payoutStatus(periodEnd: string | undefined, portalSyncedAt: string | nu
   };
 }
 
-const LEAD_SOURCE_LABEL: Record<HighTicketDeal["leadSource"], string> = {
-  paid: "paid lead",
-  organic: "organic lead",
-  unmatched: "no lead match, counted organic",
-};
-
 function RepCard({
   apiPath,
-  paidSplit,
   rank,
   rep,
   lowTicket,
@@ -225,8 +263,6 @@ function RepCard({
   rates,
 }: {
   apiPath: string;
-  /** Show how much of each line came from paid traffic. */
-  paidSplit: boolean;
   rank: number;
   rep: CommissionTotalRow;
   lowTicket: LowTicketRepRow | undefined;
@@ -237,6 +273,8 @@ function RepCard({
   onChanged: () => void;
   rates: CommissionsResponse["rates"];
 }) {
+  const closed = deals.filter((d) => sameRep(d.closer, rep.rep));
+  const set = deals.filter((d) => sameRep(d.setter, rep.rep));
   return (
     <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
       <div className="flex items-center justify-between gap-4">
@@ -246,55 +284,84 @@ function RepCard({
           </div>
           <div className="text-lg font-bold text-[var(--text-strong)]">{rep.rep}</div>
         </div>
-        <div className="text-right">
-          <div className="text-3xl font-bold text-[var(--text-strong)]">{money(rep.total)}</div>
-          {paidSplit ? (
-            <div className="text-xs text-[var(--text-muted)]">{money(rep.paid)} from paid traffic</div>
-          ) : null}
-        </div>
+        <div className="text-3xl font-bold text-[var(--text-strong)]">{money(rep.total)}</div>
       </div>
 
-      <div className="mt-4 divide-y divide-[var(--panel-border)] border-t border-[var(--panel-border)]">
+      <div className="mt-4 border-t border-[var(--panel-border)]">
         {lowTicket ? (
-          <MathLine
-            label="Low Ticket"
-            math={
-              `${money(lowTicket.realCash)} real cash x ${pct(rates.lowTicket)}` +
-              ` · submitted ${money(lowTicket.submittedCash)}` +
-              ` · attribution rate ${formatStatValue(lowTicket.attributionRate, "percent")}` +
-              ` (${lowTicket.trackedSales}/${lowTicket.submittedSales} sales)` +
-              (paidSplit
-                ? ` · paid traffic ${money(lowTicket.paidCommission)}` +
-                  ` (${money(lowTicket.submittedPaidCash)} of submitted was paid leads)`
-                : "")
-            }
-            amount={lowTicket.commission}
-          />
+          <>
+            <RoleHeading title={`Low Ticket (Affiliate) · ${pct(rates.lowTicket)}, no fees`} amount={rep.lowTicket} />
+            <div className="divide-y divide-[var(--panel-border)]">
+              <MathLine
+                label="By Affiliate PCN (what they logged)"
+                math={
+                  `${lowTicket.submittedSales} sales · ${money(lowTicket.submittedCash)} logged x ${pct(rates.lowTicket)}` +
+                  " · for comparison, not paid"
+                }
+                amount={lowTicket.submittedCommission}
+                notPaid
+              />
+              <MathLine
+                label="By attribution (what actually tracked, this is what pays)"
+                math={
+                  `${lowTicket.realSales} sales · ${money(lowTicket.realCash)} attributed x ${pct(rates.lowTicket)}` +
+                  ` · attribution rate ${formatStatValue(lowTicket.attributionRate, "percent")}` +
+                  ` (${lowTicket.trackedSales} tracked / ${lowTicket.submittedSales} logged)`
+                }
+                amount={lowTicket.commission}
+              />
+            </div>
+          </>
         ) : null}
 
-        {deals.map((deal) => {
-          const closed = sameRep(deal.closer, rep.rep);
-          const set = sameRep(deal.setter, rep.rep);
-          const rate =
-            (closed ? rates.highTicketCloser : 0) + (set ? rates.highTicketSetter : 0);
-          const role = closed && set ? "set + closed" : closed ? "closed" : "set";
-          return (
-            <MathLine
-              key={deal.id}
-              label={`${deal.kind === "follow_up" ? "Follow Up Payment" : "High Ticket"} · ${deal.lead ?? "Unknown lead"} (${role})`}
-              math={
-                `${formatDay(deal.date)} · ${money(deal.cashCollected)} cash` +
-                ` - ${pct(deal.feeRate)} fee = ${money(deal.netCash)} x ${pct(rate)}` +
-                (paidSplit ? ` · ${LEAD_SOURCE_LABEL[deal.leadSource]}` : "")
-              }
-              amount={(closed ? deal.closerCommission : 0) + (set ? deal.setterCommission : 0)}
+        {closed.length > 0 ? (
+          <>
+            <RoleHeading
+              title={`Closer · ${pct(rates.highTicketCloser)} after fees`}
+              amount={rep.highTicketCloser}
             />
-          );
-        })}
+            <div className="divide-y divide-[var(--panel-border)]">
+              {closed.map((deal) => (
+                <MathLine
+                  key={deal.id}
+                  label={dealLabel(deal)}
+                  math={dealMath(deal, rates.highTicketCloser, rates)}
+                  amount={deal.closerCommission}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
 
-        {clawbacks.map((c) => (
-          <ClawbackLine key={c.id} apiPath={apiPath} clawback={c} onRemoved={onChanged} />
-        ))}
+        {set.length > 0 ? (
+          <>
+            <RoleHeading
+              title={`Setter · ${pct(rates.highTicketSetter)} after fees`}
+              amount={rep.highTicketSetter}
+            />
+            <div className="divide-y divide-[var(--panel-border)]">
+              {set.map((deal) => (
+                <MathLine
+                  key={deal.id}
+                  label={dealLabel(deal)}
+                  math={dealMath(deal, rates.highTicketSetter, rates)}
+                  amount={deal.setterCommission}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {clawbacks.length > 0 ? (
+          <>
+            <RoleHeading title="Clawbacks" amount={-rep.clawbacks} />
+            <div className="divide-y divide-[var(--panel-border)]">
+              {clawbacks.map((c) => (
+                <ClawbackLine key={c.id} apiPath={apiPath} clawback={c} onRemoved={onChanged} />
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
 
       <AddClawback apiPath={apiPath} rep={rep.rep} date={clawbackDate} onSaved={onChanged} />
@@ -302,9 +369,178 @@ function RepCard({
   );
 }
 
+const th = "py-2 pr-3 text-xs font-semibold uppercase tracking-wide last:pr-0";
+const td = "py-2 pr-3 text-sm text-[var(--text-strong)] last:pr-0";
+
+/** One department's reps side by side: a titled table with its total. */
+function DepartmentTable({
+  title,
+  note,
+  total,
+  columns,
+  rows,
+}: {
+  title: string;
+  note: string;
+  total: number;
+  columns: string[];
+  /** Rep name first, then one cell per column. */
+  rows: { rep: string; cells: string[] }[];
+}) {
+  return (
+    <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
+      <div className="flex items-baseline justify-between gap-4">
+        <div className="text-base font-bold text-[var(--text-strong)]">{title}</div>
+        <div className="text-xl font-bold text-[var(--text-strong)]">{money(total)}</div>
+      </div>
+      <div className="mt-1 text-xs text-[var(--text-muted)]">{note}</div>
+      {rows.length === 0 ? (
+        <div className="mt-3 text-sm text-[var(--text-muted)]">Nothing in this pay period.</div>
+      ) : (
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full whitespace-nowrap">
+            <thead>
+              <tr className="border-b border-[var(--panel-border)] text-[var(--text-muted)]">
+                <th className={`${th} text-left`}>Rep</th>
+                {columns.map((c) => (
+                  <th key={c} className={`${th} text-right`}>
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.rep} className="border-b border-[var(--panel-border)] last:border-0">
+                  <td className={`${td} text-left font-medium`}>{row.rep}</td>
+                  {row.cells.map((cell, i) => (
+                    <td key={columns[i]} className={`${td} text-right ${i === row.cells.length - 1 ? "font-semibold" : ""}`}>
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The same commissions as the rep cards, grouped by department instead of by person. */
+function Departments({ data }: { data: CommissionsResponse }) {
+  const { rates, totals } = data;
+  const highTicketRole = (
+    deals: (r: HighTicketRepRow) => number,
+    cash: (r: HighTicketRepRow) => number,
+    net: (r: HighTicketRepRow) => number,
+    commission: (r: HighTicketRepRow) => number
+  ) =>
+    data.highTicket
+      .filter((r) => deals(r) > 0)
+      .sort((a, b) => commission(b) - commission(a))
+      .map((r) => ({
+        rep: r.rep,
+        cells: [
+          String(deals(r)),
+          money(cash(r)),
+          money(cash(r) - net(r)),
+          money(net(r)),
+          money(commission(r)),
+        ],
+      }));
+  const highTicketColumns = ["Deals", "Cash", "Fees", "After Fees", "Commission"];
+  const totalFees = totals.highTicketProcessingFees + totals.highTicketFinancingFees;
+
+  return (
+    <>
+      <h3 className="mt-6 text-lg font-bold text-[var(--text-strong)]">By Department</h3>
+
+      <DepartmentTable
+        title="Affiliates (Low Ticket)"
+        note={
+          `Flat ${pct(rates.lowTicket)} of the cash, every day of the week, no fees. ` +
+          `Logged is what each rep entered in Affiliate PCN. Attributed is what the affiliate portal ` +
+          `actually tracked under their link, and it is what pays. ` +
+          `By Affiliate PCN the team would be at ${money(totals.lowTicketSubmittedCommission)}.`
+        }
+        total={totals.lowTicketCommission}
+        columns={["Logged (PCN)", `${pct(rates.lowTicket)} Of Logged`, "Attribution Rate", "Attributed", "Commission"]}
+        rows={data.lowTicket.map((r) => ({
+          rep: r.rep,
+          cells: [
+            `${money(r.submittedCash)} · ${r.submittedSales}`,
+            money(r.submittedCommission),
+            `${formatStatValue(r.attributionRate, "percent")} (${r.trackedSales}/${r.submittedSales})`,
+            `${money(r.realCash)} · ${r.realSales}`,
+            money(r.commission),
+          ],
+        }))}
+      />
+
+      <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
+        <div className="flex items-baseline justify-between gap-4">
+          <div className="text-base font-bold text-[var(--text-strong)]">High Ticket Fees</div>
+          <div className="text-xl font-bold text-[var(--text-strong)]">{money(totalFees)}</div>
+        </div>
+        <div className="mt-1 text-xs text-[var(--text-muted)]">
+          Come off every high ticket deal before anyone is paid: the closer, the setter and your
+          agency split are all worked out on the cash after fees. A deal counts as financed when
+          the post call note says the payment was collected through financing.
+        </div>
+        <div className="mt-2 divide-y divide-[var(--panel-border)]">
+          <MathLine
+            label={`Processing · ${pct(rates.highTicketProcessingFee)} of every deal`}
+            math={`${money(totals.highTicketCash)} high ticket cash x ${pct(rates.highTicketProcessingFee)}`}
+            amount={totals.highTicketProcessingFees}
+          />
+          <MathLine
+            label={`Financing · ${pct(rates.highTicketFinancingFee)} more on financed deals (${pct(rates.highTicketProcessingFee + rates.highTicketFinancingFee)} in total)`}
+            math={`${money(totals.highTicketFinancedCash)} financed x ${pct(rates.highTicketFinancingFee)}`}
+            amount={totals.highTicketFinancingFees}
+          />
+          <MathLine
+            label="High ticket cash after fees"
+            math={`${money(totals.highTicketCash)} - ${money(totalFees)}`}
+            amount={totals.highTicketNetCash}
+          />
+        </div>
+      </div>
+
+      <DepartmentTable
+        title="Closers (High Ticket)"
+        note={`Flat ${pct(rates.highTicketCloser)} of each deal's cash after fees, from the post call notes and follow up payments.`}
+        total={totals.highTicketCloserCommission}
+        columns={highTicketColumns}
+        rows={highTicketRole(
+          (r) => r.closedDeals,
+          (r) => r.closedCash,
+          (r) => r.closedNetCash,
+          (r) => r.closerCommission
+        )}
+      />
+
+      <DepartmentTable
+        title="Setters (High Ticket)"
+        note={`Flat ${pct(rates.highTicketSetter)} of each deal's cash after fees, for the setter named on the post call note.`}
+        total={totals.highTicketSetterCommission}
+        columns={highTicketColumns}
+        rows={highTicketRole(
+          (r) => r.setDeals,
+          (r) => r.setCash,
+          (r) => r.setNetCash,
+          (r) => r.setterCommission
+        )}
+      />
+    </>
+  );
+}
+
 /**
- * An offer's Commissions tab: reps ranked by what they are owed, the math
- * under each, and the total to pay out. `apiPath` is the offer's commissions
+ * An offer's Commissions tab: reps ranked by what they are owed with the
+ * math under each, the total to pay out, then the same commissions by
+ * department (affiliates, closers, setters) with the high ticket fees. `apiPath` is the offer's commissions
  * route (its clawbacks route lives at `${apiPath}/clawbacks`).
  */
 export function CommissionsBoard({
@@ -423,7 +659,6 @@ export function CommissionsBoard({
               <RepCard
                 key={rep.rep}
                 apiPath={apiPath}
-                paidSplit={data.paidSplit}
                 rank={i + 1}
                 rep={rep}
                 lowTicket={data.lowTicket.find((r) => sameRep(r.rep, rep.rep))}
@@ -444,8 +679,9 @@ export function CommissionsBoard({
               Total Commissions To Pay Out
             </div>
             <div className="mt-1 text-xs text-[var(--text-muted)]">
-              Low ticket {money(data?.totals.lowTicketCommission)} + high ticket{" "}
-              {money(data?.totals.highTicketCommission)}
+              Low ticket {money(data?.totals.lowTicketCommission)} + closers{" "}
+              {money(data?.totals.highTicketCloserCommission)} + setters{" "}
+              {money(data?.totals.highTicketSetterCommission)}
               {data && data.totals.clawbacks > 0 ? ` - clawbacks ${money(data.totals.clawbacks)}` : ""}
             </div>
           </div>
@@ -454,46 +690,7 @@ export function CommissionsBoard({
           </div>
         </div>
 
-        {data?.paidSplit ? (
-          <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                  Paid Traffic Commissions
-                </div>
-                <div className="mt-1 text-xs text-[var(--text-muted)]">
-                  What comes off paid profit. Organic commissions:{" "}
-                  {money(data.totals.organicCommission)}. Clawbacks are not split.
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-[var(--text-strong)]">
-                {money(data.totals.paidCommission)}
-              </div>
-            </div>
-
-            {data.unmatchedLeads.length > 0 ? (
-              <div className="mt-4 border-t border-[var(--panel-border)] pt-3">
-                <div className="text-sm font-medium text-[var(--text-strong)]">
-                  {data.unmatchedLeads.length} sales with no Paid/Organic match (counted as organic)
-                </div>
-                <div className="mt-1 text-xs text-[var(--text-muted)]">
-                  Their email is not in the Leads table. Add the lead there with a Source and it
-                  matches on its own.
-                </div>
-                <ul className="mt-2 space-y-1 text-xs text-[var(--text-muted)]">
-                  {data.unmatchedLeads.map((u) => (
-                    <li key={u.id}>
-                      {formatDay(u.date)} · {u.kind === "high_ticket" ? "High ticket" : "Low ticket"} ·{" "}
-                      {u.rep ?? "No rep"} · {u.lead ?? "Unknown lead"} ·{" "}
-                      <span className="text-[var(--text-strong)]">{u.email ?? "no email logged"}</span>{" "}
-                      · {money(u.cash)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        {data ? <Departments data={data} /> : null}
       </div>
     </div>
   );

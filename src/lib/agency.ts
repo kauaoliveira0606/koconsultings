@@ -5,7 +5,7 @@
  * stays isolated to its own base; this is the deliberate aggregator.
  */
 import { isDateInRange, type ResolvedRange } from "./date-range";
-import { FINANCING_FEE_RATE, PROCESSING_FEE_RATE } from "./deal-fee-rates";
+import type { DealFeeRates } from "./deal-fee-rates";
 import { sumByDate } from "./metrics";
 
 /** Data before this date is out of scope for the agency rollup entirely, per the client. */
@@ -172,8 +172,8 @@ export function sumFees(rows: DailyOfferRow[]): { paid: number; organic: number 
 
 /**
  * Fees that come off high ticket cash before profit, from `DEAL_FEES_FROM`:
- * 3% processing on every high ticket dollar, plus a further 15% on financed
- * deals. Low ticket carries none (it is an affiliate payout, not a payment
+ * the offer's processing rate on every high ticket dollar, plus its
+ * financing rate on financed deals. Low ticket carries none (it is an affiliate payout, not a payment
  * we process).
  *
  * `financedByDay` is high ticket cash paid through a financing partner, from
@@ -184,7 +184,8 @@ export function sumFees(rows: DailyOfferRow[]): { paid: number; organic: number 
  */
 export function withDealFees(
   rows: DailyOfferRow[],
-  financedByDay: Map<string, number>
+  financedByDay: Map<string, number>,
+  rates: DealFeeRates
 ): DailyOfferRow[] {
   const htByMonth = new Map<string, number>();
   for (const r of rows) {
@@ -205,7 +206,7 @@ export function withDealFees(
     const financed = Math.min(financedByMonth.get(month) ?? 0, monthHt);
     // Share of the month's high ticket cash that was financed.
     const financedShare = monthHt > 0 ? financed / monthHt : 0;
-    const rate = PROCESSING_FEE_RATE + FINANCING_FEE_RATE * financedShare;
+    const rate = rates.processing + rates.financing * financedShare;
     return { ...r, fees: { paid: r.htCashPaid * rate, organic: r.htCashOrganic * rate } };
   });
 }

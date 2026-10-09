@@ -82,7 +82,7 @@ export default function AgencyPage() {
           <p className="mt-1 text-sm text-[var(--text-muted)]">
             Every client combined. Bronson&apos;s low ticket is real cash: what the affiliate portal
             actually tracked, not what was logged. Ad spend, sales team payouts, expenses and high ticket
-            fees (3% processing, plus 15% on financed deals, from October 2026) come off first, then each
+            fees (2.5% processing for Bronson, 3% for Aval, plus 15% on financed deals, from October 2026) come off first, then each
             offer&apos;s profit-share.
           </p>
         </div>

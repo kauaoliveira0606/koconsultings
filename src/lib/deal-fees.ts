@@ -1,9 +1,9 @@
 /**
  * Fees that come off high ticket cash before it is really ours:
  *
- *   - 3% processing on every high ticket dollar collected
+ *   - processing on every high ticket dollar collected (2.5% Bronson, 3% Aval)
  *   - a further 15% on anything financed (Clarity, Klarna, ...), so a financed
- *     deal loses 18% in total
+ *     deal loses 17.5% / 18% in total
  *
  * Low ticket is an affiliate payout, not a payment we process, so it carries
  * no fee here.
@@ -19,9 +19,7 @@ import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
 import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
 import { emailKey, nameKey, text } from "@/lib/payment-plans";
 
-import { FINANCING_FEE_RATE, PROCESSING_FEE_RATE } from "@/lib/deal-fee-rates";
-
-export { FINANCING_FEE_RATE, PROCESSING_FEE_RATE };
+import type { DealFeeRates } from "@/lib/deal-fee-rates";
 
 // Same table IDs in every offer's base (the bases were cloned from one template).
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
@@ -76,23 +74,26 @@ export async function getFinancedHighTicketCashByDay(baseId: string): Promise<Ma
  * share of high ticket cash, because a deal's traffic source isn't on the
  * post call note.
  */
-export function dealFees(input: {
-  cashHighTicket: number | null;
-  cashHighTicketPaid: number | null;
-  financedCash: number;
-}) {
+export function dealFees(
+  input: {
+    cashHighTicket: number | null;
+    cashHighTicketPaid: number | null;
+    financedCash: number;
+  },
+  rates: DealFeeRates
+) {
   const total = input.cashHighTicket ?? 0;
   const paid = input.cashHighTicketPaid ?? 0;
   // Never more financed cash than there is high ticket cash on the form.
   const financed = Math.min(input.financedCash, total);
-  const processingFees = total * PROCESSING_FEE_RATE;
-  const financingFees = financed * FINANCING_FEE_RATE;
+  const processingFees = total * rates.processing;
+  const financingFees = financed * rates.financing;
   const paidShare = total > 0 ? Math.min(1, paid / total) : 0;
   return {
     financedCash: financed,
     processingFees,
     financingFees,
     totalFees: processingFees + financingFees,
-    paidFees: paid * PROCESSING_FEE_RATE + financingFees * paidShare,
+    paidFees: paid * rates.processing + financingFees * paidShare,
   };
 }

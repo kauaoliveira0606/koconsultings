@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
+import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
 import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
 import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
@@ -128,7 +129,7 @@ export async function GET(request: NextRequest) {
     cashHighTicket,
     cashHighTicketPaid: cashHighTicketPaidForm,
     financedCash: await getFinancedHighTicketCash(PAYMENT_PLAN_OFFERS.aval.baseId, range),
-  });
+  }, DEAL_FEE_RATES.aval);
   const netCash =
     totalCashCollected !== null
       ? totalCashCollected - (adSpend ?? 0) - totalCommissions - fees.totalFees

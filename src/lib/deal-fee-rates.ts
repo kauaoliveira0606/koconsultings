@@ -1,5 +1,14 @@
-/** 3% processing comes off every high ticket dollar collected. */
-export const PROCESSING_FEE_RATE = 0.03;
+/** Fees that come off high ticket cash, as a share of the cash. */
+export type DealFeeRates = {
+  /** Processing: comes off every high ticket dollar collected. */
+  processing: number;
+  /** A further cut on anything financed (Clarity, Klarna, ...), on top of processing. */
+  financing: number;
+};
 
-/** A further 15% comes off anything financed (Clarity, Klarna, ...): 18% in total. */
-export const FINANCING_FEE_RATE = 0.15;
+export const DEAL_FEE_RATES = {
+  // 2.5% processing, 17.5% in total on a financed deal.
+  bronson: { processing: 0.025, financing: 0.15 },
+  // 3% processing, 18% in total on a financed deal.
+  aval: { processing: 0.03, financing: 0.15 },
+} satisfies Record<string, DealFeeRates>;

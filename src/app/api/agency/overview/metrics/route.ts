@@ -35,6 +35,7 @@ import {
   ecomSimSalesManagerCut,
   type DailyOfferRow,
 } from "@/lib/agency";
+import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { getFinancedHighTicketCashByDay } from "@/lib/deal-fees";
 import {
   COMMISSIONS_OFFERS,
@@ -101,12 +102,14 @@ export async function GET(request: NextRequest) {
       ),
       bronsonPortalCash
     ),
-    bronsonFinanced
+    bronsonFinanced,
+    DEAL_FEE_RATES.bronson
   );
   // Aval stays on logged cash: it is paid out differently, per the client.
   const avalAllRows = withDealFees(
     withAvalProfitSplit(buildDailyOfferRows(avalMarketing)),
-    avalFinanced
+    avalFinanced,
+    DEAL_FEE_RATES.aval
   );
   const ecomAllRows = untilAndyLeft(
     buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses))

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
+import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
 import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
 import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
@@ -16,12 +17,6 @@ import { isPaidSource, normalizeEmail } from "@/lib/airtable/lead-source-lookup"
 import { average, safeDivide, sum, vslTotals, formFirstByDay, sumByDate } from "@/lib/metrics";
 
 export const revalidate = 60;
-
-/** Sun/Sat get the 20% affiliate commission rate; Mon–Fri get 10%. */
-function isWeekendDate(dateStr: string): boolean {
-  const day = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
-  return day === 0 || day === 6;
-}
 
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
@@ -111,24 +106,23 @@ export async function GET(request: NextRequest) {
   const collectedPerBookedCallHT = safeDivide(cashHighTicket, highTicketCallsBooked || null);
 
   // Net Cash: Cash Collected − Ad Spend − affiliate/closer/setter
-  // commissions. Low-ticket affiliate commission is 10% on weekdays, 20% on
-  // Sat/Sun (keyed off the day the Marketing Daily Metrics form logged the
-  // cash for); high-ticket is a flat 15% regardless of day.
+  // commissions. Low-ticket affiliate commission is a flat 10% (no weekend
+  // rate anymore); high-ticket is a flat 15% (10% closer + 5% setter).
   const lowTicketCommission = sum(
     inRangeMarketing.map((r) => {
       if (r.date === null || r.cashCollectedLowTicket === null) return null;
-      return r.cashCollectedLowTicket * (isWeekendDate(r.date) ? 0.2 : 0.1);
+      return r.cashCollectedLowTicket * 0.1;
     })
   );
   const highTicketCommission = cashHighTicket !== null ? cashHighTicket * 0.15 : null;
   const totalCommissions = (lowTicketCommission ?? 0) + (highTicketCommission ?? 0);
-  // Processing (3% of all high ticket cash) and financing (a further 15% of
+  // Processing (2.5% of all high ticket cash) and financing (a further 15% of
   // financed deals) come off before anything counts as net.
   const fees = dealFees({
     cashHighTicket,
     cashHighTicketPaid: cashHighTicketPaidForm,
     financedCash: await getFinancedHighTicketCash(PAYMENT_PLAN_OFFERS.bronson.baseId, range),
-  });
+  }, DEAL_FEE_RATES.bronson);
   const netCash =
     totalCashCollected !== null
       ? totalCashCollected - (adSpend ?? 0) - totalCommissions - fees.totalFees
@@ -141,13 +135,13 @@ export async function GET(request: NextRequest) {
   const frontEndRoas =
     adsActive && paidCash !== null ? safeDivide(paidCash - fees.paidFees, adSpend) : null;
   // Net ROAS: the same, after the sales team's commissions on that paid cash too
-  // (10%/20% weekday/weekend on low ticket, flat 15% on high ticket).
+  // (flat 10% on low ticket, flat 15% on high ticket).
   const paidCommissions =
     (sum(
       inRangeMarketing.map((r) =>
         r.date === null || r.cashCollectedLowTicketPaid === null
           ? null
-          : r.cashCollectedLowTicketPaid * (isWeekendDate(r.date) ? 0.2 : 0.1)
+          : r.cashCollectedLowTicketPaid * 0.1
       )
     ) ?? 0) +
     (cashHighTicketPaidForm ?? 0) * 0.15;

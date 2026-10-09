@@ -27,6 +27,20 @@ type Mismatch = {
 
 const money = (value: number) => formatStatValue(value, "currency");
 
+/** What "the form" is called everywhere on this panel. */
+const FORM = "Daily Metrics form";
+
+/** Cash on the form with nothing behind it in a log: why that matters for that log. */
+function missingFromLogNote(source: string): string {
+  if (/post call/i.test(source)) {
+    return " No closer or setter commission is calculated on that cash until its post call note (or follow up payment) is in.";
+  }
+  if (/affiliate pcn/i.test(source)) {
+    return " Those sales have no Affiliate PCN entry, so they are missing from the reps' logged low ticket.";
+  }
+  return " The reps' end of day reports don't account for it.";
+}
+
 function formatDay(date: string, weekday = false): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
     weekday: weekday ? "short" : undefined,
@@ -71,17 +85,17 @@ function period(days: FlaggedDay[]): string {
 function MismatchRow({ mismatch }: { mismatch: Mismatch }) {
   const parts: string[] = [];
   if (mismatch.missingFromForm > 0) {
-    parts.push(`${money(mismatch.missingFromForm)} more than the form`);
+    parts.push(`has ${money(mismatch.missingFromForm)} that is not on the ${FORM}`);
   }
   if (mismatch.missingFromLog > 0) {
-    parts.push(`${money(mismatch.missingFromLog)} less than the form`);
+    parts.push(`is missing ${money(mismatch.missingFromLog)} that is on the ${FORM}`);
   }
   return (
     <details className="group rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)]">
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <div className="text-sm text-[var(--text-strong)]">
           <span className="font-semibold">{METRIC_LABELS[mismatch.metric]}:</span> {mismatch.source}{" "}
-          has <span className="font-semibold text-red-400">{parts.join(" and ")}</span>
+          <span className="font-semibold text-red-400">{parts.join(" and ")}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
           {period(mismatch.days)}
@@ -97,19 +111,35 @@ function MismatchRow({ mismatch }: { mismatch: Mismatch }) {
           </svg>
         </div>
       </summary>
+      <div className="space-y-1 border-t border-[var(--panel-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
+        {mismatch.missingFromForm > 0 ? (
+          <p>
+            <span className="font-semibold text-red-400">{money(mismatch.missingFromForm)}</span>{" "}
+            was logged in {mismatch.source} but never entered on the {FORM}. The dashboard&apos;s
+            cash (Overview, ROAS, Agency profit) is short by that much until the form is corrected.
+          </p>
+        ) : null}
+        {mismatch.missingFromLog > 0 ? (
+          <p>
+            <span className="font-semibold text-amber-400">{money(mismatch.missingFromLog)}</span>{" "}
+            is on the {FORM} with nothing in {mismatch.source} to back it up.
+            {missingFromLogNote(mismatch.source)}
+          </p>
+        ) : null}
+      </div>
       <ul className="divide-y divide-[var(--panel-border)] border-t border-[var(--panel-border)] px-3">
         {mismatch.days.map((day) => (
           <li key={day.date} className="py-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
               <div className="text-[var(--text-strong)]">
                 <span className="font-semibold">{formatDay(day.date, true)}:</span> {mismatch.source}{" "}
-                {money(day.sourceCash)}, form{" "}
-                {day.formCash === null ? "has no entry" : money(day.formCash)}
+                {money(day.sourceCash)}, {FORM}{" "}
+                {day.formCash === null ? "has no entry for this day" : money(day.formCash)}
               </div>
               <div className={`font-semibold ${day.diff > 0 ? "text-red-400" : "text-amber-400"}`}>
                 {day.diff > 0
-                  ? `${money(day.diff)} more than the form`
-                  : `${money(-day.diff)} less than the form`}
+                  ? `${money(day.diff)} not on the form`
+                  : `${money(-day.diff)} not in this log`}
               </div>
             </div>
             {day.hint ? (
@@ -142,9 +172,10 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
   if (data.flagCount === 0) {
     return (
       <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm text-[var(--text-strong)] backdrop-blur-sm">
-        <span className="font-semibold text-emerald-400">All clear.</span> The cash in every log
-        matches the Marketing Daily Metrics form for this range (checked through{" "}
-        {formatDay(data.checkedThrough)}).
+        <span className="font-semibold text-emerald-400">All clear.</span> The cash the reps logged
+        (post call notes, follow up payments, end of day reports, Affiliate PCN) matches the
+        Marketing Daily Metrics form, the once a day numbers entry this dashboard is built from,
+        for this range (checked through {formatDay(data.checkedThrough)}).
       </div>
     );
   }
@@ -156,10 +187,19 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         <div className="text-sm font-semibold text-red-400">
           Cash isn&apos;t matching in {mismatches.length} place{mismatches.length === 1 ? "" : "s"}
         </div>
-        <div className="text-xs text-[var(--text-muted)]">
-          Compared to the Marketing Daily Metrics form. Click a line for the days.
-        </div>
+        <div className="text-xs text-[var(--text-muted)]">Click a line for the days.</div>
       </div>
+      <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">
+        <span className="font-semibold text-[var(--text-strong)]">What this compares.</span> The{" "}
+        <span className="font-semibold text-[var(--text-strong)]">{FORM}</span>{" "}
+        is the Marketing
+        Daily Metrics form in Airtable: the one entry per day with that day&apos;s ad spend, calls
+        and cash. Every cash number on this dashboard (Overview, ROAS, Agency profit) comes from
+        it. The reps log the same cash a second time in their own forms: post call notes, follow
+        up payments, end of day reports and Affiliate PCN. Both should add up to the same dollars.
+        Each line below is a rep log that doesn&apos;t, and by how much. Cash that lands a day or
+        two apart is already matched up and not flagged.
+      </p>
       <div className="mt-3 space-y-2">
         {mismatches.map((mismatch) => (
           <MismatchRow key={mismatch.key} mismatch={mismatch} />
