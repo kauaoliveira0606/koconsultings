@@ -2,7 +2,7 @@
 
 import type { RangeState } from "@/components/dashboard/RangeFilterBar";
 import { useSectionData } from "@/lib/use-section-data";
-import { formatStatValue } from "@/lib/format";
+import { formatDateTime, formatStatValue } from "@/lib/format";
 import type { DataCheckDuplicate, DataCheckFlag, DataCheckResponse } from "@/lib/data-check";
 
 const METRIC_LABELS: Record<DataCheckFlag["metric"], string> = {
@@ -182,13 +182,36 @@ function Duplicates({ duplicates }: { duplicates: DataCheckDuplicate[] }) {
       </summary>
       <p className="border-t border-[var(--panel-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
         Same lead, same day and same cash in one log (or the same rep&apos;s end of day report
-        twice). Duplicates are not removed automatically: a repeated post call note or follow up
-        payment pays its commission twice until the extra record is deleted in Airtable.
+        twice). Each line says which Airtable table it is in and links to every copy, so you can
+        open it and delete the extra one. Duplicates are not removed automatically: a repeated
+        post call note or follow up payment pays its commission twice until the extra record is
+        deleted.
       </p>
       <ul className="divide-y divide-[var(--panel-border)] border-t border-[var(--panel-border)] px-3">
         {duplicates.map((d) => (
           <li key={`${d.source}-${d.date}-${d.who}-${d.cash}`} className="py-2 text-sm text-[var(--text-strong)]">
             <span className="font-semibold">{d.source}:</span> {duplicateLine(d)}
+            <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+              Where: Airtable, {d.source} table ·{" "}
+              {d.records.map((record, i) => (
+                <span key={record.id}>
+                  {i > 0 ? " · " : ""}
+                  {record.url ? (
+                    <a
+                      href={record.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-2 hover:text-[var(--text-strong)]"
+                    >
+                      Open copy {i + 1}
+                    </a>
+                  ) : (
+                    `Copy ${i + 1}`
+                  )}
+                  {record.submittedAt ? ` (submitted ${formatDateTime(record.submittedAt)})` : ""}
+                </span>
+              ))}
+            </div>
           </li>
         ))}
       </ul>

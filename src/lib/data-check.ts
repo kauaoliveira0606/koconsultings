@@ -68,6 +68,16 @@ export type DataCheckConfig = {
   getForm: () => Promise<MarketingDailyMetricRow[]>;
   sources: DataCheckSource[];
   duplicateChecks?: DuplicateCheck[];
+  /** The form's own table, so repeated form entries can link to their records. */
+  formTableId?: string;
+};
+
+/** One copy of a repeated record, with where to find it in Airtable. */
+export type DuplicateRecord = {
+  id: string;
+  url: string | null;
+  /** When it was submitted (ISO), null if unknown. */
+  submittedAt: string | null;
 };
 
 export type DataCheckDuplicate = {
@@ -81,6 +91,8 @@ export type DataCheckDuplicate = {
   cash: number | null;
   /** Cash counted more than once because of the copies. */
   extraCash: number;
+  /** Every copy, oldest first. */
+  records: DuplicateRecord[];
 };
 
 export type DataCheckFlag = {
@@ -159,6 +171,9 @@ async function sumSourceByDay(
   return byDay;
 }
 
+const airtableRecordUrl = (baseId: string, tableId: string, recordId: string) =>
+  `https://airtable.com/${baseId}/${tableId}/${recordId}`;
+
 const firstText = (fields: Record<string, unknown>, names: string[]): string | null => {
   for (const name of names) {
     const value = fields[name];
@@ -186,9 +201,15 @@ async function findDuplicates(
     }
     const key = [date, ...parts.map((p) => (p ?? "").toLowerCase()), check.cashFields ? cash ?? 0 : ""].join("|");
     const group = groups.get(key);
+    const record: DuplicateRecord = {
+      id: r.id,
+      url: airtableRecordUrl(baseId, check.tableId, r.id),
+      submittedAt: r.createdTime || null,
+    };
     if (group) {
       group.count += 1;
       group.extraCash += cash ?? 0;
+      group.records.push(record);
     } else {
       groups.set(key, {
         source: check.label,
@@ -197,10 +218,15 @@ async function findDuplicates(
         count: 1,
         cash: check.cashFields ? cash ?? 0 : null,
         extraCash: 0,
+        records: [record],
       });
     }
   }
-  return [...groups.values()].filter((g) => g.count > 1);
+  const duplicates = [...groups.values()].filter((g) => g.count > 1);
+  for (const d of duplicates) {
+    d.records.sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
+  }
+  return duplicates;
 }
 
 export async function getDataCheck(
@@ -217,10 +243,17 @@ export async function getDataCheck(
   // The getter adds a synthetic "vsl-" row on days VTurb has numbers but the
   // team hasn't submitted the form; those are not form entries.
   const form = new Map<string, Record<DataCheckMetric, number>>();
-  const formEntries = new Map<string, number>();
+  const formEntries = new Map<string, DuplicateRecord[]>();
   for (const row of formRows) {
     if (!row.date || row.id.startsWith("vsl-")) continue;
-    formEntries.set(row.date, (formEntries.get(row.date) ?? 0) + 1);
+    formEntries.set(row.date, [
+      ...(formEntries.get(row.date) ?? []),
+      {
+        id: row.id,
+        url: config.formTableId ? airtableRecordUrl(config.baseId, config.formTableId, row.id) : null,
+        submittedAt: null,
+      },
+    ]);
     const day = form.get(row.date) ?? { highTicket: 0, lowTicket: 0 };
     day.highTicket += row.cashCollectedHighTicket ?? 0;
     day.lowTicket += row.cashCollectedLowTicket ?? 0;
@@ -308,9 +341,17 @@ export async function getDataCheck(
 
   // More than one form entry for a day: they are added together, so a
   // resubmission doubles that day's numbers.
-  for (const [date, count] of formEntries) {
-    if (count > 1 && isDateInRange(date, range)) {
-      duplicates.push({ source: "Daily Metrics form", date, who: null, count, cash: null, extraCash: 0 });
+  for (const [date, records] of formEntries) {
+    if (records.length > 1 && isDateInRange(date, range)) {
+      duplicates.push({
+        source: "Daily Metrics form",
+        date,
+        who: null,
+        count: records.length,
+        cash: null,
+        extraCash: 0,
+        records,
+      });
     }
   }
   duplicates.sort((a, b) => b.date.localeCompare(a.date) || a.source.localeCompare(b.source));
