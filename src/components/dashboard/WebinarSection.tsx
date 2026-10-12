@@ -50,7 +50,7 @@ export function WebinarSection({ webinar }: { webinar: WebinarTotals | undefined
         ]}
       />
       <p className="mt-3 text-sm text-[var(--text-muted)]">
-        From the Marketing Daily Metrics form. VIP cash is shown here only and is not added to Total Cash Collected.
+        From the Marketing Daily Metrics form. VIP cash counts in Total Cash Collected and ROAS, paid and organic.
       </p>
     </DashboardSection>
   );

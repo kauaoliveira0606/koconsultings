@@ -59,7 +59,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.cash}
-            subtext={`True cash: affiliate ${money(data?.paidCashLowTicket)} attributed (${money(data?.loggedLowTicketPaid)} logged) + high ticket ${money(data?.paidCashHighTicket)}.`}
+            subtext={`True cash: affiliate ${money(data?.paidCashLowTicket)} attributed (${money(data?.loggedLowTicketPaid)} logged) + high ticket ${money(data?.paidCashHighTicket)} + VIP ${money(data?.paidCashVip)}.`}
           />
           <PnlCard
             label="Sales Team Commission"
@@ -93,7 +93,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.organicCash}
-            subtext="True cash: attributed affiliate + high ticket."
+            subtext="True cash: attributed affiliate + high ticket + VIP."
           />
           <PnlCard
             label="Fees"
@@ -112,6 +112,7 @@ export function PaidPnlSection({
             subtext={`${money(data?.loggedLowTicketOrganic)} logged x ${rate} attribution.`}
           />
           <PnlCard label="High Ticket" value={data?.organicCashHighTicket} />
+          <PnlCard label="VIP" value={data?.organicCashVip} subtext="Webinar VIP purchases from organic." />
           <PnlCard
             label="Affiliate Attribution"
             value={data?.portalLowTicketCash}

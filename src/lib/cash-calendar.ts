@@ -2,12 +2,16 @@ import type { MarketingDailyMetricRow } from "./airtable/tables";
 
 export type CashByDay = Record<string, number>;
 
-/** Sums low-ticket + high-ticket cash collected per date (YYYY-MM-DD). */
+/** Sums affiliate + high-ticket + webinar VIP cash collected per date (YYYY-MM-DD). */
 export function getCashByDay(rows: MarketingDailyMetricRow[]): CashByDay {
   const byDay: CashByDay = {};
   for (const row of rows) {
     if (!row.date) continue;
-    const dayTotal = (row.cashCollectedLowTicket ?? 0) + (row.cashCollectedHighTicket ?? 0);
+    const dayTotal =
+      (row.cashCollectedLowTicket ?? 0) +
+      (row.cashCollectedHighTicket ?? 0) +
+      (row.vipCashPaid ?? 0) +
+      (row.vipCashOrganic ?? 0);
     byDay[row.date] = (byDay[row.date] ?? 0) + dayTotal;
   }
   return byDay;
@@ -27,9 +31,14 @@ export function getCashSourceByDay(rows: MarketingDailyMetricRow[]): CashSourceB
   const byDay: CashSourceByDay = {};
   for (const row of rows) {
     if (!row.date) continue;
-    const paid = (row.cashCollectedLowTicketPaid ?? 0) + (row.cashCollectedHighTicketPaid ?? 0);
+    const paid =
+      (row.cashCollectedLowTicketPaid ?? 0) +
+      (row.cashCollectedHighTicketPaid ?? 0) +
+      (row.vipCashPaid ?? 0);
     const organic =
-      (row.cashCollectedLowTicketOrganic ?? 0) + (row.cashCollectedHighTicketOrganic ?? 0);
+      (row.cashCollectedLowTicketOrganic ?? 0) +
+      (row.cashCollectedHighTicketOrganic ?? 0) +
+      (row.vipCashOrganic ?? 0);
     const prev = byDay[row.date] ?? { paid: 0, organic: 0 };
     byDay[row.date] = { paid: prev.paid + paid, organic: prev.organic + organic };
   }

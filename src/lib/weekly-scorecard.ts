@@ -186,11 +186,13 @@ const dDials = (c: DayCtx) => (c.m ? num(c.m.dials) : null) ?? (c.eod ? num(c.eo
 // those tables also log a cash figure.
 const dCashLT = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicket) : null);
 const dCashHT = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicket) : null);
+const dVipCashPaid = (c: DayCtx) => (c.m ? num(c.m.vipCashPaid) : null);
+const dVipCashOrg = (c: DayCtx) => (c.m ? num(c.m.vipCashOrganic) : null);
+// Total cash: affiliate + high ticket + webinar VIP.
 const dTotalCash = (c: DayCtx) => {
-  const lt = dCashLT(c);
-  const ht = dCashHT(c);
-  if (lt === null && ht === null) return null;
-  return (lt ?? 0) + (ht ?? 0);
+  const parts = [dCashLT(c), dCashHT(c), dVipCashPaid(c), dVipCashOrg(c)];
+  if (parts.every((v) => v === null)) return null;
+  return parts.reduce((t: number, v) => t + (v ?? 0), 0);
 };
 /**
  * Effective Paid/Organic opt-in count for the day. The Leads table is the
@@ -217,11 +219,10 @@ const dCashLTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketPaid) : 
 const dCashLTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketOrganic) : null);
 const dCashHTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketPaid) : null);
 const dCashHTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketOrganic) : null);
-/** All paid cash that day, low ticket + high ticket: what ROAS is measured on. */
+/** All paid cash that day, affiliate + high ticket + webinar VIP: what ROAS is measured on. */
 const dCashPaid = (c: DayCtx) => {
-  const lt = dCashLTPaid(c);
-  const ht = dCashHTPaid(c);
-  return lt === null && ht === null ? null : (lt ?? 0) + (ht ?? 0);
+  const parts = [dCashLTPaid(c), dCashHTPaid(c), dVipCashPaid(c)];
+  return parts.every((v) => v === null) ? null : parts.reduce((t: number, v) => t + (v ?? 0), 0);
 };
 
 // --- high-ticket: form first, then EOD Closer, then Affiliate EOD (same
@@ -245,7 +246,7 @@ const dWebinarOptIns = (c: DayCtx) =>
   c.m ? addBoth(num(c.m.webinarOptInsPaid), num(c.m.webinarOptInsOrganic)) : null;
 const dVipPurchases = (c: DayCtx) =>
   c.m ? addBoth(num(c.m.vipPurchasesPaid), num(c.m.vipPurchasesOrganic)) : null;
-const dVipCash = (c: DayCtx) => (c.m ? addBoth(num(c.m.vipCashPaid), num(c.m.vipCashOrganic)) : null);
+const dVipCash = (c: DayCtx) => addBoth(dVipCashPaid(c), dVipCashOrg(c));
 const dRefundCb = (c: DayCtx) => {
   if (!c.m) return null;
   const r = num(c.m.refundDollars);
@@ -416,7 +417,7 @@ function buildSpecs(
         },
         {
           key: "roasTotal",
-          label: "ROAS (Paid Cash Affiliate + HT ÷ Ad Spend)",
+          label: "ROAS (Paid Cash Affiliate + HT + VIP ÷ Ad Spend)",
           format: "ratio",
           goal: goals.roasTotal?.min ?? null,
           goalDirection: "higher",

@@ -62,9 +62,12 @@ export async function GET(request: NextRequest) {
   // Closer even though those tables also log a high-ticket cash figure.
   const revenueHighTicket = sum(inRangeMarketing.map((r) => r.revenueHighTicket));
   const cashHighTicket = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicket));
+  // Webinar VIP purchases count as cash, split paid / organic like affiliate
+  // cash. No sales commission and no deal fees come off them.
+  const webinar = webinarTotals(inRangeMarketing);
   const totalCashCollected =
-    cashLowTicket !== null || cashHighTicket !== null
-      ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0)
+    cashLowTicket !== null || cashHighTicket !== null || webinar.vipCash !== null
+      ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0) + (webinar.vipCash ?? 0)
       : null;
   // Real paid-lead count from the Leads table, not the manually-typed form field.
   const optInsPaid = inRangeLeads.filter((l) => isPaidSource(l.source)).length || null;
@@ -134,10 +137,10 @@ export async function GET(request: NextRequest) {
     totalCashCollected !== null
       ? totalCashCollected - (adSpend ?? 0) - totalCommissions - fees.totalFees
       : null;
-  // Front-End ROAS: paid cash (low ticket + high ticket) after its fees, per ad dollar.
+  // Front-End ROAS: paid cash (low ticket + high ticket + VIP) after its fees, per ad dollar.
   const paidCash =
-    cashLowTicketPaid !== null || cashHighTicketPaidForm !== null
-      ? (cashLowTicketPaid ?? 0) + (cashHighTicketPaidForm ?? 0)
+    cashLowTicketPaid !== null || cashHighTicketPaidForm !== null || webinar.vipCashPaid !== null
+      ? (cashLowTicketPaid ?? 0) + (cashHighTicketPaidForm ?? 0) + (webinar.vipCashPaid ?? 0)
       : null;
   const frontEndRoas =
     adsActive && paidCash !== null ? safeDivide(paidCash - fees.paidFees, adSpend) : null;
@@ -309,7 +312,7 @@ export async function GET(request: NextRequest) {
         optInsOrganic || null
       ),
 
-    webinar: webinarTotals(inRangeMarketing),
+    webinar,
 
     refundCount,
     refundDollars,

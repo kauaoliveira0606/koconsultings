@@ -24,7 +24,7 @@ import {
 } from "@/lib/airtable/expenses";
 
 export type PaidPnl = {
-  /** True paid cash: attributed low ticket + high ticket. */
+  /** True paid cash: attributed low ticket + high ticket + webinar VIP. */
   cash: number;
   salesTeamCommission: number;
   adSpend: number;
@@ -40,6 +40,9 @@ export type PaidPnl = {
   organicCashHighTicket: number;
   paidCashLowTicket: number;
   paidCashHighTicket: number;
+  /** Webinar VIP purchases, as logged on the form. */
+  paidCashVip: number;
+  organicCashVip: number;
   /** Low ticket as logged on the Marketing Daily Metrics form, before attribution. */
   loggedLowTicketPaid: number;
   loggedLowTicketOrganic: number;
@@ -98,7 +101,9 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
   const organicCashHighTicket = sumOf(rows, (r) => r.htCashOrganic);
   const portalLowTicketCash = paidCashLowTicket + organicCashLowTicket;
   const lowTicketAttributionRate = loggedLowTicket > 0 ? portalLowTicketCash / loggedLowTicket : null;
-  const cash = paidCashLowTicket + paidCashHighTicket;
+  const paidCashVip = sumOf(rows, (r) => r.vipCashPaid ?? 0);
+  const organicCashVip = sumOf(rows, (r) => r.vipCashOrganic ?? 0);
+  const cash = paidCashLowTicket + paidCashHighTicket + paidCashVip;
   const salesTeamCommission = sumSalesTeamPayout(rows).paid;
   const adSpend = sumOf(rows, (r) => r.adSpend);
   const expensesTotal = sumOf(rows, (r) => r.expenses);
@@ -110,12 +115,14 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
     expenses: expensesTotal,
     fees,
     profit: cash - salesTeamCommission - adSpend - expensesTotal - fees,
-    organicCash: organicCashLowTicket + organicCashHighTicket,
+    organicCash: organicCashLowTicket + organicCashHighTicket + organicCashVip,
     organicFees,
     organicCashLowTicket,
     organicCashHighTicket,
     paidCashLowTicket,
     paidCashHighTicket,
+    paidCashVip,
+    organicCashVip,
     loggedLowTicketPaid,
     loggedLowTicketOrganic,
     portalLowTicketCash,

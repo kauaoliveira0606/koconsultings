@@ -45,6 +45,9 @@ export type DailyOfferRow = {
   ltCashOrganic: number;
   htCashPaid: number;
   htCashOrganic: number;
+  /** Webinar VIP purchases. No sales commission and no deal fees come off it. */
+  vipCashPaid?: number;
+  vipCashOrganic?: number;
   adSpend: number;
   /** Monthly tool expenses, booked in full on the 1st of their month. Bronson/Andy only. */
   expenses: number;
@@ -62,6 +65,8 @@ type MarketingRowLike = {
   cashCollectedHighTicket: number | null;
   cashCollectedHighTicketPaid: number | null;
   cashCollectedHighTicketOrganic: number | null;
+  vipCashPaid?: number | null;
+  vipCashOrganic?: number | null;
   adSpendMeta: number | null;
 };
 
@@ -101,6 +106,8 @@ export function buildDailyOfferRows(
     (r) => r.date,
     (r) => r.cashCollectedHighTicketOrganic
   );
+  const vipPaidByDay = sumByDate(marketing, (r) => r.date, (r) => r.vipCashPaid ?? null);
+  const vipOrganicByDay = sumByDate(marketing, (r) => r.date, (r) => r.vipCashOrganic ?? null);
   const adSpendByDay = sumByDate(marketing, (r) => r.date, (r) => r.adSpendMeta);
 
   // Monthly bills land in full on the 1st of their month, so any range that
@@ -119,6 +126,8 @@ export function buildDailyOfferRows(
     ...htTotalByDay.keys(),
     ...htPaidByDay.keys(),
     ...htOrganicByDay.keys(),
+    ...vipPaidByDay.keys(),
+    ...vipOrganicByDay.keys(),
     ...adSpendByDay.keys(),
     ...expensesByDay.keys(),
   ]);
@@ -137,6 +146,8 @@ export function buildDailyOfferRows(
       ltCashOrganic: ltOrganic,
       htCashPaid: htPaid,
       htCashOrganic: htOrganic,
+      vipCashPaid: vipPaidByDay.get(date) ?? 0,
+      vipCashOrganic: vipOrganicByDay.get(date) ?? 0,
       adSpend: adSpendByDay.get(date) ?? 0,
       expenses: expensesByDay.get(date) ?? 0,
     });
@@ -144,8 +155,18 @@ export function buildDailyOfferRows(
   return rows;
 }
 
+/** Paid cash that day: affiliate + high ticket + webinar VIP. */
+export function paidCash(r: DailyOfferRow): number {
+  return r.ltCashPaid + r.htCashPaid + (r.vipCashPaid ?? 0);
+}
+
+/** Organic cash that day: affiliate + high ticket + webinar VIP. */
+export function organicCash(r: DailyOfferRow): number {
+  return r.ltCashOrganic + r.htCashOrganic + (r.vipCashOrganic ?? 0);
+}
+
 export function cash(r: DailyOfferRow): number {
-  return r.ltCashPaid + r.ltCashOrganic + r.htCashPaid + r.htCashOrganic;
+  return paidCash(r) + organicCash(r);
 }
 
 export function sumCash(rows: DailyOfferRow[]): number {
@@ -315,8 +336,8 @@ export function profit(rows: DailyOfferRow[]): number {
 export function bronsonAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
-    const cashPaid = r.ltCashPaid + r.htCashPaid;
-    const cashOrganic = r.ltCashOrganic + r.htCashOrganic;
+    const cashPaid = paidCash(r);
+    const cashOrganic = organicCash(r);
     const { paid: payoutPaid } = sumSalesTeamPayout([r]);
     const paidProfit = cashPaid - r.adSpend - payoutPaid - r.expenses - (r.fees?.paid ?? 0);
     map.set(r.date, 0.5 * paidProfit + 0.2 * (cashOrganic - (r.fees?.organic ?? 0)));
@@ -378,8 +399,8 @@ export function ecomSimAgencyProfitByDay(allRows: DailyOfferRow[]): Map<string, 
     const ratePaid = tierHit ? 0.45 : 0.225;
     const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
     // Expenses split 50/50 between the organic and paid sides, per the client.
-    const organicProfit = r.ltCashOrganic + r.htCashOrganic - payoutOrganic - r.expenses / 2;
-    const paidProfit = r.ltCashPaid + r.htCashPaid - r.adSpend - payoutPaid - r.expenses / 2;
+    const organicProfit = organicCash(r) - payoutOrganic - r.expenses / 2;
+    const paidProfit = paidCash(r) - r.adSpend - payoutPaid - r.expenses / 2;
     map.set(r.date, rateOrganic * organicProfit + ratePaid * paidProfit);
   }
   return map;
@@ -411,11 +432,11 @@ function salesManagerCutByDay(
   for (const r of rows) {
     if (r.date > SALES_MANAGER_LAST_DAY) continue;
     const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
-    const cashOrganic = r.ltCashOrganic + r.htCashOrganic;
+    const cashOrganic = organicCash(r);
     const organicBase =
       organicBasis === "cash" ? cashOrganic : cashOrganic - payoutOrganic - r.expenses / 2;
     const paidExpenses = organicBasis === "cash" ? r.expenses : r.expenses / 2;
-    const paidProfit = r.ltCashPaid + r.htCashPaid - r.adSpend - payoutPaid - paidExpenses;
+    const paidProfit = paidCash(r) - r.adSpend - payoutPaid - paidExpenses;
     map.set(r.date, 0.05 * organicBase + 0.05 * paidProfit);
   }
   return map;

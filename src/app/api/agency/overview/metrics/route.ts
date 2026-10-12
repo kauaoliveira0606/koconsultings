@@ -35,6 +35,8 @@ import {
   bronsonSalesManagerCut,
   ecomSimSalesManagerCut,
   type DailyOfferRow,
+  paidCash,
+  organicCash,
 } from "@/lib/agency";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { getFinancedHighTicketCashByDay } from "@/lib/deal-fees";
@@ -165,7 +167,7 @@ export async function GET(request: NextRequest) {
   const byDayMap = new Map<string, { cash: number; adSpend: number }>();
   for (const rows of [bronsonRows, avalRows, ecomRows]) {
     for (const r of rows) {
-      const cash = r.ltCashPaid + r.ltCashOrganic + r.htCashPaid + r.htCashOrganic;
+      const cash = paidCash(r) + organicCash(r);
       const existing = byDayMap.get(r.date) ?? { cash: 0, adSpend: 0 };
       existing.cash += cash;
       existing.adSpend += r.adSpend;

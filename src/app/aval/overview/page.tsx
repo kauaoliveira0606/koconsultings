@@ -166,8 +166,12 @@ export default function OverviewPage() {
   const { data: goals } = useSectionData<GoalsConfig>("/api/aval/goals", range);
 
   const adsActive = metrics?.adsActive ?? false;
-  // Paid ROAS counts ALL paid cash: low ticket and high ticket, as split on the form.
-  const paidCash = addCash(metrics?.cashCollectedLowTicketPaid, metrics?.cashCollectedHighTicketPaid);
+  // Paid ROAS counts ALL paid cash: affiliate, high ticket and webinar VIP, as split on the form.
+  const paidCash = addCash(
+    metrics?.cashCollectedLowTicketPaid,
+    metrics?.cashCollectedHighTicketPaid,
+    metrics?.webinar.vipCashPaid
+  );
   const paidRoas =
     paidCash !== null && metrics?.adSpend ? paidCash / metrics.adSpend : null;
   const notActive = "Not Active";
@@ -220,7 +224,7 @@ export default function OverviewPage() {
                   value: paidRoas,
                   format: "ratio",
                   override: !adsActive ? notActive : undefined,
-                  subtext: "Paid cash (low + high ticket) ÷ ad spend.",
+                  subtext: "Paid cash (affiliate + high ticket + VIP) ÷ ad spend.",
                   status: adsActive ? kpiStatus(paidRoas, goals?.roasTotal?.min, "higher") : null,
                   goal: adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null,
                 },
@@ -372,6 +376,8 @@ export default function OverviewPage() {
           lowTicketPaid={metrics?.cashCollectedLowTicketPaid}
           highTicketOrganic={metrics?.cashCollectedHighTicketOrganic}
           highTicketPaid={metrics?.cashCollectedHighTicketPaid}
+          vipOrganic={metrics?.webinar.vipCashOrganic}
+          vipPaid={metrics?.webinar.vipCashPaid}
           revenueHighTicket={metrics?.revenueHighTicket}
           adSpend={metrics?.adSpend}
         />

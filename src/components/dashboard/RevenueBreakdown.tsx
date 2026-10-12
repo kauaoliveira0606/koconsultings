@@ -7,6 +7,9 @@ export type RevenueBreakdownProps = {
   lowTicketPaid: Cash;
   highTicketOrganic: Cash;
   highTicketPaid: Cash;
+  /** Webinar VIP purchases. */
+  vipOrganic: Cash;
+  vipPaid: Cash;
   /** Booked high ticket revenue, payment plans included. Reference only. */
   revenueHighTicket: Cash;
   adSpend: Cash;
@@ -55,8 +58,8 @@ const PANEL_TITLE =
   "border-b border-[var(--panel-border)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-strong)]";
 
 /**
- * Cash collected, laid out as columns: Low Ticket (Organic | Paid), High
- * Ticket (Organic | Paid), then Combined. Every figure is the Marketing Daily
+ * Cash collected, laid out as columns: Affiliate (Organic | Paid), High
+ * Ticket (Organic | Paid), VIP (Organic | Paid), then Combined underneath. Every figure is the Marketing Daily
  * Metrics form's own Paid / Organic split.
  */
 export function RevenueBreakdown({
@@ -64,15 +67,17 @@ export function RevenueBreakdown({
   lowTicketPaid,
   highTicketOrganic,
   highTicketPaid,
+  vipOrganic,
+  vipPaid,
   revenueHighTicket,
   adSpend,
 }: RevenueBreakdownProps) {
-  const organic = addCash(lowTicketOrganic, highTicketOrganic);
-  const paid = addCash(lowTicketPaid, highTicketPaid);
+  const organic = addCash(lowTicketOrganic, highTicketOrganic, vipOrganic);
+  const paid = addCash(lowTicketPaid, highTicketPaid, vipPaid);
   return (
     <div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <div className={`${PANEL} lg:col-span-2`}>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className={PANEL}>
           <div className={PANEL_TITLE}>Affiliate</div>
           <div className="flex flex-1 divide-x divide-[var(--panel-border)]">
             <Cell label="Organic" value={lowTicketOrganic} tone="organic" />
@@ -81,7 +86,7 @@ export function RevenueBreakdown({
           <Footer rows={[["Affiliate total", addCash(lowTicketOrganic, lowTicketPaid)]]} />
         </div>
 
-        <div className={`${PANEL} lg:col-span-2`}>
+        <div className={PANEL}>
           <div className={PANEL_TITLE}>High Ticket</div>
           <div className="flex flex-1 divide-x divide-[var(--panel-border)]">
             <Cell label="Organic" value={highTicketOrganic} tone="organic" />
@@ -96,21 +101,30 @@ export function RevenueBreakdown({
         </div>
 
         <div className={PANEL}>
+          <div className={PANEL_TITLE}>VIP</div>
+          <div className="flex flex-1 divide-x divide-[var(--panel-border)]">
+            <Cell label="Organic" value={vipOrganic} tone="organic" />
+            <Cell label="Paid" value={vipPaid} tone="paid" />
+          </div>
+          <Footer rows={[["VIP total", addCash(vipOrganic, vipPaid)]]} />
+        </div>
+
+        <div className={`${PANEL} lg:col-span-3`}>
           <div className={PANEL_TITLE}>Combined</div>
           <div className="flex-1">
             <Cell label="Total Cash" value={addCash(organic, paid)} />
           </div>
           <Footer
             rows={[
-              ["Organic (Affiliate + HT)", organic],
-              ["Paid (Affiliate + HT)", paid],
+              ["Organic (Affiliate + HT + VIP)", organic],
+              ["Paid (Affiliate + HT + VIP)", paid],
               ["Ad spend", adSpend],
             ]}
           />
         </div>
       </div>
       <p className="mt-2 text-xs text-[var(--text-muted)]">
-        Cash collected, from the Marketing Daily Metrics form. Paid ROAS = Paid (Affiliate + HT) ÷ Ad spend.
+        Cash collected, from the Marketing Daily Metrics form. Paid ROAS = Paid (Affiliate + HT + VIP) ÷ Ad spend.
       </p>
     </div>
   );
