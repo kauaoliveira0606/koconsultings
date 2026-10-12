@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
           },
         ],
         formTableId: "tblOMLyTcuhDwUZbF",
+        doneTableId: "tbl8JD9XLp4NwGjbc",
         duplicateChecks: [
           {
             label: "Post Call Notes",

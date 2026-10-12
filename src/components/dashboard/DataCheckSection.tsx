@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useSWRConfig } from "swr";
 import type { RangeState } from "@/components/dashboard/RangeFilterBar";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatDateTime, formatStatValue } from "@/lib/format";
@@ -166,19 +168,175 @@ function duplicateLine(d: DataCheckDuplicate): string {
   );
 }
 
-/** Records submitted more than once in a log. Always shown, even when there are none. */
-function Duplicates({ duplicates }: { duplicates: DataCheckDuplicate[] }) {
-  const extraCash = duplicates.reduce((sum, d) => sum + d.extraCash, 0);
+/** One copy of a repeated record: when it came in, a link to it, and everything on it. */
+function DuplicateCopy({ record, index }: { record: DataCheckDuplicate["records"][number]; index: number }) {
+  return (
+    <div className="rounded border border-[var(--panel-border)] px-2.5 py-2">
+      <div className="text-xs text-[var(--text-strong)]">
+        <span className="font-semibold">Copy {index + 1}</span>
+        {record.submittedAt ? ` · submitted ${formatDateTime(record.submittedAt)}` : ""}
+        {record.url ? (
+          <>
+            {" · "}
+            <a
+              href={record.url}
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2 hover:text-[var(--text-strong)]"
+            >
+              Open in Airtable
+            </a>
+          </>
+        ) : null}
+      </div>
+      {record.fields && record.fields.length > 0 ? (
+        <details className="mt-1">
+          <summary className="cursor-pointer text-xs text-[var(--text-muted)] hover:text-[var(--text-strong)]">
+            Show everything on this copy ({record.fields.length} fields)
+          </summary>
+          <dl className="mt-1.5 space-y-1 text-xs">
+            {record.fields.map((f) => (
+              <div key={f.name} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2">
+                <dt className="text-[var(--text-muted)]">{f.name}</dt>
+                <dd className="break-words text-[var(--text-strong)]">{f.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      ) : null}
+    </div>
+  );
+}
 
-  if (duplicates.length === 0) {
+/** Where the copies disagree, so it is clear which one to keep. */
+function DuplicateDifferences({ duplicate }: { duplicate: DataCheckDuplicate }) {
+  if (!duplicate.differences) return null;
+  if (duplicate.differences.length === 0) {
     return (
-      <div className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2.5 text-sm text-[var(--text-strong)]">
-        <span className="font-semibold">Duplicate records:</span>{" "}
-        <span className="font-semibold text-emerald-400">none</span>
-        <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-          Checks every log for the same lead, day and cash submitted twice, and for a rep
-          submitting two end of day reports for one day. All time, not tied to the date filter.
+      <div className="mt-1.5 text-xs text-[var(--text-muted)]">
+        <span className="font-semibold text-[var(--text-strong)]">The copies are identical</span> in
+        every field, so either one can be deleted.
+      </div>
+    );
+  }
+  return (
+    <div className="mt-1.5">
+      <div className="text-xs font-semibold text-[var(--text-strong)]">
+        What is different between the copies ({duplicate.differences.length} field
+        {duplicate.differences.length === 1 ? "" : "s"}):
+      </div>
+      <ul className="mt-1 space-y-1 text-xs">
+        {duplicate.differences.map((diff) => (
+          <li key={diff.field}>
+            <span className="text-[var(--text-muted)]">{diff.field}:</span>{" "}
+            {diff.values.map((value, i) => (
+              <span key={i} className="text-[var(--text-strong)]">
+                {i > 0 ? <span className="text-[var(--text-muted)]"> · </span> : null}
+                <span className="text-[var(--text-muted)]">Copy {i + 1}:</span>{" "}
+                <span className="font-semibold">{value}</span>
+              </span>
+            ))}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Records submitted more than once in a log. Always shown, even when there are none.
+ * "Mark as done" takes one off the list (it is remembered in the "Data Check Done"
+ * table); it never touches the log itself.
+ */
+function Duplicates({
+  duplicates,
+  doneDuplicates,
+  apiPath,
+}: {
+  duplicates: DataCheckDuplicate[];
+  doneDuplicates: DataCheckDuplicate[];
+  apiPath: string;
+}) {
+  const { mutate } = useSWRConfig();
+  // Keys moved by a click that the next refresh hasn't caught up with yet.
+  const [justDone, setJustDone] = useState<Set<string>>(new Set());
+  const [justRestored, setJustRestored] = useState<Set<string>>(new Set());
+  const [failed, setFailed] = useState<string | null>(null);
+
+  const open = [
+    ...duplicates.filter((d) => !justDone.has(d.key)),
+    ...doneDuplicates.filter((d) => justRestored.has(d.key)),
+  ];
+  const done = [
+    ...doneDuplicates.filter((d) => !justRestored.has(d.key)),
+    ...duplicates.filter((d) => justDone.has(d.key)),
+  ];
+  const extraCash = open.reduce((sum, d) => sum + d.extraCash, 0);
+
+  async function setDone(d: DataCheckDuplicate, isDone: boolean) {
+    setFailed(null);
+    const move = (set: Set<string>, add: boolean) => {
+      const next = new Set(set);
+      if (add) next.add(d.key);
+      else next.delete(d.key);
+      return next;
+    };
+    setJustDone((set) => move(set, isDone));
+    setJustRestored((set) => move(set, !isDone));
+    try {
+      const res = await fetch(`${apiPath}/done`, {
+        method: isDone ? "POST" : "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: d.key, source: d.source, who: d.who ?? "", date: d.date }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      await mutate((key) => typeof key === "string" && key.startsWith(apiPath));
+    } catch {
+      // Put it back where it was and say so.
+      setJustDone((set) => move(set, false));
+      setJustRestored((set) => move(set, false));
+      setFailed("Couldn't save that. Try again.");
+    }
+  }
+
+  const doneList =
+    done.length > 0 ? (
+      <details className="border-t border-[var(--panel-border)] px-3 py-2">
+        <summary className="cursor-pointer text-xs text-[var(--text-muted)] hover:text-[var(--text-strong)]">
+          Marked as done ({done.length})
+        </summary>
+        <ul className="mt-1.5 space-y-1.5">
+          {done.map((d) => (
+            <li key={d.key} className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-[var(--text-muted)]">
+              <span>
+                <span className="font-semibold">{d.source}:</span> {duplicateLine(d)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setDone(d, false)}
+                className="underline underline-offset-2 hover:text-[var(--text-strong)]"
+              >
+                Put back on the list
+              </button>
+            </li>
+          ))}
+        </ul>
+      </details>
+    ) : null;
+
+  if (open.length === 0) {
+    return (
+      <div className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] text-sm text-[var(--text-strong)]">
+        <div className="px-3 py-2.5">
+          <span className="font-semibold">Duplicate records:</span>{" "}
+          <span className="font-semibold text-emerald-400">none{done.length > 0 ? " left to look at" : ""}</span>
+          <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+            Checks every log for the same lead, day and cash submitted twice, and for a rep
+            submitting two end of day reports for one day. All time, not tied to the date filter.
+          </div>
+          {failed ? <div className="mt-1 text-xs text-red-400">{failed}</div> : null}
         </div>
+        {doneList}
       </div>
     );
   }
@@ -189,7 +347,7 @@ function Duplicates({ duplicates }: { duplicates: DataCheckDuplicate[] }) {
         <div className="text-sm text-[var(--text-strong)]">
           <span className="font-semibold">Duplicate records:</span>{" "}
           <span className="font-semibold text-red-400">
-            {duplicates.length} record{duplicates.length === 1 ? "" : "s"} submitted more than once
+            {open.length} record{open.length === 1 ? "" : "s"} submitted more than once
             {extraCash > 0 ? `, ${money(extraCash)} counted more than once` : ""}
           </span>
           <div className="mt-0.5 text-xs text-[var(--text-muted)]">
@@ -199,39 +357,42 @@ function Duplicates({ duplicates }: { duplicates: DataCheckDuplicate[] }) {
       </summary>
       <p className="border-t border-[var(--panel-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
         Same lead, same day and same cash in one log (or the same rep&apos;s end of day report
-        twice). Each line says which Airtable table it is in and links to every copy, so you can
-        open it and delete the extra one. Duplicates are not removed automatically: a repeated
-        post call note or follow up payment pays its commission twice until the extra record is
-        deleted.
+        twice). Each one shows when every copy was submitted, what is different between the
+        copies, and everything on each copy, with a link to open it in Airtable and delete the
+        extra one. Duplicates are not removed automatically: a repeated post call note or follow
+        up payment pays its commission twice until the extra record is deleted. When you have
+        dealt with one, press <span className="font-semibold text-[var(--text-strong)]">Mark as done</span>{" "}
+        to take it off this list. That only hides it here; it changes nothing in Airtable.
       </p>
+      {failed ? <div className="px-3 pb-2 text-xs text-red-400">{failed}</div> : null}
       <ul className="divide-y divide-[var(--panel-border)] border-t border-[var(--panel-border)] px-3">
-        {duplicates.map((d) => (
-          <li key={`${d.source}-${d.date}-${d.who}-${d.cash}`} className="py-2 text-sm text-[var(--text-strong)]">
-            <span className="font-semibold">{d.source}:</span> {duplicateLine(d)}
-            <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-              Where: Airtable, {d.source} table ·{" "}
+        {open.map((d) => (
+          <li key={d.key} className="py-3 text-sm text-[var(--text-strong)]">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <span className="font-semibold">{d.source}:</span> {duplicateLine(d)}
+                <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                  Where: Airtable, {d.source} table
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDone(d, true)}
+                className="shrink-0 rounded-md border border-[var(--panel-border)] px-2.5 py-1 text-xs font-semibold text-[var(--text-strong)] hover:border-emerald-400 hover:text-emerald-400"
+              >
+                Mark as done
+              </button>
+            </div>
+            <DuplicateDifferences duplicate={d} />
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {d.records.map((record, i) => (
-                <span key={record.id}>
-                  {i > 0 ? " · " : ""}
-                  {record.url ? (
-                    <a
-                      href={record.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline underline-offset-2 hover:text-[var(--text-strong)]"
-                    >
-                      Open copy {i + 1}
-                    </a>
-                  ) : (
-                    `Copy ${i + 1}`
-                  )}
-                  {record.submittedAt ? ` (submitted ${formatDateTime(record.submittedAt)})` : ""}
-                </span>
+                <DuplicateCopy key={record.id} record={record} index={i} />
               ))}
             </div>
           </li>
         ))}
       </ul>
+      {doneList}
     </details>
   );
 }
@@ -261,7 +422,7 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         Marketing Daily Metrics form, the once a day numbers entry this dashboard is built from,
         for this range (checked through {formatDay(data.checkedThrough)}).
         <div className="mt-3">
-          <Duplicates duplicates={data.duplicates} />
+          <Duplicates duplicates={data.duplicates} doneDuplicates={data.doneDuplicates ?? []} apiPath={apiPath} />
         </div>
       </div>
     );
@@ -293,7 +454,7 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         two apart is already matched up and not flagged.
       </p>
       <div className="mt-3 space-y-2">
-        <Duplicates duplicates={data.duplicates} />
+        <Duplicates duplicates={data.duplicates} doneDuplicates={data.doneDuplicates ?? []} apiPath={apiPath} />
         {mismatches.map((mismatch) => (
           <MismatchRow key={mismatch.key} mismatch={mismatch} />
         ))}

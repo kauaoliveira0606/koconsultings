@@ -1,4 +1,5 @@
 import { airtableListAll } from "@/lib/airtable/client";
+import { listDoneDuplicateKeys } from "@/lib/data-check-done";
 import { rowEasternDate } from "@/lib/airtable/live-cash";
 import { parseNumericText } from "@/lib/airtable/parse";
 import type { MarketingDailyMetricRow } from "@/lib/airtable/tables";
@@ -70,6 +71,8 @@ export type DataCheckConfig = {
   duplicateChecks?: DuplicateCheck[];
   /** The form's own table, so repeated form entries can link to their records. */
   formTableId?: string;
+  /** "Data Check Done" table: duplicates marked as done on the dashboard. */
+  doneTableId?: string;
 };
 
 /** One copy of a repeated record, with where to find it in Airtable. */
@@ -78,6 +81,15 @@ export type DuplicateRecord = {
   url: string | null;
   /** When it was submitted (ISO), null if unknown. */
   submittedAt: string | null;
+  /** Everything filled in on this copy, in the table's own wording. */
+  fields?: { name: string; value: string }[];
+};
+
+/** A field the copies of a repeated record disagree on. */
+export type DuplicateDifference = {
+  field: string;
+  /** One value per copy, same order as `records`; "(blank)" when empty. */
+  values: string[];
 };
 
 export type DataCheckDuplicate = {
@@ -93,6 +105,10 @@ export type DataCheckDuplicate = {
   extraCash: number;
   /** Every copy, oldest first. */
   records: DuplicateRecord[];
+  /** Stable id for this set of copies; changes if another copy is submitted. */
+  key: string;
+  /** Where the copies differ. Empty = identical in every field. Absent = not compared. */
+  differences?: DuplicateDifference[];
 };
 
 export type DataCheckFlag = {
@@ -118,6 +134,8 @@ export type DataCheckResponse = {
   days: DataCheckDay[];
   /** Records submitted more than once, newest first. All time: not tied to the date range. */
   duplicates: DataCheckDuplicate[];
+  /** Duplicates marked as done on the dashboard: off the list, kept so they can be put back. */
+  doneDuplicates: DataCheckDuplicate[];
   /** Latest day checked; today is skipped because it is still being logged. */
   checkedThrough: string;
 };
@@ -182,13 +200,49 @@ const firstText = (fields: Record<string, unknown>, names: string[]): string | n
   return null;
 };
 
+/** A cell as plain text, or null when there is nothing to show. */
+function cellText(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return value.trim() === "" ? null : value.trim();
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "Yes" : null;
+  if (Array.isArray(value)) {
+    const parts = value.map((v) =>
+      typeof v === "string" || typeof v === "number"
+        ? String(v)
+        : v && typeof v === "object"
+          ? String((v as { name?: unknown; filename?: unknown; email?: unknown }).name ?? (v as { filename?: unknown }).filename ?? (v as { email?: unknown }).email ?? "")
+          : ""
+    );
+    const text = parts.filter((t) => t !== "").join(", ");
+    return text === "" ? null : text;
+  }
+  if (typeof value === "object") {
+    const o = value as { name?: unknown; email?: unknown };
+    const text = String(o.name ?? o.email ?? "");
+    return text === "" ? null : text;
+  }
+  return null;
+}
+
+const clip = (text: string) => (text.length > 220 ? `${text.slice(0, 217)}...` : text);
+
+/** Bookkeeping columns that differ on every record and say nothing about the submission. */
+const SYSTEM_FIELD = /^(created|created time|created at|record id|id|last modified( time)?|autonumber)$/i;
+
+/** Same copies = same key, whatever order they come back in. */
+export const duplicateKey = (source: string, records: { id: string }[]) =>
+  `${source}|${records.map((r) => r.id).sort().join(",")}`;
+
 async function findDuplicates(
   baseId: string,
   check: DuplicateCheck
 ): Promise<DataCheckDuplicate[]> {
   const records = await airtableListAll<Record<string, unknown>>(baseId, check.tableId);
   const groups = new Map<string, DataCheckDuplicate>();
+  const rawFields = new Map<string, Record<string, unknown>>();
   for (const r of records) {
+    rawFields.set(r.id, r.fields);
     const date = rowEasternDate(r.fields[check.dateField ?? "Date"], r.createdTime);
     if (!date) continue;
     const parts = check.identity.map((group) => firstText(r.fields, group));
@@ -218,12 +272,36 @@ async function findDuplicates(
         cash: check.cashFields ? cash ?? 0 : null,
         extraCash: 0,
         records: [record],
+        key: "",
       });
     }
   }
   const duplicates = [...groups.values()].filter((g) => g.count > 1);
   for (const d of duplicates) {
     d.records.sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
+    d.key = duplicateKey(d.source, d.records);
+    // What each copy says, and where the copies disagree.
+    const names: string[] = [];
+    for (const record of d.records) {
+      for (const name of Object.keys(rawFields.get(record.id) ?? {})) {
+        if (!names.includes(name) && !SYSTEM_FIELD.test(name.trim())) names.push(name);
+      }
+    }
+    const differences: DuplicateDifference[] = [];
+    for (const name of names) {
+      const values = d.records.map((record) => cellText((rawFields.get(record.id) ?? {})[name]));
+      if (values.some((v) => v !== values[0])) {
+        differences.push({ field: name, values: values.map((v) => (v === null ? "(blank)" : clip(v))) });
+      }
+    }
+    d.differences = differences;
+    for (const record of d.records) {
+      const fields = rawFields.get(record.id) ?? {};
+      record.fields = names
+        .map((name) => ({ name, value: cellText(fields[name]) }))
+        .filter((f): f is { name: string; value: string } => f.value !== null)
+        .map((f) => ({ name: f.name, value: clip(f.value) }));
+    }
   }
   return duplicates;
 }
@@ -350,18 +428,25 @@ export async function getDataCheck(
         cash: null,
         extraCash: 0,
         records,
+        key: duplicateKey("Daily Metrics form", records),
       });
     }
   }
   allDuplicates.sort((a, b) => b.date.localeCompare(a.date) || a.source.localeCompare(b.source));
-  // Duplicates are shown in total, whatever date range is picked.
-  const duplicates = allDuplicates;
+  // Duplicates are shown in total, whatever date range is picked. The ones marked as
+  // done on the dashboard come off the list and are returned separately.
+  const doneKeys = config.doneTableId
+    ? await listDoneDuplicateKeys(config.baseId, config.doneTableId)
+    : new Set<string>();
+  const duplicates = allDuplicates.filter((d) => !doneKeys.has(d.key));
+  const doneDuplicates = allDuplicates.filter((d) => doneKeys.has(d.key));
 
   days.sort((a, b) => b.date.localeCompare(a.date));
   return {
     flagCount: days.reduce((n, d) => n + d.flags.length, 0),
     days,
     duplicates,
+    doneDuplicates,
     checkedThrough: yesterday,
   };
 }
