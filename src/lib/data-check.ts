@@ -148,7 +148,21 @@ export type DataCheckTotal = {
   /** What the Daily Metrics form says for the range. */
   formCash: number;
   /** Each log's total for the same days, and how far it is from the form (log minus form). */
-  sources: { label: string; cash: number; diff: number }[];
+  sources: { label: string; cash: number; diff: number; outsideRange: DataCheckOutsideRange | null }[];
+};
+
+/**
+ * Part of a range total's difference that is not a real gap: the same cash sits on a
+ * day inside the range in one place and on a day just outside it in the other. The
+ * day-by-day check matches it up, so no line is flagged, but the range total cuts it.
+ */
+export type DataCheckOutsideRange = {
+  /** Its share of the total's difference (negative = the log's share sits outside the range). */
+  amount: number;
+  /** Days inside the range that were matched. */
+  insideDays: string[];
+  /** The days outside the range they were matched to. */
+  outsideDays: string[];
 };
 
 export type DataCheckResponse = {
@@ -394,6 +408,8 @@ export async function getDataCheck(
   const gaps = config.sources.map((source, i) => {
     const left = new Map<string, number>();
     const matchedWith = new Map<string, string[]>();
+    /** Every cancellation, signed by `date`'s gap (positive = the log had more that day). */
+    const matches: { date: string; other: string; amount: number }[] = [];
     for (const date of dates) {
       left.set(
         date,
@@ -412,10 +428,28 @@ export async function getDataCheck(
         left.set(other, otherGap - Math.sign(otherGap) * cancelled);
         matchedWith.set(date, [...(matchedWith.get(date) ?? []), other]);
         matchedWith.set(other, [...(matchedWith.get(other) ?? []), date]);
+        matches.push({ date, other, amount: Math.sign(gap) * cancelled });
       }
     }
-    return { left, matchedWith };
+    return { left, matchedWith, matches };
   });
+
+  // A day inside the range matched to a day outside it: the day-by-day check is
+  // satisfied, but the range total only sees one side of the pair.
+  const outsideRange = (i: number): DataCheckOutsideRange | null => {
+    let amount = 0;
+    const insideDays = new Set<string>();
+    const outsideDays = new Set<string>();
+    for (const match of gaps[i].matches) {
+      const dateIn = isDateInRange(match.date, range);
+      if (dateIn === isDateInRange(match.other, range)) continue;
+      amount += dateIn ? match.amount : -match.amount;
+      insideDays.add(dateIn ? match.date : match.other);
+      outsideDays.add(dateIn ? match.other : match.date);
+    }
+    if (Math.abs(amount) < TOLERANCE) return null;
+    return { amount, insideDays: [...insideDays].sort(), outsideDays: [...outsideDays].sort() };
+  };
 
   // The headline check: over the whole range, does each log add up to the same cash
   // as the form? Which day the cash sits on doesn't matter here.
@@ -430,7 +464,7 @@ export async function getDataCheck(
         .filter(({ source }) => source.metric === metric)
         .map(({ source, i }) => {
           const cash = rangeDates.reduce((sum, date) => sum + (sourceDays[i].get(date)?.cash ?? 0), 0);
-          return { label: source.label, cash, diff: cash - formCash };
+          return { label: source.label, cash, diff: cash - formCash, outsideRange: outsideRange(i) };
         }),
     };
   });

@@ -39,6 +39,9 @@ type Mismatch = {
 
 const money = (value: number) => formatStatValue(value, "currency");
 
+/** Re-check on its own, so a fix made in Airtable shows up without reloading the page. */
+const REFRESH_MS = 30_000;
+
 /** What "the form" is called everywhere on this panel. */
 const FORM = "Daily Metrics form";
 
@@ -461,6 +464,51 @@ function Duplicates({
   );
 }
 
+const dayList = (days: string[]) => days.map((d) => formatDay(d)).join(" and ");
+
+/**
+ * Why a range total can be off with no line flagged under it: the same cash is on a day
+ * inside the range in one place and on a day just outside it in the other. Not a gap,
+ * so it gets a plain note instead of a red line.
+ */
+function OutsideRangeNotes({ data }: { data: DataCheckResponse }) {
+  const notes = (data.totals ?? []).flatMap((total) =>
+    total.sources.flatMap((source) =>
+      source.outsideRange ? [{ metric: total.metric, label: source.label, outside: source.outsideRange }] : []
+    )
+  );
+  if (notes.length === 0) return null;
+  return (
+    <>
+      {notes.map(({ metric, label, outside }) => {
+        const kind = CASH_KIND[metric];
+        const amount = money(Math.abs(outside.amount));
+        return (
+          <div
+            key={`${metric}-${label}`}
+            className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2.5 text-sm text-[var(--text-strong)]"
+          >
+            <span className="font-semibold">{METRIC_LABELS[metric]}:</span> {label}{" "}
+            <span className="font-semibold text-amber-400">
+              {outside.amount < 0
+                ? `has ${amount} of ${kind} dated ${dayList(outside.outsideDays)}, outside this date range`
+                : `has ${amount} of ${kind} that the ${FORM} has on ${dayList(outside.outsideDays)}, outside this date range`}
+            </span>
+            <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+              {outside.amount < 0
+                ? `The ${FORM} has that ${kind} on ${dayList(outside.insideDays)}. `
+                : `${label} has that ${kind} on ${dayList(outside.insideDays)}. `}
+              Same {kind} a day or two apart, so it is matched and nothing needs fixing. It only
+              makes the {label} total above look {amount} {outside.amount < 0 ? "short" : "high"} for
+              this range.
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 /**
  * The headline: for each kind of cash, the Daily Metrics form's total for the range next
  * to every log's total. If these agree the books agree, whatever day the cash landed on.
@@ -489,17 +537,25 @@ function Totals({ data }: { data: DataCheckResponse }) {
               </li>
               {total.sources.map((source) => {
                 const matches = Math.abs(source.diff) < 1;
+                // The whole difference is cash dated just outside the range: nothing to fix.
+                const outside = source.outsideRange ?? null;
+                const onlyDates = !matches && outside !== null && Math.abs(source.diff - outside.amount) < 1;
                 return (
                   <li key={source.label} className="flex flex-wrap items-baseline justify-between gap-x-3 text-[var(--text-strong)]">
                     <span>{source.label}</span>
                     <span>
                       <span className="font-semibold">{money(source.cash)}</span>{" "}
-                      <span className={`text-xs font-semibold ${matches ? "text-emerald-400" : "text-red-400"}`}>
+                      <span
+                        className={`text-xs font-semibold ${
+                          matches ? "text-emerald-400" : onlyDates ? "text-amber-400" : "text-red-400"
+                        }`}
+                      >
                         {matches
                           ? "matches"
                           : source.diff > 0
                             ? `${money(source.diff)} more than the form`
                             : `${money(-source.diff)} less than the form`}
+                        {onlyDates ? `, dated ${dayList(outside.outsideDays)} (outside this range)` : ""}
                       </span>
                     </span>
                   </li>
@@ -520,7 +576,7 @@ function Totals({ data }: { data: DataCheckResponse }) {
  * opens into the day-by-day detail.
  */
 export function DataCheckSection({ apiPath, range }: { apiPath: string; range: RangeState }) {
-  const { data, error } = useSectionData<DataCheckResponse>(apiPath, range);
+  const { data, error } = useSectionData<DataCheckResponse>(apiPath, range, REFRESH_MS);
 
   if (!data) {
     return (
@@ -539,6 +595,7 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         for this range (checked through {formatDay(data.checkedThrough)}).
         <div className="mt-3 space-y-2">
           <Totals data={data} />
+          <OutsideRangeNotes data={data} />
           <Duplicates
             duplicates={data.duplicates}
             doneDuplicates={(data.doneDuplicates ?? []).filter((d) => d.kind !== "sameDate")}
@@ -596,6 +653,7 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         {mismatches.map((mismatch) => (
           <MismatchRow key={mismatch.key} mismatch={mismatch} />
         ))}
+        <OutsideRangeNotes data={data} />
       </div>
     </div>
   );
