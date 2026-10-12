@@ -258,7 +258,7 @@ function DuplicateDifferences({ duplicate }: { duplicate: DataCheckDuplicate }) 
 }
 
 /**
- * Records submitted more than once in a log. Always shown, even when there are none.
+ * Records submitted more than once in a log. Left out when there are none to look at.
  * "Mark as done" takes one off the list (it is remembered in the "Data Check Done"
  * table); it never touches the log itself.
  */
@@ -342,27 +342,8 @@ function Duplicates({
       </details>
     ) : null;
 
-  // Nothing to say about shared dates when there are none.
-  if (sameDate && open.length === 0 && done.length === 0) return null;
-
-  if (open.length === 0) {
-    return (
-      <div className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] text-sm text-[var(--text-strong)]">
-        <div className="px-3 py-2.5">
-          <span className="font-semibold">{sameDate ? "Reports sharing a date:" : "Duplicate records:"}</span>{" "}
-          <span className="font-semibold text-emerald-400">none{done.length > 0 ? " left to look at" : ""}</span>
-          {sameDate ? null : (
-            <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-              Checks every log for the same lead, day and cash submitted twice, and for a rep
-              sending the same end of day report in again. All time, not tied to the date filter.
-            </div>
-          )}
-          {failed ? <div className="mt-1 text-xs text-red-400">{failed}</div> : null}
-        </div>
-        {doneList}
-      </div>
-    );
-  }
+  // Nothing left to look at: leave the row out altogether.
+  if (open.length === 0) return null;
 
   return (
     <details className="group rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)]" open={!sameDate}>
