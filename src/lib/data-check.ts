@@ -107,6 +107,14 @@ export type DataCheckDuplicate = {
   records: DuplicateRecord[];
   /** Stable id for this set of copies; changes if another copy is submitted. */
   key: string;
+  /**
+   * "duplicate": the same thing sent in again (same lead, day and cash; or a rep's
+   * report resubmitted within a few hours, or word for word the same).
+   * "sameDate": a rep's two reports carry the same date but were sent in many hours
+   * apart with different numbers. Those are two different reports, one of them most
+   * likely with the wrong date typed in, not a resubmission.
+   */
+  kind: "duplicate" | "sameDate";
   /** Where the copies differ. Empty = identical in every field. Absent = not compared. */
   differences?: DuplicateDifference[];
 };
@@ -134,7 +142,9 @@ export type DataCheckResponse = {
   days: DataCheckDay[];
   /** Records submitted more than once, newest first. All time: not tied to the date range. */
   duplicates: DataCheckDuplicate[];
-  /** Duplicates marked as done on the dashboard: off the list, kept so they can be put back. */
+  /** A rep's reports that share a date but are clearly different reports. All time. */
+  sameDateReports: DataCheckDuplicate[];
+  /** Anything above marked as done on the dashboard: off the lists, kept so it can be put back. */
   doneDuplicates: DataCheckDuplicate[];
   /** Latest day checked; today is skipped because it is still being logged. */
   checkedThrough: string;
@@ -227,6 +237,9 @@ function cellText(value: unknown): string | null {
 
 const clip = (text: string) => (text.length > 220 ? `${text.slice(0, 217)}...` : text);
 
+/** A rep's report sent in again within this long is a resubmission of the same report. */
+const RESUBMIT_WINDOW_MS = 3 * 60 * 60 * 1000;
+
 /** Bookkeeping columns that differ on every record and say nothing about the submission. */
 const SYSTEM_FIELD = /^(created|created time|created at|record id|id|last modified( time)?|autonumber)$/i;
 
@@ -273,6 +286,7 @@ async function findDuplicates(
         extraCash: 0,
         records: [record],
         key: "",
+        kind: "duplicate",
       });
     }
   }
@@ -295,6 +309,15 @@ async function findDuplicates(
       }
     }
     d.differences = differences;
+    // A rep's end of day report only counts as a duplicate when it was sent in again
+    // soon after, or says exactly the same thing. Reports hours apart with different
+    // numbers are different reports that happen to carry the same date.
+    if (!check.cashFields && differences.length > 0) {
+      const times = d.records.map((r) => (r.submittedAt ? Date.parse(r.submittedAt) : NaN));
+      let widestGap = 0;
+      for (let i = 1; i < times.length; i++) widestGap = Math.max(widestGap, times[i] - times[i - 1]);
+      if (times.some((t) => isNaN(t)) || widestGap > RESUBMIT_WINDOW_MS) d.kind = "sameDate";
+    }
     for (const record of d.records) {
       const fields = rawFields.get(record.id) ?? {};
       record.fields = names
@@ -429,6 +452,7 @@ export async function getDataCheck(
         extraCash: 0,
         records,
         key: duplicateKey("Daily Metrics form", records),
+        kind: "duplicate",
       });
     }
   }
@@ -438,7 +462,8 @@ export async function getDataCheck(
   const doneKeys = config.doneTableId
     ? await listDoneDuplicateKeys(config.baseId, config.doneTableId)
     : new Set<string>();
-  const duplicates = allDuplicates.filter((d) => !doneKeys.has(d.key));
+  const duplicates = allDuplicates.filter((d) => d.kind === "duplicate" && !doneKeys.has(d.key));
+  const sameDateReports = allDuplicates.filter((d) => d.kind === "sameDate" && !doneKeys.has(d.key));
   const doneDuplicates = allDuplicates.filter((d) => doneKeys.has(d.key));
 
   days.sort((a, b) => b.date.localeCompare(a.date));
@@ -446,6 +471,7 @@ export async function getDataCheck(
     flagCount: days.reduce((n, d) => n + d.flags.length, 0),
     days,
     duplicates,
+    sameDateReports,
     doneDuplicates,
     checkedThrough: yesterday,
   };

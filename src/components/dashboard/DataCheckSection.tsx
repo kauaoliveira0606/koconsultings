@@ -154,8 +154,22 @@ function MismatchRow({ mismatch }: { mismatch: Mismatch }) {
   );
 }
 
+/** "2 hours", "1 day": how far apart the first and last copy were sent in. */
+function spread(d: DataCheckDuplicate): string | null {
+  const times = d.records.map((r) => (r.submittedAt ? Date.parse(r.submittedAt) : NaN));
+  if (times.length < 2 || times.some((t) => isNaN(t))) return null;
+  const hours = (Math.max(...times) - Math.min(...times)) / 3_600_000;
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))} minutes`;
+  if (hours < 36) return `${Math.round(hours)} hour${Math.round(hours) === 1 ? "" : "s"}`;
+  return `${Math.round(hours / 24)} days`;
+}
+
 function duplicateLine(d: DataCheckDuplicate): string {
   const times = d.count === 2 ? "twice" : `${d.count} times`;
+  if (d.kind === "sameDate") {
+    const apart = spread(d);
+    return `${d.who} has ${d.count} different reports dated ${formatDay(d.date, true)}${apart ? `, sent in ${apart} apart` : ""}.`;
+  }
   if (d.who === null) {
     return `${d.count} entries for ${formatDay(d.date, true)}. They are added together, so that day's numbers are inflated if one is a resubmission.`;
   }
@@ -252,11 +266,15 @@ function Duplicates({
   duplicates,
   doneDuplicates,
   apiPath,
+  variant = "duplicate",
 }: {
   duplicates: DataCheckDuplicate[];
   doneDuplicates: DataCheckDuplicate[];
   apiPath: string;
+  /** "sameDate" lists a rep's different reports that carry the same date. */
+  variant?: "duplicate" | "sameDate";
 }) {
+  const sameDate = variant === "sameDate";
   const { mutate } = useSWRConfig();
   // Keys moved by a click that the next refresh hasn't caught up with yet.
   const [justDone, setJustDone] = useState<Set<string>>(new Set());
@@ -324,16 +342,21 @@ function Duplicates({
       </details>
     ) : null;
 
+  // Nothing to say about shared dates when there are none.
+  if (sameDate && open.length === 0 && done.length === 0) return null;
+
   if (open.length === 0) {
     return (
       <div className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] text-sm text-[var(--text-strong)]">
         <div className="px-3 py-2.5">
-          <span className="font-semibold">Duplicate records:</span>{" "}
+          <span className="font-semibold">{sameDate ? "Reports sharing a date:" : "Duplicate records:"}</span>{" "}
           <span className="font-semibold text-emerald-400">none{done.length > 0 ? " left to look at" : ""}</span>
-          <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-            Checks every log for the same lead, day and cash submitted twice, and for a rep
-            submitting two end of day reports for one day. All time, not tied to the date filter.
-          </div>
+          {sameDate ? null : (
+            <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+              Checks every log for the same lead, day and cash submitted twice, and for a rep
+              sending the same end of day report in again. All time, not tied to the date filter.
+            </div>
+          )}
           {failed ? <div className="mt-1 text-xs text-red-400">{failed}</div> : null}
         </div>
         {doneList}
@@ -342,12 +365,14 @@ function Duplicates({
   }
 
   return (
-    <details className="group rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)]" open>
+    <details className="group rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)]" open={!sameDate}>
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <div className="text-sm text-[var(--text-strong)]">
-          <span className="font-semibold">Duplicate records:</span>{" "}
-          <span className="font-semibold text-red-400">
-            {open.length} record{open.length === 1 ? "" : "s"} submitted more than once
+          <span className="font-semibold">{sameDate ? "Reports sharing a date:" : "Duplicate records:"}</span>{" "}
+          <span className={`font-semibold ${sameDate ? "text-amber-400" : "text-red-400"}`}>
+            {sameDate
+              ? `${open.length} time${open.length === 1 ? "" : "s"} a rep has two different reports with the same date`
+              : `${open.length} record${open.length === 1 ? "" : "s"} submitted more than once`}
             {extraCash > 0 ? `, ${money(extraCash)} counted more than once` : ""}
           </span>
           <div className="mt-0.5 text-xs text-[var(--text-muted)]">
@@ -355,9 +380,21 @@ function Duplicates({
           </div>
         </div>
       </summary>
-      <p className="border-t border-[var(--panel-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
-        Same lead, same day and same cash in one log (or the same rep&apos;s end of day report
-        twice). Each one shows when every copy was submitted, what is different between the
+      {sameDate ? (
+        <p className="border-t border-[var(--panel-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
+          These are <span className="font-semibold text-[var(--text-strong)]">not duplicates</span>.
+          The same rep has two end of day reports carrying the same date, but they were sent in
+          hours or days apart and the numbers are different, so they are two different reports.
+          Most likely one has the wrong date typed in (a report filed after midnight, or a late
+          one for an earlier day). Both count on that date, so that day is counted double and the
+          day the other report belongs to is missing one. Open the copy with the wrong date and
+          correct it. Press <span className="font-semibold text-[var(--text-strong)]">Mark as done</span>{" "}
+          to take one off this list.
+        </p>
+      ) : null}
+      <p className={`border-t border-[var(--panel-border)] px-3 py-2 text-xs text-[var(--text-muted)] ${sameDate ? "hidden" : ""}`}>
+        Same lead, same day and same cash in one log, or a rep&apos;s end of day report sent in
+        again within a few hours (or word for word the same). Each one shows when every copy was submitted, what is different between the
         copies, and everything on each copy, with a link to open it in Airtable and delete the
         extra one. Duplicates are not removed automatically: a repeated post call note or follow
         up payment pays its commission twice until the extra record is deleted. When you have
@@ -373,6 +410,7 @@ function Duplicates({
                 <span className="font-semibold">{d.source}:</span> {duplicateLine(d)}
                 <div className="mt-0.5 text-xs text-[var(--text-muted)]">
                   Where: Airtable, {d.source} table
+                  {!sameDate && spread(d) ? ` · copies sent in ${spread(d)} apart` : ""}
                 </div>
               </div>
               <button
@@ -421,8 +459,18 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         (post call notes, follow up payments, end of day reports, Affiliate PCN) matches the
         Marketing Daily Metrics form, the once a day numbers entry this dashboard is built from,
         for this range (checked through {formatDay(data.checkedThrough)}).
-        <div className="mt-3">
-          <Duplicates duplicates={data.duplicates} doneDuplicates={data.doneDuplicates ?? []} apiPath={apiPath} />
+        <div className="mt-3 space-y-2">
+          <Duplicates
+            duplicates={data.duplicates}
+            doneDuplicates={(data.doneDuplicates ?? []).filter((d) => d.kind !== "sameDate")}
+            apiPath={apiPath}
+          />
+          <Duplicates
+            variant="sameDate"
+            duplicates={data.sameDateReports ?? []}
+            doneDuplicates={(data.doneDuplicates ?? []).filter((d) => d.kind === "sameDate")}
+            apiPath={apiPath}
+          />
         </div>
       </div>
     );
@@ -454,7 +502,17 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         two apart is already matched up and not flagged.
       </p>
       <div className="mt-3 space-y-2">
-        <Duplicates duplicates={data.duplicates} doneDuplicates={data.doneDuplicates ?? []} apiPath={apiPath} />
+        <Duplicates
+            duplicates={data.duplicates}
+            doneDuplicates={(data.doneDuplicates ?? []).filter((d) => d.kind !== "sameDate")}
+            apiPath={apiPath}
+          />
+          <Duplicates
+            variant="sameDate"
+            duplicates={data.sameDateReports ?? []}
+            doneDuplicates={(data.doneDuplicates ?? []).filter((d) => d.kind === "sameDate")}
+            apiPath={apiPath}
+          />
         {mismatches.map((mismatch) => (
           <MismatchRow key={mismatch.key} mismatch={mismatch} />
         ))}
