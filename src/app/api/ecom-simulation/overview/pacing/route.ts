@@ -8,7 +8,9 @@ import type { BronsonAffiliateEodRow } from "@/lib/airtable/tables";
 import { buildPacing } from "@/lib/weekly-scorecard";
 import { getEcomSimulationGoals } from "@/lib/goals-ecom-simulation";
 
-export const revalidate = 60;
+// Rendered on request, never at build time: the token no longer has access to
+// Andy's base, and a build-time 403 here would fail every deploy.
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const [marketing, leads, eodRaw, closer, goals] = await Promise.all([

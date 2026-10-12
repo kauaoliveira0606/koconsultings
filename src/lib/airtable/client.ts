@@ -12,6 +12,20 @@ export class AirtableError extends Error {
   }
 }
 
+/**
+ * Andy was offboarded and the token lost access to his base (403 since
+ * 2026-10-12). Pages that add his numbers to the other offers load them
+ * through this so they keep working with his rows left out.
+ */
+export async function emptyIfNoAccess<T>(rows: Promise<T[]>): Promise<T[]> {
+  try {
+    return await rows;
+  } catch (error) {
+    if (error instanceof AirtableError && error.status === 403) return [];
+    throw error;
+  }
+}
+
 export type AirtableRecord<TFields = Record<string, unknown>> = {
   id: string;
   createdTime: string;

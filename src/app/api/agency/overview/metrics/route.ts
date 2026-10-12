@@ -6,6 +6,7 @@ import {
   getMarketingDailyMetrics as getBronsonMarketingDailyMetrics,
 } from "@/lib/airtable/tables";
 import { AVAL_BASE_ID, getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
+import { emptyIfNoAccess } from "@/lib/airtable/client";
 import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
 import {
   EXPENSE_TABLES,
@@ -74,9 +75,9 @@ export async function GET(request: NextRequest) {
   ] = await Promise.all([
     getBronsonMarketingDailyMetrics(),
     getAvalMarketingDailyMetrics(),
-    getEcomSimMarketingDailyMetrics(),
+    emptyIfNoAccess(getEcomSimMarketingDailyMetrics()),
     listExpenses(EXPENSE_TABLES.bronson),
-    listExpenses(EXPENSE_TABLES.ecomSimulation),
+    emptyIfNoAccess(listExpenses(EXPENSE_TABLES.ecomSimulation)),
     getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
     getPortalCashByDay(COMMISSIONS_OFFERS.bronson),
     getFinancedHighTicketCashByDay(BRONSON_BASE_ID),
