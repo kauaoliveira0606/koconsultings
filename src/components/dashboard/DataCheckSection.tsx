@@ -9,8 +9,18 @@ import type { DataCheckDuplicate, DataCheckFlag, DataCheckResponse } from "@/lib
 
 const METRIC_LABELS: Record<DataCheckFlag["metric"], string> = {
   highTicket: "High Ticket Cash",
-  lowTicket: "Low Ticket Cash",
+  lowTicket: "Affiliate Cash",
 };
+
+/** Which cash a dollar figure is, spelled out next to every amount on this panel. */
+const CASH_KIND: Record<DataCheckFlag["metric"], string> = {
+  highTicket: "high ticket cash",
+  lowTicket: "affiliate cash",
+};
+
+/** Duplicates carry their log, not a metric: Affiliate PCN is affiliate cash, the rest high ticket. */
+const duplicateCashKind = (source: string) =>
+  /affiliate pcn/i.test(source) ? CASH_KIND.lowTicket : CASH_KIND.highTicket;
 
 type FlaggedDay = DataCheckFlag & { date: string };
 
@@ -35,10 +45,10 @@ const FORM = "Daily Metrics form";
 /** Cash on the form with nothing behind it in a log: why that matters for that log. */
 function missingFromLogNote(source: string): string {
   if (/post call/i.test(source)) {
-    return " No closer or setter commission is calculated on that cash until its post call note (or follow up payment) is in.";
+    return " No closer or setter commission is calculated on that high ticket cash until its post call note (or follow up payment) is in.";
   }
   if (/affiliate pcn/i.test(source)) {
-    return " Those sales have no Affiliate PCN entry, so they are missing from the reps' logged low ticket.";
+    return " Those sales have no Affiliate PCN entry, so they are missing from the reps' logged affiliate cash.";
   }
   return " The reps' end of day reports don't account for it.";
 }
@@ -85,12 +95,13 @@ function period(days: FlaggedDay[]): string {
 }
 
 function MismatchRow({ mismatch }: { mismatch: Mismatch }) {
+  const kind = CASH_KIND[mismatch.metric];
   const parts: string[] = [];
   if (mismatch.missingFromForm > 0) {
-    parts.push(`has ${money(mismatch.missingFromForm)} that is not on the ${FORM}`);
+    parts.push(`has ${money(mismatch.missingFromForm)} of ${kind} that is not on the ${FORM}`);
   }
   if (mismatch.missingFromLog > 0) {
-    parts.push(`is missing ${money(mismatch.missingFromLog)} that is on the ${FORM}`);
+    parts.push(`is missing ${money(mismatch.missingFromLog)} of ${kind} that is on the ${FORM}`);
   }
   return (
     <details className="group rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)]">
@@ -117,14 +128,15 @@ function MismatchRow({ mismatch }: { mismatch: Mismatch }) {
         {mismatch.missingFromForm > 0 ? (
           <p>
             <span className="font-semibold text-red-400">{money(mismatch.missingFromForm)}</span>{" "}
-            was logged in {mismatch.source} but never entered on the {FORM}. The dashboard&apos;s
-            cash (Overview, ROAS, Agency profit) is short by that much until the form is corrected.
+            of {kind} was logged in {mismatch.source} but never entered on the {FORM}. The
+            dashboard&apos;s {kind} (Overview, ROAS, Agency profit) is short by that much until
+            the form is corrected.
           </p>
         ) : null}
         {mismatch.missingFromLog > 0 ? (
           <p>
             <span className="font-semibold text-amber-400">{money(mismatch.missingFromLog)}</span>{" "}
-            is on the {FORM} with nothing in {mismatch.source} to back it up.
+            of {kind} is on the {FORM} with nothing in {mismatch.source} to back it up.
             {missingFromLogNote(mismatch.source)}
           </p>
         ) : null}
@@ -135,13 +147,13 @@ function MismatchRow({ mismatch }: { mismatch: Mismatch }) {
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
               <div className="text-[var(--text-strong)]">
                 <span className="font-semibold">{formatDay(day.date, true)}:</span> {mismatch.source}{" "}
-                {money(day.sourceCash)}, {FORM}{" "}
-                {day.formCash === null ? "has no entry for this day" : money(day.formCash)}
+                {money(day.sourceCash)} {kind}, {FORM}{" "}
+                {day.formCash === null ? "has no entry for this day" : `${money(day.formCash)} ${kind}`}
               </div>
               <div className={`font-semibold ${day.diff > 0 ? "text-red-400" : "text-amber-400"}`}>
                 {day.diff > 0
-                  ? `${money(day.diff)} not on the form`
-                  : `${money(-day.diff)} not in this log`}
+                  ? `${money(day.diff)} ${kind} not on the form`
+                  : `${money(-day.diff)} ${kind} not in this log`}
               </div>
             </div>
             {day.hint ? (
@@ -178,7 +190,9 @@ function duplicateLine(d: DataCheckDuplicate): string {
   }
   return (
     `${d.who} was logged ${times} on ${formatDay(d.date, true)}` +
-    (d.cash > 0 ? `, ${money(d.cash)} each. ${money(d.extraCash)} is counted more than once.` : ", no cash.")
+    (d.cash > 0
+      ? `, ${money(d.cash)} of ${duplicateCashKind(d.source)} each. ${money(d.extraCash)} of ${duplicateCashKind(d.source)} is counted more than once.`
+      : `, no ${duplicateCashKind(d.source)}.`)
   );
 }
 
@@ -290,6 +304,15 @@ function Duplicates({
     ...duplicates.filter((d) => justDone.has(d.key)),
   ];
   const extraCash = open.reduce((sum, d) => sum + d.extraCash, 0);
+  // "$1,725 of affiliate cash", or both kinds spelled out when the list has both.
+  const extraByKind = [CASH_KIND.lowTicket, CASH_KIND.highTicket]
+    .map((kind) => ({
+      kind,
+      cash: open.filter((d) => duplicateCashKind(d.source) === kind).reduce((sum, d) => sum + d.extraCash, 0),
+    }))
+    .filter((k) => k.cash > 0)
+    .map((k) => `${money(k.cash)} of ${k.kind}`)
+    .join(" and ");
 
   async function setDone(d: DataCheckDuplicate, isDone: boolean) {
     setFailed(null);
@@ -354,7 +377,7 @@ function Duplicates({
             {sameDate
               ? `${open.length} time${open.length === 1 ? "" : "s"} a rep has two different reports with the same date`
               : `${open.length} record${open.length === 1 ? "" : "s"} submitted more than once`}
-            {extraCash > 0 ? `, ${money(extraCash)} counted more than once` : ""}
+            {extraCash > 0 ? `, ${extraByKind} counted more than once` : ""}
           </span>
           <div className="mt-0.5 text-xs text-[var(--text-muted)]">
             All time, not tied to the date filter. Newest first.
