@@ -13,6 +13,9 @@ export type TableIds = {
   // Analytics Collector straight from VTurb (today included), so VSL numbers
   // never wait on the team's Marketing Daily Metrics form.
   vslDailyStats?: string;
+  // "Refunds": the offer's own refund / chargeback table, one row per day.
+  // Replaces the refund columns on the Marketing Daily Metrics form.
+  refunds?: string;
 };
 
 export const BRONSON_BASE_ID = "appiMw8gpaLv2WITA";
@@ -29,6 +32,7 @@ export const BRONSON_TABLE_IDS: TableIds = {
   speedToLead: "tbltKRQ3AG4vbl9Yd",
   leaderboard: "tblumrfxY24tF2D8E",
   vslDailyStats: "tblXkoLdiizJoUjjD",
+  refunds: "tblh2wXZJlhoOVrWi",
 };
 
 export type LeadRow = {
@@ -145,6 +149,11 @@ function leadEasternDate(createdAt: string | undefined, recordCreatedTime: strin
   return toEasternDateOnly(createdAt);
 }
 
+type RefundDay = Pick<
+  MarketingDailyMetricRow,
+  "refundCount" | "refundDollars" | "chargebackCount" | "chargebackDollars"
+>;
+
 type VslDay = {
   views: number | null;
   plays: number | null;
@@ -207,28 +216,58 @@ export function createAirtableTables(
     return byDate;
   }
 
+  async function getRefundsByDate() {
+    const byDate = new Map<string, RefundDay>();
+    if (!tableIds.refunds) return byDate;
+    const records = await airtableListAll<Record<string, unknown>>(baseId, tableIds.refunds);
+    for (const r of records) {
+      const date = parseDateOnly(r.fields.Date);
+      if (!date) continue;
+      // More than one row on the same day adds up.
+      const day = byDate.get(date);
+      byDate.set(date, {
+        refundCount: addNullable(day?.refundCount ?? null, parseNumericText(r.fields["Refund count"])),
+        refundDollars: addNullable(day?.refundDollars ?? null, parseNumericText(r.fields["Refund dollars"])),
+        chargebackCount: addNullable(day?.chargebackCount ?? null, parseNumericText(r.fields["Chargebacks"])),
+        chargebackDollars: addNullable(
+          day?.chargebackDollars ?? null,
+          parseNumericText(r.fields["Chargebacks dollars"])
+        ),
+      });
+    }
+    return byDate;
+  }
+
   /**
    * Marketing Daily Metrics rows, with VSL Views / Play Rate / Engagement Rate
    * filled from VTurb's "VSL Daily Stats" on days the form has no VSL numbers
    * (the form is the source of truth when it has them). A VTurb day
    * with no form row yet (today, or before the team submits) gets its own row
    * with only the VSL fields filled, so those cards never sit empty.
+   *
+   * Refunds / chargebacks come from the offer's "Refunds" table. The form's
+   * old refund columns only count on days that table has no row for.
    */
   async function getMarketingDailyMetrics(): Promise<MarketingDailyMetricRow[]> {
-    const [formRecords, vslByDate] = await Promise.all([
+    const [formRecords, vslByDate, refundsByDate] = await Promise.all([
       airtableListAll<Record<string, unknown>>(baseId, tableIds.marketingDailyMetrics),
       getVslDailyStats(),
+      getRefundsByDate(),
     ]);
     const formDates = new Set(formRecords.map((r) => parseDateOnly(r.fields.Date)));
+    const extraDates = new Set(
+      [...vslByDate.keys(), ...refundsByDate.keys()].filter((date) => !formDates.has(date))
+    );
     const records = [
       ...formRecords,
-      ...[...vslByDate.keys()]
-        .filter((date) => !formDates.has(date))
-        .map((date) => ({ id: `vsl-${date}`, fields: { Date: date } as Record<string, unknown> })),
+      ...[...extraDates].map((date) => ({
+        id: `extra-${date}`,
+        fields: { Date: date } as Record<string, unknown>,
+      })),
     ];
 
     const overlaid = new Set<string>();
-    return records.map(parseMarketingRecord).map((row) => {
+    const rows = records.map(parseMarketingRecord).map((row) => {
       const vsl = row.date ? vslByDate.get(row.date) : undefined;
       if (!vsl || !row.date) return row;
       // The form wins whenever the team logged VSL numbers for that day;
@@ -247,6 +286,21 @@ export function createAirtableTables(
         vslPlayRate: vsl.playRate,
         vslEngagementRate: vsl.engagementRate,
       };
+    });
+
+    // The day's last row carries the Refunds table numbers and any other row
+    // for that day is blanked, so a duplicated form row can't double-count.
+    const lastRowOfDate = new Map<string, number>();
+    rows.forEach((row, i) => {
+      if (row.date) lastRowOfDate.set(row.date, i);
+    });
+    return rows.map((row, i) => {
+      const refunds = row.date ? refundsByDate.get(row.date) : undefined;
+      if (!refunds || !row.date) return row;
+      if (lastRowOfDate.get(row.date) !== i) {
+        return { ...row, refundCount: null, refundDollars: null, chargebackCount: null, chargebackDollars: null };
+      }
+      return { ...row, ...refunds };
     });
   }
 

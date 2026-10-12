@@ -732,7 +732,7 @@ export default function OverviewPage() {
           {metrics && !metrics.refundCount && !metrics.chargebackCount && !metrics.refundChargebackDollars
             ? "No refunds or chargebacks logged in this range. "
             : ""}
-          From the Marketing Daily Metrics form, tracked from September 2026.
+          From the Refunds table in Airtable.
         </p>
       </DashboardSection>
 

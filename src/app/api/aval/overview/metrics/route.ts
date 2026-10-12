@@ -190,8 +190,8 @@ export async function GET(request: NextRequest) {
   }
   const avgDaysToClose = average(closeLags);
 
-  // Refund / Chargeback — added to the form 2026-09, so this only has data
-  // from that point forward.
+  // Refund / Chargeback — from the offer's "Refunds" table, overlaid on the
+  // marketing rows by getMarketingDailyMetrics.
   const refundCount = sum(inRangeMarketing.map((r) => r.refundCount));
   const refundDollars = sum(inRangeMarketing.map((r) => r.refundDollars));
   const chargebackCount = sum(inRangeMarketing.map((r) => r.chargebackCount));

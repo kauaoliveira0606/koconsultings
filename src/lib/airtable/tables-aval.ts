@@ -20,6 +20,7 @@ export const AVAL_TABLE_IDS: TableIds = {
   speedToLead: "tblgbq8OfbhNhr8sn",
   leaderboard: "",
   vslDailyStats: "tbl5HOgO4cyZVXZWQ",
+  refunds: "tblUYpQ4mEeiFWSIQ",
 };
 
 export const {
