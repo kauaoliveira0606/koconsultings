@@ -142,7 +142,18 @@ export type DataCheckDay = {
   flags: DataCheckFlag[];
 };
 
+/** One kind of cash added up over the whole range: the form against every log that reports it. */
+export type DataCheckTotal = {
+  metric: DataCheckMetric;
+  /** What the Daily Metrics form says for the range. */
+  formCash: number;
+  /** Each log's total for the same days, and how far it is from the form (log minus form). */
+  sources: { label: string; cash: number; diff: number }[];
+};
+
 export type DataCheckResponse = {
+  /** Range totals: what matters most is that these agree, whatever day the cash landed on. */
+  totals: DataCheckTotal[];
   flagCount: number;
   days: DataCheckDay[];
   /** Records submitted more than once, newest first. All time: not tied to the date range. */
@@ -406,6 +417,24 @@ export async function getDataCheck(
     return { left, matchedWith };
   });
 
+  // The headline check: over the whole range, does each log add up to the same cash
+  // as the form? Which day the cash sits on doesn't matter here.
+  const rangeDates = dates.filter((date) => isDateInRange(date, range));
+  const totals: DataCheckTotal[] = (["highTicket", "lowTicket"] as DataCheckMetric[]).map((metric) => {
+    const formCash = rangeDates.reduce((sum, date) => sum + (form.get(date)?.[metric] ?? 0), 0);
+    return {
+      metric,
+      formCash,
+      sources: config.sources
+        .map((source, i) => ({ source, i }))
+        .filter(({ source }) => source.metric === metric)
+        .map(({ source, i }) => {
+          const cash = rangeDates.reduce((sum, date) => sum + (sourceDays[i].get(date)?.cash ?? 0), 0);
+          return { label: source.label, cash, diff: cash - formCash };
+        }),
+    };
+  });
+
   const stillOpenFrom = addDaysToDateString(today, -MATCH_WINDOW_DAYS);
   const days: DataCheckDay[] = [];
   for (const date of dates) {
@@ -471,6 +500,7 @@ export async function getDataCheck(
 
   days.sort((a, b) => b.date.localeCompare(a.date));
   return {
+    totals,
     flagCount: days.reduce((n, d) => n + d.flags.length, 0),
     days,
     duplicates,

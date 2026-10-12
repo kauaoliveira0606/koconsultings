@@ -462,6 +462,58 @@ function Duplicates({
 }
 
 /**
+ * The headline: for each kind of cash, the Daily Metrics form's total for the range next
+ * to every log's total. If these agree the books agree, whatever day the cash landed on.
+ */
+function Totals({ data }: { data: DataCheckResponse }) {
+  const totals = data.totals ?? [];
+  if (totals.length === 0) return null;
+  return (
+    <div className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2.5">
+      <div className="text-sm font-semibold text-[var(--text-strong)]">Do the totals match?</div>
+      <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+        Each place the cash is recorded, added up over the selected date range (through{" "}
+        {formatDay(data.checkedThrough)}). These should all be the same number. Which day the
+        cash landed on doesn&apos;t matter here.
+      </div>
+      <div className="mt-2 grid gap-3 md:grid-cols-2">
+        {totals.map((total) => (
+          <div key={total.metric} className="rounded border border-[var(--panel-border)] px-3 py-2">
+            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+              {METRIC_LABELS[total.metric]}
+            </div>
+            <ul className="mt-1.5 space-y-1 text-sm">
+              <li className="flex items-baseline justify-between gap-3 text-[var(--text-strong)]">
+                <span>{FORM}</span>
+                <span className="font-semibold">{money(total.formCash)}</span>
+              </li>
+              {total.sources.map((source) => {
+                const matches = Math.abs(source.diff) < 1;
+                return (
+                  <li key={source.label} className="flex flex-wrap items-baseline justify-between gap-x-3 text-[var(--text-strong)]">
+                    <span>{source.label}</span>
+                    <span>
+                      <span className="font-semibold">{money(source.cash)}</span>{" "}
+                      <span className={`text-xs font-semibold ${matches ? "text-emerald-400" : "text-red-400"}`}>
+                        {matches
+                          ? "matches"
+                          : source.diff > 0
+                            ? `${money(source.diff)} more than the form`
+                            : `${money(-source.diff)} less than the form`}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Says which team logs (Post Call Notes, Follow Up Payment, EOD Closer,
  * Affiliate PCN, Affiliate EOD) don't match the Marketing Daily Metrics form
  * on cash for the selected range, by how much and roughly when. Each line
@@ -486,6 +538,7 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         Marketing Daily Metrics form, the once a day numbers entry this dashboard is built from,
         for this range (checked through {formatDay(data.checkedThrough)}).
         <div className="mt-3 space-y-2">
+          <Totals data={data} />
           <Duplicates
             duplicates={data.duplicates}
             doneDuplicates={(data.doneDuplicates ?? []).filter((d) => d.kind !== "sameDate")}
@@ -528,6 +581,7 @@ export function DataCheckSection({ apiPath, range }: { apiPath: string; range: R
         two apart is already matched up and not flagged.
       </p>
       <div className="mt-3 space-y-2">
+        <Totals data={data} />
         <Duplicates
             duplicates={data.duplicates}
             doneDuplicates={(data.doneDuplicates ?? []).filter((d) => d.kind !== "sameDate")}
