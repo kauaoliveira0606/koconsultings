@@ -5,7 +5,7 @@
  * stays isolated to its own base; this is the deliberate aggregator.
  */
 import { isDateInRange, type ResolvedRange } from "./date-range";
-import type { DealFeeRates } from "./deal-fee-rates";
+import { VIP_PROCESSING_RATE, type DealFeeRates } from "./deal-fee-rates";
 import { sumByDate } from "./metrics";
 
 /** Data before this date is out of scope for the agency rollup entirely, per the client. */
@@ -45,7 +45,7 @@ export type DailyOfferRow = {
   ltCashOrganic: number;
   htCashPaid: number;
   htCashOrganic: number;
-  /** Webinar VIP purchases. No sales commission and no deal fees come off it. */
+  /** Webinar VIP purchases. No sales commission; processing comes off in `withDealFees`. */
   vipCashPaid?: number;
   vipCashOrganic?: number;
   adSpend: number;
@@ -194,7 +194,7 @@ export function sumFees(rows: DailyOfferRow[]): { paid: number; organic: number 
 /**
  * Fees that come off high ticket cash before profit, from `DEAL_FEES_FROM`:
  * the offer's processing rate on every high ticket dollar, plus its
- * financing rate on financed deals. Low ticket carries none (it is an affiliate payout, not a payment
+ * financing rate on financed deals, plus processing on webinar VIP cash. Low ticket carries none (it is an affiliate payout, not a payment
  * we process).
  *
  * `financedByDay` is high ticket cash paid through a financing partner, from
@@ -228,7 +228,13 @@ export function withDealFees(
     // Share of the month's high ticket cash that was financed.
     const financedShare = monthHt > 0 ? financed / monthHt : 0;
     const rate = rates.processing + rates.financing * financedShare;
-    return { ...r, fees: { paid: r.htCashPaid * rate, organic: r.htCashOrganic * rate } };
+    return {
+      ...r,
+      fees: {
+        paid: r.htCashPaid * rate + (r.vipCashPaid ?? 0) * VIP_PROCESSING_RATE,
+        organic: r.htCashOrganic * rate + (r.vipCashOrganic ?? 0) * VIP_PROCESSING_RATE,
+      },
+    };
   });
 }
 

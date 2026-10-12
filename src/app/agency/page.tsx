@@ -81,8 +81,8 @@ export default function AgencyPage() {
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
             Every client combined. Bronson&apos;s affiliate cash is real: what the affiliate portal
-            actually tracked, not what was logged. Ad spend, sales team payouts, expenses and high ticket
-            fees (2.5% processing, plus 15% on financed deals, from October 2026) come off first, then each
+            actually tracked, not what was logged. Ad spend, sales team payouts, expenses and
+            fees (2.5% processing on high ticket and VIP, plus 15% on financed deals, from October 2026) come off first, then each
             offer&apos;s profit-share.
           </p>
         </div>

@@ -11,3 +11,6 @@ export const DEAL_FEE_RATES = {
   bronson: { processing: 0.025, financing: 0.15 },
   aval: { processing: 0.025, financing: 0.15 },
 } satisfies Record<string, DealFeeRates>;
+
+/** Processing on webinar VIP purchases: 2.5% of every VIP dollar, both offers. Nothing is financed. */
+export const VIP_PROCESSING_RATE = 0.025;

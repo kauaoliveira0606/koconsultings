@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
   const revenueHighTicket = sum(inRangeMarketing.map((r) => r.revenueHighTicket));
   const cashHighTicket = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicket));
   // Webinar VIP purchases count as cash, split paid / organic like affiliate
-  // cash. No sales commission and no deal fees come off them.
+  // cash. No sales commission comes off them; 2.5% processing does.
   const webinar = webinarTotals(inRangeMarketing);
   const totalCashCollected =
     cashLowTicket !== null || cashHighTicket !== null || webinar.vipCash !== null
@@ -131,6 +131,8 @@ export async function GET(request: NextRequest) {
   const fees = dealFees({
     cashHighTicket,
     cashHighTicketPaid: cashHighTicketPaidForm,
+    vipCash: webinar.vipCash,
+    vipCashPaid: webinar.vipCashPaid,
     financedCash: await getFinancedHighTicketCash(PAYMENT_PLAN_OFFERS.aval.baseId, range),
   }, DEAL_FEE_RATES.aval);
   const netCash =

@@ -19,7 +19,7 @@ import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
 import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
 import { emailKey, nameKey, text } from "@/lib/payment-plans";
 
-import type { DealFeeRates } from "@/lib/deal-fee-rates";
+import { VIP_PROCESSING_RATE, type DealFeeRates } from "@/lib/deal-fee-rates";
 
 // Same table IDs in every offer's base (the bases were cloned from one template).
 const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
@@ -69,16 +69,18 @@ export async function getFinancedHighTicketCashByDay(baseId: string): Promise<Ma
 }
 
 /**
- * Fees on a range's high ticket cash. `paidFees` is the share that falls on
- * paid-traffic cash: processing is exact, and financing is spread by paid's
- * share of high ticket cash, because a deal's traffic source isn't on the
- * post call note.
+ * Fees on a range's high ticket cash, plus processing on webinar VIP cash.
+ * `paidFees` is the share that falls on paid-traffic cash: processing is
+ * exact, and financing is spread by paid's share of high ticket cash, because
+ * a deal's traffic source isn't on the post call note.
  */
 export function dealFees(
   input: {
     cashHighTicket: number | null;
     cashHighTicketPaid: number | null;
     financedCash: number;
+    vipCash?: number | null;
+    vipCashPaid?: number | null;
   },
   rates: DealFeeRates
 ) {
@@ -86,7 +88,9 @@ export function dealFees(
   const paid = input.cashHighTicketPaid ?? 0;
   // Never more financed cash than there is high ticket cash on the form.
   const financed = Math.min(input.financedCash, total);
-  const processingFees = total * rates.processing;
+  const vipFees = (input.vipCash ?? 0) * VIP_PROCESSING_RATE;
+  const vipPaidFees = (input.vipCashPaid ?? 0) * VIP_PROCESSING_RATE;
+  const processingFees = total * rates.processing + vipFees;
   const financingFees = financed * rates.financing;
   const paidShare = total > 0 ? Math.min(1, paid / total) : 0;
   return {
@@ -94,6 +98,6 @@ export function dealFees(
     processingFees,
     financingFees,
     totalFees: processingFees + financingFees,
-    paidFees: paid * rates.processing + financingFees * paidShare,
+    paidFees: paid * rates.processing + financingFees * paidShare + vipPaidFees,
   };
 }
