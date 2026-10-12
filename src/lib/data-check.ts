@@ -128,6 +128,11 @@ export type DataCheckFlag = {
   /** Cash still unaccounted for (positive = the log has more than the form),
    * after cancelling against opposite gaps on nearby days. */
   diff: number;
+  /**
+   * Nearby days whose opposite gap cancelled part of this day's gap (the same cash
+   * logged on one day and entered on the form on another). Empty when nothing did.
+   */
+  matchedWith: string[];
   hint: string | null;
 };
 
@@ -414,10 +419,7 @@ export async function getDataCheck(
       if (Math.abs(diff) < TOLERANCE) return;
 
       const hints: string[] = [];
-      const matched = gaps[i].matchedWith.get(date);
-      if (matched) {
-        hints.push(`Part of this day's gap is covered by ${matched.join(" and ")}; this is what is left.`);
-      }
+      const matched = gaps[i].matchedWith.get(date) ?? [];
       if (date > today) {
         hints.push("This date is in the future, so an entry was dated wrong.");
       } else if (sourceDay && sourceDay.repeatReps.length > 0) {
@@ -432,6 +434,7 @@ export async function getDataCheck(
         sourceCash: sourceDay?.cash ?? 0,
         formCash: formDay ? formDay[source.metric] : null,
         diff,
+        matchedWith: [...new Set(matched)].sort(),
         hint: hints.length > 0 ? hints.join(" ") : null,
       });
     });

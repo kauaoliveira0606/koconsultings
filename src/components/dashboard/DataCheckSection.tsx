@@ -142,25 +142,47 @@ function MismatchRow({ mismatch }: { mismatch: Mismatch }) {
         ) : null}
       </div>
       <ul className="divide-y divide-[var(--panel-border)] border-t border-[var(--panel-border)] px-3">
-        {mismatch.days.map((day) => (
-          <li key={day.date} className="py-2">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
-              <div className="text-[var(--text-strong)]">
-                <span className="font-semibold">{formatDay(day.date, true)}:</span> {mismatch.source}{" "}
-                {money(day.sourceCash)} {kind}, {FORM}{" "}
-                {day.formCash === null ? "has no entry for this day" : `${money(day.formCash)} ${kind}`}
+        {mismatch.days.map((day) => {
+          // The plain difference for the day, before any of it is matched to nearby days.
+          const raw = day.sourceCash - (day.formCash ?? 0);
+          const offset = Math.abs(raw) - Math.abs(day.diff);
+          const netted = (day.matchedWith ?? []).length > 0 && Math.abs(offset) >= 1;
+          const where = (day.matchedWith ?? []).map((d) => formatDay(d)).join(" and ");
+          return (
+            <li key={day.date} className="py-2">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+                <div className="text-[var(--text-strong)]">
+                  <span className="font-semibold">{formatDay(day.date, true)}:</span> {mismatch.source}{" "}
+                  {money(day.sourceCash)} {kind}, {FORM}{" "}
+                  {day.formCash === null ? "has no entry for this day" : `${money(day.formCash)} ${kind}`}
+                  {day.formCash !== null && Math.abs(raw) >= 1 ? (
+                    <span className="text-[var(--text-muted)]">
+                      {" "}
+                      ({raw > 0 ? `this log is ${money(raw)} higher` : `the form is ${money(-raw)} higher`})
+                    </span>
+                  ) : null}
+                </div>
+                <div className={`font-semibold ${day.diff > 0 ? "text-red-400" : "text-amber-400"}`}>
+                  {day.diff > 0
+                    ? `${money(day.diff)} ${kind} not on the form`
+                    : `${money(-day.diff)} ${kind} not in this log`}
+                </div>
               </div>
-              <div className={`font-semibold ${day.diff > 0 ? "text-red-400" : "text-amber-400"}`}>
-                {day.diff > 0
-                  ? `${money(day.diff)} ${kind} not on the form`
-                  : `${money(-day.diff)} ${kind} not in this log`}
-              </div>
-            </div>
-            {day.hint ? (
-              <div className="mt-0.5 text-xs text-[var(--text-muted)]">{day.hint}</div>
-            ) : null}
-          </li>
-        ))}
+              {netted ? (
+                <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                  Why {money(Math.abs(day.diff))} and not {money(Math.abs(raw))}:{" "}
+                  {money(offset)} of this day&apos;s difference is the same {kind} sitting on a
+                  different day ({where}), where the difference runs the other way by that much.
+                  Cash logged on one day and entered on the form a day or two later is treated as
+                  matching, so only the {money(Math.abs(day.diff))} left over is flagged.
+                </div>
+              ) : null}
+              {day.hint ? (
+                <div className="mt-0.5 text-xs text-[var(--text-muted)]">{day.hint}</div>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
     </details>
   );
