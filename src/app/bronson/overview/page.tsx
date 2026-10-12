@@ -73,6 +73,7 @@ type MetricsResponse = {
   cacHighTicketPaid: number | null;
   leadToCloseRate: number | null;
   costPerCallHT: number | null;
+  costPerLiveCallHT: number | null;
   avgDaysToClose: number | null;
 
   vslViews: number | null;
@@ -329,6 +330,13 @@ export default function OverviewPage() {
                   format: "currency",
                   override: !adsActive ? notActive : undefined,
                   subtext: "Ad spend ÷ high ticket calls booked.",
+                },
+                {
+                  label: "Cost Per Live Call",
+                  value: metrics?.costPerLiveCallHT,
+                  format: "currency",
+                  override: !adsActive ? notActive : undefined,
+                  subtext: "Ad spend ÷ high ticket calls shown.",
                 },
               ],
             },

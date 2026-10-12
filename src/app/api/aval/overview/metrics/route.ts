@@ -158,6 +158,8 @@ export async function GET(request: NextRequest) {
       : null;
 
   const costPerCallHT = adsActive ? safeDivide(adSpend, highTicketCallsBooked || null) : null;
+  // Cost per live call: ad spend over the calls that actually showed up.
+  const costPerLiveCallHT = adsActive ? safeDivide(adSpend, highTicketCallsShowed || null) : null;
 
   // Time to Close: average days from a lead's opt-in to the call that
   // actually collected cash for them, matched by email across Affiliate PCN
@@ -288,6 +290,7 @@ export async function GET(request: NextRequest) {
     cacLowTicketPaid: adsActive ? safeDivide(adSpend, salesLowTicketPaid || null) : null,
     cacHighTicketPaid: safeDivide(adSpend, highTicketDealsClosedPaid || null),
     costPerCallHT,
+    costPerLiveCallHT,
     leadToCloseRate: safeDivide(salesCount || null, inRangeLeads.length || null),
     avgDaysToClose,
 
