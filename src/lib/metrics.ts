@@ -173,3 +173,58 @@ export function formFirstByDay<F>(
 }
 
 export { safeDivide };
+
+type WebinarDay = {
+  webinarOptInsPaid: number | null;
+  webinarOptInsOrganic: number | null;
+  webinarOptInRate: number | null;
+  vipPurchasesPaid: number | null;
+  vipPurchasesOrganic: number | null;
+  vipCashPaid: number | null;
+  vipCashOrganic: number | null;
+  hookRate: number | null;
+  holdRate: number | null;
+  adFrequency: number | null;
+  cpm: number | null;
+  costPerLinkClick: number | null;
+  linkClickThroughRate: number | null;
+};
+
+/**
+ * Webinar funnel numbers from the Marketing Daily Metrics form. Counts and
+ * cash add up across days; the rates and ad costs the team types in are
+ * averaged across the days that have them.
+ */
+export function webinarTotals(rows: WebinarDay[]) {
+  const add = (a: number | null, b: number | null) => (a === null && b === null ? null : (a ?? 0) + (b ?? 0));
+  const optInsPaid = sum(rows.map((r) => r.webinarOptInsPaid));
+  const optInsOrganic = sum(rows.map((r) => r.webinarOptInsOrganic));
+  const optIns = add(optInsPaid, optInsOrganic);
+  const vipPurchasesPaid = sum(rows.map((r) => r.vipPurchasesPaid));
+  const vipPurchasesOrganic = sum(rows.map((r) => r.vipPurchasesOrganic));
+  const vipPurchases = add(vipPurchasesPaid, vipPurchasesOrganic);
+  const vipCashPaid = sum(rows.map((r) => r.vipCashPaid));
+  const vipCashOrganic = sum(rows.map((r) => r.vipCashOrganic));
+  return {
+    optInsPaid,
+    optInsOrganic,
+    optIns,
+    optInRate: average(rows.map((r) => r.webinarOptInRate)),
+    vipPurchasesPaid,
+    vipPurchasesOrganic,
+    vipPurchases,
+    vipCashPaid,
+    vipCashOrganic,
+    vipCash: add(vipCashPaid, vipCashOrganic),
+    // VIP purchases ÷ webinar opt-ins, paid and organic together.
+    takeRate: safeDivide(vipPurchases, optIns),
+    hookRate: average(rows.map((r) => r.hookRate)),
+    holdRate: average(rows.map((r) => r.holdRate)),
+    adFrequency: average(rows.map((r) => r.adFrequency)),
+    cpm: average(rows.map((r) => r.cpm)),
+    costPerLinkClick: average(rows.map((r) => r.costPerLinkClick)),
+    linkClickThroughRate: average(rows.map((r) => r.linkClickThroughRate)),
+  };
+}
+
+export type WebinarTotals = ReturnType<typeof webinarTotals>;

@@ -14,7 +14,7 @@ import {
   wasHighTicketPitched,
 } from "@/lib/airtable/tables";
 import { isPaidSource, normalizeEmail } from "@/lib/airtable/lead-source-lookup";
-import { average, safeDivide, sum, vslTotals, formFirstByDay, sumByDate } from "@/lib/metrics";
+import { average, safeDivide, sum, vslTotals, formFirstByDay, sumByDate, webinarTotals } from "@/lib/metrics";
 
 export const revalidate = 60;
 
@@ -295,6 +295,8 @@ export async function GET(request: NextRequest) {
         sum(inRangeMarketing.map((r) => r.salesLowTicketOrganic)),
         optInsOrganic || null
       ),
+
+    webinar: webinarTotals(inRangeMarketing),
 
     refundCount,
     refundDollars,

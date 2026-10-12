@@ -93,6 +93,21 @@ export type MarketingDailyMetricRow = {
   refundDollars: number | null;
   chargebackCount: number | null;
   chargebackDollars: number | null;
+  // Webinar funnel, added to the form 2026-10-12. The form's "Leads" are
+  // webinar opt-ins, a different count from the Leads-table opt-ins above.
+  webinarOptInsPaid: number | null;
+  webinarOptInsOrganic: number | null;
+  webinarOptInRate: number | null;
+  vipPurchasesPaid: number | null;
+  vipPurchasesOrganic: number | null;
+  vipCashPaid: number | null;
+  vipCashOrganic: number | null;
+  hookRate: number | null;
+  holdRate: number | null;
+  adFrequency: number | null;
+  cpm: number | null;
+  costPerLinkClick: number | null;
+  linkClickThroughRate: number | null;
 };
 
 export type EodDialerRow = {
@@ -457,7 +472,7 @@ export function createAirtableTables(
         parseNumericText(
           f["Revenue (High Ticket)"] ?? f["High TIcket Revenue"] ?? f["High ticket revenue"]
         ),
-        parseNumericText(f["High Ticket Revenue (Paid)"])
+        parseNumericText(f["High Ticket Revenue (Paid)"] ?? f["High ticket revenue (Paid)"])
       ),
       // Bronson / Aval / Ecom Simulation each named these differently.
       callsBooked: parseNumericText(
@@ -478,6 +493,20 @@ export function createAirtableTables(
       refundDollars: parseNumericText(f["Refund dollars"]),
       chargebackCount: parseNumericText(f["Chargebacks"]),
       chargebackDollars: parseNumericText(f["Chargebacks dollars"]),
+      webinarOptInsPaid: parseNumericText(f["Leads (Paid)"]),
+      webinarOptInsOrganic: parseNumericText(f["Leads (Organic)"]),
+      // Bronson "Opt In Rate (Webinar)", Aval "Opt In Rate".
+      webinarOptInRate: parseNumericText(f["Opt In Rate (Webinar)"] ?? f["Opt In Rate"]),
+      vipPurchasesPaid: parseNumericText(f["VIP Purchase (Paid)"]),
+      vipPurchasesOrganic: parseNumericText(f["VIP Purchase (Organic)"]),
+      vipCashPaid: parseNumericText(f["VIP Purchase Cash (Paid)"]),
+      vipCashOrganic: parseNumericText(f["VIP Purchase Cash (Organic)"]),
+      hookRate: parseNumericText(f["Hook rate"]),
+      holdRate: parseNumericText(f["Hold Rate"]),
+      adFrequency: parseNumericText(f["Frequency"]),
+      cpm: parseNumericText(f["CPM's"]),
+      costPerLinkClick: parseNumericText(f["Cost per link click"]),
+      linkClickThroughRate: parseNumericText(f["LCTR"]),
     };
   }
 

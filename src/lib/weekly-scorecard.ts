@@ -238,6 +238,14 @@ const dHtClosed = (c: DayCtx) =>
 const dNewHtBooked = (c: DayCtx) => (c.eod ? num(c.eod.newHtBooked) : null);
 const dRevenueHT = (c: DayCtx) => (c.m ? num(c.m.revenueHighTicket) : null);
 const dHtClosedPaid = (c: DayCtx) => (c.m ? num(c.m.highTicketDealsClosedPaid) : null);
+// --- webinar funnel (Marketing Daily Metrics form only) ---
+const addBoth = (a: number | null, b: number | null) =>
+  a === null && b === null ? null : (a ?? 0) + (b ?? 0);
+const dWebinarOptIns = (c: DayCtx) =>
+  c.m ? addBoth(num(c.m.webinarOptInsPaid), num(c.m.webinarOptInsOrganic)) : null;
+const dVipPurchases = (c: DayCtx) =>
+  c.m ? addBoth(num(c.m.vipPurchasesPaid), num(c.m.vipPurchasesOrganic)) : null;
+const dVipCash = (c: DayCtx) => (c.m ? addBoth(num(c.m.vipCashPaid), num(c.m.vipCashOrganic)) : null);
 const dRefundCb = (c: DayCtx) => {
   if (!c.m) return null;
   const r = num(c.m.refundDollars);
@@ -766,6 +774,120 @@ function buildSpecs(
       ],
     },
     {
+      emoji: "🎥",
+      title: "Webinar",
+      metrics: [
+        {
+          key: "webinarOptInsPaid",
+          label: "Webinar Opt-Ins (Paid)",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.webinarOptInsPaid),
+          week: wSum(fromM((r) => r.webinarOptInsPaid)),
+        },
+        {
+          key: "webinarOptInsOrganic",
+          label: "Webinar Opt-Ins (Organic)",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.webinarOptInsOrganic),
+          week: wSum(fromM((r) => r.webinarOptInsOrganic)),
+        },
+        {
+          key: "webinarOptInRate",
+          label: "Webinar Opt-In Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.webinarOptInRate),
+          week: wAvg(fromM((r) => r.webinarOptInRate)),
+        },
+        {
+          key: "vipPurchases",
+          label: "VIP Purchases",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: dVipPurchases,
+          week: wSum(dVipPurchases),
+        },
+        {
+          key: "vipCash",
+          label: "VIP Cash",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: dVipCash,
+          week: wSum(dVipCash),
+        },
+        {
+          key: "vipTakeRate",
+          label: "Take Rate (VIP ÷ Webinar Opt-Ins)",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: (c) => safeDivide(dVipPurchases(c), dWebinarOptIns(c) || null),
+          week: (days) => safeDivide(sum(days.map(dVipPurchases)), sum(days.map(dWebinarOptIns)) || null),
+        },
+        {
+          key: "hookRate",
+          label: "Hook Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.hookRate),
+          week: wAvg(fromM((r) => r.hookRate)),
+        },
+        {
+          key: "holdRate",
+          label: "Hold Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.holdRate),
+          week: wAvg(fromM((r) => r.holdRate)),
+        },
+        {
+          key: "linkClickThroughRate",
+          label: "Link Click-Through Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.linkClickThroughRate),
+          week: wAvg(fromM((r) => r.linkClickThroughRate)),
+        },
+        {
+          key: "costPerLinkClick",
+          label: "Cost Per Link Click",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.costPerLinkClick),
+          week: wAvg(fromM((r) => r.costPerLinkClick)),
+        },
+        {
+          key: "cpm",
+          label: "CPM",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.cpm),
+          week: wAvg(fromM((r) => r.cpm)),
+        },
+        {
+          key: "adFrequency",
+          label: "Frequency",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.adFrequency),
+          week: wAvg(fromM((r) => r.adFrequency)),
+        },
+      ],
+    },
+    {
       emoji: "📊",
       title: "Backend",
       metrics: [
@@ -893,6 +1015,24 @@ const SCORECARD_LAYOUT: { emoji: string; title: string; keys: string[] }[] = [
     emoji: "🔥",
     title: "Lead Flow",
     keys: ["optInsPaid", "optInsOrganic", "vslViews", "optInRate"],
+  },
+  {
+    emoji: "🎥",
+    title: "Webinar",
+    keys: [
+      "webinarOptInsPaid",
+      "webinarOptInsOrganic",
+      "webinarOptInRate",
+      "vipPurchases",
+      "vipCash",
+      "vipTakeRate",
+      "hookRate",
+      "holdRate",
+      "linkClickThroughRate",
+      "costPerLinkClick",
+      "cpm",
+      "adFrequency",
+    ],
   },
   {
     emoji: "🤝",

@@ -6,6 +6,8 @@ import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
+import { WebinarSection } from "@/components/dashboard/WebinarSection";
+import type { WebinarTotals } from "@/lib/metrics";
 import { PieSplit } from "@/components/dashboard/PieSplit";
 import { RateColumns } from "@/components/dashboard/RateColumns";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
@@ -81,6 +83,7 @@ type MetricsResponse = {
   funnelConversionRatePaid: number | null;
   funnelConversionRateOrganic: number | null;
 
+  webinar: WebinarTotals;
   refundCount: number | null;
   refundDollars: number | null;
   chargebackCount: number | null;
@@ -283,6 +286,8 @@ export default function OverviewPage() {
           </span>
         </div>
       </DashboardSection>
+
+      <WebinarSection webinar={metrics?.webinar} />
 
       {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. Kept right under the keystones. */}
       <DashboardSection title="Unit Economics">
