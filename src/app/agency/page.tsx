@@ -80,7 +80,7 @@ export default function AgencyPage() {
             </span>
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Every client combined. Bronson&apos;s low ticket is real cash: what the affiliate portal
+            Every client combined. Bronson&apos;s affiliate cash is real: what the affiliate portal
             actually tracked, not what was logged. Ad spend, sales team payouts, expenses and high ticket
             fees (2.5% processing, plus 15% on financed deals, from October 2026) come off first, then each
             offer&apos;s profit-share.
@@ -114,7 +114,7 @@ export default function AgencyPage() {
           value={data?.totalSalesTeamPayout}
           format="currency"
           size="lg"
-          subtext="Bronson: actual paid-traffic commissions from his Commissions tab (organic not deducted). Aval (from Oct 2026) and Andy: 10%/20% weekday/weekend on Low Ticket, 15% on High Ticket (5% setter + 10% closer)."
+          subtext="Bronson: actual paid-traffic commissions from his Commissions tab (organic not deducted). Aval (from Oct 2026) and Andy: 10%/20% weekday/weekend on Affiliate, 15% on High Ticket (5% setter + 10% closer)."
         />
         <StatCard
           label="Agency Profit"

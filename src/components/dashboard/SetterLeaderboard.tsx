@@ -24,7 +24,7 @@ function entry(s: SetterStats, goals: GoalsConfig | undefined): LeaderboardEntry
   return {
     name: s.setter,
     hero: { label: "Cash Collected", value: s.cash, format: "currency" },
-    sub: `${formatStatValue(s.cashLowTicket, "currency")} low ticket · ${formatStatValue(s.cashHighTicket, "currency")} high ticket`,
+    sub: `${formatStatValue(s.cashLowTicket, "currency")} affiliate · ${formatStatValue(s.cashHighTicket, "currency")} high ticket`,
     groups: [
       {
         title: "Activity",
@@ -89,7 +89,7 @@ function entry(s: SetterStats, goals: GoalsConfig | undefined): LeaderboardEntry
         title: "Cash",
         rows: [
           { label: "Cash Collected", value: s.cash, format: "currency" },
-          { label: "AOV", value: s.aov, format: "currency", note: "Low ticket cash ÷ software closed" },
+          { label: "AOV", value: s.aov, format: "currency", note: "Affiliate cash ÷ software closed" },
           {
             label: "Cash Per Booked Call",
             value: s.cashPerBookedCall,

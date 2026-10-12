@@ -73,12 +73,12 @@ export function RevenueBreakdown({
     <div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <div className={`${PANEL} lg:col-span-2`}>
-          <div className={PANEL_TITLE}>Low Ticket</div>
+          <div className={PANEL_TITLE}>Affiliate</div>
           <div className="flex flex-1 divide-x divide-[var(--panel-border)]">
             <Cell label="Organic" value={lowTicketOrganic} tone="organic" />
             <Cell label="Paid" value={lowTicketPaid} tone="paid" />
           </div>
-          <Footer rows={[["Low ticket total", addCash(lowTicketOrganic, lowTicketPaid)]]} />
+          <Footer rows={[["Affiliate total", addCash(lowTicketOrganic, lowTicketPaid)]]} />
         </div>
 
         <div className={`${PANEL} lg:col-span-2`}>
@@ -102,15 +102,15 @@ export function RevenueBreakdown({
           </div>
           <Footer
             rows={[
-              ["Organic (LT + HT)", organic],
-              ["Paid (LT + HT)", paid],
+              ["Organic (Affiliate + HT)", organic],
+              ["Paid (Affiliate + HT)", paid],
               ["Ad spend", adSpend],
             ]}
           />
         </div>
       </div>
       <p className="mt-2 text-xs text-[var(--text-muted)]">
-        Cash collected, from the Marketing Daily Metrics form. Paid ROAS = Paid (LT + HT) ÷ Ad spend.
+        Cash collected, from the Marketing Daily Metrics form. Paid ROAS = Paid (Affiliate + HT) ÷ Ad spend.
       </p>
     </div>
   );

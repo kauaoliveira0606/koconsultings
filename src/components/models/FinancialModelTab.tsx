@@ -8,7 +8,7 @@ import { WebinarFunnelModel } from "./WebinarFunnelModel";
 import { ToggleButtons } from "./model-table";
 
 const SUB_TABS = [
-  { id: "ascension", label: "Low-Ticket → High-Ticket Ascension" },
+  { id: "ascension", label: "Affiliate → High-Ticket Ascension" },
   { id: "vsl", label: "High-Ticket VSL Call Funnel" },
   { id: "webinar", label: "Webinar Funnel + VIP Ticket" },
 ] as const;

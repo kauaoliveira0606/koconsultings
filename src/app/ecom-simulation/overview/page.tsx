@@ -199,19 +199,19 @@ export default function OverviewPage() {
             value={metrics?.cashCollectedPerOptInPaid}
             format="currency"
             size="lg"
-            subtext="Front-end keystone: Cash Collected — Low Ticket (Paid) ÷ Paid Opt-Ins."
+            subtext="Front-end keystone: Cash Collected — Affiliate (Paid) ÷ Paid Opt-Ins."
           />
           <StatCard
             label="Net Cash"
             value={metrics?.netCash}
             format="currency"
             size="lg"
-            subtext="Cash Collected − Ad Spend − commissions (10%/20% weekday/weekend on Low Ticket, flat 15% on High Ticket)."
+            subtext="Cash Collected − Ad Spend − commissions (10%/20% weekday/weekend on Affiliate, flat 15% on High Ticket)."
           />
         </div>
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
           <span>
-            Low Ticket commission this range:{" "}
+            Affiliate commission this range:{" "}
             <span className="font-semibold text-[var(--text)]">
               {formatStatValue(metrics?.lowTicketCommission, "currency")}
             </span>
@@ -229,7 +229,7 @@ export default function OverviewPage() {
       <DashboardSection title="Revenue Breakdown">
         <StatCardGrid>
           <StatCard
-            label="Cash Collected — Low Ticket"
+            label="Cash Collected — Affiliate"
             value={metrics?.cashCollectedLowTicket}
             format="currency"
             subtext="Software front-end cash collected."
@@ -349,7 +349,7 @@ export default function OverviewPage() {
             label="Software Pitched"
             value={metrics?.softwarePitched}
             format="number"
-            subtext="Low-ticket software pitches, from Affiliate EOD."
+            subtext="Affiliate software pitches, from Affiliate EOD."
           />
           <StatCard
             label="Pitch Rate"
@@ -358,7 +358,7 @@ export default function OverviewPage() {
             subtext="Software Pitched ÷ Pickups."
           />
           <StatCard
-            label="Sales — Low Ticket"
+            label="Sales — Affiliate"
             value={metrics?.sales}
             format="number"
             subtext="From Marketing Daily Metrics."
@@ -366,7 +366,7 @@ export default function OverviewPage() {
             goal={kpiLabel(goals?.salesLowTicket, "higher", "number")}
           />
           <StatCard
-            label="Close Rate — Low Ticket"
+            label="Close Rate — Affiliate"
             value={metrics?.closeRateLowTicket}
             format="percent"
             subtext="Software Closed ÷ Software Pitched."
@@ -374,10 +374,10 @@ export default function OverviewPage() {
             goal={kpiLabel(goals?.closeRateLowTicket?.min, "higher", "percent")}
           />
           <StatCard
-            label="AOV — Low Ticket"
+            label="AOV — Affiliate"
             value={metrics?.averageOrderValueLowTicket}
             format="currency"
-            subtext="Cash Collected — Low Ticket ÷ Sales."
+            subtext="Cash Collected — Affiliate ÷ Sales."
           />
           <StatCard
             label="AOV — High Ticket"
@@ -455,13 +455,13 @@ export default function OverviewPage() {
             label="High Ticket Pitch Rate"
             value={metrics?.highTicketPitchRate}
             format="percent"
-            subtext="HT Pitched ÷ Low-Ticket Sales — the upsell-into-HT rate."
+            subtext="HT Pitched ÷ Affiliate Sales — the upsell-into-HT rate."
           />
           <StatCard
-            label="HT Booking Rate (from LT)"
+            label="HT Booking Rate (from Affiliate)"
             value={metrics?.highTicketBookingRateFromLowTicket}
             format="percent"
-            subtext="New HT calls booked today ÷ Low-Ticket Sales."
+            subtext="New HT calls booked today ÷ Affiliate Sales."
           />
         </StatCardGrid>
 
@@ -496,11 +496,11 @@ export default function OverviewPage() {
       <DashboardSection title="Unit Economics">
         <StatCardGrid>
           <StatCard
-            label="CAC — Low Ticket (Paid)"
+            label="CAC — Affiliate (Paid)"
             value={metrics?.cacLowTicketPaid}
             format="currency"
             override={!adsActive ? notActive : undefined}
-            subtext="Ad Spend ÷ Low-Ticket Sales (Paid). Organic isn't shown — CAC is inherently a paid-acquisition metric."
+            subtext="Ad Spend ÷ Affiliate Sales (Paid). Organic isn't shown — CAC is inherently a paid-acquisition metric."
             status={adsActive ? kpiStatus(metrics?.cacLowTicketPaid, goals?.cpaLowTicket?.max, "lower") : null}
             goal={adsActive ? kpiLabel(goals?.cpaLowTicket?.max, "lower", "currency") : null}
           />
@@ -521,7 +521,7 @@ export default function OverviewPage() {
             label="Lead-to-Close Rate"
             value={metrics?.leadToCloseRate}
             format="percent"
-            subtext="Low-ticket sales ÷ tracked leads."
+            subtext="Affiliate sales ÷ tracked leads."
           />
           <StatCard
             label="Time to Close (avg)"

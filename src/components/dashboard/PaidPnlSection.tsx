@@ -59,7 +59,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.cash}
-            subtext={`True cash: low ticket ${money(data?.paidCashLowTicket)} attributed (${money(data?.loggedLowTicketPaid)} logged) + high ticket ${money(data?.paidCashHighTicket)}.`}
+            subtext={`True cash: affiliate ${money(data?.paidCashLowTicket)} attributed (${money(data?.loggedLowTicketPaid)} logged) + high ticket ${money(data?.paidCashHighTicket)}.`}
           />
           <PnlCard
             label="Sales Team Commission"
@@ -93,7 +93,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.organicCash}
-            subtext="True cash: attributed low ticket + high ticket."
+            subtext="True cash: attributed affiliate + high ticket."
           />
           <PnlCard
             label="Fees"
@@ -107,15 +107,15 @@ export function PaidPnlSection({
             subtext="What your 20% is taken on."
           />
           <PnlCard
-            label="Low Ticket (Attributed)"
+            label="Affiliate (Attributed)"
             value={data?.organicCashLowTicket}
             subtext={`${money(data?.loggedLowTicketOrganic)} logged x ${rate} attribution.`}
           />
           <PnlCard label="High Ticket" value={data?.organicCashHighTicket} />
           <PnlCard
-            label="Low Ticket Attribution"
+            label="Affiliate Attribution"
             value={data?.portalLowTicketCash}
-            subtext={`${rate} of logged low ticket. The portal tracked this much of ${money((data?.loggedLowTicketPaid ?? 0) + (data?.loggedLowTicketOrganic ?? 0))} logged; paid and organic are split in the logged proportion.`}
+            subtext={`${rate} of logged affiliate. The portal tracked this much of ${money((data?.loggedLowTicketPaid ?? 0) + (data?.loggedLowTicketOrganic ?? 0))} logged; paid and organic are split in the logged proportion.`}
           />
         </div>
       </DashboardSection>

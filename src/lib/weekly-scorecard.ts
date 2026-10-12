@@ -324,7 +324,7 @@ function buildSpecs(
         },
         {
           key: "cashCollectedLowTicket",
-          label: "Cash Collected – Low Ticket",
+          label: "Cash Collected – Affiliate",
           format: "currency",
           goal: goals.cashCollectedLowTicket,
           goalDirection: goals.cashCollectedLowTicket === null ? null : "higher",
@@ -333,7 +333,7 @@ function buildSpecs(
         },
         {
           key: "cashLtPaid",
-          label: "↳ Cash LT (Paid)",
+          label: "↳ Cash Affiliate (Paid)",
           format: "currency",
           goal: null,
           goalDirection: null,
@@ -342,7 +342,7 @@ function buildSpecs(
         },
         {
           key: "cashLtOrganic",
-          label: "↳ Cash LT (Organic)",
+          label: "↳ Cash Affiliate (Organic)",
           format: "currency",
           goal: null,
           goalDirection: null,
@@ -408,7 +408,7 @@ function buildSpecs(
         },
         {
           key: "roasTotal",
-          label: "ROAS (Paid Cash LT + HT ÷ Ad Spend)",
+          label: "ROAS (Paid Cash Affiliate + HT ÷ Ad Spend)",
           format: "ratio",
           goal: goals.roasTotal?.min ?? null,
           goalDirection: "higher",
@@ -417,7 +417,7 @@ function buildSpecs(
         },
         {
           key: "cpaLowTicket",
-          label: "CPA – Low Ticket (Paid)",
+          label: "CPA – Affiliate (Paid)",
           format: "currency",
           goal: goals.cpaLowTicket?.max ?? null,
           goalDirection: "lower",
@@ -555,7 +555,7 @@ function buildSpecs(
         },
         {
           key: "salesLowTicket",
-          label: "Sales – Low Ticket",
+          label: "Sales – Affiliate",
           format: "number",
           goal: goals.salesLowTicket,
           goalDirection: goals.salesLowTicket === null ? null : "higher",
@@ -564,7 +564,7 @@ function buildSpecs(
         },
         {
           key: "salesLtPaid",
-          label: "↳ Sales LT (Paid)",
+          label: "↳ Sales Affiliate (Paid)",
           format: "number",
           goal: null,
           goalDirection: null,
@@ -573,7 +573,7 @@ function buildSpecs(
         },
         {
           key: "salesLtOrganic",
-          label: "↳ Sales LT (Organic)",
+          label: "↳ Sales Affiliate (Organic)",
           format: "number",
           goal: null,
           goalDirection: null,
@@ -594,7 +594,7 @@ function buildSpecs(
         },
         {
           key: "aovLowTicket",
-          label: "AOV – Low Ticket",
+          label: "AOV – Affiliate",
           format: "currency",
           goal: null,
           goalDirection: null,
@@ -677,7 +677,7 @@ function buildSpecs(
         },
         {
           key: "htBookingRateFromLt",
-          label: "HT Booking Rate (from LT)",
+          label: "HT Booking Rate (from Affiliate)",
           format: "percent",
           goal: null,
           goalDirection: null,

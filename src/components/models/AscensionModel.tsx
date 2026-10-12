@@ -62,10 +62,10 @@ export function AscensionModel() {
 
   return (
     <div>
-      <h2 className="mb-1 text-lg font-bold">Low-Ticket to High-Ticket Ascension</h2>
+      <h2 className="mb-1 text-lg font-bold">Affiliate to High-Ticket Ascension</h2>
       <p className="mb-4 text-sm text-black/60">
         All numbers per month. Set a total revenue target and your funnel rates — this works
-        backward to the high-ticket and low-ticket deals, calls, leads, ad spend and reps it takes,
+        backward to the high-ticket and affiliate deals, calls, leads, ad spend and reps it takes,
         then the costs, profit and break-evens. Drag a slider or type a number directly. The -15% /
         -30% columns show what happens if every conversion rate drops that much and Cost Per Lead
         rises by the same amount.
@@ -77,14 +77,14 @@ export function AscensionModel() {
         {input("High-Ticket AOV", "$", "htAov", 0, 50000, 100)}
         {row("High-Ticket Deals Required", "#", "htDealsRequired", "number", true)}
 
-        <SectionRow title="Step 2: High-Ticket Deals → Low-Ticket Deals Required" />
+        <SectionRow title="Step 2: High-Ticket Deals → Affiliate Deals Required" />
         {input("Upsell Close Rate", "%", "upsellCloseRate", 0, 100, 1, rate)}
         {input("Upsell Contact Rate", "%", "upsellContactRate", 0, 100, 1, rate)}
         {input("Activation Rate", "%", "activationRate", 0, 100, 1, rate)}
         {input("Attribution Rate (Share of Deals We Get Paid On)", "%", "attributionRate", 0, 100, 1, rate)}
-        {row("Low-Ticket Deals Required", "#", "ltDealsRequired", "number", true)}
+        {row("Affiliate Deals Required", "#", "ltDealsRequired", "number", true)}
 
-        <SectionRow title="Step 3: Low-Ticket Deals → Connected Calls Required" />
+        <SectionRow title="Step 3: Affiliate Deals → Connected Calls Required" />
         {input("Close Rate (First Call)", "%", "closeRate", 0, 100, 1, rate)}
         {row("Connected Calls Required", "#", "connectedCallsRequired", "number", true)}
 
@@ -106,20 +106,20 @@ export function AscensionModel() {
         {row("Backend Reps Required", "#", "backendRepsRequired", "number", true)}
 
         <SectionRow title="Step 7: Revenue Breakdown" />
-        {input("Low-Ticket AOV", "$", "ltAov", 0, 5000, 10)}
-        {row("Low-Ticket Revenue (Attributed)", "$", "ltRevenue", "currency")}
+        {input("Affiliate AOV", "$", "ltAov", 0, 5000, 10)}
+        {row("Affiliate Revenue (Attributed)", "$", "ltRevenue", "currency")}
         {row("High-Ticket Revenue", "$", "htRevenue", "currency")}
         {row("Total Gross Revenue", "$", "totalGrossRevenue", "currency", true)}
         {check("Revenue Check", "OK / SHORTFALL", "OK", "revenueCheck")}
 
         <SectionRow title="Step 8: Costs" />
         {row("Ad Spend (from Step 5)", "$", "adSpend", "currency")}
-        {input("Low-Ticket Commission", "%", "ltCommissionRate", 0, 100, 0.5, { percent: true })}
+        {input("Affiliate Commission", "%", "ltCommissionRate", 0, 100, 0.5, { percent: true })}
         {input("High-Ticket Commission", "%", "htCommissionRate", 0, 100, 0.5, { percent: true })}
         {row("Total Commission", "$", "totalCommission", "currency")}
         {input("Rep Base Salary (Per Rep Per Month)", "$", "repBaseSalary", 0, 20000, 100)}
         {row("Total Rep Base Salary", "$", "totalRepBaseSalary", "currency")}
-        {input("Delivery Cost Per Low-Ticket Sale", "$", "ltDeliveryCost", 0, 2000, 5)}
+        {input("Delivery Cost Per Affiliate Sale", "$", "ltDeliveryCost", 0, 2000, 5)}
         {input("Delivery Cost Per High-Ticket Sale", "$", "htDeliveryCost", 0, 10000, 25)}
         {row("Total Delivery Cost", "$", "totalDeliveryCost", "currency")}
         {input("Fixed Monthly Expenses", "$", "fixedMonthlyExpenses", 0, 100000, 100)}
@@ -130,9 +130,9 @@ export function AscensionModel() {
         {row("ROAS", "x", "roas", "ratio", true)}
         {row("Profit Margin", "%", "profitMargin", "percent", true)}
         {check("Self-Liquidation Check", "YES / NO", "YES", "selfLiquidationCheck")}
-        {row("LT Revenue / Ad Spend Ratio", "x", "ltRevenueToAdSpend", "ratio")}
+        {row("Affiliate Revenue / Ad Spend Ratio", "x", "ltRevenueToAdSpend", "ratio")}
         {row("Blended CPA", "$", "blendedCpa", "currency")}
-        {row("HT Deal Rate (% of LT Buyers)", "%", "htDealRate", "percent")}
+        {row("HT Deal Rate (% of Affiliate Buyers)", "%", "htDealRate", "percent")}
 
         <SectionRow title="Step 10: Break-Even Sensitivity" />
         {row("Minimum Activation Rate", "%", "minimumActivationRate", "percent")}

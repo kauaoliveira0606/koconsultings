@@ -290,7 +290,7 @@ function RepCard({
       <div className="mt-4 border-t border-[var(--panel-border)]">
         {lowTicket ? (
           <>
-            <RoleHeading title={`Low Ticket (Affiliate) · ${pct(rates.lowTicket)}, no fees`} amount={rep.lowTicket} />
+            <RoleHeading title={`Affiliate · ${pct(rates.lowTicket)}, no fees`} amount={rep.lowTicket} />
             <div className="divide-y divide-[var(--panel-border)]">
               <MathLine
                 label="By Affiliate PCN (what they logged)"
@@ -458,7 +458,7 @@ function Departments({ data }: { data: CommissionsResponse }) {
       <h3 className="mt-6 text-lg font-bold text-[var(--text-strong)]">By Department</h3>
 
       <DepartmentTable
-        title="Affiliates (Low Ticket)"
+        title="Affiliates"
         note={
           `Flat ${pct(rates.lowTicket)} of the cash, every day of the week, no fees. ` +
           `Logged is what each rep entered in Affiliate PCN. Attributed is what the affiliate portal ` +
@@ -679,7 +679,7 @@ export function CommissionsBoard({
               Total Commissions To Pay Out
             </div>
             <div className="mt-1 text-xs text-[var(--text-muted)]">
-              Low ticket {money(data?.totals.lowTicketCommission)} + closers{" "}
+              Affiliate {money(data?.totals.lowTicketCommission)} + closers{" "}
               {money(data?.totals.highTicketCloserCommission)} + setters{" "}
               {money(data?.totals.highTicketSetterCommission)}
               {data && data.totals.clawbacks > 0 ? ` - clawbacks ${money(data.totals.clawbacks)}` : ""}

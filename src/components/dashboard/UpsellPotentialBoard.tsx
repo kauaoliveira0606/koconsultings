@@ -537,7 +537,7 @@ function LowTicketList({ data, error, today, onSave }: ListProps) {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Low Ticket Customers"
+          label="Affiliate Customers"
           value={low?.summary.customers}
           size="lg"
           subtext={
@@ -625,7 +625,7 @@ function LowTicketList({ data, error, today, onSave }: ListProps) {
             {error
               ? "Couldn't load customers, retrying..."
               : customers
-                ? "No low ticket customers here yet."
+                ? "No affiliate customers here yet."
                 : "Loading..."}
           </p>
         ) : null}
@@ -987,7 +987,7 @@ export function UpsellPotentialBoard({ apiPath }: { apiPath: string }) {
   const today = easternDateString();
   const tabs = [
     { key: "high" as const, label: "High Ticket", count: data?.summary.customers },
-    { key: "low" as const, label: "Low Ticket", count: data?.lowTicket.summary.customers },
+    { key: "low" as const, label: "Affiliate", count: data?.lowTicket.summary.customers },
     // Only offers with access rules set up have renewals to track.
     ...(data?.renewals
       ? [{ key: "renewal" as const, label: "Renewal", count: data.renewals.summary.tracked }]

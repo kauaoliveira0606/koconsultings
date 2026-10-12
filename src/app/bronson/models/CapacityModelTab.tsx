@@ -143,7 +143,7 @@ export function CapacityModelTab() {
       <p className="mb-4 text-sm text-black/60">
         Set a revenue goal and your current funnel rates — this works backward to how many leads
         you need to close, how many reps that takes, what each rep produces, and the ad spend
-        needed to generate that lead volume. Attribution Rate is the share of low-ticket sales you
+        needed to generate that lead volume. Attribution Rate is the share of affiliate sales you
         actually get paid on, so it raises the deals you have to close. -15% / -30% show what
         happens if Close Rate, Connection Rate and Attribution Rate all slip.
       </p>
@@ -240,8 +240,8 @@ export function CapacityModelTab() {
 
       <h2 className="mb-1 mt-10 text-lg font-bold">High Ticket Ascension</h2>
       <p className="mb-4 text-sm text-black/60">
-        Bonus: the extra cash from moving low-ticket buyers up to high ticket. It starts from the
-        low-ticket closes above, so it moves with your revenue goal. -15% / -30% degrade Show Rate
+        Bonus: the extra cash from moving affiliate buyers up to high ticket. It starts from the
+        affiliate closes above, so it moves with your revenue goal. -15% / -30% degrade Show Rate
         and High Ticket Close Rate.
       </p>
 
@@ -249,9 +249,9 @@ export function CapacityModelTab() {
         <table className="w-full text-sm">
           <TableHead />
           <tbody>
-            <Row label="Low-Ticket Closes (Deals Needed to Close above)" base={scenarios.base.dealsNeeded} d15={scenarios.d15.dealsNeeded} d30={scenarios.d30.dealsNeeded} />
+            <Row label="Affiliate Closes (Deals Needed to Close above)" base={scenarios.base.dealsNeeded} d15={scenarios.d15.dealsNeeded} d30={scenarios.d30.dealsNeeded} />
             <SliderRow
-              label="Low-Ticket Close → High-Ticket Booking Rate"
+              label="Affiliate Close → High-Ticket Booking Rate"
               unit="%"
               value={ht.bookingRate * 100}
               min={0}
@@ -315,7 +315,7 @@ export function CapacityModelTab() {
         <table className="w-full text-sm">
           <TableHead />
           <tbody>
-            <Row label={`Cash from Low-Ticket Funnel (${period === "weekly" ? "Weekly" : "Monthly"})`} unit="$" format="currency" base={inputs.revenueGoal} d15={inputs.revenueGoal} d30={inputs.revenueGoal} />
+            <Row label={`Cash from Affiliate Funnel (${period === "weekly" ? "Weekly" : "Monthly"})`} unit="$" format="currency" base={inputs.revenueGoal} d15={inputs.revenueGoal} d30={inputs.revenueGoal} />
             <Row label={`Cash from High Ticket Ascension (${period === "weekly" ? "Weekly" : "Monthly"})`} unit="$" format="currency" base={ascension.base.extraCash} d15={ascension.d15.extraCash} d30={ascension.d30.extraCash} />
             <Row label="Combined Cash" unit="$" format="currency" base={combined.base.combinedCash} d15={combined.d15.combinedCash} d30={combined.d30.combinedCash} highlight />
             <Row label="Ad Spend Needed" unit="$" format="currency" base={scenarios.base.adSpendNeeded} d15={scenarios.d15.adSpendNeeded} d30={scenarios.d30.adSpendNeeded} />

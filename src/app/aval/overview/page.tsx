@@ -250,7 +250,7 @@ export default function OverviewPage() {
                   label: "Cash Collected / Opt-In (Paid)",
                   value: metrics?.cashCollectedPerOptInPaid,
                   format: "currency",
-                  subtext: "Low ticket paid cash ÷ paid opt-ins.",
+                  subtext: "Affiliate paid cash ÷ paid opt-ins.",
                 },
               ],
             },
@@ -258,7 +258,7 @@ export default function OverviewPage() {
         />
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
           <span>
-            Low Ticket commission this range:{" "}
+            Affiliate commission this range:{" "}
             <span className="font-semibold text-[var(--text)]">
               {formatStatValue(metrics?.lowTicketCommission, "currency")}
             </span>
@@ -289,14 +289,14 @@ export default function OverviewPage() {
         <MetricGroups
           groups={[
             {
-              title: "Low Ticket",
+              title: "Affiliate",
               metrics: [
                 {
                   label: "CAC (Paid)",
                   value: metrics?.cacLowTicketPaid,
                   format: "currency",
                   override: !adsActive ? notActive : undefined,
-                  subtext: "Ad spend ÷ low ticket sales from paid.",
+                  subtext: "Ad spend ÷ affiliate sales from paid.",
                   status: adsActive ? kpiStatus(metrics?.cacLowTicketPaid, goals?.cpaLowTicket?.max, "lower") : null,
                   goal: adsActive ? kpiLabel(goals?.cpaLowTicket?.max, "lower", "currency") : null,
                 },
@@ -304,7 +304,7 @@ export default function OverviewPage() {
                   label: "AOV",
                   value: metrics?.averageOrderValueLowTicket,
                   format: "currency",
-                  subtext: "Low ticket cash ÷ low ticket sales.",
+                  subtext: "Affiliate cash ÷ affiliate sales.",
                 },
               ],
             },
@@ -346,7 +346,7 @@ export default function OverviewPage() {
                   label: "Lead-To-Close Rate",
                   value: metrics?.leadToCloseRate,
                   format: "percent",
-                  subtext: "Low ticket sales ÷ tracked leads.",
+                  subtext: "Affiliate sales ÷ tracked leads.",
                 },
                 {
                   label: "Time To Close (Avg Days)",
@@ -476,7 +476,7 @@ export default function OverviewPage() {
               ],
             },
             {
-              title: "Close Rate (Low Ticket)",
+              title: "Close Rate (Affiliate)",
               value: metrics?.closeRateLowTicket,
               formula: "Software Closed ÷ Software Pitched.",
               status: kpiStatus(metrics?.closeRateLowTicket, goals?.closeRateLowTicket?.min, "higher"),
@@ -484,7 +484,7 @@ export default function OverviewPage() {
               inputs: [
                 { label: "Software Closed", value: metrics?.softwareClosed },
                 { label: "Software Pitched", value: metrics?.softwarePitched },
-                { label: "Low Ticket Sales", value: metrics?.sales, note: "As logged on the daily metrics form." },
+                { label: "Affiliate Sales", value: metrics?.sales, note: "As logged on the daily metrics form." },
               ],
             },
           ]}
@@ -527,12 +527,12 @@ export default function OverviewPage() {
               ],
             },
             {
-              title: "Booking Rate (From LT)",
+              title: "Booking Rate (From Affiliate)",
               value: metrics?.highTicketBookingRateFromLowTicket,
-              formula: "New HT calls booked ÷ Low Ticket Sales.",
+              formula: "New HT calls booked ÷ Affiliate Sales.",
               inputs: [
                 { label: "New HT Calls Booked", value: metrics?.newHighTicketCallsBooked },
-                { label: "Low Ticket Sales", value: metrics?.sales },
+                { label: "Affiliate Sales", value: metrics?.sales },
               ],
             },
           ]}
@@ -629,7 +629,7 @@ export default function OverviewPage() {
                   label: "Paid",
                   value: metrics?.funnelConversionRatePaid,
                   format: "percent",
-                  subtext: "Low ticket sales from paid ÷ paid opt-ins.",
+                  subtext: "Affiliate sales from paid ÷ paid opt-ins.",
                   status: kpiStatus(metrics?.funnelConversionRatePaid, goals?.funnelConversionRate?.min, "higher"),
                   goal: kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent"),
                 },
@@ -637,7 +637,7 @@ export default function OverviewPage() {
                   label: "Organic",
                   value: metrics?.funnelConversionRateOrganic,
                   format: "percent",
-                  subtext: "Low ticket sales from organic ÷ organic opt-ins.",
+                  subtext: "Affiliate sales from organic ÷ organic opt-ins.",
                   status: kpiStatus(metrics?.funnelConversionRateOrganic, goals?.funnelConversionRate?.min, "higher"),
                   goal: kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent"),
                 },

@@ -97,7 +97,7 @@ export default function SalesTeamPage() {
     },
     {
       key: "lowTicketCashCollected",
-      header: "Low-Ticket Cash Collected",
+      header: "Affiliate Cash Collected",
       render: (r) => formatStatValue(r.lowTicketCashCollected, "currency"),
       align: "right",
     },
@@ -109,7 +109,7 @@ export default function SalesTeamPage() {
     },
     {
       key: "lowTicketSales",
-      header: "Low-Ticket Sales",
+      header: "Affiliate Sales",
       render: (r) => formatStatValue(r.lowTicketSales),
       align: "right",
     },
