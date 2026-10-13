@@ -2,6 +2,7 @@
 
 import { CommissionsBoard } from "@/components/dashboard/CommissionsBoard";
 import { DataCheckSection } from "@/components/dashboard/DataCheckSection";
+import { PayoutsSection } from "@/components/dashboard/PayoutsSection";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { useSharedRange } from "@/lib/range-context";
@@ -19,6 +20,10 @@ export default function AdminTeamPage() {
 
       <DashboardSection title="Data Check">
         <DataCheckSection apiPath="/api/aval/admin-team/data-check" range={range} />
+      </DashboardSection>
+
+      <DashboardSection title="Payouts">
+        <PayoutsSection apiPath="/api/aval/admin-team/payouts" range={range} />
       </DashboardSection>
 
       <div className="mt-10 border-t border-[var(--panel-border)] pt-8">
