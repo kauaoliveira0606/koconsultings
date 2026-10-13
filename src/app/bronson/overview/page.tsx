@@ -34,6 +34,7 @@ type MetricsResponse = {
   adsActive: boolean;
 
   cashCollectedLowTicket: number | null;
+  attributedCashLowTicket: number | null;
   cashCollectedLowTicketPaid: number | null;
   cashCollectedLowTicketOrganic: number | null;
   cashCollectedHighTicket: number | null;
@@ -202,6 +203,12 @@ export default function OverviewPage() {
                   subtext: "Cash actually collected, not revenue booked.",
                   status: kpiStatus(metrics?.totalCashCollected, goals?.totalCashCollected, "higher"),
                   goal: kpiLabel(goals?.totalCashCollected, "higher", "currency"),
+                },
+                {
+                  label: "Attributed Affiliate Cash",
+                  value: metrics?.attributedCashLowTicket,
+                  format: "currency",
+                  subtext: `What the affiliate portal tracked and pays on, reversed sales out. ${formatStatValue(metrics?.cashCollectedLowTicket, "currency")} logged on the form.`,
                 },
                 {
                   label: "Ad Spend",

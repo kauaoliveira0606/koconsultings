@@ -14,6 +14,7 @@ import {
 } from "@/lib/airtable/tables-aval";
 import { wasHighTicketPitched } from "@/lib/airtable/tables";
 import { isPaidSource, normalizeEmail } from "@/lib/airtable/lead-source-lookup";
+import { COMMISSIONS_OFFERS, getPortalCashByDay } from "@/lib/airtable/commissions";
 import { average, safeDivide, sum, sumByDate, vslTotals, formFirstByDay, webinarTotals } from "@/lib/metrics";
 
 export const revalidate = 60;
@@ -62,6 +63,12 @@ export async function GET(request: NextRequest) {
   // Closer even though those tables also log a high-ticket cash figure.
   const revenueHighTicket = sum(inRangeMarketing.map((r) => r.revenueHighTicket));
   const cashHighTicket = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicket));
+  // Attributed affiliate cash: what the affiliate portal actually tracked and
+  // pays on (reversed sales out), as opposed to what the form logged.
+  let attributedCashLowTicket: number | null = null;
+  for (const [date, cash] of await getPortalCashByDay(COMMISSIONS_OFFERS.aval)) {
+    if (isDateInRange(date, range)) attributedCashLowTicket = (attributedCashLowTicket ?? 0) + cash;
+  }
   // Webinar VIP purchases count as cash, split paid / organic like affiliate
   // cash. No sales commission comes off them; 2.5% processing does.
   const webinar = webinarTotals(inRangeMarketing);
@@ -315,6 +322,7 @@ export async function GET(request: NextRequest) {
       ),
 
     webinar,
+    attributedCashLowTicket,
 
     refundCount,
     refundDollars,
