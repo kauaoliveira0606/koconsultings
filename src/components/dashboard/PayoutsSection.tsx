@@ -109,7 +109,7 @@ export function PayoutsSection({ apiPath, range }: { apiPath: string; range: Ran
             subtext={
               bronson
                 ? "50% of the paid share + 20% of the organic share."
-                : "11.5% of the payable share."
+                : "35% of the payable share."
             }
           />
         </div>

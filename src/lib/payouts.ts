@@ -17,7 +17,6 @@ import {
   listExpenses,
 } from "@/lib/airtable/expenses";
 import {
-  avalAgencyProfit,
   bronsonAgencyProfit,
   buildDailyOfferRows,
   organicCash,
@@ -37,6 +36,9 @@ import { getFinancedHighTicketCashByDay } from "@/lib/deal-fees";
 import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
 
 export type PayoutsOffer = "bronson" | "aval";
+
+/** Share shown on Aval's Payouts "Our Share" card only. Nothing else uses it. */
+const AVAL_PAYOUTS_SHARE = 0.35;
 
 export type Payouts = {
   offer: PayoutsOffer;
@@ -126,6 +128,11 @@ export async function getPayouts(offer: PayoutsOffer, range: ResolvedRange): Pro
     payablePaid,
     payableOrganic,
     payableShare: payablePaid + payableOrganic,
-    agencyShare: offer === "bronson" ? bronsonAgencyProfit(rows) : avalAgencyProfit(rows),
+    // Aval's card shows the offer's whole 35% share, by the owner's choice
+    // (this section is shared with the team). The Agency page keeps its own figure.
+    agencyShare:
+      offer === "bronson"
+        ? bronsonAgencyProfit(rows)
+        : AVAL_PAYOUTS_SHARE * (payablePaid + payableOrganic),
   };
 }
