@@ -23,7 +23,10 @@ export default function AdminTeamPage() {
       </DashboardSection>
 
       <DashboardSection title="Payouts">
-        <PayoutsSection apiPath="/api/bronson/admin-team/payouts" range={range} />
+        <PayoutsSection
+          apiPath="/api/bronson/admin-team/payouts"
+          payPeriods={{ firstMonth: "2026-08" }}
+        />
       </DashboardSection>
 
       <div className="mt-10 border-t border-[var(--panel-border)] pt-8">

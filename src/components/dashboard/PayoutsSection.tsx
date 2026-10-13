@@ -1,6 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { RangeState } from "@/components/dashboard/RangeFilterBar";
+import { addDaysToDateString, easternDateString } from "@/lib/date-range";
+import { buildPayPeriods, type PayPeriodOptions } from "@/lib/pay-periods";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue } from "@/lib/format";
 import type { Payouts } from "@/lib/payouts";
@@ -40,10 +43,38 @@ const GROUP_TITLE =
   "mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-strong)]";
 
 /**
- * Admin Team "Payouts" for the selected range: cash collected by kind, what
+ * Admin Team "Payouts" for one pay period: cash collected by kind, what
  * comes off it, and the payable share (the cash the split is taken on).
+ * Payouts go out per pay period (Aval weekly Monday to Sunday, Bronson the
+ * 1st-15th and 16th-end), so this has its own period picker instead of the
+ * page's date range.
  */
-export function PayoutsSection({ apiPath, range }: { apiPath: string; range: RangeState }) {
+export function PayoutsSection({
+  apiPath,
+  payPeriods,
+}: {
+  apiPath: string;
+  payPeriods: PayPeriodOptions;
+}) {
+  const { cadence, firstMonth, firstMonthSplitDay } = payPeriods;
+  const periods = useMemo(
+    () => buildPayPeriods({ cadence, firstMonth, firstMonthSplitDay }),
+    [cadence, firstMonth, firstMonthSplitDay]
+  );
+  // Same opening rule as the Commissions tab: for the first three days of a
+  // new period, open on the one that just ended, since that is the one being paid.
+  const defaultKey = useMemo(() => {
+    const [current, previous] = periods.filter((p) => p.kind === "period");
+    const justStarted = current && easternDateString() <= addDaysToDateString(current.start, 2);
+    return (justStarted && previous ? previous : current)?.key ?? periods[0]?.key ?? "";
+  }, [periods]);
+  const [periodKey, setPeriodKey] = useState(defaultKey);
+  const period = periods.find((p) => p.key === periodKey) ?? periods[0];
+  const range: RangeState = {
+    preset: "custom",
+    customStart: period?.start,
+    customEnd: period?.end,
+  };
   const { data } = useSectionData<Payouts>(apiPath, range);
   const money = (value: number | undefined) => formatStatValue(value, "currency");
   const bronson = data?.offer === "bronson";
@@ -55,6 +86,39 @@ export function PayoutsSection({ apiPath, range }: { apiPath: string; range: Ran
     : [];
   return (
     <div className="space-y-6">
+      <label className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
+        Pay period
+        <select
+          value={period?.key ?? ""}
+          onChange={(e) => setPeriodKey(e.target.value)}
+          className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2 text-sm font-medium text-[var(--text-strong)]"
+        >
+          <optgroup label="Pay periods">
+            {periods
+              .filter((p) => p.kind === "period")
+              .map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
+          </optgroup>
+          <optgroup label="Full months">
+            {periods
+              .filter((p) => p.kind === "month")
+              .map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
+          </optgroup>
+        </select>
+        <span>
+          {cadence === "weekly"
+            ? "Paid weekly, Monday to Sunday."
+            : "Paid twice a month: the 1st to the 15th, then the 16th to month end."}
+        </span>
+      </label>
+
       <div>
         <div className={GROUP_TITLE}>Cash Collected</div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

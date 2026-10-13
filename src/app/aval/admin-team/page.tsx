@@ -23,7 +23,10 @@ export default function AdminTeamPage() {
       </DashboardSection>
 
       <DashboardSection title="Payouts">
-        <PayoutsSection apiPath="/api/aval/admin-team/payouts" range={range} />
+        <PayoutsSection
+          apiPath="/api/aval/admin-team/payouts"
+          payPeriods={{ cadence: "weekly", firstMonth: "2026-09" }}
+        />
       </DashboardSection>
 
       <div className="mt-10 border-t border-[var(--panel-border)] pt-8">
