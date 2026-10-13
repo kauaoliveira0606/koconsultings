@@ -76,7 +76,7 @@ export const COMMISSIONS_OFFERS = {
     affiliatePcnTableId: "tblFZy89IvQ6Dcsl0",
     affiliatePcnRepField: "Your Name",
     affiliatePcnCashField: "CPA?",
-    clawbacksTableId: "tblXW3TcyTcWdYYtV",
+    clawbacksTableId: "tblHmOXHGSsXeWqrI",
     feeRates: DEAL_FEE_RATES.aval,
     sharedIdTrackingStart: "2026-09-11",
     // "Keizer" is how Khizer's link is spelled on the portal; K and R can only
