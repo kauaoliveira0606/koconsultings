@@ -14,10 +14,16 @@ export function WebinarSection({ webinar }: { webinar: WebinarTotals | undefined
             title: "VIP",
             metrics: [
               {
-                label: "Take Rate",
-                value: webinar?.takeRate,
+                label: "Take Rate (Paid)",
+                value: webinar?.takeRatePaid,
                 format: "percent",
-                subtext: "VIP purchases ÷ webinar opt-ins, paid and organic together.",
+                subtext: "Paid VIP purchases ÷ paid webinar opt-ins.",
+              },
+              {
+                label: "Take Rate (Organic)",
+                value: webinar?.takeRateOrganic,
+                format: "percent",
+                subtext: "Organic VIP purchases ÷ organic webinar opt-ins.",
               },
               { label: "VIP Purchases", value: webinar?.vipPurchases, format: "number", subtext: "Paid + organic." },
               { label: "VIP Purchases (Paid)", value: webinar?.vipPurchasesPaid, format: "number" },

@@ -216,8 +216,9 @@ export function webinarTotals(rows: WebinarDay[]) {
     vipCashPaid,
     vipCashOrganic,
     vipCash: add(vipCashPaid, vipCashOrganic),
-    // VIP purchases ÷ webinar opt-ins, paid and organic together.
-    takeRate: safeDivide(vipPurchases, optIns),
+    // VIP purchases ÷ webinar opt-ins, each source on its own.
+    takeRatePaid: safeDivide(vipPurchasesPaid, optInsPaid),
+    takeRateOrganic: safeDivide(vipPurchasesOrganic, optInsOrganic),
     hookRate: average(rows.map((r) => r.hookRate)),
     holdRate: average(rows.map((r) => r.holdRate)),
     adFrequency: average(rows.map((r) => r.adFrequency)),

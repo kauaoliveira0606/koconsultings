@@ -247,6 +247,10 @@ const dWebinarOptIns = (c: DayCtx) =>
 const dVipPurchases = (c: DayCtx) =>
   c.m ? addBoth(num(c.m.vipPurchasesPaid), num(c.m.vipPurchasesOrganic)) : null;
 const dVipCash = (c: DayCtx) => addBoth(dVipCashPaid(c), dVipCashOrg(c));
+const dWebinarOptInsPaid = (c: DayCtx) => (c.m ? num(c.m.webinarOptInsPaid) : null);
+const dWebinarOptInsOrg = (c: DayCtx) => (c.m ? num(c.m.webinarOptInsOrganic) : null);
+const dVipPurchasesPaid = (c: DayCtx) => (c.m ? num(c.m.vipPurchasesPaid) : null);
+const dVipPurchasesOrg = (c: DayCtx) => (c.m ? num(c.m.vipPurchasesOrganic) : null);
 const dRefundCb = (c: DayCtx) => {
   if (!c.m) return null;
   const r = num(c.m.refundDollars);
@@ -824,13 +828,22 @@ function buildSpecs(
           week: wSum(dVipCash),
         },
         {
-          key: "vipTakeRate",
-          label: "Take Rate (VIP ÷ Webinar Opt-Ins)",
+          key: "vipTakeRatePaid",
+          label: "Take Rate (Paid)",
           format: "percent",
           goal: null,
           goalDirection: null,
-          day: (c) => safeDivide(dVipPurchases(c), dWebinarOptIns(c) || null),
-          week: (days) => safeDivide(sum(days.map(dVipPurchases)), sum(days.map(dWebinarOptIns)) || null),
+          day: (c) => safeDivide(dVipPurchasesPaid(c), dWebinarOptInsPaid(c) || null),
+          week: (days) => safeDivide(sum(days.map(dVipPurchasesPaid)), sum(days.map(dWebinarOptInsPaid)) || null),
+        },
+        {
+          key: "vipTakeRateOrganic",
+          label: "Take Rate (Organic)",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: (c) => safeDivide(dVipPurchasesOrg(c), dWebinarOptInsOrg(c) || null),
+          week: (days) => safeDivide(sum(days.map(dVipPurchasesOrg)), sum(days.map(dWebinarOptInsOrg)) || null),
         },
         {
           key: "hookRate",
@@ -1026,7 +1039,8 @@ const SCORECARD_LAYOUT: { emoji: string; title: string; keys: string[] }[] = [
       "webinarOptInRate",
       "vipPurchases",
       "vipCash",
-      "vipTakeRate",
+      "vipTakeRatePaid",
+      "vipTakeRateOrganic",
       "hookRate",
       "holdRate",
       "linkClickThroughRate",
