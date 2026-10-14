@@ -27,6 +27,8 @@ export type ScorecardRow = {
   format: StatFormat;
   goal: number | null;
   goalDirection: GoalDirection | null;
+  /** The "bad" line, when the goal has one (see cellStatus). */
+  redAt?: number | null;
   /** Cash-collected rows are highlighted orange in the grid. */
   cash: boolean;
   days: ScorecardCell[];
@@ -80,21 +82,26 @@ function formatWeekLabel(weekStart: string, weekEnd: string): string {
     : `${month(s)} ${s.getUTCDate()} – ${month(e)} ${e.getUTCDate()}, ${year}`;
 }
 
+/**
+ * Green at or past the goal. `redAt` is the "bad" line: past it is red, and
+ * between the two is yellow. Without one, red starts 20% off the goal.
+ */
 export function cellStatus(
   actual: number | null,
   goal: number | null,
   direction: GoalDirection | null,
+  redAt: number | null = null,
 ): CellStatus {
   if (actual === null || goal === null || direction === null || !Number.isFinite(actual)) {
     return null;
   }
   if (direction === "higher") {
     if (actual >= goal) return "green";
-    if (actual >= goal * 0.8) return "yellow";
+    if (actual >= (redAt ?? goal * 0.8)) return "yellow";
     return "red";
   }
   if (actual <= goal) return "green";
-  if (actual <= goal * 1.2) return "yellow";
+  if (actual <= (redAt ?? goal * 1.2)) return "yellow";
   return "red";
 }
 
@@ -244,8 +251,6 @@ const dHtClosedPaid = (c: DayCtx) => (c.m ? num(c.m.highTicketDealsClosedPaid) :
 // --- webinar funnel (Marketing Daily Metrics form only) ---
 const addBoth = (a: number | null, b: number | null) =>
   a === null && b === null ? null : (a ?? 0) + (b ?? 0);
-const dWebinarOptIns = (c: DayCtx) =>
-  c.m ? addBoth(num(c.m.webinarOptInsPaid), num(c.m.webinarOptInsOrganic)) : null;
 const dVipPurchases = (c: DayCtx) =>
   c.m ? addBoth(num(c.m.vipPurchasesPaid), num(c.m.vipPurchasesOrganic)) : null;
 const dVipCash = (c: DayCtx) => addBoth(dVipCashPaid(c), dVipCashOrg(c));
@@ -290,6 +295,7 @@ type MetricSpec = {
   format: StatFormat;
   goal: number | null;
   goalDirection: GoalDirection | null;
+  redAt?: number | null;
   day: (c: DayCtx) => number | null;
   week: (days: DayCtx[]) => number | null;
 };
@@ -729,6 +735,7 @@ function buildSpecs(
           format: "percent",
           goal: goals.landingPageConnectRate?.min ?? null,
           goalDirection: "higher",
+          redAt: goals.landingPageConnectRate?.redBelow ?? null,
           day: fromM((r) => r.landingPageConnectRate),
           week: wAvg(fromM((r) => r.landingPageConnectRate)),
         },
@@ -738,6 +745,7 @@ function buildSpecs(
           format: "percent",
           goal: goals.optInRate?.min ?? null,
           goalDirection: "higher",
+          redAt: goals.optInRate?.redBelow ?? null,
           // Paid-lead count: Leads table, falling back to the Marketing
           // Daily Metrics "Opt ins (Paid)" count. VSL Views has no other
           // source, so it's still the form value.
@@ -806,8 +814,9 @@ function buildSpecs(
           key: "webinarOptInRate",
           label: "Webinar Opt-In Rate",
           format: "percent",
-          goal: null,
-          goalDirection: null,
+          goal: goals.webinarOptInRate?.min ?? null,
+          goalDirection: goals.webinarOptInRate ? "higher" : null,
+          redAt: goals.webinarOptInRate?.redBelow ?? null,
           day: fromM((r) => r.webinarOptInRate),
           week: wAvg(fromM((r) => r.webinarOptInRate)),
         },
@@ -851,8 +860,9 @@ function buildSpecs(
           key: "hookRate",
           label: "Hook Rate",
           format: "percent",
-          goal: null,
-          goalDirection: null,
+          goal: goals.hookRate?.min ?? null,
+          goalDirection: goals.hookRate ? "higher" : null,
+          redAt: goals.hookRate?.redBelow ?? null,
           day: fromM((r) => r.hookRate),
           week: wAvg(fromM((r) => r.hookRate)),
         },
@@ -860,8 +870,9 @@ function buildSpecs(
           key: "holdRate",
           label: "Hold Rate",
           format: "percent",
-          goal: null,
-          goalDirection: null,
+          goal: goals.holdRate?.min ?? null,
+          goalDirection: goals.holdRate ? "higher" : null,
+          redAt: goals.holdRate?.redBelow ?? null,
           day: fromM((r) => r.holdRate),
           week: wAvg(fromM((r) => r.holdRate)),
         },
@@ -869,8 +880,9 @@ function buildSpecs(
           key: "linkClickThroughRate",
           label: "Link Click-Through Rate",
           format: "percent",
-          goal: null,
-          goalDirection: null,
+          goal: goals.linkClickThroughRate?.min ?? null,
+          goalDirection: goals.linkClickThroughRate ? "higher" : null,
+          redAt: goals.linkClickThroughRate?.redBelow ?? null,
           day: fromM((r) => r.linkClickThroughRate),
           week: wAvg(fromM((r) => r.linkClickThroughRate)),
         },
@@ -887,8 +899,9 @@ function buildSpecs(
           key: "cpm",
           label: "CPM",
           format: "currency",
-          goal: null,
-          goalDirection: null,
+          goal: goals.cpm?.max ?? null,
+          goalDirection: goals.cpm ? "lower" : null,
+          redAt: goals.cpm?.redAbove ?? null,
           day: fromM((r) => r.cpm),
           week: wAvg(fromM((r) => r.cpm)),
         },
@@ -896,8 +909,9 @@ function buildSpecs(
           key: "adFrequency",
           label: "Frequency",
           format: "number",
-          goal: null,
-          goalDirection: null,
+          goal: goals.adFrequency?.max ?? null,
+          goalDirection: goals.adFrequency ? "lower" : null,
+          redAt: goals.adFrequency?.redAbove ?? null,
           day: fromM((r) => r.adFrequency),
           week: wAvg(fromM((r) => r.adFrequency)),
         },
@@ -1349,7 +1363,7 @@ export async function buildWeeklyScorecard(
           return {
             date: ctx.date,
             value,
-            status: cellStatus(value, spec.goal, spec.goalDirection),
+            status: cellStatus(value, spec.goal, spec.goalDirection, spec.redAt ?? null),
           };
         });
         const weekValue = spec.week(scoredDays);
@@ -1359,11 +1373,12 @@ export async function buildWeeklyScorecard(
           format: spec.format,
           goal: spec.goal,
           goalDirection: spec.goalDirection,
+          redAt: spec.redAt ?? null,
           cash: CASH_KEYS.has(spec.key),
           days,
           week: {
             value: weekValue,
-            status: cellStatus(weekValue, spec.goal, spec.goalDirection),
+            status: cellStatus(weekValue, spec.goal, spec.goalDirection, spec.redAt ?? null),
           },
         };
       }),
@@ -1393,6 +1408,7 @@ export type PacingRow = {
   projected: number | null;
   goal: number | null;
   goalDirection: GoalDirection | null;
+  redAt?: number | null;
   status: CellStatus;
 };
 
@@ -1516,7 +1532,8 @@ export function buildPacing(
             projected,
             goal: kind === "rate" ? spec.goal : null,
             goalDirection: kind === "rate" ? spec.goalDirection : null,
-            status: kind === "rate" ? cellStatus(projected, spec.goal, spec.goalDirection) : null,
+            redAt: kind === "rate" ? (spec.redAt ?? null) : null,
+            status: kind === "rate" ? cellStatus(projected, spec.goal, spec.goalDirection, spec.redAt ?? null) : null,
           },
         ];
       });

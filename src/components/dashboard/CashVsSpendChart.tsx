@@ -1,6 +1,18 @@
-import { formatStatValue } from "@/lib/format";
-
 type Point = { date: string; cash: number; adSpend: number };
+
+/** Round tick step (1, 2, 2.5 or 5 × a power of ten) so axis labels are clean numbers. */
+function niceStep(raw: number): number {
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const f = raw / pow;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * pow;
+}
+
+/** Short axis label: $0, $500, $5K, $12.5K, $1.2M. */
+function axisLabel(v: number): string {
+  if (v >= 1_000_000) return `$${+(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `$${+(v / 1_000).toFixed(1)}K`;
+  return `$${Math.round(v)}`;
+}
 
 /** Dependency-free SVG line chart — no charting library in this project, and this is the only place that needs one. */
 export function CashVsSpendChart({ data }: { data: Point[] }) {
@@ -18,7 +30,9 @@ export function CashVsSpendChart({ data }: { data: Point[] }) {
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
 
-  const maxValue = Math.max(1, ...data.map((d) => Math.max(d.cash, d.adSpend)));
+  const yTicks = 4;
+  const step = niceStep(Math.max(1, ...data.map((d) => Math.max(d.cash, d.adSpend))) / yTicks);
+  const maxValue = step * yTicks;
   const x = (i: number) => padding.left + (data.length === 1 ? innerW / 2 : (i / (data.length - 1)) * innerW);
   const y = (v: number) => padding.top + innerH - (v / maxValue) * innerH;
 
@@ -27,8 +41,7 @@ export function CashVsSpendChart({ data }: { data: Point[] }) {
 
   const cashArea = `${linePath("cash")} L ${x(data.length - 1)} ${padding.top + innerH} L ${x(0)} ${padding.top + innerH} Z`;
 
-  const yTicks = 4;
-  const tickValues = Array.from({ length: yTicks + 1 }, (_, i) => (maxValue / yTicks) * i);
+  const tickValues = Array.from({ length: yTicks + 1 }, (_, i) => step * i);
   const labelEvery = Math.max(1, Math.ceil(data.length / 8));
 
   return (
@@ -53,7 +66,7 @@ export function CashVsSpendChart({ data }: { data: Point[] }) {
               strokeDasharray={v === 0 ? undefined : "3 3"}
             />
             <text x={padding.left - 8} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize="11" fill="var(--text-muted)">
-              {formatStatValue(v, "currency").replace(".00", "")}
+              {axisLabel(v)}
             </text>
           </g>
         ))}

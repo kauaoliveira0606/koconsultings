@@ -132,12 +132,13 @@ type PlanSplitResponse = {
 function kpiStatus(
   actual: number | null | undefined,
   goal: number | null | undefined,
-  direction: GoalDirection | null
+  direction: GoalDirection | null,
+  redAt: number | null = null,
 ): StatCardStatus {
   if (goal === null || goal === undefined || direction === null || actual === undefined) {
     return null;
   }
-  return cellStatus(actual ?? null, goal, direction);
+  return cellStatus(actual ?? null, goal, direction, redAt);
 }
 
 function kpiLabel(
@@ -299,7 +300,7 @@ export default function OverviewPage() {
         </div>
       </DashboardSection>
 
-      <WebinarSection webinar={metrics?.webinar} />
+      <WebinarSection webinar={metrics?.webinar} goals={goals} />
 
       {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. Kept right under the keystones. */}
       <DashboardSection title="Unit Economics">
@@ -433,16 +434,16 @@ export default function OverviewPage() {
                   value: metrics?.optInRate,
                   format: "percent",
                   subtext: "From the form; if blank, paid leads ÷ VSL views.",
-                  status: kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher"),
-                  goal: kpiLabel(goals?.optInRate?.min, "higher", "percent"),
+                  status: kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher", goals?.optInRate?.redBelow ?? null),
+                  goal: [kpiLabel(goals?.optInRate?.min, "higher", "percent"), goals?.optInRate?.redBelow != null ? `under ${formatStatValue(goals.optInRate.redBelow, "percent")} is bad` : null].filter(Boolean).join(", ") || null,
                 },
                 {
                   label: "Landing Page Connect Rate",
                   value: metrics?.landingPageConnectRate,
                   format: "percent",
                   subtext: "From the form, averaged across the days in range.",
-                  status: kpiStatus(metrics?.landingPageConnectRate, goals?.landingPageConnectRate?.min, "higher"),
-                  goal: kpiLabel(goals?.landingPageConnectRate?.min, "higher", "percent"),
+                  status: kpiStatus(metrics?.landingPageConnectRate, goals?.landingPageConnectRate?.min, "higher", goals?.landingPageConnectRate?.redBelow ?? null),
+                  goal: [kpiLabel(goals?.landingPageConnectRate?.min, "higher", "percent"), goals?.landingPageConnectRate?.redBelow != null ? `under ${formatStatValue(goals.landingPageConnectRate.redBelow, "percent")} is bad` : null].filter(Boolean).join(", ") || null,
                 },
               ],
             },

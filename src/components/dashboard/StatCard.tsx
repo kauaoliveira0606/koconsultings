@@ -39,7 +39,7 @@ export function StatCard({
         {status ? <StatusPill status={status} /> : null}
       </div>
       <div
-        className={`mt-2 font-semibold tracking-tight text-[var(--text-strong)] ${isLg ? "text-3xl xl:text-[26px] 2xl:text-4xl" : "text-[28px] leading-9"}`}
+        className={`mt-2 break-words font-semibold tracking-tight text-[var(--text-strong)] ${isLg ? "text-3xl 2xl:text-4xl" : "text-[28px] leading-9"}`}
       >
         {override ?? formatStatValue(value, format)}
       </div>

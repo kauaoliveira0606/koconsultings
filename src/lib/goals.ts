@@ -1,31 +1,46 @@
+/**
+ * A "min" goal is green at or above `min`. With `redBelow` it turns red only
+ * under that line and is yellow in between; without it, red starts 20% under
+ * the goal (the original scale). "max" goals mirror this with `redAbove`.
+ */
+export type MinGoal = { min: number; redBelow?: number };
+export type MaxGoal = { max: number; redAbove?: number };
+
 export type GoalsConfig = {
   adSpendMeta: number | null;
-  costPerLeadMeta: { max: number } | null;
+  costPerLeadMeta: MaxGoal | null;
   cashCollectedLowTicket: number | null;
-  funnelConversionRate: { min: number } | null;
-  roasTotal: { min: number } | null;
-  roasLowTicket: { min: number } | null;
-  cpaLowTicket: { max: number } | null;
+  funnelConversionRate: MinGoal | null;
+  roasTotal: MinGoal | null;
+  roasLowTicket: MinGoal | null;
+  cpaLowTicket: MaxGoal | null;
   totalCashCollected: number | null;
   optInsPaid: number | null;
   optInsOrganic: number | null;
   vslViews: number | null;
   dials: number | null;
   salesLowTicket: number | null;
-  closeRateLowTicket: { min: number } | null;
-  landingPageConnectRate: { min: number } | null;
-  optInRate: { min: number } | null;
-  vslPlayRate: { min: number } | null;
-  vslEngagementRate: { min: number } | null;
-  connectionRate: { min: number } | null;
-  showRate?: { min: number } | null;
-  highTicketCloseRate?: { min: number } | null;
-  attributionRate?: { min: number } | null;
-  yearlyShare?: { min: number } | null;
+  closeRateLowTicket: MinGoal | null;
+  landingPageConnectRate: MinGoal | null;
+  optInRate: MinGoal | null;
+  vslPlayRate: MinGoal | null;
+  vslEngagementRate: MinGoal | null;
+  connectionRate: MinGoal | null;
+  showRate?: MinGoal | null;
+  highTicketCloseRate?: MinGoal | null;
+  attributionRate?: MinGoal | null;
+  yearlyShare?: MinGoal | null;
   /** Average minutes from opt-in to first rep call. */
-  speedToLeadMinutes?: { max: number } | null;
+  speedToLeadMinutes?: MaxGoal | null;
   /** Touch points (double-dial = 1) per lead in its first 14 days. */
-  touchPointsPerLead?: { min: number } | null;
+  touchPointsPerLead?: MinGoal | null;
+  // Ad / webinar KPIs (user's good/bad lines, 2026-10-14).
+  webinarOptInRate?: MinGoal | null;
+  hookRate?: MinGoal | null;
+  holdRate?: MinGoal | null;
+  linkClickThroughRate?: MinGoal | null;
+  cpm?: MaxGoal | null;
+  adFrequency?: MaxGoal | null;
 };
 
 /**
@@ -57,8 +72,15 @@ export async function getGoals(): Promise<GoalsConfig> {
     dials: null,
     salesLowTicket: null,
     closeRateLowTicket: { min: 0.4 },
-    landingPageConnectRate: { min: 0.8 },
-    optInRate: { min: 0.2 },
+    // User's KPI lines, 2026-10-14 (both offers): good / bad, yellow between.
+    landingPageConnectRate: { min: 0.8, redBelow: 0.7 },
+    optInRate: { min: 0.3, redBelow: 0.2 },
+    webinarOptInRate: { min: 0.3, redBelow: 0.2 },
+    hookRate: { min: 0.3, redBelow: 0.3 },
+    holdRate: { min: 0.25, redBelow: 0.15 },
+    linkClickThroughRate: { min: 0.02, redBelow: 0.005 },
+    cpm: { max: 20, redAbove: 80 },
+    adFrequency: { max: 2, redAbove: 3.5 },
     vslPlayRate: { min: 0.6 },
     vslEngagementRate: { min: 0.4 },
     connectionRate: { min: 0.4 },
