@@ -176,7 +176,6 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
         page("/guide", "The Opportunity Guide", "Lead who wants to read everything: the framework, 14-day launch playbook, 90-day scaling roadmap, revenue proof and every student story."),
         page("/testimonials", "Student Wins", "Skeptical lead: every verified win, screenshots and video testimonials."),
         page("/parent", "For Parents", "Young lead whose parents are part of the decision."),
-        page("/about", "About Bronson", "Lead who wants to know who Bronson is."),
         page("/masterclass-replay", "Masterclass Replay", "Lead who registered but missed the live masterclass."),
       ],
     },
