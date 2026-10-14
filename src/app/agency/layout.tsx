@@ -20,7 +20,7 @@ export default function AgencyLayout({ children }: { children: ReactNode }) {
         style={{ background: "var(--app-bg)" }}
         className="min-h-screen text-[var(--text)]"
       >
-        <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 2xl:max-w-[1600px]">{children}</main>
       </div>
     </RangeProvider>
   );

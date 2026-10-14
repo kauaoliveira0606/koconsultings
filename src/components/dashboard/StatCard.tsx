@@ -31,7 +31,7 @@ export function StatCard({
   const isLg = size === "lg";
   return (
     <div
-      className={`relative overflow-hidden rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-sm ${isLg ? "p-6" : "p-5"}`}
+      className={`@container relative overflow-hidden rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-sm ${isLg ? "p-6" : "p-5"}`}
     >
       {status ? <StatusBar status={status} /> : null}
       <div className="flex items-start justify-between gap-2">
@@ -39,7 +39,11 @@ export function StatCard({
         {status ? <StatusPill status={status} /> : null}
       </div>
       <div
-        className={`mt-2 break-words font-semibold tracking-tight text-[var(--text-strong)] ${isLg ? "text-3xl 2xl:text-4xl" : "text-[28px] leading-9"}`}
+        // Never wrap a number; scale the font with the card's width (cqi)
+        // so a long value like $110,327.00 always fits on one line.
+        className={`mt-2 whitespace-nowrap font-semibold tracking-tight text-[var(--text-strong)] ${
+          isLg ? "text-[clamp(1.25rem,13cqi,2.25rem)]" : "text-[clamp(1.125rem,12cqi,1.75rem)] leading-9"
+        }`}
       >
         {override ?? formatStatValue(value, format)}
       </div>
