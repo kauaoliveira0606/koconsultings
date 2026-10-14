@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { formatStatValue } from "@/lib/format";
+import { STATUS_TEXT_STYLE } from "@/components/dashboard/status";
 import type { WeeklyScorecardPayload, CellStatus, ScorecardRow } from "@/lib/weekly-scorecard";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -16,11 +17,6 @@ function isoAddDays(iso: string, n: number): string {
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const STATUS_STYLE: Record<Exclude<CellStatus, null>, React.CSSProperties> = {
-  green: { background: "var(--cell-green-bg)", color: "var(--cell-green-text)" },
-  yellow: { background: "var(--cell-yellow-bg)", color: "var(--cell-yellow-text)" },
-  red: { background: "var(--cell-red-bg)", color: "var(--cell-red-text)" },
-};
 
 // Cash-collected rows get a soft orange row tint and an orange edge on the
 // label so they're easy to spot; KPI status shows as a colored pill.
@@ -45,15 +41,15 @@ function Value({
   if (status) {
     return (
       <span
-        className={`inline-block rounded-md px-1.5 py-0.5 ${bold ? "font-semibold" : "font-medium"}`}
-        style={STATUS_STYLE[status]}
+        className={`inline-block rounded-md px-2 py-0.5 ${bold ? "font-bold" : "font-semibold"}`}
+        style={STATUS_TEXT_STYLE[status]}
       >
         {text}
       </span>
     );
   }
   return (
-    <span className={`${bold ? "font-semibold text-white" : ""} ${value === null ? "text-[var(--text-muted)] opacity-50" : ""}`}>
+    <span className={`${bold ? "font-bold text-white" : ""} ${value === null ? "text-[var(--text-muted)] opacity-30" : ""}`}>
       {text}
     </span>
   );
@@ -69,7 +65,7 @@ function Cell({
   format: ScorecardRow["format"];
 }) {
   return (
-    <td className="px-2 py-1.5 text-right text-[13px] tabular-nums text-[var(--text)]">
+    <td className="px-3 py-2.5 text-right text-sm tabular-nums text-[var(--text)]">
       <Value value={value} status={status} format={format} />
     </td>
   );
@@ -114,33 +110,33 @@ export function WeeklyScorecardGrid({ apiPath }: { apiPath: string }) {
 
         {data ? (
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed border-collapse [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
+            <table className="w-full table-fixed border-collapse [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06] [&_tbody_tr.kpi-row:nth-of-type(even)]:bg-white/[0.03]">
               <colgroup>
-                <col style={{ width: "210px" }} />
+                <col style={{ width: "250px" }} />
                 {data.dayDates.map((d) => (
-                  <col key={d} style={{ width: "86px" }} />
+                  <col key={d} style={{ width: "88px" }} />
                 ))}
-                <col style={{ width: "100px" }} />
+                <col style={{ width: "108px" }} />
                 <col style={{ width: "80px" }} />
               </colgroup>
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 bg-[var(--panel-solid,#111c38)] px-2 py-2 text-left text-xs font-semibold text-[var(--text-muted)]">
+                  <th className="sticky left-0 z-10 bg-[var(--panel-solid,#111c38)] px-3 py-3 text-left text-sm font-semibold text-[var(--text-muted)]">
                     Metric
                   </th>
                   {data.dayDates.map((d, i) => {
                     const [, m, day] = d.split("-");
                     return (
-                      <th key={d} className="px-2 py-2 text-right text-xs font-semibold text-[var(--text-muted)]">
-                        <div className="text-[var(--text)]">{DOW[i]}</div>
+                      <th key={d} className="px-3 py-3 text-right text-xs font-semibold text-[var(--text-muted)]">
+                        <div className="text-sm text-white">{DOW[i]}</div>
                         <div className="font-normal">{`${Number(m)}/${Number(day)}`}</div>
                       </th>
                     );
                   })}
-                  <th className="rounded-t-lg bg-sky-300/10 px-2 py-2 text-right text-xs font-semibold text-sky-200">
+                  <th className="rounded-t-lg bg-sky-300/10 px-3 py-3 text-right text-sm font-semibold text-sky-200">
                     Week
                   </th>
-                  <th className="px-2 py-2 text-right text-xs font-semibold text-[var(--text-muted)]">KPI</th>
+                  <th className="px-3 py-3 text-right text-sm font-semibold text-[var(--text-muted)]">Goal</th>
                 </tr>
               </thead>
               <tbody>
@@ -172,26 +168,29 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
   return (
     <>
       <tr className="!border-b-0">
-        <td colSpan={10} className="sticky left-0 px-2 pb-2 pt-6 text-sm font-semibold text-white">
-          <span className="mr-1.5">{emoji}</span>
+        <td colSpan={10} className="pt-5" />
+      </tr>
+      <tr className="!border-b-0">
+        <td colSpan={10} className="rounded-lg bg-gradient-to-r from-sky-300/[0.14] via-white/[0.04] to-transparent px-3 py-2.5 text-[15px] font-semibold text-white">
+          <span className="mr-2">{emoji}</span>
           {title}
         </td>
       </tr>
       {rows.map((row) => (
-        <tr key={row.key} className={row.cash ? "bg-orange-400/[0.07]" : ""}>
+        <tr key={row.key} className={row.cash ? "bg-orange-400/[0.07]" : "kpi-row"}>
           <th
-            className="sticky left-0 z-10 bg-[var(--panel-solid,#111c38)] px-2 py-1.5 text-left align-middle"
+            className="sticky left-0 z-10 bg-[var(--panel-solid,#111c38)] px-3 py-2.5 text-left align-middle"
             style={row.cash ? { boxShadow: "inset 3px 0 0 rgb(251, 146, 60)" } : undefined}
           >
-            <span className="text-[13px] font-medium leading-tight text-[var(--text-strong)]">{row.label}</span>
+            <span className="text-sm font-medium leading-snug text-[var(--text-strong)]">{row.label}</span>
           </th>
           {row.days.map((cell) => (
             <Cell key={cell.date} value={cell.value} status={cell.status} format={row.format} />
           ))}
-          <td className="bg-sky-300/10 px-2 py-1.5 text-right text-[13px] tabular-nums">
+          <td className="bg-sky-300/10 px-3 py-2.5 text-right text-sm tabular-nums">
             <Value value={row.week.value} status={row.week.status} format={row.format} bold />
           </td>
-          <td className="px-2 py-1.5 text-right text-xs font-medium tabular-nums text-[var(--text-muted)]">
+          <td className="px-3 py-2.5 text-right text-[13px] font-medium tabular-nums text-[var(--text-muted)]">
             {kpiText(row)}
           </td>
         </tr>

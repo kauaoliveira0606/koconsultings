@@ -1,3 +1,4 @@
+import type React from "react";
 import type { StatCardStatus } from "@/components/dashboard/StatCard";
 
 type Status = Exclude<StatCardStatus, null>;
@@ -40,3 +41,14 @@ export function StatusBar({ status }: { status: Status }) {
     />
   );
 }
+
+/**
+ * KPI status on a number in a table: the number in the status color on a
+ * light tint of it. Colored text on a faint fill reads far easier than white
+ * text on a strong fill.
+ */
+export const STATUS_TEXT_STYLE: Record<Status, React.CSSProperties> = {
+  green: { color: "#6ee7b7", background: "rgba(52, 211, 153, 0.14)", boxShadow: "inset 0 0 0 1px rgba(52, 211, 153, 0.3)" },
+  yellow: { color: "#fcd34d", background: "rgba(251, 191, 36, 0.14)", boxShadow: "inset 0 0 0 1px rgba(251, 191, 36, 0.3)" },
+  red: { color: "#fda4af", background: "rgba(251, 113, 133, 0.14)", boxShadow: "inset 0 0 0 1px rgba(251, 113, 133, 0.3)" },
+};

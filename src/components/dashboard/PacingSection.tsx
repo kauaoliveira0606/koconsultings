@@ -2,22 +2,12 @@
 
 import useSWR from "swr";
 import { formatStatValue } from "@/lib/format";
-import type { CellStatus, PacingPayload, PacingPeriod, PacingRow } from "@/lib/weekly-scorecard";
+import { STATUS_TEXT_STYLE } from "@/components/dashboard/status";
+import type { PacingPayload, PacingPeriod, PacingRow } from "@/lib/weekly-scorecard";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-const STATUS_STYLE: Record<Exclude<CellStatus, null>, React.CSSProperties> = {
-  green: { background: "var(--cell-green-bg)", color: "var(--cell-green-text)" },
-  yellow: { background: "var(--cell-yellow-bg)", color: "var(--cell-yellow-text)" },
-  red: { background: "var(--cell-red-bg)", color: "var(--cell-red-text)" },
-};
 
-// "Currently At" gets its own sky-blue so where we are now reads apart from
-// where we're pacing.
-const CURRENT_STYLE: React.CSSProperties = {
-  background: "var(--cell-current-bg)",
-  color: "var(--cell-current-text)",
-};
 
 function shortDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleString("en-US", {
@@ -34,7 +24,7 @@ function goalText(row: PacingRow): string | null {
 
 function Pill({ text, style, bold }: { text: string; style?: React.CSSProperties; bold?: boolean }) {
   return (
-    <span className={`inline-block rounded-md px-1.5 py-0.5 ${bold ? "font-semibold" : "font-medium"}`} style={style}>
+    <span className={`inline-block rounded-md px-2 py-0.5 ${bold ? "font-bold" : "font-semibold"}`} style={style}>
       {text}
     </span>
   );
@@ -63,13 +53,13 @@ function PeriodTable({ period }: { period: PacingPeriod }) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[420px] border-collapse text-[13px] [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
+        <table className="w-full min-w-[420px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06] [&_tbody_tr:nth-of-type(even)]:bg-white/[0.03]">
           <thead>
-            <tr className="text-xs text-[var(--text-muted)]">
-              <th className="px-2 py-2 text-left font-semibold">Metric</th>
-              <th className="px-2 py-2 text-right font-semibold">Currently At</th>
-              <th className="px-2 py-2 text-right font-semibold">Daily Avg</th>
-              <th className="px-2 py-2 text-right font-semibold">Pacing For</th>
+            <tr className="text-[13px] text-[var(--text-muted)]">
+              <th className="px-3 py-2.5 text-left font-semibold">Metric</th>
+              <th className="px-3 py-2.5 text-right font-semibold">Currently At</th>
+              <th className="px-3 py-2.5 text-right font-semibold">Daily Avg</th>
+              <th className="px-3 py-2.5 text-right font-semibold">Pacing For</th>
             </tr>
           </thead>
           <tbody>
@@ -78,21 +68,21 @@ function PeriodTable({ period }: { period: PacingPeriod }) {
               return (
                 <tr key={row.key} className={row.cash ? "bg-orange-400/[0.07]" : ""}>
                   <th
-                    className="px-2 py-1.5 text-left align-middle"
+                    className="px-3 py-2.5 text-left align-middle"
                     style={row.cash ? { boxShadow: "inset 3px 0 0 rgb(251, 146, 60)" } : undefined}
                   >
                     <span className="font-medium leading-tight text-[var(--text-strong)]">{row.label}</span>
                     {goal ? <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">{goal}</span> : null}
                   </th>
-                  <td className="px-2 py-1.5 text-right tabular-nums">
-                    <Pill text={formatStatValue(row.toDate, row.format)} style={CURRENT_STYLE} bold />
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    <span className="font-bold text-white">{formatStatValue(row.toDate, row.format)}</span>
                   </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums text-[var(--text)]">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text)]">
                     {row.kind === "rate" ? "—" : formatStatValue(row.dailyAvg, row.format)}
                   </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">
+                  <td className="px-3 py-2.5 text-right tabular-nums">
                     {row.status ? (
-                      <Pill text={formatStatValue(row.projected, row.format)} style={STATUS_STYLE[row.status]} bold />
+                      <Pill text={formatStatValue(row.projected, row.format)} style={STATUS_TEXT_STYLE[row.status]} bold />
                     ) : (
                       <span className="font-semibold text-white">{formatStatValue(row.projected, row.format)}</span>
                     )}
