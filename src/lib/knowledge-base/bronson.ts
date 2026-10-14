@@ -149,6 +149,15 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
 
   content: [
     {
+      title: "Featured Videos",
+      description: "The two videos on the Opportunity Guide page. Send these first.",
+      layout: "rows",
+      items: [
+        yt("_aB84Ck4yhI", "Why MRR beats every other model", "Anyone confused about the subscription model. YouTube title: \"MRR is the best AI business to start in 2027 ($1,000/day+)\".", "Sep 2026"),
+        yt("Ed8OhMFwlnE", "How to start subscription-based e-commerce", "Lead who thinks it takes too long to get going. YouTube title: \"How to start in 24 hours\".", "Aug 2026"),
+      ],
+    },
+    {
       title: "Pages To Send",
       description: "Send before a booked call so the lead shows up warm.",
       layout: "rows",
@@ -176,7 +185,7 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
         page("/guide", "The Opportunity Guide", "Lead who wants to read everything: the framework, 14-day launch playbook, 90-day scaling roadmap, revenue proof and every student story."),
         page("/testimonials", "Student Wins", "Skeptical lead: every verified win, screenshots and video testimonials."),
         page("/parent", "For Parents", "Young lead whose parents are part of the decision."),
-        page("/masterclass-replay", "Masterclass Replay", "Lead who registered but missed the live masterclass."),
+        page("/masterclass-replay", "Masterclass Replay", "Lead who registered but missed the live masterclass. The replay video isn't up yet; the page is live and the video will go on it."),
       ],
     },
     {
@@ -189,13 +198,11 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
         yt("M7T15cw_tpM", "Copy & paste this strategy to make your first $1,000 online with AI", "Beginner who hasn't made a dollar online yet.", "Sep 2026"),
         yt("L92QvwY3QgU", "Disappear and come back unrecognizable (5 rules to change your life)", "Lead who says they're stuck or unmotivated.", "Sep 2026"),
         yt("R8AQN3nadgA", "I tried AI dropshipping for 1 year ($1,000/day+)", "Lead weighing if it's worth it long term.", "Sep 2026"),
-        yt("_aB84Ck4yhI", "MRR is the best AI business to start in 2027 ($1,000/day+)", "Anyone confused about the subscription model.", "Sep 2026"),
         yt("OXlK0zq2jjQ", "3 best AI businesses to start before 2027 ($1,000/day+)", "Our most watched video. Good first touch for a cold lead.", "Sep 2026"),
         yt("iMklsusK6wA", "Give me 15 minutes, I'll give you 10,000 hours of knowledge", "Lead who wants to learn before buying.", "Sep 2026"),
         yt("yrG71cbAaT0", "Laziest way to make money with AI ($1,000/day+)", "Easy watch for a cold or low-intent lead.", "Sep 2026"),
         yt("nWYmG65i3Rk", "How I make $600k/mo with Facebook ads (Facebook ads for beginners)", "Lead worried about running ads or wasting ad spend.", "Aug 2026"),
         yt("4Z5J3ytWvvY", "5 proven side hustles to make $1,000/day with AI (ranked)", "Lead comparing different side hustles.", "Aug 2026"),
-        yt("Ed8OhMFwlnE", "How to start in 24 hours", "Lead who thinks it takes too long to get going.", "Aug 2026"),
         yt("LB32xwKhVOg", "How I made $550k this month testing AI image ads (product case study)", "Lead interested in ads and creatives.", "Aug 2026"),
         yt("haWIdz2mkko", "How I made $3.25M (store case study) (100% free course)", "Strong value follow-up: full store case study plus free course.", "Jul 2026"),
         yt("IFLtc04KkQU", "How to actually build a brand worth millions (copy me)", "Lead who cares about building something they can sell one day.", "Jul 2026"),
@@ -211,6 +218,18 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
           text: ["Shorts go up almost daily; check here for anything newer than this list."],
           links: [{ href: "https://www.youtube.com/@Bronny.builds", label: "Open" }],
           copy: "https://www.youtube.com/@Bronny.builds",
+        },
+      ],
+    },
+    {
+      title: "Instagram",
+      layout: "rows",
+      items: [
+        {
+          title: "Bronson's Instagram (@bronnybuilds)",
+          text: ["Lead who wants to see Bronson's day to day and that he's a real person."],
+          links: [{ href: "https://www.instagram.com/bronnybuilds/", label: "Open" }],
+          copy: "https://www.instagram.com/bronnybuilds/",
         },
       ],
     },
