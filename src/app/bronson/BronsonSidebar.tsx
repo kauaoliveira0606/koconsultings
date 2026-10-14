@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/bronson/models", label: "Models" },
   { href: "/bronson/ads-analysis", label: "Ads Analysis" },
   { href: "/bronson/admin-team", label: "Admin Team" },
+  { href: "/bronson/knowledge-base", label: "Knowledge Base" },
 ];
 
 function Brand() {
