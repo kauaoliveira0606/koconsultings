@@ -12,7 +12,6 @@ const NAV_ITEMS = [
   { href: "/bronson/payment-plans", label: "Payment Plans" },
   { href: "/bronson/upsell-potential", label: "Upsell Potential" },
   { href: "/bronson/models", label: "Models" },
-  { href: "/bronson/ads-analysis", label: "Ads Analysis" },
   { href: "/bronson/admin-team", label: "Admin Team" },
 ];
 
