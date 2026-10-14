@@ -32,36 +32,49 @@ export function RangeFilterBar({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {presets.map((preset) => (
-        <button
-          key={preset}
-          type="button"
-          onClick={() => onChange({ ...value, preset })}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            value.preset === preset
-              ? "bg-[var(--btn-active-bg)] text-[var(--btn-active-fg)]"
-              : "bg-[var(--panel-bg)] text-[var(--text-muted)] border border-[var(--panel-border)] hover:bg-[var(--panel-subtle)]"
+      <div className="inline-flex flex-wrap gap-1 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-subtle)] p-1">
+        {presets.map((preset) => {
+          const active = value.preset === preset;
+          return (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => onChange({ ...value, preset })}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+                active
+                  ? "bg-[var(--btn-active-bg)] text-[var(--btn-active-fg)] shadow-[0_4px_14px_-4px_rgba(142,197,255,0.6)]"
+                  : "text-[var(--text-muted)] hover:bg-[var(--panel-subtle)] hover:text-[var(--text-strong)]"
+              }`}
+            >
+              {RANGE_PRESET_LABELS[preset]}
+            </button>
+          );
+        })}
+      </div>
+      {showCustom ? (
+        <div
+          className={`flex items-center gap-1.5 rounded-xl border p-1 text-sm text-[var(--text-muted)] ${
+            value.preset === "custom"
+              ? "border-[var(--accent)] bg-[var(--panel-subtle)]"
+              : "border-[var(--panel-border)] bg-[var(--panel-subtle)]"
           }`}
         >
-          {RANGE_PRESET_LABELS[preset]}
-        </button>
-      ))}
-      {showCustom ? (
-        <div className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
           <input
             type="date"
+            aria-label="Custom range start"
             value={value.customStart}
             onChange={(e) =>
               onChange({ ...value, preset: "custom", customStart: e.target.value })
             }
-            className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-1 text-[var(--text)]"
+            className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-1 text-[var(--text)]"
           />
-          <span>to</span>
+          <span className="px-0.5">to</span>
           <input
             type="date"
+            aria-label="Custom range end"
             value={value.customEnd}
             onChange={(e) => onChange({ ...value, preset: "custom", customEnd: e.target.value })}
-            className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-1 text-[var(--text)]"
+            className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-1 text-[var(--text)]"
           />
         </div>
       ) : null}

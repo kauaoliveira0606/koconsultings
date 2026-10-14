@@ -1,5 +1,6 @@
 import type { StatCardStatus } from "@/components/dashboard/StatCard";
 import { formatStatValue, type StatFormat } from "@/lib/format";
+import { StatusPill } from "@/components/dashboard/status";
 
 export type GroupedMetric = {
   label: string;
@@ -15,12 +16,6 @@ export type GroupedMetric = {
 
 export type MetricGroup = { title: string; metrics: GroupedMetric[] };
 
-const STATUS_COLOR: Record<Exclude<StatCardStatus, null>, string> = {
-  green: "var(--cell-green-bg)",
-  yellow: "var(--cell-yellow-bg)",
-  red: "var(--cell-red-bg)",
-};
-
 /**
  * Headline numbers sorted into titled columns (e.g. Cash | ROAS | Efficiency)
  * so related figures are read together, top to bottom, instead of scanned
@@ -32,31 +27,24 @@ export function MetricGroups({ groups }: { groups: MetricGroup[] }) {
       {groups.map((group) => (
         <div
           key={group.title}
-          className="flex flex-col rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-sm"
+          className="flex flex-col overflow-hidden rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-sm"
         >
-          <div className="border-b border-[var(--panel-border)] px-5 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-strong)]">
-            {group.title}
+          <div className="flex items-center gap-2 border-b border-[var(--panel-border)] bg-[var(--panel-subtle)] px-5 py-3">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+            <span className="text-sm font-semibold text-[var(--text-strong)]">{group.title}</span>
           </div>
           <div className="flex-1 divide-y divide-[var(--panel-border)]">
             {group.metrics.map((m) => (
               <div key={m.label} className="px-5 py-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                    {m.label}
-                  </span>
-                  {m.status ? (
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: STATUS_COLOR[m.status] }}
-                      aria-label={`KPI status: ${m.status}`}
-                    />
-                  ) : null}
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[13px] font-medium leading-snug text-[var(--text-muted)]">{m.label}</span>
+                  {m.status ? <StatusPill status={m.status} /> : null}
                 </div>
-                <div className="mt-1 text-3xl font-bold text-[var(--text-strong)]">
+                <div className="mt-1.5 text-[28px] font-semibold leading-9 tracking-tight text-[var(--text-strong)]">
                   {m.override ?? formatStatValue(m.value, m.format)}
                 </div>
                 {m.subtext || m.goal ? (
-                  <div className="mt-1 text-xs text-[var(--text-muted)]">
+                  <div className="mt-1.5 text-xs leading-relaxed text-[var(--text-muted)]">
                     {[m.subtext, m.goal ? `Goal ${m.goal}` : null].filter(Boolean).join(" · ")}
                   </div>
                 ) : null}

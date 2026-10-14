@@ -1,12 +1,7 @@
 import { formatStatValue, type StatFormat } from "@/lib/format";
+import { StatusBar, StatusPill } from "@/components/dashboard/status";
 
 export type StatCardStatus = "green" | "yellow" | "red" | null;
-
-const STATUS_DOT: Record<Exclude<StatCardStatus, null>, string> = {
-  green: "var(--cell-green-bg)",
-  yellow: "var(--cell-yellow-bg)",
-  red: "var(--cell-red-bg)",
-};
 
 type StatCardProps = {
   label: string;
@@ -36,29 +31,19 @@ export function StatCard({
   const isLg = size === "lg";
   return (
     <div
-      className={`rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-sm ${isLg ? "p-5" : "p-4"}`}
-      style={status ? { borderColor: STATUS_DOT[status], borderWidth: 2 } : undefined}
+      className={`relative overflow-hidden rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-sm ${isLg ? "p-6" : "p-5"}`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div
-          className={`font-semibold uppercase tracking-wide text-[var(--text-muted)] ${isLg ? "text-xs" : "text-xs"}`}
-        >
-          {label}
-        </div>
-        {status ? (
-          <span
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ background: STATUS_DOT[status] }}
-            aria-label={`KPI status: ${status}`}
-          />
-        ) : null}
+      {status ? <StatusBar status={status} /> : null}
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-[13px] font-medium leading-snug text-[var(--text-muted)]">{label}</div>
+        {status ? <StatusPill status={status} /> : null}
       </div>
       <div
-        className={`mt-2 font-bold text-[var(--text-strong)] ${isLg ? "text-4xl" : "text-2xl"}`}
+        className={`mt-2 font-semibold tracking-tight text-[var(--text-strong)] ${isLg ? "text-3xl xl:text-[26px] 2xl:text-4xl" : "text-[28px] leading-9"}`}
       >
         {override ?? formatStatValue(value, format)}
       </div>
-      {subtext ? <div className="mt-1 text-xs text-[var(--text-muted)]">{subtext}</div> : null}
+      {subtext ? <div className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">{subtext}</div> : null}
       {goal !== undefined ? (
         <div className="mt-1 text-xs text-[var(--text-muted)]">{goal ?? "No goal set"}</div>
       ) : null}

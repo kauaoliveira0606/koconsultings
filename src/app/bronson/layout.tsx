@@ -20,7 +20,7 @@ export default function BronsonLayout({ children }: { children: ReactNode }) {
         className="flex min-h-screen flex-col text-[var(--text)] lg:flex-row"
       >
         <BronsonSidebar />
-        <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
       </div>
     </RangeProvider>
   );

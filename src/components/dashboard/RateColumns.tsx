@@ -1,5 +1,6 @@
 import type { StatCardStatus } from "@/components/dashboard/StatCard";
 import { formatStatValue, type StatFormat } from "@/lib/format";
+import { StatusBar, StatusPill } from "@/components/dashboard/status";
 
 export type RateColumn = {
   title: string;
@@ -12,12 +13,6 @@ export type RateColumn = {
   inputs: { label: string; value: number | null | undefined; format?: StatFormat; note?: string }[];
   status?: StatCardStatus;
   goal?: string | null;
-};
-
-const STATUS_COLOR: Record<Exclude<StatCardStatus, null>, string> = {
-  green: "var(--cell-green-bg)",
-  yellow: "var(--cell-yellow-bg)",
-  red: "var(--cell-red-bg)",
 };
 
 /**
@@ -35,33 +30,23 @@ export function RateColumns({ columns }: { columns: RateColumn[] }) {
       {columns.map((c) => (
         <div
           key={c.title}
-          className="flex flex-col rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-sm"
-          style={c.status ? { borderColor: STATUS_COLOR[c.status], borderWidth: 2 } : undefined}
+          className="relative flex flex-col overflow-hidden rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-sm"
         >
-          <div className="flex items-center justify-between gap-2 border-b border-[var(--panel-border)] px-4 py-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-strong)]">
-              {c.title}
-            </span>
-            {c.status ? (
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ background: STATUS_COLOR[c.status] }}
-                aria-label={`KPI status: ${c.status}`}
-              />
-            ) : null}
+          {c.status ? <StatusBar status={c.status} /> : null}
+          <div className="flex items-start justify-between gap-2 px-5 pt-5">
+            <span className="text-sm font-semibold text-[var(--text-strong)]">{c.title}</span>
+            {c.status ? <StatusPill status={c.status} /> : null}
           </div>
-          <div className="flex-1 p-4">
-            <div className="text-4xl font-bold text-[var(--text-strong)]">
+          <div className="flex-1 px-5 pb-4 pt-2">
+            <div className="text-4xl font-semibold tracking-tight text-[var(--text-strong)]">
               {formatStatValue(c.value, c.format ?? "percent")}
             </div>
-            <div className="mt-1 text-xs text-[var(--text-muted)]">{c.formula}</div>
+            <div className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">{c.formula}</div>
             {c.goal !== undefined ? (
-              <div className="mt-1 text-xs text-[var(--text-muted)]">
-                Goal: {c.goal ?? "none set"}
-              </div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">Goal: {c.goal ?? "none set"}</div>
             ) : null}
           </div>
-          <div className="space-y-2 border-t border-[var(--panel-border)] px-4 py-3">
+          <div className="space-y-2.5 border-t border-[var(--panel-border)] bg-[var(--panel-subtle)] px-5 py-4">
             {c.inputs.map((input) => (
               <div key={input.label}>
                 <div className="flex items-baseline justify-between gap-3 text-sm">

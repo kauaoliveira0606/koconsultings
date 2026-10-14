@@ -62,7 +62,7 @@ export const KB_SECTIONS: { id: KbSectionId; title: string; description: string 
   {
     id: "disclaimers",
     title: "Disclaimer Examples",
-    description: "Approved wording to stay compliant whenever results or income come up.",
+    description: "Rules for staying compliant whenever results or income come up.",
   },
 ];
 

@@ -103,7 +103,7 @@ export function WeeklyScorecardGrid({ apiPath }: { apiPath: string }) {
           <div className="overflow-x-auto">
             <table className="w-full table-fixed border-collapse">
               <colgroup>
-                <col style={{ width: "148px" }} />
+                <col style={{ width: "200px" }} />
                 {data.dayDates.map((d) => (
                   <col key={d} style={{ width: "92px" }} />
                 ))}
