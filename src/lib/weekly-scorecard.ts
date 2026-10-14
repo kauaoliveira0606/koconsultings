@@ -149,6 +149,8 @@ type DayCtx = {
  * tables. Any piece left out just renders that row blank.
  */
 export type ScorecardExtras = {
+  /** Rows to show and their order; defaults to the full layout. */
+  layout?: ScorecardLayout;
   pcn?: { date: string | null; plan: string | null }[];
   connected?: ConnectedCallRow[];
   connectionTrackingStart?: string;
@@ -1007,7 +1009,9 @@ const TYPED_RATE_KEYS = new Set([
  * section on top for the numbers checked first. Metric definitions live in
  * buildSpecs; this only decides where each one shows up.
  */
-const SCORECARD_LAYOUT: { emoji: string; title: string; keys: string[] }[] = [
+export type ScorecardLayout = { emoji: string; title: string; keys: string[] }[];
+
+const SCORECARD_LAYOUT: ScorecardLayout = [
   {
     emoji: "👑",
     title: "Hierarchy",
@@ -1110,6 +1114,45 @@ const SCORECARD_LAYOUT: { emoji: string; title: string; keys: string[] }[] = [
     keys: ["attributionRate", "yearlyShare", "refundChargebackDollars", "refundChargebackRate"],
   },
 ];
+
+/**
+ * Bronson's scorecard (user, 2026-10-14): the affiliate funnel is winding
+ * down and the business moved to webinars, so the affiliate-funnel rows
+ * (Lead Flow, CPA, affiliate close rate / AOV / paid-organic sales split,
+ * software pitch rate, HT booking rate from affiliate) and the Funnel &
+ * Marketing Health and Attribution & Refunds sections are left off.
+ */
+const BRONSON_DROPPED = new Set([
+  "cpaLowTicket",
+  "pitchRate",
+  "salesLtPaid",
+  "salesLtOrganic",
+  "closeRateLowTicket",
+  "aovLowTicket",
+  "htBookingRateFromLt",
+]);
+const BRONSON_DROPPED_SECTIONS = new Set(["Lead Flow", "Funnel & Marketing Health", "Attribution & Refunds"]);
+export const BRONSON_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.filter(
+  (g) => !BRONSON_DROPPED_SECTIONS.has(g.title),
+).map((g) => ({ ...g, keys: g.keys.filter((k) => !BRONSON_DROPPED.has(k)) }));
+
+/** Bronson's pacing rows: no affiliate opt-ins or CPA (same reason as above). */
+export const BRONSON_PACING_ROWS = {
+  totals: [
+    "totalCashCollected",
+    "cashCollectedLowTicket",
+    "cashLtPaid",
+    "cashLtOrganic",
+    "cashCollectedHighTicket",
+    "cashHtPaid",
+    "cashHtOrganic",
+    "adSpendMeta",
+    "salesLowTicket",
+    "htCallsBooked",
+    "htDealsClosed",
+  ],
+  rates: ["roasTotal", "costPerLeadMeta"],
+};
 
 const CASH_KEYS = new Set([
   "totalCashCollected",
@@ -1290,7 +1333,7 @@ export async function buildWeeklyScorecard(
       .flatMap((g) => g.metrics)
       .map((spec) => [spec.key, spec])
   );
-  const groups: ScorecardGroup[] = SCORECARD_LAYOUT.map((g) => ({
+  const groups: ScorecardGroup[] = (extras.layout ?? SCORECARD_LAYOUT).map((g) => ({
     emoji: g.emoji,
     title: g.title,
     rows: g.keys
@@ -1407,7 +1450,8 @@ export function buildPacing(
   allEod: BronsonAffiliateEodRow[],
   allCloser: BronsonEodCloserRow[],
   goals: Awaited<ReturnType<typeof getGoals>>,
-  now: Date = new Date()
+  now: Date = new Date(),
+  pacingRows: { totals: string[]; rates: string[] } = { totals: PACING_TOTALS, rates: PACING_RATES },
 ): PacingPayload {
   const ctxFor = indexDays(allMarketing, allLeads, allEod, allCloser, {});
   const specByKey = new Map(
@@ -1451,10 +1495,10 @@ export function buildPacing(
       const elapsed = through ? datesBetween(p.start, through).map(ctxFor) : [];
       const daysTotal = datesBetween(p.start, p.end).length;
 
-      const rows: PacingRow[] = [...PACING_TOTALS, ...PACING_RATES].flatMap((key) => {
+      const rows: PacingRow[] = [...pacingRows.totals, ...pacingRows.rates].flatMap((key) => {
         const spec = specByKey.get(key);
         if (!spec) return [];
-        const kind = PACING_RATES.includes(key) ? "rate" : "total";
+        const kind = pacingRows.rates.includes(key) ? "rate" : "total";
         const toDate = elapsed.length ? spec.week(elapsed) : null;
         const dailyAvg =
           kind === "total" && toDate !== null ? toDate / elapsed.length : null;

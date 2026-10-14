@@ -4,7 +4,7 @@ import {
   getLeads,
   getMarketingDailyMetrics,
 } from "@/lib/airtable/tables";
-import { buildPacing } from "@/lib/weekly-scorecard";
+import { BRONSON_PACING_ROWS, buildPacing } from "@/lib/weekly-scorecard";
 import { getGoals } from "@/lib/goals";
 
 export const revalidate = 60;
@@ -17,5 +17,5 @@ export async function GET() {
     getBronsonEodCloser(),
     getGoals(),
   ]);
-  return Response.json(buildPacing(marketing, leads, eod, closer, goals));
+  return Response.json(buildPacing(marketing, leads, eod, closer, goals, new Date(), BRONSON_PACING_ROWS));
 }

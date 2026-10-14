@@ -12,12 +12,6 @@ const STATUS_STYLE: Record<Exclude<CellStatus, null>, React.CSSProperties> = {
   red: { background: "var(--cell-red-bg)", color: "var(--cell-red-text)" },
 };
 
-// Same orange as the Weekly Scorecard's cash rows.
-const CASH_STYLE: React.CSSProperties = {
-  background: "var(--cell-cash-bg)",
-  color: "var(--cell-cash-text)",
-};
-
 // "Currently At" gets its own sky-blue so where we are now reads apart from
 // where we're pacing.
 const CURRENT_STYLE: React.CSSProperties = {
@@ -38,17 +32,22 @@ function goalText(row: PacingRow): string | null {
   return `${row.goalDirection === "higher" ? "≥" : "≤"} ${formatStatValue(row.goal, row.format)}`;
 }
 
-function cellClass(extra = "") {
-  return `border border-[var(--panel-border)] px-2 py-1.5 text-right text-sm tabular-nums ${extra}`;
+function Pill({ text, style, bold }: { text: string; style?: React.CSSProperties; bold?: boolean }) {
+  return (
+    <span className={`inline-block rounded-md px-1.5 py-0.5 ${bold ? "font-semibold" : "font-medium"}`} style={style}>
+      {text}
+    </span>
+  );
 }
 
 function PeriodTable({ period }: { period: PacingPeriod }) {
   const pct = period.daysTotal ? period.daysElapsed / period.daysTotal : 0;
   return (
-    <div className="min-w-0 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 backdrop-blur-sm">
-      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-        <div className="text-sm font-semibold text-[var(--text-strong)]">
-          {period.key === "month" ? "Month" : "Week"} Pacing · {period.label}
+    <div className="min-w-0 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <div className="text-xs font-medium text-[var(--text-muted)]">{period.key === "month" ? "Month" : "Week"} pacing</div>
+          <div className="text-base font-semibold text-[var(--text-strong)]">{period.label}</div>
         </div>
         <div className="text-xs text-[var(--text-muted)]">
           {period.through
@@ -56,48 +55,47 @@ function PeriodTable({ period }: { period: PacingPeriod }) {
             : `No completed days yet · 0 of ${period.daysTotal} days`}
         </div>
       </div>
-      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-[var(--panel-subtle)]">
-        <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${pct * 100}%` }} />
+      <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-sky-300 to-indigo-400"
+          style={{ width: `${pct * 100}%` }}
+        />
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[440px] border-collapse">
+        <table className="w-full min-w-[420px] border-collapse text-[13px] [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
           <thead>
-            <tr className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-              <th className="px-2 py-1.5 text-left font-semibold">Metric</th>
-              <th className="px-2 py-1.5 text-right font-semibold">Currently At</th>
-              <th className="px-2 py-1.5 text-right font-semibold">Daily Avg</th>
-              <th className="px-2 py-1.5 text-right font-semibold">Pacing For</th>
+            <tr className="text-xs text-[var(--text-muted)]">
+              <th className="px-2 py-2 text-left font-semibold">Metric</th>
+              <th className="px-2 py-2 text-right font-semibold">Currently At</th>
+              <th className="px-2 py-2 text-right font-semibold">Daily Avg</th>
+              <th className="px-2 py-2 text-right font-semibold">Pacing For</th>
             </tr>
           </thead>
           <tbody>
             {period.rows.map((row) => {
-              const base = row.cash ? CASH_STYLE : { color: "var(--text)" };
               const goal = goalText(row);
               return (
-                <tr key={row.key}>
+                <tr key={row.key} className={row.cash ? "bg-orange-400/[0.07]" : ""}>
                   <th
                     className="px-2 py-1.5 text-left align-middle"
-                    style={row.cash ? { boxShadow: "inset 4px 0 0 rgb(249, 115, 22)" } : undefined}
+                    style={row.cash ? { boxShadow: "inset 3px 0 0 rgb(251, 146, 60)" } : undefined}
                   >
-                    <span className="text-sm font-medium leading-tight text-[var(--text-strong)]">
-                      {row.label}
-                    </span>
-                    {goal ? (
-                      <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">{goal}</span>
-                    ) : null}
+                    <span className="font-medium leading-tight text-[var(--text-strong)]">{row.label}</span>
+                    {goal ? <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">{goal}</span> : null}
                   </th>
-                  <td className={cellClass("font-semibold")} style={CURRENT_STYLE}>
-                    {formatStatValue(row.toDate, row.format)}
+                  <td className="px-2 py-1.5 text-right tabular-nums">
+                    <Pill text={formatStatValue(row.toDate, row.format)} style={CURRENT_STYLE} bold />
                   </td>
-                  <td className={cellClass()} style={base}>
+                  <td className="px-2 py-1.5 text-right tabular-nums text-[var(--text)]">
                     {row.kind === "rate" ? "—" : formatStatValue(row.dailyAvg, row.format)}
                   </td>
-                  <td
-                    className={cellClass("font-semibold")}
-                    style={row.status ? STATUS_STYLE[row.status] : base}
-                  >
-                    {formatStatValue(row.projected, row.format)}
+                  <td className="px-2 py-1.5 text-right tabular-nums">
+                    {row.status ? (
+                      <Pill text={formatStatValue(row.projected, row.format)} style={STATUS_STYLE[row.status]} bold />
+                    ) : (
+                      <span className="font-semibold text-white">{formatStatValue(row.projected, row.format)}</span>
+                    )}
                   </td>
                 </tr>
               );
@@ -128,7 +126,7 @@ export function PacingSection({ apiPath }: { apiPath: string }) {
       ))}
       <p className="text-xs text-[var(--text-muted)] xl:col-span-2">
         Pacing For = daily average of completed days × days in the period. Today never counts, and
-        yesterday waits until its Marketing Daily Metrics form is in. ROAS, CPL and CPA pace at
+        yesterday waits until its Marketing Daily Metrics form is in. Rates (ROAS, cost per lead) pace at
         their to-date value.
       </p>
     </div>

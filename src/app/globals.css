@@ -166,6 +166,7 @@
     radial-gradient(700px 700px at 50% 120%, rgba(147, 51, 234, 0.18), transparent 60%),
     linear-gradient(180deg, #07030d 0%, #170b2e 55%, #241041 100%);
   --panel-bg: rgba(43, 21, 71, 0.62);
+  --panel-solid: #24123d;
   --panel-subtle: rgba(196, 130, 255, 0.09);
   --panel-border: rgba(196, 130, 255, 0.24);
   --text-strong: #ffffff;
