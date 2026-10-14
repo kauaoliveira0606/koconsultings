@@ -21,9 +21,18 @@ export type KbItem = {
   copy?: string;
   /** Something the team still needs to confirm or watch out for. */
   note?: string;
+  /** Small highlighted label on the card, e.g. "Top package". */
+  badge?: string;
 };
 
-export type KbGroup = { title: string; description?: string; items: KbItem[] };
+/**
+ * How a group's items are laid out: "cards" (default grid), "stack" (full
+ * width), "pricing" (package columns), "rows" (link list with Copy),
+ * "gallery" (screenshot wins), "quotes" (testimonial quotes).
+ */
+export type KbLayout = "cards" | "stack" | "pricing" | "rows" | "gallery" | "quotes";
+
+export type KbGroup = { title: string; description?: string; layout?: KbLayout; items: KbItem[] };
 
 export type KbSectionId = "offers" | "content" | "wins" | "disclaimers";
 
