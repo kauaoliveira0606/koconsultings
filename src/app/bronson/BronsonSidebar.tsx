@@ -9,13 +9,13 @@ const NAV_ITEMS = [
   { href: "/bronson/scorecard", label: "Scorecard" },
   { href: "/bronson/cash-calendar", label: "Cash Calendar" },
   { href: "/bronson/sales-team", label: "Sales Team" },
+  { href: "/bronson/knowledge-base", label: "Knowledge Base" },
   { href: "/bronson/live-calls", label: "Live Calls" },
   { href: "/bronson/payment-plans", label: "Payment Plans" },
   { href: "/bronson/upsell-potential", label: "Upsell Potential" },
   { href: "/bronson/models", label: "Models" },
   { href: "/bronson/ads-analysis", label: "Ads Analysis" },
   { href: "/bronson/admin-team", label: "Admin Team" },
-  { href: "/bronson/knowledge-base", label: "Knowledge Base" },
 ];
 
 function Brand() {
