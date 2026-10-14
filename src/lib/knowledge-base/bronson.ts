@@ -319,32 +319,5 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
         },
       ],
     },
-    {
-      title: "Copy-Paste Wording",
-      layout: "stack",
-      items: [
-        {
-          title: "Short income disclaimer",
-          meta: "For DMs, texts and emails that mention results",
-          copy: "Results mentioned are not typical. Individual results will vary based on effort, experience, background, and market conditions. This is an educational program. We make no guarantees of income or business outcomes.",
-        },
-        {
-          title: "Income disclaimer (masterclass)",
-          meta: "Masterclass pages and follow-up",
-          copy: "INCOME DISCLAIMER: Results mentioned are not typical. Individual results will vary based on effort, experience, background, and market conditions. This masterclass is for educational purposes only. We make no guarantees of income or business outcomes.",
-        },
-        {
-          title: "Meta compliance & earnings disclaimer",
-          meta: "Pages and content used with Facebook / Instagram ads",
-          copy: "This website is not endorsed by, affiliated with, or associated with Meta Platforms, Inc. (formerly Facebook, Inc.). Facebook is a trademark of Meta Platforms, Inc. The figures, revenue, and student results shown are not typical and are not a guarantee of earnings. Results vary based on individual effort, experience, background, and market conditions. Building an ecommerce business involves risk, including the loss of ad spend and inventory cost. Past results are not indicative of future results. This is for educational purposes only and does not constitute financial, legal, or tax advice.",
-        },
-        {
-          title: "Earnings disclaimer (Terms of Service, section 5)",
-          meta: "Full legal version",
-          copy: "Our information products, courses, webinars, and services are educational in nature and do not guarantee any specific results, income, or financial outcomes. Your results depend on many factors including your prior knowledge and experience, the time and effort you invest, your implementation of strategies and tactics, market conditions and external factors, and your individual circumstances and capabilities. Any case studies, testimonials, or examples of results are not typical and do not represent average results. Past performance does not guarantee future results. Individual results vary widely.",
-          links: [{ href: `${SITE}/terms`, label: "Terms of Service" }],
-        },
-      ],
-    },
   ],
 });
