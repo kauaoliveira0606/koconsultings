@@ -66,9 +66,9 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
           meta: "6 month access",
           badge: "Top package",
           bullets: [
-            "Bonus: 1:1 onboarding call (Getting inside program, giving personalized gameplan)",
-            "Bonus: 14 day launch execution plan (Broken down into daily step-by-steps of exactly what to do, what to watch, and where to go)",
-            "Bonus: Scaling roadmap (90 days)",
+            "1:1 onboarding call (Getting inside program, giving personalized gameplan)",
+            "14 day launch execution plan (Broken down into daily step-by-steps of exactly what to do, what to watch, and where to go)",
+            "Scaling roadmap (90 days)",
             "AI Bronson",
             "3 Coaching calls a week with Bronson (weekly breakdown of his own brand, Q&A, and brand breakdowns)",
             "Monthly brand audit looms (your store, ads, funnels, offer, etc)",

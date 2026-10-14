@@ -285,25 +285,14 @@ function QuoteCard({ item }: { item: KbItem }) {
 function CheckList({ items }: { items: string[] }) {
   return (
     <ul className="flex flex-col gap-2.5">
-      {items.map((raw, i) => {
-        const bonus = raw.startsWith("Bonus:");
-        const text = bonus ? raw.slice("Bonus:".length).trim() : raw;
-        return (
-          <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-[var(--text)]">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-0.5 shrink-0 text-emerald-300">
-              <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>
-              {bonus ? (
-                <span className="mr-1.5 rounded bg-amber-300/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-200">
-                  Bonus
-                </span>
-              ) : null}
-              {text}
-            </span>
-          </li>
-        );
-      })}
+      {items.map((text, i) => (
+        <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-[var(--text)]">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-0.5 shrink-0 text-emerald-300">
+            <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>{text}</span>
+        </li>
+      ))}
     </ul>
   );
 }
