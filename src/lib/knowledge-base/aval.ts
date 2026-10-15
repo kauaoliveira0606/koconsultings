@@ -16,6 +16,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
           title: "$5.5K",
           meta: "6 months + $500 a month after 6 months to keep access",
           badge: "Guarantee",
+          text: ["Guarantee: get a payout in less than 180 days or you don't pay."],
           bullets: [
             "5 live trading classes a week",
             "2 psychology a week",
