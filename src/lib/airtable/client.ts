@@ -190,6 +190,19 @@ export async function airtableListAll<TFields = Record<string, unknown>>(
 }
 
 /**
+ * Same as airtableListAll but never cached: for checks that must see rows
+ * filed minutes ago (the 9 AM missing EOD / Post Call Note check).
+ */
+export async function airtableListFresh<TFields = Record<string, unknown>>(
+  baseId: string,
+  tableId: string,
+  params: ListParams = {}
+): Promise<AirtableRecord<TFields>[]> {
+  const records = await walkAllPagesWithRetry(baseId, tableId, params, 0);
+  return records as AirtableRecord<TFields>[];
+}
+
+/**
  * How long a partition of a big table is kept before it is read again, and
  * how far back the "recently changed" read looks. The second MUST be longer
  * than the first, so any row changed since a partition was last read is

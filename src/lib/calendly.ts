@@ -5,6 +5,8 @@
  * every request, so it's as current as the calendar itself.
  */
 
+import { toEasternDateOnly } from "@/lib/date-range";
+
 const CALENDLY_API = "https://api.calendly.com";
 
 export type LiveCallStatus = "scheduled" | "live" | "canceled" | "rescheduled";
@@ -177,4 +179,53 @@ export async function getLiveCalls({
   );
 
   return { calls, hiddenEventNames, fetchedAt: now.toISOString() };
+}
+
+export type CalendlyCall = {
+  eventName: string;
+  start: string;
+  host: string | null;
+  inviteeName: string | null;
+  inviteeEmail: string | null;
+};
+
+/**
+ * Sales calls that started on one Eastern date and weren't canceled or
+ * rescheduled away: the calls that actually happened (or were no-shows).
+ */
+export async function getCallsOnDate({
+  pat,
+  organization,
+  isSalesCall,
+  date,
+}: {
+  pat: string;
+  organization: string;
+  isSalesCall: (eventName: string) => boolean;
+  /** YYYY-MM-DD, Eastern. */
+  date: string;
+}): Promise<CalendlyCall[]> {
+  // A window wide enough to cover the Eastern day in UTC, trimmed below.
+  const day = new Date(`${date}T00:00:00Z`).getTime();
+  const min = new Date(day - 6 * 60 * 60 * 1000).toISOString();
+  const max = new Date(day + 30 * 60 * 60 * 1000).toISOString();
+  const events = (await listEvents(pat, organization, min, max)).filter(
+    (e) => e.status === "active" && isSalesCall(e.name) && toEasternDateOnly(e.start_time) === date
+  );
+  return Promise.all(
+    events.map(async (e) => {
+      const { collection: invitees } = await calendlyGet<{ collection: CalendlyInvitee[] }>(
+        pat,
+        `${e.uri}/invitees?count=100`
+      );
+      const invitee = invitees.find((i) => i.status === "active") ?? invitees[0] ?? null;
+      return {
+        eventName: e.name,
+        start: e.start_time,
+        host: e.event_memberships[0]?.user_name ?? null,
+        inviteeName: invitee?.name ?? null,
+        inviteeEmail: invitee?.email ?? null,
+      };
+    })
+  );
 }

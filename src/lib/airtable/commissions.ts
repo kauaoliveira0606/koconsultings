@@ -82,7 +82,8 @@ export const COMMISSIONS_OFFERS = {
     // "Keizer" is how Khizer's link is spelled on the portal; K and R can only
     // be Khizer and Rashardo. M / J / S are ambiguous (Moe/Melissa/Mohamad,
     // Jarek/James, Seb/Sahil) so they stay as their own cards until confirmed.
-    sharedIdAliases: { keizer: "Khizer", k: "Khizer", r: "Rashardo", moecopy: "Moe" },
+    // Zoueil's link is spelled "Zouil" (his name is Zoueil, as on Bronson).
+    sharedIdAliases: { keizer: "Khizer", k: "Khizer", r: "Rashardo", moecopy: "Moe", zouil: "Zoueil" },
   },
 } satisfies Record<string, CommissionsOffer>;
 
