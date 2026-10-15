@@ -108,6 +108,10 @@ export type MarketingDailyMetricRow = {
   cpm: number | null;
   costPerLinkClick: number | null;
   linkClickThroughRate: number | null;
+  // Bronson AI ($147/mo subscription), added to Bronson's form 2026-10-15.
+  bronsonAiSales: number | null;
+  bronsonAiCash: number | null;
+  bronsonAiChurned: number | null;
 };
 
 export type EodDialerRow = {
@@ -507,6 +511,9 @@ export function createAirtableTables(
       cpm: parseNumericText(f["CPM's"]),
       costPerLinkClick: parseNumericText(f["Cost per link click"]),
       linkClickThroughRate: parseNumericText(f["LCTR"]),
+      bronsonAiSales: parseNumericText(f["Bronson AI Sales"]),
+      bronsonAiCash: parseNumericText(f["Bronson AI Cash Collected"]),
+      bronsonAiChurned: parseNumericText(f["Bronson AI Churned"]),
     };
   }
 
@@ -787,6 +794,9 @@ export type BronsonEodCloserRow = {
   callsShowed: number | null;
   cashCollectedHighTicket: number | null;
   revenueHighTicket: number | null;
+  // Bronson AI ($147/mo), on Bronson's EOD Closer form only.
+  bronsonAiSales?: number | null;
+  bronsonAiCash?: number | null;
 };
 
 export async function getBronsonEodCloser(): Promise<BronsonEodCloserRow[]> {
@@ -806,6 +816,8 @@ export async function getBronsonEodCloser(): Promise<BronsonEodCloserRow[]> {
       callsShowed: parseNumericText(f["Calls Showed"]),
       cashCollectedHighTicket: parseNumericText(f["Total Cash Collected"]),
       revenueHighTicket: parseNumericText(f["Total Revenue"]),
+      bronsonAiSales: parseNumericText(f["Bronson AI Sales"]),
+      bronsonAiCash: parseNumericText(f["Bronson AI Cash Collected"]),
     };
   });
 }

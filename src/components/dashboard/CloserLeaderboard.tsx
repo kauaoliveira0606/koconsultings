@@ -16,7 +16,7 @@ const DQ_RATE_MAX = 0.2;
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
-function entry(c: CloserStats, goals: GoalsConfig | undefined): LeaderboardEntry {
+function entry(c: CloserStats, goals: GoalsConfig | undefined, bronsonAi = false): LeaderboardEntry {
   const showGoal = goals?.showRate?.min;
   const closeGoal = goals?.highTicketCloseRate?.min;
   return {
@@ -75,6 +75,17 @@ function entry(c: CloserStats, goals: GoalsConfig | undefined): LeaderboardEntry
         title: "Revenue",
         rows: [{ label: "Revenue", value: c.revenue, format: "currency" }],
       },
+      ...(bronsonAi
+        ? [
+            {
+              title: "Bronson AI",
+              rows: [
+                { label: "Sold", value: c.bronsonAiSales, format: "number" as const },
+                { label: "Cash Collected", value: c.bronsonAiCash, format: "currency" as const },
+              ],
+            },
+          ]
+        : []),
       {
         title: "Pay",
         rows: [
@@ -113,8 +124,8 @@ export function CloserLeaderboard({
   const { data } = useSectionData<CloserLeaderboardResponse>(apiPath, range);
   return (
     <LeaderboardCards
-      entries={data?.closers.map((c) => entry(c, goals))}
-      team={data ? entry(data.team, goals) : undefined}
+      entries={data?.closers.map((c) => entry(c, goals, data.bronsonAi))}
+      team={data ? entry(data.team, goals, data.bronsonAi) : undefined}
       emptyText="No closer EOD reports in this range."
       footnote={`High ticket closers, ranked by cash collected (${formatStatValue(data?.team.cash, "currency")} as a team). A 🥇 on a line marks who is #1 on that metric. Counts and cash come from each closer's EOD report. Commission MTD and the closer's own hourly rate are for this calendar month, whatever range is selected.`}
     />

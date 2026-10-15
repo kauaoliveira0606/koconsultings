@@ -47,6 +47,9 @@ export type CloserStats = {
   aov: number | null;
   /** Revenue as the closer logged it (deal size, payment plans included). Never mixed into the cash rows. */
   revenue: number;
+  /** Bronson AI ($147/mo) subscriptions sold and cash from them. Bronson only. */
+  bronsonAiSales: number;
+  bronsonAiCash: number;
   /** High ticket closer commission, this calendar month so far. */
   commissionMtd: number;
   /** Commission this month ÷ calls showed this month: what the closer earns per showed call. */
@@ -59,6 +62,8 @@ export type CloserLeaderboardResponse = {
   /** Ranked by cash collected in the range, best first. */
   closers: CloserStats[];
   team: CloserStats;
+  /** Whether this offer sells Bronson AI (shows its rows). */
+  bronsonAi: boolean;
 };
 
 type Tally = {
@@ -69,8 +74,12 @@ type Tally = {
   won: number;
   cash: number;
   revenue: number;
+  bronsonAiSales: number;
+  bronsonAiCash: number;
 };
-const emptyTally = (): Tally => ({ leads: 0, calls: 0, show: 0, dq: 0, won: 0, cash: 0, revenue: 0 });
+const emptyTally = (): Tally => ({
+  leads: 0, calls: 0, show: 0, dq: 0, won: 0, cash: 0, revenue: 0, bronsonAiSales: 0, bronsonAiCash: 0,
+});
 
 /** "jack andrews", "Jack Andrews " and "JACK ANDREWS" are one closer. */
 const closerKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
@@ -93,6 +102,8 @@ function stats(closer: string, range: Tally, month: Tally, commissionMtd: number
     cashPerLead: safeDivide(range.cash, range.leads || null),
     aov: safeDivide(range.cash, range.won || null),
     revenue: range.revenue,
+    bronsonAiSales: range.bronsonAiSales,
+    bronsonAiCash: range.bronsonAiCash,
     commissionMtd,
     effectiveHourlyRate: safeDivide(commissionMtd, month.show || null),
     companyHourlyRate: safeDivide(range.cash, range.show || null),
@@ -120,6 +131,8 @@ export function closerLeaderboardGet(offer: keyof typeof COMMISSIONS_OFFERS) {
       tally.won += n("Deals Closed");
       tally.cash += n("Total Cash Collected");
       tally.revenue += n("Total Revenue");
+      tally.bronsonAiSales += n("Bronson AI Sales");
+      tally.bronsonAiCash += n("Bronson AI Cash Collected");
     };
     const windows: [keyof NonNullable<ReturnType<typeof tallies.get>>, ResolvedRange][] = [
       ["range", range],
@@ -149,7 +162,7 @@ export function closerLeaderboardGet(offer: keyof typeof COMMISSIONS_OFFERS) {
         stats(names.get(key) ?? key, t.range, t.month, commissionByCloser.get(key) ?? 0)
       )
       // Only closers with something in the range or a commission this month.
-      .filter((c) => c.leads > 0 || c.cash > 0 || c.commissionMtd > 0)
+      .filter((c) => c.leads > 0 || c.cash > 0 || c.commissionMtd > 0 || c.bronsonAiSales > 0)
       .sort((a, b) => b.cash - a.cash || b.won - a.won || a.closer.localeCompare(b.closer));
 
     const total = { range: emptyTally(), month: emptyTally() };
@@ -165,6 +178,6 @@ export function closerLeaderboardGet(offer: keyof typeof COMMISSIONS_OFFERS) {
       closers.reduce((sum, c) => sum + c.commissionMtd, 0)
     );
 
-    return Response.json({ closers, team } satisfies CloserLeaderboardResponse);
+    return Response.json({ closers, team, bronsonAi: offer === "bronson" } satisfies CloserLeaderboardResponse);
   };
 }

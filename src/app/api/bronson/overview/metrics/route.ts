@@ -19,6 +19,9 @@ import { average, safeDivide, sum, vslTotals, formFirstByDay, sumByDate, webinar
 
 export const revalidate = 60;
 
+/** Bronson AI subscription price per month. */
+const BRONSON_AI_MONTHLY_PRICE = 147;
+
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
@@ -199,6 +202,33 @@ export async function GET(request: NextRequest) {
     refundDollars !== null || chargebackDollars !== null
       ? (refundDollars ?? 0) + (chargebackDollars ?? 0)
       : null;
+  // Bronson AI ($147/mo): form first per day, the closers' EOD fills days the
+  // form left blank. Churn only lives on the form. Lost cash is the monthly
+  // billing those cancelled subscribers won't pay from now on.
+  const bronsonAiSales = formFirstByDay(inRangeMarketing, (r) => r.date, (r) => r.bronsonAiSales, [
+    sumByDate(inRangeCloser, (r) => r.date, (r) => r.bronsonAiSales ?? null),
+  ]);
+  const bronsonAiCash = formFirstByDay(inRangeMarketing, (r) => r.date, (r) => r.bronsonAiCash, [
+    sumByDate(inRangeCloser, (r) => r.date, (r) => r.bronsonAiCash ?? null),
+  ]);
+  const bronsonAiChurned = sum(inRangeMarketing.map((r) => r.bronsonAiChurned));
+  const bronsonAiLostMonthly =
+    bronsonAiChurned !== null ? bronsonAiChurned * BRONSON_AI_MONTHLY_PRICE : null;
+  const bronsonAi = {
+    price: BRONSON_AI_MONTHLY_PRICE,
+    sales: bronsonAiSales,
+    cash: bronsonAiCash,
+    churned: bronsonAiChurned,
+    netNew:
+      bronsonAiSales !== null || bronsonAiChurned !== null
+        ? (bronsonAiSales ?? 0) - (bronsonAiChurned ?? 0)
+        : null,
+    churnRate: safeDivide(bronsonAiChurned, bronsonAiSales || null),
+    lostMonthly: bronsonAiLostMonthly,
+    lostYearly: bronsonAiLostMonthly !== null ? bronsonAiLostMonthly * 12 : null,
+    newMonthly: bronsonAiSales !== null ? bronsonAiSales * BRONSON_AI_MONTHLY_PRICE : null,
+  };
+
   const highTicketDealsClosedPaid = sum(inRangeMarketing.map((r) => r.highTicketDealsClosedPaid));
 
   const vsl = vslTotals(inRangeMarketing);
@@ -309,6 +339,7 @@ export async function GET(request: NextRequest) {
       ),
 
     webinar,
+    bronsonAi,
     attributedCashLowTicket,
 
     refundCount,

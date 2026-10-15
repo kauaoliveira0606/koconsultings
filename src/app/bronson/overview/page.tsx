@@ -86,6 +86,17 @@ type MetricsResponse = {
   funnelConversionRateOrganic: number | null;
 
   webinar: WebinarTotals;
+  bronsonAi: {
+    price: number;
+    sales: number | null;
+    cash: number | null;
+    churned: number | null;
+    netNew: number | null;
+    churnRate: number | null;
+    lostMonthly: number | null;
+    lostYearly: number | null;
+    newMonthly: number | null;
+  };
   refundCount: number | null;
   refundDollars: number | null;
   chargebackCount: number | null;
@@ -301,6 +312,60 @@ export default function OverviewPage() {
       </DashboardSection>
 
       <WebinarSection webinar={metrics?.webinar} goals={goals} />
+
+      {/* BRONSON AI: the $147/mo subscription. Sales and cash from the form (closer EOD fills blank days), churn from the form. */}
+      <DashboardSection title="Bronson AI ($147/mo)">
+        <MetricGroups
+          groups={[
+            {
+              title: "Sales",
+              metrics: [
+                { label: "Sold", value: metrics?.bronsonAi?.sales, format: "number", subtext: "New subscriptions." },
+                { label: "Cash Collected", value: metrics?.bronsonAi?.cash, format: "currency" },
+                {
+                  label: "New Monthly Billing",
+                  value: metrics?.bronsonAi?.newMonthly,
+                  format: "currency",
+                  subtext: "Sold × $147: what the new subscribers add each month.",
+                },
+              ],
+            },
+            {
+              title: "Churn",
+              metrics: [
+                { label: "Churned", value: metrics?.bronsonAi?.churned, format: "number", subtext: "Subscribers who cancelled." },
+                {
+                  label: "Lost Monthly Billing",
+                  value: metrics?.bronsonAi?.lostMonthly,
+                  format: "currency",
+                  subtext: "Churned × $147: what we stop collecting every month.",
+                },
+                {
+                  label: "Lost Over 12 Months",
+                  value: metrics?.bronsonAi?.lostYearly,
+                  format: "currency",
+                  subtext: "Lost monthly billing × 12.",
+                },
+                {
+                  label: "Net New Subscribers",
+                  value: metrics?.bronsonAi?.netNew,
+                  format: "number",
+                  subtext: "Sold − churned.",
+                },
+                {
+                  label: "Churn vs Sold",
+                  value: metrics?.bronsonAi?.churnRate,
+                  format: "percent",
+                  subtext: "Churned ÷ sold in this range.",
+                },
+              ],
+            },
+          ]}
+        />
+        <p className="mt-3 text-sm text-[var(--text-muted)]">
+          Sold and cash from the Marketing Daily Metrics form; the closers&apos; EOD fills days the form left blank. Churn from the form. Not counted in Total Cash Collected, ROAS or the splits yet.
+        </p>
+      </DashboardSection>
 
       {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. Kept right under the keystones. */}
       <DashboardSection title="Unit Economics">
