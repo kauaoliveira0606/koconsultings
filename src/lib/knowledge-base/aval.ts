@@ -44,6 +44,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
           badge: "Guarantee",
           text: ["Guarantee: get a payout in less than 180 days or you don't pay."],
           bullets: [
+            "Onboarding call",
             "5 live trading classes a week",
             "2 psychology a week",
             "3 coaching a week",
