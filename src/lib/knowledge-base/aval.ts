@@ -138,6 +138,48 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
       ],
     },
     {
+      title: "Deposits",
+      description: "Whop checkouts for deposits. Copy the right amount and send it.",
+      layout: "rows",
+      items: [
+        {
+          title: "$50 deposit",
+          links: [{ href: "https://whop.com/checkout/plan_2a8WWbXDHRXMn", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_2a8WWbXDHRXMn",
+        },
+        {
+          title: "$100 deposit",
+          links: [{ href: "https://whop.com/checkout/plan_1KpOE299fYjwD", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_1KpOE299fYjwD",
+        },
+        {
+          title: "$200 deposit",
+          links: [{ href: "https://whop.com/checkout/plan_TBbi5OHOusSsr", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_TBbi5OHOusSsr",
+        },
+        {
+          title: "$300 deposit",
+          links: [{ href: "https://whop.com/checkout/plan_uxjlnBRr1Iiv7", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_uxjlnBRr1Iiv7",
+        },
+        {
+          title: "$500 deposit",
+          links: [{ href: "https://whop.com/checkout/plan_uI3EiC43sdA14", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_uI3EiC43sdA14",
+        },
+        {
+          title: "$750 deposit",
+          links: [{ href: "https://whop.com/checkout/plan_9yPlqMrKkUhdu", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_9yPlqMrKkUhdu",
+        },
+        {
+          title: "$1,000 deposit",
+          links: [{ href: "https://whop.com/checkout/plan_W2zJxtXrMxCH4", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_W2zJxtXrMxCH4",
+        },
+      ],
+    },
+    {
       title: "$15K Upsell",
       layout: "stack",
       items: [
