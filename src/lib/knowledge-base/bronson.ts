@@ -105,6 +105,22 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
       ],
     },
     {
+      title: "Bronson AI",
+      description: "Monthly access to Bronson AI, billed $147/month recurring.",
+      layout: "pricing",
+      items: [
+        {
+          title: "$147/mo",
+          meta: "Monthly recurring access",
+          text: ["Welcome bonus:"],
+          bullets: [
+            "The winning subscription product cheat sheet",
+            "The plug-and-play store template",
+          ],
+        },
+      ],
+    },
+    {
       title: "Also Inside The Program",
       layout: "stack",
       items: [
