@@ -59,6 +59,9 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
         {
           title: "$3.5K",
           meta: "6 months + $500 a month after 6 months to keep access",
+          text: [
+            "Guarantee: get a payout in less than 180 days or you don't pay. Don't throw it around; only bring it up if it's the last thing needed to make the sale.",
+          ],
           bullets: [
             "5 live trading classes a week",
             "Private support chat",
@@ -120,16 +123,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Done-for-you prop firm connections",
           ],
           checkouts: [{ title: "$15K checkout", href: "https://whop.com/checkout/plan_3z7etzwEAX14c" }],
-        },
-      ],
-    },
-    {
-      title: "Guarantee",
-      items: [
-        {
-          title: "Guarantee",
-          meta: "Only for the $5.5K package",
-          copy: "Get a payout in less than 180 days or you don't pay.",
         },
       ],
     },
