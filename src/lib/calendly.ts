@@ -204,15 +204,25 @@ export async function getCallsOnDate({
   isSalesCall: (eventName: string) => boolean;
   /** YYYY-MM-DD, Eastern. */
   date: string;
-}): Promise<CalendlyCall[]> {
+}): Promise<{ calls: CalendlyCall[]; skipped: { name: string; status: string; count: number }[] }> {
   // A window wide enough to cover the Eastern day in UTC, trimmed below.
   const day = new Date(`${date}T00:00:00Z`).getTime();
   const min = new Date(day - 6 * 60 * 60 * 1000).toISOString();
   const max = new Date(day + 30 * 60 * 60 * 1000).toISOString();
-  const events = (await listEvents(pat, organization, min, max)).filter(
-    (e) => e.status === "active" && isSalesCall(e.name) && toEasternDateOnly(e.start_time) === date
+  const onDate = (await listEvents(pat, organization, min, max)).filter(
+    (e) => toEasternDateOnly(e.start_time) === date
   );
-  return Promise.all(
+  const events = onDate.filter((e) => e.status === "active" && isSalesCall(e.name));
+  // Everything else on the calendar that day, so a missed event type is visible.
+  const skippedCounts = new Map<string, { name: string; status: string; count: number }>();
+  for (const e of onDate) {
+    if (events.includes(e)) continue;
+    const key = `${e.name}|${e.status}`;
+    const row = skippedCounts.get(key) ?? { name: e.name, status: e.status, count: 0 };
+    row.count++;
+    skippedCounts.set(key, row);
+  }
+  const calls = await Promise.all(
     events.map(async (e) => {
       const { collection: invitees } = await calendlyGet<{ collection: CalendlyInvitee[] }>(
         pat,
@@ -228,4 +238,5 @@ export async function getCallsOnDate({
       };
     })
   );
+  return { calls, skipped: [...skippedCounts.values()] };
 }

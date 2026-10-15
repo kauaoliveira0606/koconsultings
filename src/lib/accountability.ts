@@ -43,6 +43,8 @@ export type AccountabilityReport = {
   roster: { closers: number; setters: number };
   callsChecked: number;
   missingPcn: MissingNote[];
+  /** Calendar events that day that weren't checked (canceled, rescheduled, not a sales call). */
+  skippedEvents: { name: string; status: string; count: number }[];
   /** Set when Calendly couldn't be read; the EOD part still runs. */
   pcnError: string | null;
 };
@@ -87,9 +89,10 @@ export async function getAccountabilityReport(offer: CalendlyOffer, date: string
 
   let callsChecked = 0;
   let missingPcn: MissingNote[] = [];
+  let skippedEvents: AccountabilityReport["skippedEvents"] = [];
   let pcnError: string | null = null;
   try {
-    const [calls, notes] = await Promise.all([
+    const [{ calls, skipped }, notes] = await Promise.all([
       calendlyFor(offer).then((c) => getCallsOnDate({ ...c, date })),
       // A note for this call can't be dated before the day before it.
       airtableListFresh<Record<string, unknown>>(cfg.baseId, POST_CALL_NOTE_TABLE_ID, {
@@ -104,6 +107,7 @@ export async function getAccountabilityReport(offer: CalendlyOffer, date: string
         .map(norm)
     );
     callsChecked = calls.length;
+    skippedEvents = skipped;
     missingPcn = calls
       .filter((c) => !c.inviteeEmail || !noted.has(norm(c.inviteeEmail)))
       .map((c) => ({
@@ -117,7 +121,7 @@ export async function getAccountabilityReport(offer: CalendlyOffer, date: string
     pcnError = err instanceof Error ? err.message : String(err);
   }
 
-  return { date, missingEod, roster: counts, callsChecked, missingPcn, pcnError };
+  return { date, missingEod, roster: counts, callsChecked, missingPcn, skippedEvents, pcnError };
 }
 
 const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
