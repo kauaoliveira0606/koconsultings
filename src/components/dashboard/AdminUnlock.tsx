@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-/** Password prompt shown in place of the Admin Team tab until it's unlocked. */
+/** Password prompt shown in place of a locked tab (Admin Team, Scorecard) until it's unlocked. */
 export function AdminUnlock({ fallback }: { fallback: string }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,7 +28,7 @@ export function AdminUnlock({ fallback }: { fallback: string }) {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-[var(--text-strong)]">Admin Team</h1>
+      <h1 className="mb-6 text-2xl font-bold text-[var(--text-strong)]">Password Required</h1>
       <form
         onSubmit={submit}
         className="flex max-w-sm flex-col gap-3 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-subtle)] p-6"

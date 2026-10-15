@@ -1,5 +1,6 @@
 /**
- * Password gate for the Admin Team tab (commissions, payouts, data check).
+ * Password gate for the Admin Team tab (commissions, payouts, data check)
+ * and the Scorecard tab.
  * The proxy checks this cookie on the Admin Team pages and their APIs.
  */
 

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ADMIN_COOKIE, adminToken } from "@/lib/admin-gate";
 
-/** Keeps the Admin Team tab and its data behind the admin password. */
+/** Keeps the Admin Team and Scorecard tabs and their data behind the admin password. */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (pathname.endsWith("/admin-team/unlock")) return NextResponse.next();
@@ -25,5 +25,13 @@ export const config = {
     "/api/bronson/admin-team/:path*",
     "/api/aval/commissions/:path*",
     "/api/bronson/commissions/:path*",
+    "/aval/scorecard/:path*",
+    "/bronson/scorecard/:path*",
+    "/api/aval/overview/weekly-scorecard/:path*",
+    "/api/bronson/overview/weekly-scorecard/:path*",
+    "/api/aval/overview/pacing/:path*",
+    "/api/bronson/overview/pacing/:path*",
+    "/api/aval/overview/recent-changes/:path*",
+    "/api/bronson/overview/recent-changes/:path*",
   ],
 };
