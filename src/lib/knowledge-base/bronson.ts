@@ -117,6 +117,9 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
             "The winning subscription product cheat sheet",
             "The plug-and-play store template",
           ],
+          checkouts: [
+            { title: "Bronson AI checkout (Whop)", href: "https://whop.com/the-inner-table/bronson-ai/" },
+          ],
         },
       ],
     },

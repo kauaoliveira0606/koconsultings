@@ -44,6 +44,8 @@ export type Payouts = {
   offer: PayoutsOffer;
   cashAffiliate: number;
   cashVip: number;
+  /** Bronson AI subscriptions. Always 0 on Aval. */
+  cashAi: number;
   cashHighTicket: number;
   totalCash: number;
   adSpend: number;
@@ -104,6 +106,7 @@ export async function getPayouts(offer: PayoutsOffer, range: ResolvedRange): Pro
   const sumOf = (pick: (r: DailyOfferRow) => number) => rows.reduce((t, r) => t + pick(r), 0);
   const cashAffiliate = sumOf((r) => r.ltCashPaid + r.ltCashOrganic);
   const cashVip = sumOf((r) => (r.vipCashPaid ?? 0) + (r.vipCashOrganic ?? 0));
+  const cashAi = sumOf((r) => (r.aiCashPaid ?? 0) + (r.aiCashOrganic ?? 0));
   const cashHighTicket = sumOf((r) => r.htCashPaid + r.htCashOrganic);
   const adSpend = sumAdSpend(rows);
   const payout = sumSalesTeamPayout(rows);
@@ -119,8 +122,9 @@ export async function getPayouts(offer: PayoutsOffer, range: ResolvedRange): Pro
     offer,
     cashAffiliate,
     cashVip,
+    cashAi,
     cashHighTicket,
-    totalCash: cashAffiliate + cashVip + cashHighTicket,
+    totalCash: cashAffiliate + cashVip + cashAi + cashHighTicket,
     adSpend,
     salesTeamPayout: payout.paid + payout.organic,
     fees: fees.paid + fees.organic,

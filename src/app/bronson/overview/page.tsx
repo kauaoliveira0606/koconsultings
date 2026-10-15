@@ -89,7 +89,11 @@ type MetricsResponse = {
   bronsonAi: {
     price: number;
     sales: number | null;
+    salesPaid: number | null;
+    salesOrganic: number | null;
     cash: number | null;
+    cashPaid: number | null;
+    cashOrganic: number | null;
     churned: number | null;
     netNew: number | null;
     churnRate: number | null;
@@ -180,11 +184,12 @@ export default function OverviewPage() {
   const { data: goals } = useSectionData<GoalsConfig>("/api/bronson/goals", range);
 
   const adsActive = metrics?.adsActive ?? false;
-  // Paid ROAS counts ALL paid cash: affiliate, high ticket and webinar VIP, as split on the form.
+  // Paid ROAS counts ALL paid cash: affiliate, high ticket, webinar VIP and Bronson AI, as split on the form.
   const paidCash = addCash(
     metrics?.cashCollectedLowTicketPaid,
     metrics?.cashCollectedHighTicketPaid,
-    metrics?.webinar.vipCashPaid
+    metrics?.webinar.vipCashPaid,
+    metrics?.bronsonAi?.cashPaid
   );
   const paidRoas =
     paidCash !== null && metrics?.adSpend ? paidCash / metrics.adSpend : null;
@@ -313,60 +318,6 @@ export default function OverviewPage() {
 
       <WebinarSection webinar={metrics?.webinar} goals={goals} />
 
-      {/* BRONSON AI: the $147/mo subscription. Sales and cash from the form (closer EOD fills blank days), churn from the form. */}
-      <DashboardSection title="Bronson AI ($147/mo)">
-        <MetricGroups
-          groups={[
-            {
-              title: "Sales",
-              metrics: [
-                { label: "Sold", value: metrics?.bronsonAi?.sales, format: "number", subtext: "New subscriptions." },
-                { label: "Cash Collected", value: metrics?.bronsonAi?.cash, format: "currency" },
-                {
-                  label: "New Monthly Billing",
-                  value: metrics?.bronsonAi?.newMonthly,
-                  format: "currency",
-                  subtext: "Sold × $147: what the new subscribers add each month.",
-                },
-              ],
-            },
-            {
-              title: "Churn",
-              metrics: [
-                { label: "Churned", value: metrics?.bronsonAi?.churned, format: "number", subtext: "Subscribers who cancelled." },
-                {
-                  label: "Lost Monthly Billing",
-                  value: metrics?.bronsonAi?.lostMonthly,
-                  format: "currency",
-                  subtext: "Churned × $147: what we stop collecting every month.",
-                },
-                {
-                  label: "Lost Over 12 Months",
-                  value: metrics?.bronsonAi?.lostYearly,
-                  format: "currency",
-                  subtext: "Lost monthly billing × 12.",
-                },
-                {
-                  label: "Net New Subscribers",
-                  value: metrics?.bronsonAi?.netNew,
-                  format: "number",
-                  subtext: "Sold − churned.",
-                },
-                {
-                  label: "Churn vs Sold",
-                  value: metrics?.bronsonAi?.churnRate,
-                  format: "percent",
-                  subtext: "Churned ÷ sold in this range.",
-                },
-              ],
-            },
-          ]}
-        />
-        <p className="mt-3 text-sm text-[var(--text-muted)]">
-          Sold and cash from the Marketing Daily Metrics form; the closers&apos; EOD fills days the form left blank. Churn from the form. Not counted in Total Cash Collected, ROAS or the splits yet.
-        </p>
-      </DashboardSection>
-
       {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. Kept right under the keystones. */}
       <DashboardSection title="Unit Economics">
         <MetricGroups
@@ -452,9 +403,69 @@ export default function OverviewPage() {
           highTicketPaid={metrics?.cashCollectedHighTicketPaid}
           vipOrganic={metrics?.webinar.vipCashOrganic}
           vipPaid={metrics?.webinar.vipCashPaid}
+          aiOrganic={metrics?.bronsonAi?.cashOrganic ?? null}
+          aiPaid={metrics?.bronsonAi?.cashPaid ?? null}
           revenueHighTicket={metrics?.revenueHighTicket}
           adSpend={metrics?.adSpend}
         />
+      </DashboardSection>
+
+      {/* BRONSON AI: the $147/mo subscription, its own product (not part of the webinar). */}
+      <DashboardSection title="Bronson AI ($147/mo)">
+        <MetricGroups
+          groups={[
+            {
+              title: "Sales",
+              metrics: [
+                { label: "Sold", value: metrics?.bronsonAi?.sales, format: "number", subtext: "New subscriptions, paid + organic." },
+                { label: "Sold (Paid)", value: metrics?.bronsonAi?.salesPaid, format: "number" },
+                { label: "Sold (Organic)", value: metrics?.bronsonAi?.salesOrganic, format: "number" },
+                { label: "Cash Collected", value: metrics?.bronsonAi?.cash, format: "currency", subtext: "Paid + organic." },
+                { label: "Cash Collected (Paid)", value: metrics?.bronsonAi?.cashPaid, format: "currency" },
+                { label: "Cash Collected (Organic)", value: metrics?.bronsonAi?.cashOrganic, format: "currency" },
+                {
+                  label: "New Monthly Billing",
+                  value: metrics?.bronsonAi?.newMonthly,
+                  format: "currency",
+                  subtext: "Sold × $147: what the new subscribers add each month.",
+                },
+              ],
+            },
+            {
+              title: "Churn",
+              metrics: [
+                { label: "Churned", value: metrics?.bronsonAi?.churned, format: "number", subtext: "Subscribers who cancelled." },
+                {
+                  label: "Lost Monthly Billing",
+                  value: metrics?.bronsonAi?.lostMonthly,
+                  format: "currency",
+                  subtext: "Churned × $147: what we stop collecting every month.",
+                },
+                {
+                  label: "Lost Over 12 Months",
+                  value: metrics?.bronsonAi?.lostYearly,
+                  format: "currency",
+                  subtext: "Lost monthly billing × 12.",
+                },
+                {
+                  label: "Net New Subscribers",
+                  value: metrics?.bronsonAi?.netNew,
+                  format: "number",
+                  subtext: "Sold − churned.",
+                },
+                {
+                  label: "Churn vs Sold",
+                  value: metrics?.bronsonAi?.churnRate,
+                  format: "percent",
+                  subtext: "Churned ÷ sold in this range.",
+                },
+              ],
+            },
+          ]}
+        />
+        <p className="mt-3 text-sm text-[var(--text-muted)]">
+          From the Marketing Daily Metrics form (the closers&apos; EOD fills the Sold count on days the form left blank). Bronson AI cash counts in Total Cash Collected, ROAS, Net Cash and the paid / organic splits, with 2.5% processing and no sales commission.
+        </p>
       </DashboardSection>
 
       {/* TIER 3 — ACQUISITION & LEAD FLOW */}

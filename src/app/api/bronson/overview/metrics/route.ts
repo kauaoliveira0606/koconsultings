@@ -69,9 +69,14 @@ export async function GET(request: NextRequest) {
   // Webinar VIP purchases count as cash, split paid / organic like affiliate
   // cash. No sales commission comes off them; 2.5% processing does.
   const webinar = webinarTotals(inRangeMarketing);
+  // Bronson AI ($147/mo) cash, split paid / organic on the form. Counts like
+  // VIP: in every total, ROAS and split, 2.5% processing, no commission, never financed.
+  const aiCashPaid = sum(inRangeMarketing.map((r) => r.bronsonAiCashPaid));
+  const aiCashOrganic = sum(inRangeMarketing.map((r) => r.bronsonAiCashOrganic));
+  const aiCash = sum(inRangeMarketing.map((r) => r.bronsonAiCash));
   const totalCashCollected =
-    cashLowTicket !== null || cashHighTicket !== null || webinar.vipCash !== null
-      ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0) + (webinar.vipCash ?? 0)
+    cashLowTicket !== null || cashHighTicket !== null || webinar.vipCash !== null || aiCash !== null
+      ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0) + (webinar.vipCash ?? 0) + (aiCash ?? 0)
       : null;
   // Real paid-lead count from the Leads table, not the manually-typed form field.
   const optInsPaid = inRangeLeads.filter((l) => isPaidSource(l.source)).length || null;
@@ -134,18 +139,25 @@ export async function GET(request: NextRequest) {
   const fees = dealFees({
     cashHighTicket,
     cashHighTicketPaid: cashHighTicketPaidForm,
-    vipCash: webinar.vipCash,
-    vipCashPaid: webinar.vipCashPaid,
+    // VIP and Bronson AI share the same 2.5% processing and are never financed.
+    vipCash: (webinar.vipCash ?? 0) + (aiCash ?? 0),
+    vipCashPaid: (webinar.vipCashPaid ?? 0) + (aiCashPaid ?? 0),
     financedCash: await getFinancedHighTicketCash(PAYMENT_PLAN_OFFERS.bronson.baseId, range),
   }, DEAL_FEE_RATES.bronson);
   const netCash =
     totalCashCollected !== null
       ? totalCashCollected - (adSpend ?? 0) - totalCommissions - fees.totalFees
       : null;
-  // Front-End ROAS: paid cash (low ticket + high ticket + VIP) after its fees, per ad dollar.
+  // Front-End ROAS: paid cash (low ticket + high ticket + VIP + Bronson AI) after its fees, per ad dollar.
   const paidCash =
-    cashLowTicketPaid !== null || cashHighTicketPaidForm !== null || webinar.vipCashPaid !== null
-      ? (cashLowTicketPaid ?? 0) + (cashHighTicketPaidForm ?? 0) + (webinar.vipCashPaid ?? 0)
+    cashLowTicketPaid !== null ||
+    cashHighTicketPaidForm !== null ||
+    webinar.vipCashPaid !== null ||
+    aiCashPaid !== null
+      ? (cashLowTicketPaid ?? 0) +
+        (cashHighTicketPaidForm ?? 0) +
+        (webinar.vipCashPaid ?? 0) +
+        (aiCashPaid ?? 0)
       : null;
   const frontEndRoas =
     adsActive && paidCash !== null ? safeDivide(paidCash - fees.paidFees, adSpend) : null;
@@ -202,14 +214,12 @@ export async function GET(request: NextRequest) {
     refundDollars !== null || chargebackDollars !== null
       ? (refundDollars ?? 0) + (chargebackDollars ?? 0)
       : null;
-  // Bronson AI ($147/mo): form first per day, the closers' EOD fills days the
-  // form left blank. Churn only lives on the form. Lost cash is the monthly
-  // billing those cancelled subscribers won't pay from now on.
+  // Bronson AI ($147/mo): sold is form first per day with the closers' EOD
+  // filling blank days (like high ticket deals closed); cash is the form only,
+  // same as every other cash figure. Churn only lives on the form. Lost billing
+  // is what those cancelled subscribers won't pay from now on.
   const bronsonAiSales = formFirstByDay(inRangeMarketing, (r) => r.date, (r) => r.bronsonAiSales, [
     sumByDate(inRangeCloser, (r) => r.date, (r) => r.bronsonAiSales ?? null),
-  ]);
-  const bronsonAiCash = formFirstByDay(inRangeMarketing, (r) => r.date, (r) => r.bronsonAiCash, [
-    sumByDate(inRangeCloser, (r) => r.date, (r) => r.bronsonAiCash ?? null),
   ]);
   const bronsonAiChurned = sum(inRangeMarketing.map((r) => r.bronsonAiChurned));
   const bronsonAiLostMonthly =
@@ -217,7 +227,11 @@ export async function GET(request: NextRequest) {
   const bronsonAi = {
     price: BRONSON_AI_MONTHLY_PRICE,
     sales: bronsonAiSales,
-    cash: bronsonAiCash,
+    salesPaid: sum(inRangeMarketing.map((r) => r.bronsonAiSalesPaid)),
+    salesOrganic: sum(inRangeMarketing.map((r) => r.bronsonAiSalesOrganic)),
+    cash: aiCash,
+    cashPaid: aiCashPaid,
+    cashOrganic: aiCashOrganic,
     churned: bronsonAiChurned,
     netNew:
       bronsonAiSales !== null || bronsonAiChurned !== null

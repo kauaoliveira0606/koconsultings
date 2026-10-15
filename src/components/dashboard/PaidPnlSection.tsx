@@ -59,7 +59,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.cash}
-            subtext={`True cash: affiliate ${money(data?.paidCashLowTicket)} attributed (${money(data?.loggedLowTicketPaid)} logged) + high ticket ${money(data?.paidCashHighTicket)} + VIP ${money(data?.paidCashVip)}.`}
+            subtext={`True cash: affiliate ${money(data?.paidCashLowTicket)} attributed (${money(data?.loggedLowTicketPaid)} logged) + high ticket ${money(data?.paidCashHighTicket)} + VIP ${money(data?.paidCashVip)} + Bronson AI ${money(data?.paidCashAi)}.`}
           />
           <PnlCard
             label="Sales Team Commission"
@@ -77,7 +77,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Fees"
             value={data?.fees}
-            subtext="2.5% processing on high ticket and VIP, plus 15% on financed high ticket deals. From October 2026."
+            subtext="2.5% processing on high ticket, VIP and Bronson AI, plus 15% on financed high ticket deals. From October 2026."
             cost
           />
           <PnlCard
@@ -93,12 +93,12 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.organicCash}
-            subtext="True cash: attributed affiliate + high ticket + VIP."
+            subtext="True cash: attributed affiliate + high ticket + VIP + Bronson AI."
           />
           <PnlCard
             label="Fees"
             value={data?.organicFees}
-            subtext="2.5% processing on high ticket and VIP, plus 15% on financed high ticket deals. The only thing that comes off organic."
+            subtext="2.5% processing on high ticket, VIP and Bronson AI, plus 15% on financed high ticket deals. The only thing that comes off organic."
             cost
           />
           <PnlCard
@@ -113,6 +113,7 @@ export function PaidPnlSection({
           />
           <PnlCard label="High Ticket" value={data?.organicCashHighTicket} />
           <PnlCard label="VIP" value={data?.organicCashVip} subtext="Webinar VIP purchases from organic." />
+          <PnlCard label="Bronson AI" value={data?.organicCashAi} subtext="$147/mo subscriptions from organic." />
           <PnlCard
             label="Affiliate Attribution"
             value={data?.portalLowTicketCash}

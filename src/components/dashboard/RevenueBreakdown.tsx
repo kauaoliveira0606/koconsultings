@@ -10,6 +10,9 @@ export type RevenueBreakdownProps = {
   /** Webinar VIP purchases. */
   vipOrganic: Cash;
   vipPaid: Cash;
+  /** Bronson AI subscriptions. Bronson only; the column hides when left out. */
+  aiOrganic?: Cash;
+  aiPaid?: Cash;
   /** Booked high ticket revenue, payment plans included. Reference only. */
   revenueHighTicket: Cash;
   adSpend: Cash;
@@ -69,14 +72,18 @@ export function RevenueBreakdown({
   highTicketPaid,
   vipOrganic,
   vipPaid,
+  aiOrganic,
+  aiPaid,
   revenueHighTicket,
   adSpend,
 }: RevenueBreakdownProps) {
-  const organic = addCash(lowTicketOrganic, highTicketOrganic, vipOrganic);
-  const paid = addCash(lowTicketPaid, highTicketPaid, vipPaid);
+  const showAi = aiOrganic !== undefined || aiPaid !== undefined;
+  const parts = showAi ? "Affiliate + HT + VIP + AI" : "Affiliate + HT + VIP";
+  const organic = addCash(lowTicketOrganic, highTicketOrganic, vipOrganic, aiOrganic);
+  const paid = addCash(lowTicketPaid, highTicketPaid, vipPaid, aiPaid);
   return (
     <div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className={`grid grid-cols-1 gap-4 ${showAi ? "lg:grid-cols-2 xl:grid-cols-4" : "lg:grid-cols-3"}`}>
         <div className={PANEL}>
           <div className={PANEL_TITLE}>Affiliate</div>
           <div className="flex flex-1 divide-x divide-[var(--panel-border)]">
@@ -109,22 +116,33 @@ export function RevenueBreakdown({
           <Footer rows={[["VIP total", addCash(vipOrganic, vipPaid)]]} />
         </div>
 
-        <div className={`${PANEL} lg:col-span-3`}>
+        {showAi ? (
+          <div className={PANEL}>
+            <div className={PANEL_TITLE}>Bronson AI</div>
+            <div className="flex flex-1 divide-x divide-[var(--panel-border)]">
+              <Cell label="Organic" value={aiOrganic} tone="organic" />
+              <Cell label="Paid" value={aiPaid} tone="paid" />
+            </div>
+            <Footer rows={[["Bronson AI total", addCash(aiOrganic, aiPaid)]]} />
+          </div>
+        ) : null}
+
+        <div className={`${PANEL} ${showAi ? "lg:col-span-2 xl:col-span-4" : "lg:col-span-3"}`}>
           <div className={PANEL_TITLE}>Combined</div>
           <div className="flex-1">
             <Cell label="Total Cash" value={addCash(organic, paid)} />
           </div>
           <Footer
             rows={[
-              ["Organic (Affiliate + HT + VIP)", organic],
-              ["Paid (Affiliate + HT + VIP)", paid],
+              [`Organic (${parts})`, organic],
+              [`Paid (${parts})`, paid],
               ["Ad spend", adSpend],
             ]}
           />
         </div>
       </div>
       <p className="mt-2 text-xs text-[var(--text-muted)]">
-        Cash collected, from the Marketing Daily Metrics form. Paid ROAS = Paid (Affiliate + HT + VIP) ÷ Ad spend.
+        Cash collected, from the Marketing Daily Metrics form. Paid ROAS = Paid ({parts}) ÷ Ad spend.
       </p>
     </div>
   );

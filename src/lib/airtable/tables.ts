@@ -108,9 +108,14 @@ export type MarketingDailyMetricRow = {
   cpm: number | null;
   costPerLinkClick: number | null;
   linkClickThroughRate: number | null;
-  // Bronson AI ($147/mo subscription), added to Bronson's form 2026-10-15.
+  // Bronson AI ($147/mo subscription), added to Bronson's form 2026-10-15,
+  // split Paid / Organic like VIP. Totals are Paid + Organic.
   bronsonAiSales: number | null;
+  bronsonAiSalesPaid: number | null;
+  bronsonAiSalesOrganic: number | null;
   bronsonAiCash: number | null;
+  bronsonAiCashPaid: number | null;
+  bronsonAiCashOrganic: number | null;
   bronsonAiChurned: number | null;
 };
 
@@ -511,8 +516,18 @@ export function createAirtableTables(
       cpm: parseNumericText(f["CPM's"]),
       costPerLinkClick: parseNumericText(f["Cost per link click"]),
       linkClickThroughRate: parseNumericText(f["LCTR"]),
-      bronsonAiSales: parseNumericText(f["Bronson AI Sales"]),
-      bronsonAiCash: parseNumericText(f["Bronson AI Cash Collected"]),
+      bronsonAiSales: addNullable(
+        parseNumericText(f["Bronson AI Sales (Paid)"]),
+        parseNumericText(f["Bronson AI Sales (Organic)"])
+      ),
+      bronsonAiSalesPaid: parseNumericText(f["Bronson AI Sales (Paid)"]),
+      bronsonAiSalesOrganic: parseNumericText(f["Bronson AI Sales (Organic)"]),
+      bronsonAiCash: addNullable(
+        parseNumericText(f["Bronson AI Cash Collected (Paid)"]),
+        parseNumericText(f["Bronson AI Cash Collected (Organic)"])
+      ),
+      bronsonAiCashPaid: parseNumericText(f["Bronson AI Cash Collected (Paid)"]),
+      bronsonAiCashOrganic: parseNumericText(f["Bronson AI Cash Collected (Organic)"]),
       bronsonAiChurned: parseNumericText(f["Bronson AI Churned"]),
     };
   }

@@ -197,9 +197,11 @@ const dCashLT = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicket) : null);
 const dCashHT = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicket) : null);
 const dVipCashPaid = (c: DayCtx) => (c.m ? num(c.m.vipCashPaid) : null);
 const dVipCashOrg = (c: DayCtx) => (c.m ? num(c.m.vipCashOrganic) : null);
-// Total cash: affiliate + high ticket + webinar VIP.
+const dAiCashPaid = (c: DayCtx) => (c.m ? num(c.m.bronsonAiCashPaid) : null);
+const dAiCashOrg = (c: DayCtx) => (c.m ? num(c.m.bronsonAiCashOrganic) : null);
+// Total cash: affiliate + high ticket + webinar VIP + Bronson AI.
 const dTotalCash = (c: DayCtx) => {
-  const parts = [dCashLT(c), dCashHT(c), dVipCashPaid(c), dVipCashOrg(c)];
+  const parts = [dCashLT(c), dCashHT(c), dVipCashPaid(c), dVipCashOrg(c), dAiCashPaid(c), dAiCashOrg(c)];
   if (parts.every((v) => v === null)) return null;
   return parts.reduce((t: number, v) => t + (v ?? 0), 0);
 };
@@ -228,9 +230,9 @@ const dCashLTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketPaid) : 
 const dCashLTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedLowTicketOrganic) : null);
 const dCashHTPaid = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketPaid) : null);
 const dCashHTOrg = (c: DayCtx) => (c.m ? num(c.m.cashCollectedHighTicketOrganic) : null);
-/** All paid cash that day, affiliate + high ticket + webinar VIP: what ROAS is measured on. */
+/** All paid cash that day, affiliate + high ticket + webinar VIP + Bronson AI: what ROAS is measured on. */
 const dCashPaid = (c: DayCtx) => {
-  const parts = [dCashLTPaid(c), dCashHTPaid(c), dVipCashPaid(c)];
+  const parts = [dCashLTPaid(c), dCashHTPaid(c), dVipCashPaid(c), dAiCashPaid(c)];
   return parts.every((v) => v === null) ? null : parts.reduce((t: number, v) => t + (v ?? 0), 0);
 };
 

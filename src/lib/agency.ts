@@ -48,6 +48,9 @@ export type DailyOfferRow = {
   /** Webinar VIP purchases. No sales commission; processing comes off in `withDealFees`. */
   vipCashPaid?: number;
   vipCashOrganic?: number;
+  /** Bronson AI ($147/mo). Same as VIP: no sales commission, 2.5% processing, never financed. */
+  aiCashPaid?: number;
+  aiCashOrganic?: number;
   adSpend: number;
   /** Monthly tool expenses, booked in full on the 1st of their month. Bronson/Andy only. */
   expenses: number;
@@ -67,6 +70,8 @@ type MarketingRowLike = {
   cashCollectedHighTicketOrganic: number | null;
   vipCashPaid?: number | null;
   vipCashOrganic?: number | null;
+  bronsonAiCashPaid?: number | null;
+  bronsonAiCashOrganic?: number | null;
   adSpendMeta: number | null;
 };
 
@@ -108,6 +113,8 @@ export function buildDailyOfferRows(
   );
   const vipPaidByDay = sumByDate(marketing, (r) => r.date, (r) => r.vipCashPaid ?? null);
   const vipOrganicByDay = sumByDate(marketing, (r) => r.date, (r) => r.vipCashOrganic ?? null);
+  const aiPaidByDay = sumByDate(marketing, (r) => r.date, (r) => r.bronsonAiCashPaid ?? null);
+  const aiOrganicByDay = sumByDate(marketing, (r) => r.date, (r) => r.bronsonAiCashOrganic ?? null);
   const adSpendByDay = sumByDate(marketing, (r) => r.date, (r) => r.adSpendMeta);
 
   // Monthly bills land in full on the 1st of their month, so any range that
@@ -128,6 +135,8 @@ export function buildDailyOfferRows(
     ...htOrganicByDay.keys(),
     ...vipPaidByDay.keys(),
     ...vipOrganicByDay.keys(),
+    ...aiPaidByDay.keys(),
+    ...aiOrganicByDay.keys(),
     ...adSpendByDay.keys(),
     ...expensesByDay.keys(),
   ]);
@@ -148,6 +157,8 @@ export function buildDailyOfferRows(
       htCashOrganic: htOrganic,
       vipCashPaid: vipPaidByDay.get(date) ?? 0,
       vipCashOrganic: vipOrganicByDay.get(date) ?? 0,
+      aiCashPaid: aiPaidByDay.get(date) ?? 0,
+      aiCashOrganic: aiOrganicByDay.get(date) ?? 0,
       adSpend: adSpendByDay.get(date) ?? 0,
       expenses: expensesByDay.get(date) ?? 0,
     });
@@ -155,14 +166,14 @@ export function buildDailyOfferRows(
   return rows;
 }
 
-/** Paid cash that day: affiliate + high ticket + webinar VIP. */
+/** Paid cash that day: affiliate + high ticket + webinar VIP + Bronson AI. */
 export function paidCash(r: DailyOfferRow): number {
-  return r.ltCashPaid + r.htCashPaid + (r.vipCashPaid ?? 0);
+  return r.ltCashPaid + r.htCashPaid + (r.vipCashPaid ?? 0) + (r.aiCashPaid ?? 0);
 }
 
-/** Organic cash that day: affiliate + high ticket + webinar VIP. */
+/** Organic cash that day: affiliate + high ticket + webinar VIP + Bronson AI. */
 export function organicCash(r: DailyOfferRow): number {
-  return r.ltCashOrganic + r.htCashOrganic + (r.vipCashOrganic ?? 0);
+  return r.ltCashOrganic + r.htCashOrganic + (r.vipCashOrganic ?? 0) + (r.aiCashOrganic ?? 0);
 }
 
 export function cash(r: DailyOfferRow): number {
@@ -231,8 +242,9 @@ export function withDealFees(
     return {
       ...r,
       fees: {
-        paid: r.htCashPaid * rate + (r.vipCashPaid ?? 0) * VIP_PROCESSING_RATE,
-        organic: r.htCashOrganic * rate + (r.vipCashOrganic ?? 0) * VIP_PROCESSING_RATE,
+        paid: r.htCashPaid * rate + ((r.vipCashPaid ?? 0) + (r.aiCashPaid ?? 0)) * VIP_PROCESSING_RATE,
+        organic:
+          r.htCashOrganic * rate + ((r.vipCashOrganic ?? 0) + (r.aiCashOrganic ?? 0)) * VIP_PROCESSING_RATE,
       },
     };
   });

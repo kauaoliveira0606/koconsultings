@@ -132,11 +132,14 @@ export function PayoutsSection({
             }
           />
           <PayoutCard label="VIP" value={data?.cashVip} subtext="Webinar VIP purchases." />
+          {bronson ? (
+            <PayoutCard label="Bronson AI" value={data?.cashAi} subtext="$147/mo subscriptions." />
+          ) : null}
           <PayoutCard label="High Ticket" value={data?.cashHighTicket} />
           <PayoutCard
             label="Total Cash Collected"
             value={data?.totalCash}
-            subtext="Affiliate + VIP + high ticket."
+            subtext={bronson ? "Affiliate + VIP + Bronson AI + high ticket." : "Affiliate + VIP + high ticket."}
           />
         </div>
       </div>

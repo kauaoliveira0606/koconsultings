@@ -43,6 +43,9 @@ export type PaidPnl = {
   /** Webinar VIP purchases, as logged on the form. */
   paidCashVip: number;
   organicCashVip: number;
+  /** Bronson AI ($147/mo), as logged on the form. */
+  paidCashAi: number;
+  organicCashAi: number;
   /** Low ticket as logged on the Marketing Daily Metrics form, before attribution. */
   loggedLowTicketPaid: number;
   loggedLowTicketOrganic: number;
@@ -103,7 +106,9 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
   const lowTicketAttributionRate = loggedLowTicket > 0 ? portalLowTicketCash / loggedLowTicket : null;
   const paidCashVip = sumOf(rows, (r) => r.vipCashPaid ?? 0);
   const organicCashVip = sumOf(rows, (r) => r.vipCashOrganic ?? 0);
-  const cash = paidCashLowTicket + paidCashHighTicket + paidCashVip;
+  const paidCashAi = sumOf(rows, (r) => r.aiCashPaid ?? 0);
+  const organicCashAi = sumOf(rows, (r) => r.aiCashOrganic ?? 0);
+  const cash = paidCashLowTicket + paidCashHighTicket + paidCashVip + paidCashAi;
   const salesTeamCommission = sumSalesTeamPayout(rows).paid;
   const adSpend = sumOf(rows, (r) => r.adSpend);
   const expensesTotal = sumOf(rows, (r) => r.expenses);
@@ -115,7 +120,7 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
     expenses: expensesTotal,
     fees,
     profit: cash - salesTeamCommission - adSpend - expensesTotal - fees,
-    organicCash: organicCashLowTicket + organicCashHighTicket + organicCashVip,
+    organicCash: organicCashLowTicket + organicCashHighTicket + organicCashVip + organicCashAi,
     organicFees,
     organicCashLowTicket,
     organicCashHighTicket,
@@ -123,6 +128,8 @@ export async function getBronsonPaidPnl(range: ResolvedRange): Promise<PaidPnl> 
     paidCashHighTicket,
     paidCashVip,
     organicCashVip,
+    paidCashAi,
+    organicCashAi,
     loggedLowTicketPaid,
     loggedLowTicketOrganic,
     portalLowTicketCash,
