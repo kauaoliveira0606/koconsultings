@@ -55,6 +55,23 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Personal psychology coach",
             "Done-for-you prop firm connections",
           ],
+          checkouts: [
+            {
+              title: "$5.5K financed",
+              text: "Financed only. This link doesn't include the $500 a month, so send them the $500 a month link below once they finish the plan.",
+              href: "https://whop.com/checkout/plan_IBrM5tY5A2zUG",
+            },
+            {
+              title: "$5.5K paid with a card, then $500 a month",
+              text: "They pay $5.5K with a card. The $500 a month recurring is built into this link and starts once the 6 month program is over.",
+              href: "https://whop.com/checkout/plan_fGciGgxNLZr6L",
+            },
+            {
+              title: "$500 a month",
+              text: "The $500 monthly recurring membership. Send it after a financed buyer finishes the plan.",
+              href: "https://whop.com/checkout/plan_qD7kXE3CdUHYD",
+            },
+          ],
         },
         {
           title: "$3.5K",
