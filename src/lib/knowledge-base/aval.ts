@@ -116,7 +116,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "5 live trading classes a week",
             "Course",
             "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
-            "Personal psychology coach",
           ],
           checkouts: [
             {
