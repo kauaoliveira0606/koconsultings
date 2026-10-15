@@ -304,13 +304,11 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
         {
           title: "When to add a disclaimer",
           bullets: [
-            "Any time you share a student result, a payout or Benicio's own numbers, add the short income disclaimer: results are not typical and trading involves risk of loss.",
             "Never promise a lead they will make a specific amount, or by a specific date.",
             "Share the guarantee only in its exact current wording (see Products & Offers).",
             "Never call it financial advice and never give a lead a trade to take. We don't give signals.",
             "Don't call results typical or average. Every result shown is an individual one.",
             "Never tell a lead they can't lose money. Losing trades are part of trading; what they control is the size of the loss.",
-            "Never coach a lead on what income to put on a financing application.",
           ],
         },
       ],
