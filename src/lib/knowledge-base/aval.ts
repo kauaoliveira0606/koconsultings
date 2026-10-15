@@ -78,6 +78,31 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
       ],
     },
     {
+      title: "$1.5K Checkout Links",
+      description: "Whop checkouts for the $1.5K package. Copy the right one and send it.",
+      layout: "rows",
+      items: [
+        {
+          title: "$1.5K paid in full, then $500 a month",
+          text: ["No financing: they pay $1.5K in full, then $500 a month to keep access."],
+          links: [{ href: "https://whop.com/checkout/plan_sgbED3FSw7vb5", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_sgbED3FSw7vb5",
+        },
+        {
+          title: "$1.5K financed",
+          text: ["If they have to finance the $1.5K."],
+          links: [{ href: "https://whop.com/checkout/plan_VVZv649Y7vQ3V", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_VVZv649Y7vQ3V",
+        },
+        {
+          title: "$500 a month",
+          text: ["The $500 monthly plan."],
+          links: [{ href: "https://whop.com/checkout/plan_qD7kXE3CdUHYD", label: "Open" }],
+          copy: "https://whop.com/checkout/plan_qD7kXE3CdUHYD",
+        },
+      ],
+    },
+    {
       title: "$15K Upsell",
       layout: "stack",
       items: [
