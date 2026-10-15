@@ -84,19 +84,19 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
       items: [
         {
           title: "$1.5K paid in full, then $500 a month",
-          text: ["No financing: they pay $1.5K in full, then $500 a month to keep access."],
+          text: ["No financing: they pay $1.5K in full. The $500 a month is built into this link and starts charging after 90 days, once the full program length is over."],
           links: [{ href: "https://whop.com/checkout/plan_sgbED3FSw7vb5", label: "Open" }],
           copy: "https://whop.com/checkout/plan_sgbED3FSw7vb5",
         },
         {
           title: "$1.5K financed",
-          text: ["If they have to finance the $1.5K."],
+          text: ["If they have to finance the $1.5K. This link doesn't include the $500 a month, so they also need a new recurring membership: send them the $500 a month link below."],
           links: [{ href: "https://whop.com/checkout/plan_VVZv649Y7vQ3V", label: "Open" }],
           copy: "https://whop.com/checkout/plan_VVZv649Y7vQ3V",
         },
         {
           title: "$500 a month",
-          text: ["The $500 monthly plan."],
+          text: ["The $500 monthly recurring membership. Send it to anyone who financed the $1.5K."],
           links: [{ href: "https://whop.com/checkout/plan_qD7kXE3CdUHYD", label: "Open" }],
           copy: "https://whop.com/checkout/plan_qD7kXE3CdUHYD",
         },
