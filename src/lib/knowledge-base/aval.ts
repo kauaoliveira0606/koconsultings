@@ -107,6 +107,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Private support chat with Aval and coach",
             "Private GC with the rest of the group (3 other people right now)",
           ],
+          checkouts: [{ title: "$15K checkout", href: "https://whop.com/checkout/plan_3z7etzwEAX14c" }],
         },
       ],
     },
