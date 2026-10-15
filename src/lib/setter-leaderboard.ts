@@ -34,6 +34,11 @@ export type SetterStats = {
   /** Their set calls that showed ÷ their calls on the calendar. */
   highTicketShowRate: number | null;
   highTicketSetClosed: number;
+  /** Self-booked high ticket calls they were given to reach out to. */
+  selfBookedToReachOut: number;
+  selfBookedConnected: number;
+  /** Self-booked connection rate: self-booked leads connected ÷ self-booked calls to reach out to. */
+  selfBookedConnectionRate: number | null;
   /** Set to close: their sets that closed ÷ their set calls that showed. */
   setToCloseShown: number | null;
   /** Set to close: their sets that closed ÷ the high ticket calls they booked. */
@@ -67,6 +72,8 @@ type Tally = {
   htOnCalendar: number;
   htShowed: number;
   htClosed: number;
+  sbReach: number;
+  sbConnected: number;
   cashLt: number;
   cashHt: number;
 };
@@ -81,6 +88,8 @@ const emptyTally = (): Tally => ({
   htOnCalendar: 0,
   htShowed: 0,
   htClosed: 0,
+  sbReach: 0,
+  sbConnected: 0,
   cashLt: 0,
   cashHt: 0,
 });
@@ -96,6 +105,8 @@ function add(t: Tally, r: BronsonAffiliateEodRow) {
   t.htOnCalendar += r.highTicketCallsOnCalendar ?? 0;
   t.htShowed += r.highTicketCallsShowed ?? 0;
   t.htClosed += r.highTicketSetClosed ?? 0;
+  t.sbReach += r.selfBookedToReachOut ?? 0;
+  t.sbConnected += r.selfBookedConnected ?? 0;
   t.cashLt += r.cashCollectedAffiliate ?? 0;
   t.cashHt += r.cashCollectedHighTicket ?? 0;
 }
@@ -120,6 +131,9 @@ function stats(setter: string, range: Tally, month: Tally, commissionMtd: number
     highTicketShowed: range.htShowed,
     highTicketShowRate: safeDivide(range.htShowed, range.htOnCalendar || null),
     highTicketSetClosed: range.htClosed,
+    selfBookedToReachOut: range.sbReach,
+    selfBookedConnected: range.sbConnected,
+    selfBookedConnectionRate: safeDivide(range.sbConnected, range.sbReach || null),
     setToCloseShown: safeDivide(range.htClosed, range.htShowed || null),
     setToCloseBooked: safeDivide(range.htClosed, range.htBooked || null),
     cash,

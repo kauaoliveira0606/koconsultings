@@ -70,6 +70,12 @@ function entry(s: SetterStats, goals: GoalsConfig | undefined): LeaderboardEntry
             status: kpi(s.highTicketShowRate, showGoal, "atLeast"),
             goal: showGoal ? `≥ ${pct(showGoal)}` : undefined,
           },
+          {
+            label: "Self-Booked Connection Rate",
+            value: s.selfBookedConnectionRate,
+            format: "percent",
+            note: `${s.selfBookedConnected} of ${s.selfBookedToReachOut} self-booked leads connected`,
+          },
           { label: "HT Sets Closed", value: s.highTicketSetClosed, format: "number" },
           {
             label: "Set To Close (Shown)",

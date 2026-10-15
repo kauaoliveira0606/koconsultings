@@ -706,6 +706,10 @@ export type BronsonAffiliateEodRow = {
   cashCollectedAffiliate: number | null;
   cashCollectedHighTicket: number | null;
   totalTalkTimeRaw: string | null;
+  /** Self-booked high ticket calls the setter was given to reach out to. */
+  selfBookedToReachOut?: number | null;
+  /** How many of those self-booked leads the setter had a live conversation with. */
+  selfBookedConnected?: number | null;
 };
 
 export async function getBronsonAffiliateEod(): Promise<BronsonAffiliateEodRow[]> {
@@ -732,6 +736,8 @@ export async function getBronsonAffiliateEod(): Promise<BronsonAffiliateEodRow[]
       cashCollectedAffiliate: parseNumericText(f["Cash collected affiliate"]),
       cashCollectedHighTicket: parseNumericText(f["cash collected high ticket"]),
       totalTalkTimeRaw: (f["total talk time"] as string) ?? null,
+      selfBookedToReachOut: parseNumericText(f["Self-booked calls to reach out to"]),
+      selfBookedConnected: parseNumericText(f["Self-booked leads connected"]),
     };
   });
 }

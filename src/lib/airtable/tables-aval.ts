@@ -84,6 +84,8 @@ export async function getAvalAffiliateEod(): Promise<BronsonAffiliateEodRow[]> {
       cashCollectedAffiliate: parseNumericText(f["Cash collected Affiliate"]),
       cashCollectedHighTicket: parseNumericText(f["Cash collected High Ticket"]),
       totalTalkTimeRaw: (f["Total talk time"] as string) ?? null,
+      selfBookedToReachOut: parseNumericText(f["Self-booked calls to reach out to"]),
+      selfBookedConnected: parseNumericText(f["Self-booked leads connected"]),
     };
   });
 }
