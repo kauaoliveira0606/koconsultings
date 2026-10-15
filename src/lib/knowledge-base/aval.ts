@@ -54,7 +54,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Course",
             "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
-            "Done-for-you prop firm connections",
           ],
           checkouts: [
             {
@@ -87,7 +86,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Course",
             "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
-            "Done-for-you prop firm connections",
           ],
           checkouts: [
             {
@@ -119,7 +117,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Course",
             "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
-            "Done-for-you prop firm connections",
           ],
           checkouts: [
             {
@@ -155,7 +152,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Private GC with the rest of the group (3 other people right now)",
             "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
-            "Done-for-you prop firm connections",
           ],
           checkouts: [{ title: "$15K checkout", href: "https://whop.com/checkout/plan_3z7etzwEAX14c" }],
         },
