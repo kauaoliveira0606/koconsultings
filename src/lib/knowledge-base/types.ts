@@ -6,6 +6,9 @@
 
 export type KbLink = { href: string; label: string };
 
+/** A checkout link shown inside a pricing card, with Open and Copy buttons. */
+export type KbCheckout = { title: string; text?: string; href: string };
+
 export type KbItem = {
   title: string;
   /** Short line under the title: price, date, niche, who it's for. */
@@ -17,6 +20,8 @@ export type KbItem = {
   /** Screenshot of the win; opens full size on click. */
   image?: string;
   links?: KbLink[];
+  /** Checkout links listed at the bottom of a pricing card. */
+  checkouts?: KbCheckout[];
   /** Exact wording to paste into a message; gets a Copy button. */
   copy?: string;
   /** Something the team still needs to confirm or watch out for. */

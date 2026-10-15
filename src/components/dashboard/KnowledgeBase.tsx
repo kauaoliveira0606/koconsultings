@@ -248,8 +248,35 @@ function PricingCard({ item }: { item: KbItem }) {
           {item.meta}
         </div>
       ) : null}
+      {item.text?.map((p, i) => (
+        <p key={i} className="mt-3 text-sm leading-relaxed text-[var(--text)] opacity-90">
+          {p}
+        </p>
+      ))}
       <div className="my-5 h-px bg-[var(--panel-border)]" />
       {item.bullets?.length ? <CheckList items={item.bullets} /> : null}
+      {item.checkouts?.length ? (
+        <div className="mt-5 flex flex-col gap-3 border-t border-[var(--panel-border)] pt-5">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Checkout links</div>
+          {item.checkouts.map((c) => (
+            <div key={c.href} className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-3">
+              <div className="text-sm font-semibold text-[var(--text-strong)]">{c.title}</div>
+              {c.text ? <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">{c.text}</p> : null}
+              <div className="mt-2.5 flex gap-2">
+                <a
+                  href={c.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-300/30 hover:bg-emerald-400/25"
+                >
+                  Open ↗
+                </a>
+                <CopyButton text={c.href} label="Copy link" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
