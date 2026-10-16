@@ -8,7 +8,7 @@ import {
   getAvalLeads,
   getAvalMarketingDailyMetrics,
 } from "@/lib/airtable/tables-aval";
-import { buildWeeklyScorecard } from "@/lib/weekly-scorecard";
+import { AVAL_SCORECARD_LAYOUT, buildWeeklyScorecard } from "@/lib/weekly-scorecard";
 import { getAvalGoals } from "@/lib/goals-aval";
 import { CONNECTION_TRACKING_START } from "../connection-rate/route";
 import { BRANDS, DATA_FLOOR } from "../attribution/route";
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     getAvalAffiliatePortalDaily(),
   ]);
   const payload = await buildWeeklyScorecard(marketing, leads, eod, closer, weekStart, new Date(), goals, {
+    layout: AVAL_SCORECARD_LAYOUT,
     pcn,
     connected,
     connectionTrackingStart: CONNECTION_TRACKING_START,

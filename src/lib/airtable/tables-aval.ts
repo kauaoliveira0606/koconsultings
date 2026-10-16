@@ -20,6 +20,8 @@ export const AVAL_TABLE_IDS: TableIds = {
   speedToLead: "tblgbq8OfbhNhr8sn",
   leaderboard: "",
   vslDailyStats: "tbl5HOgO4cyZVXZWQ",
+  // VSL.mp4 on mindovermarket.com/apply (VTurb player 6ad230e08bfab0b5d0c39b93).
+  htVslDailyStats: "tblZprvCjoUD6Wql7",
   refunds: "tblUYpQ4mEeiFWSIQ",
 };
 

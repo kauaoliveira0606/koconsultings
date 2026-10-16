@@ -13,6 +13,9 @@ export type TableIds = {
   // Analytics Collector straight from VTurb (today included), so VSL numbers
   // never wait on the team's Marketing Daily Metrics form.
   vslDailyStats?: string;
+  // "High Ticket VSL Daily Stats": same shape, for the high ticket VSL
+  // (Aval's /apply page). Written by the same n8n collector.
+  htVslDailyStats?: string;
   // "Refunds": the offer's own refund / chargeback table, one row per day.
   // Replaces the refund columns on the Marketing Daily Metrics form.
   refunds?: string;
@@ -108,6 +111,17 @@ export type MarketingDailyMetricRow = {
   cpm: number | null;
   costPerLinkClick: number | null;
   linkClickThroughRate: number | null;
+  // Live webinar fields, added to Aval's form 2026-10-16.
+  webinarShowRate: number | null;
+  liveAttendees: number | null;
+  liveAttendeesAtPitch: number | null;
+  retentionRateUntilPitch: number | null;
+  webinarBookingRate: number | null;
+  // High ticket VSL (VTurb), from "High Ticket VSL Daily Stats" only.
+  htVslViews: number | null;
+  htVslPlays: number | null;
+  htVslPlayRate: number | null;
+  htVslEngagementRate: number | null;
   // Bronson AI ($147/mo subscription), added to Bronson's form 2026-10-15,
   // split Paid / Organic like VIP. Totals are Paid + Organic.
   bronsonAiSales: number | null;
@@ -223,10 +237,10 @@ export function createAirtableTables(
     }));
   }
 
-  async function getVslDailyStats() {
+  async function getVslDailyStats(tableId: string | undefined) {
     const byDate = new Map<string, VslDay>();
-    if (!tableIds.vslDailyStats) return byDate;
-    const records = await airtableListAll<Record<string, unknown>>(baseId, tableIds.vslDailyStats);
+    if (!tableId) return byDate;
+    const records = await airtableListAll<Record<string, unknown>>(baseId, tableId);
     for (const r of records) {
       const date = parseDateOnly(r.fields.Date);
       if (!date) continue;
@@ -273,14 +287,17 @@ export function createAirtableTables(
    * old refund columns only count on days that table has no row for.
    */
   async function getMarketingDailyMetrics(): Promise<MarketingDailyMetricRow[]> {
-    const [formRecords, vslByDate, refundsByDate] = await Promise.all([
+    const [formRecords, vslByDate, htVslByDate, refundsByDate] = await Promise.all([
       airtableListAll<Record<string, unknown>>(baseId, tableIds.marketingDailyMetrics),
-      getVslDailyStats(),
+      getVslDailyStats(tableIds.vslDailyStats),
+      getVslDailyStats(tableIds.htVslDailyStats),
       getRefundsByDate(),
     ]);
     const formDates = new Set(formRecords.map((r) => parseDateOnly(r.fields.Date)));
     const extraDates = new Set(
-      [...vslByDate.keys(), ...refundsByDate.keys()].filter((date) => !formDates.has(date))
+      [...vslByDate.keys(), ...htVslByDate.keys(), ...refundsByDate.keys()].filter(
+        (date) => !formDates.has(date)
+      )
     );
     const records = [
       ...formRecords,
@@ -290,8 +307,24 @@ export function createAirtableTables(
       })),
     ];
 
+    // The high ticket VSL has no form column: its numbers go on the first row
+    // of each day, so a duplicated form row can't double-count them.
+    const htOverlaid = new Set<string>();
+    const withHtVsl = records.map(parseMarketingRecord).map((row) => {
+      const ht = row.date ? htVslByDate.get(row.date) : undefined;
+      if (!ht || !row.date || htOverlaid.has(row.date)) return row;
+      htOverlaid.add(row.date);
+      return {
+        ...row,
+        htVslViews: ht.views,
+        htVslPlays: ht.plays,
+        htVslPlayRate: ht.playRate,
+        htVslEngagementRate: ht.engagementRate,
+      };
+    });
+
     const overlaid = new Set<string>();
-    const rows = records.map(parseMarketingRecord).map((row) => {
+    const rows = withHtVsl.map((row) => {
       const vsl = row.date ? vslByDate.get(row.date) : undefined;
       if (!vsl || !row.date) return row;
       // The form wins whenever the team logged VSL numbers for that day;
@@ -516,6 +549,15 @@ export function createAirtableTables(
       cpm: parseNumericText(f["CPM's"]),
       costPerLinkClick: parseNumericText(f["Cost per link click"]),
       linkClickThroughRate: parseNumericText(f["LCTR"]),
+      webinarShowRate: parseNumericText(f["Show Rate"]),
+      liveAttendees: parseNumericText(f["Live Attendees"]),
+      liveAttendeesAtPitch: parseNumericText(f["Live Attendees at Pitch"]),
+      retentionRateUntilPitch: parseNumericText(f["Retention Rate Until Pitch"]),
+      webinarBookingRate: parseNumericText(f["Booking rate"]),
+      htVslViews: null,
+      htVslPlays: null,
+      htVslPlayRate: null,
+      htVslEngagementRate: null,
       bronsonAiSales: addNullable(
         parseNumericText(f["Bronson AI Sales (Paid)"]),
         parseNumericText(f["Bronson AI Sales (Organic)"])

@@ -517,6 +517,16 @@ function buildSpecs(
           week: (days) => days.reduce((n, c) => n + (dOrganicLeads(c) ?? 0), 0),
         },
         {
+          // Same count as Opt-Ins (Organic), named for Aval's Lead Flow.
+          key: "base44OptInsOrganic",
+          label: "Base44 Opt-Ins (Organic)",
+          format: "number",
+          goal: goals.optInsOrganic,
+          goalDirection: goals.optInsOrganic === null ? null : "higher",
+          day: dOrganicLeads,
+          week: (days) => days.reduce((n, c) => n + (dOrganicLeads(c) ?? 0), 0),
+        },
+        {
           key: "vslViews",
           label: "VSL Views",
           format: "number",
@@ -788,6 +798,35 @@ function buildSpecs(
             vslTotals(days.flatMap((c) => (c.m ? [c.m] : []))).vslEngagementRate ??
             average(days.map(fromM((r) => r.vslEngagementRate))),
         },
+        {
+          key: "htVslPlayRate",
+          label: "High Ticket VSL Play Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.htVslPlayRate),
+          // Weighted by views: plays ÷ views across the week.
+          week: (days) =>
+            safeDivide(sum(days.map(fromM((r) => r.htVslPlays))), sum(days.map(fromM((r) => r.htVslViews))) || null),
+        },
+        {
+          key: "htVslEngagementRate",
+          label: "High Ticket VSL Engagement Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.htVslEngagementRate),
+          // Weighted by plays.
+          week: (days) => {
+            const played = days.flatMap((c) =>
+              c.m && num(c.m.htVslEngagementRate) !== null && (num(c.m.htVslPlays) ?? 0) > 0 ? [c.m] : []
+            );
+            return safeDivide(
+              sum(played.map((r) => (r.htVslEngagementRate as number) * (r.htVslPlays as number))),
+              sum(played.map((r) => r.htVslPlays)) || null,
+            );
+          },
+        },
       ],
     },
     {
@@ -916,6 +955,51 @@ function buildSpecs(
           redAt: goals.adFrequency?.redAbove ?? null,
           day: fromM((r) => r.adFrequency),
           week: wAvg(fromM((r) => r.adFrequency)),
+        },
+        {
+          key: "webinarShowRate",
+          label: "Webinar Show Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.webinarShowRate),
+          week: wAvg(fromM((r) => r.webinarShowRate)),
+        },
+        {
+          key: "liveAttendees",
+          label: "Live Attendees",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.liveAttendees),
+          week: wSum(fromM((r) => r.liveAttendees)),
+        },
+        {
+          key: "liveAttendeesAtPitch",
+          label: "Live Attendees At Pitch",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.liveAttendeesAtPitch),
+          week: wSum(fromM((r) => r.liveAttendeesAtPitch)),
+        },
+        {
+          key: "retentionRateUntilPitch",
+          label: "Retention Rate Until Pitch",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.retentionRateUntilPitch),
+          week: wAvg(fromM((r) => r.retentionRateUntilPitch)),
+        },
+        {
+          key: "webinarBookingRate",
+          label: "Webinar Booking Rate",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.webinarBookingRate),
+          week: wAvg(fromM((r) => r.webinarBookingRate)),
         },
       ],
     },
@@ -1168,6 +1252,70 @@ export const BRONSON_PACING_ROWS = {
     "htDealsClosed",
   ],
   rates: ["roasTotal", "costPerLeadMeta"],
+};
+
+/**
+ * Aval's scorecard (user, 2026-10-16): paid traffic is off, so Lead Flow is
+ * just the organic Base44 opt-ins and the paid connection rate is dropped
+ * (with almost no paid opt-ins, calls to older paid leads ÷ that day's paid
+ * opt-ins read as 200%). The live webinar form fields join the Webinar
+ * section, the VSL rows track the high ticket VSL on /apply, and funnel
+ * conversion is no longer tracked.
+ */
+export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.map((g) => {
+  switch (g.title) {
+    case "Lead Flow":
+      return { ...g, keys: ["base44OptInsOrganic"] };
+    case "Webinar":
+      return {
+        ...g,
+        keys: [
+          "webinarOptInsPaid",
+          "webinarOptInsOrganic",
+          "webinarOptInRate",
+          "webinarShowRate",
+          "liveAttendees",
+          "liveAttendeesAtPitch",
+          "retentionRateUntilPitch",
+          "webinarBookingRate",
+          "vipPurchases",
+          "vipCash",
+          "vipTakeRatePaid",
+          "vipTakeRateOrganic",
+          "hookRate",
+          "holdRate",
+          "linkClickThroughRate",
+          "costPerLinkClick",
+          "cpm",
+          "adFrequency",
+        ],
+      };
+    case "Front-End Sales Conversion":
+      return { ...g, keys: g.keys.filter((k) => k !== "connectionRatePaid") };
+    case "Funnel & Marketing Health":
+      return { ...g, keys: ["landingPageConnectRate", "htVslPlayRate", "htVslEngagementRate"] };
+    default:
+      return g;
+  }
+});
+
+/** Aval's pacing rows: organic opt-ins only, same reason as above. */
+export const AVAL_PACING_ROWS = {
+  totals: [
+    "totalCashCollected",
+    "cashCollectedLowTicket",
+    "cashLtPaid",
+    "cashLtOrganic",
+    "cashCollectedHighTicket",
+    "cashHtPaid",
+    "cashHtOrganic",
+    "adSpendMeta",
+    "base44OptInsOrganic",
+    "salesLowTicket",
+    "htCallsBooked",
+    "htDealsClosed",
+  ],
+  rates: ["roasTotal", "costPerLeadMeta", "cpaLowTicket"],
 };
 
 const CASH_KEYS = new Set([
