@@ -1273,8 +1273,6 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "adSpendMeta",
       "roasTotal",
       "costPerLeadMeta",
-      "refundChargebackDollars",
-      "refundChargebackRate",
     ],
   },
   {
