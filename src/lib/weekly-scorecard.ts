@@ -1261,45 +1261,96 @@ export const BRONSON_PACING_ROWS = {
  * opt-ins read as 200%). The live webinar form fields join the Webinar
  * section, the VSL rows track the high ticket VSL on /apply, and funnel
  * conversion is no longer tracked. CPA – Affiliate is dropped too.
+ * Sections are one per funnel (user, 2026-10-16): General, Affiliate,
+ * Webinar, VSL (High Ticket).
  */
-export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.map((g) => {
-  switch (g.title) {
-    case "Hierarchy":
-      return { ...g, keys: g.keys.filter((k) => k !== "cpaLowTicket") };
-    case "Lead Flow":
-      return { ...g, keys: ["base44OptInsOrganic"] };
-    case "Webinar":
-      return {
-        ...g,
-        keys: [
-          "webinarOptInsPaid",
-          "webinarOptInsOrganic",
-          "webinarOptInRate",
-          "webinarShowRate",
-          "liveAttendees",
-          "liveAttendeesAtPitch",
-          "retentionRateUntilPitch",
-          "webinarBookingRate",
-          "vipPurchases",
-          "vipCash",
-          "vipTakeRatePaid",
-          "vipTakeRateOrganic",
-          "hookRate",
-          "holdRate",
-          "linkClickThroughRate",
-          "costPerLinkClick",
-          "cpm",
-          "adFrequency",
-        ],
-      };
-    case "Front-End Sales Conversion":
-      return { ...g, keys: g.keys.filter((k) => k !== "connectionRatePaid") };
-    case "Funnel & Marketing Health":
-      return { ...g, keys: ["landingPageConnectRate", "htVslPlayRate", "htVslEngagementRate"] };
-    default:
-      return g;
-  }
-});
+export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
+  {
+    emoji: "💰",
+    title: "General",
+    keys: [
+      "totalCashCollected",
+      "adSpendMeta",
+      "roasTotal",
+      "costPerLeadMeta",
+      "refundChargebackDollars",
+      "refundChargebackRate",
+    ],
+  },
+  {
+    emoji: "🤝",
+    title: "Affiliate",
+    keys: [
+      "base44OptInsOrganic",
+      "dials",
+      "pickups",
+      "pickupRate",
+      "connectionRate",
+      "connectionRateOrganic",
+      "softwarePitched",
+      "pitchRate",
+      "salesLowTicket",
+      "salesLtPaid",
+      "salesLtOrganic",
+      "closeRateLowTicket",
+      "aovLowTicket",
+      "leadToCloseRate",
+      "cashCollectedLowTicket",
+      "cashLtPaid",
+      "cashLtOrganic",
+      "cashPerOptInPaid",
+      "yearlyShare",
+      "attributionRate",
+      "htBookingRateFromLt",
+    ],
+  },
+  {
+    emoji: "🎥",
+    title: "Webinar",
+    keys: [
+      "webinarOptInsPaid",
+      "webinarOptInsOrganic",
+      "webinarOptInRate",
+      "webinarShowRate",
+      "liveAttendees",
+      "liveAttendeesAtPitch",
+      "retentionRateUntilPitch",
+      "webinarBookingRate",
+      "vipPurchases",
+      "vipCash",
+      "vipTakeRatePaid",
+      "vipTakeRateOrganic",
+      "hookRate",
+      "holdRate",
+      "linkClickThroughRate",
+      "costPerLinkClick",
+      "cpm",
+      "adFrequency",
+    ],
+  },
+  {
+    emoji: "🎯",
+    title: "VSL (High Ticket)",
+    keys: [
+      "landingPageConnectRate",
+      "htVslPlayRate",
+      "htVslEngagementRate",
+      "htCallsBooked",
+      "htCallsShowed",
+      "htShowRate",
+      "htDealsClosed",
+      "htCloseRate",
+      "aovHighTicket",
+      "revenueHighTicket",
+      "cashCollectedHighTicket",
+      "cashHtPaid",
+      "cashHtOrganic",
+      "cacHighTicketPaid",
+      "costPerCallHT",
+      "collectedPerBookedCallHT",
+    ],
+  },
+];
 
 /** Aval's pacing rows: organic opt-ins only, same reason as above. */
 export const AVAL_PACING_ROWS = {
