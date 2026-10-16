@@ -1260,10 +1260,12 @@ export const BRONSON_PACING_ROWS = {
  * (with almost no paid opt-ins, calls to older paid leads ÷ that day's paid
  * opt-ins read as 200%). The live webinar form fields join the Webinar
  * section, the VSL rows track the high ticket VSL on /apply, and funnel
- * conversion is no longer tracked.
+ * conversion is no longer tracked. CPA – Affiliate is dropped too.
  */
 export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.map((g) => {
   switch (g.title) {
+    case "Hierarchy":
+      return { ...g, keys: g.keys.filter((k) => k !== "cpaLowTicket") };
     case "Lead Flow":
       return { ...g, keys: ["base44OptInsOrganic"] };
     case "Webinar":
@@ -1315,7 +1317,7 @@ export const AVAL_PACING_ROWS = {
     "htCallsBooked",
     "htDealsClosed",
   ],
-  rates: ["roasTotal", "costPerLeadMeta", "cpaLowTicket"],
+  rates: ["roasTotal", "costPerLeadMeta"],
 };
 
 const CASH_KEYS = new Set([
