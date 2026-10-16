@@ -275,6 +275,7 @@ export async function getDailyEodSummary(offer: CalendlyOffer, date: string): Pr
 }
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
+const eods = (n: number) => `${n} EOD${n === 1 ? "" : "s"}`;
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "n/a");
 
 function splitText(s: Split) {
@@ -295,7 +296,7 @@ export function dailyEodSummaryMessage(offerLabel: string, offer: CalendlyOffer,
   const s = r.setter;
   const lines = [`📊 **${offerLabel} EOD Totals for ${day}**`, ""];
 
-  lines.push(`**Closers** (${r.filed.closers.length} EODs${r.filed.closers.length ? `: ${r.filed.closers.join(", ")}` : ""})`);
+  lines.push(`**Closers** (${eods(r.filed.closers.length)}${r.filed.closers.length ? `: ${r.filed.closers.join(", ")}` : ""})`);
   if (r.filed.closers.length) {
     lines.push(`📅 Calls booked: **${c.booked}**`);
     lines.push(`✅ Calls showed: **${c.showed}** (${pct(c.showed, c.booked)} show rate)`);
@@ -307,7 +308,7 @@ export function dailyEodSummaryMessage(offerLabel: string, offer: CalendlyOffer,
   }
   lines.push("");
 
-  lines.push(`**Setters** (${r.filed.setters.length} EODs${r.filed.setters.length ? `: ${r.filed.setters.join(", ")}` : ""})`);
+  lines.push(`**Setters** (${eods(r.filed.setters.length)}${r.filed.setters.length ? `: ${r.filed.setters.join(", ")}` : ""})`);
   if (r.filed.setters.length) {
     lines.push(`📞 Dials: ${s.dials} · Pick ups: ${s.pickups} (${pct(s.pickups, s.dials)}) · Talk time: ${s.talkTime} min`);
     lines.push(`Software pitched: ${s.softwarePitched} · Software closed: **${s.softwareClosed}**`);
