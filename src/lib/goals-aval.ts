@@ -35,6 +35,8 @@ export async function getAvalGoals(): Promise<GoalsConfig> {
     landingPageConnectRate: { min: 0.8, redBelow: 0.7 },
     optInRate: { min: 0.3, redBelow: 0.2 },
     webinarOptInRate: { min: 0.3, redBelow: 0.2 },
+    // Take rate (paid + organic), user's line 2026-10-18: green at 5%, bad under 2%.
+    vipTakeRate: { min: 0.05, redBelow: 0.02 },
     hookRate: { min: 0.3, redBelow: 0.3 },
     holdRate: { min: 0.25, redBelow: 0.15 },
     linkClickThroughRate: { min: 0.02, redBelow: 0.005 },

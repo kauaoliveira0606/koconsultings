@@ -36,6 +36,8 @@ export type GoalsConfig = {
   touchPointsPerLead?: MinGoal | null;
   // Ad / webinar KPIs (user's good/bad lines, 2026-10-14).
   webinarOptInRate?: MinGoal | null;
+  /** VIP take rate, applied to both paid and organic. */
+  vipTakeRate?: MinGoal | null;
   hookRate?: MinGoal | null;
   holdRate?: MinGoal | null;
   linkClickThroughRate?: MinGoal | null;
