@@ -17,7 +17,7 @@ export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
   const weekStart = request.nextUrl.searchParams.get("weekStart");
-  const [marketing, leads, eod, closer, goals, pcn, connected, portal] = await Promise.all([
+  const [marketing, leads, eod, closer, allGoals, pcn, connected, portal] = await Promise.all([
     getAvalMarketingDailyMetrics(),
     getAvalLeads(),
     getAvalAffiliateEod(),
@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
     getAvalConnectedCalls(),
     getAvalAffiliatePortalDaily(),
   ]);
+  // No CPL goal on the Scorecard tab (user, 2026-10-17).
+  const goals = { ...allGoals, costPerLeadMeta: null };
   const payload = await buildWeeklyScorecard(marketing, leads, eod, closer, weekStart, new Date(), goals, {
     layout: AVAL_SCORECARD_LAYOUT,
     pcn,
