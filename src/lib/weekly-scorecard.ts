@@ -1223,8 +1223,16 @@ const SCORECARD_LAYOUT: ScorecardLayout = [
  * (Lead Flow, CPA, affiliate close rate / AOV / paid-organic sales split,
  * software pitch rate, HT booking rate from affiliate) and the Funnel &
  * Marketing Health and Attribution & Refunds sections are left off.
+ * 2026-10-18: Bronson no longer runs affiliate at all, so the affiliate cash
+ * rows, the setter funnel (Front-End Sales Conversion, all from the
+ * Affiliate EOD and Leads table) and the affiliate unit economics go too.
+ * Old affiliate cash still counts in Total Cash Collected. The post-webinar
+ * card rows join the Webinar section.
  */
 const BRONSON_DROPPED = new Set([
+  "cashCollectedLowTicket",
+  "cashLtPaid",
+  "cashLtOrganic",
   "cpaLowTicket",
   "pitchRate",
   "salesLtPaid",
@@ -1232,24 +1240,39 @@ const BRONSON_DROPPED = new Set([
   "closeRateLowTicket",
   "aovLowTicket",
   "htBookingRateFromLt",
+  "leadToCloseRate",
+  "cashPerOptInPaid",
 ]);
-const BRONSON_DROPPED_SECTIONS = new Set(["Lead Flow", "Funnel & Marketing Health", "Attribution & Refunds"]);
+const BRONSON_DROPPED_SECTIONS = new Set([
+  "Lead Flow",
+  "Front-End Sales Conversion",
+  "Funnel & Marketing Health",
+  "Attribution & Refunds",
+]);
+const WEBINAR_CARD_KEYS = [
+  "webinarShowRate",
+  "liveAttendees",
+  "liveAttendeesAtPitch",
+  "retentionRateUntilPitch",
+  "webinarBookingRate",
+];
 export const BRONSON_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.filter(
   (g) => !BRONSON_DROPPED_SECTIONS.has(g.title),
-).map((g) => ({ ...g, keys: g.keys.filter((k) => !BRONSON_DROPPED.has(k)) }));
+).map((g) => {
+  const keys = g.keys.filter((k) => !BRONSON_DROPPED.has(k));
+  if (g.title !== "Webinar") return { ...g, keys };
+  const at = keys.indexOf("vipPurchases");
+  return { ...g, keys: [...keys.slice(0, at), ...WEBINAR_CARD_KEYS, ...keys.slice(at)] };
+});
 
-/** Bronson's pacing rows: no affiliate opt-ins or CPA (same reason as above). */
+/** Bronson's pacing rows: no affiliate rows (same reason as above). */
 export const BRONSON_PACING_ROWS = {
   totals: [
     "totalCashCollected",
-    "cashCollectedLowTicket",
-    "cashLtPaid",
-    "cashLtOrganic",
     "cashCollectedHighTicket",
     "cashHtPaid",
     "cashHtOrganic",
     "adSpendMeta",
-    "salesLowTicket",
     "htCallsBooked",
     "htDealsClosed",
   ],

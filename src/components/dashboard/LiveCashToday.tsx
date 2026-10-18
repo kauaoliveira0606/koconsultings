@@ -52,14 +52,14 @@ function SourceCard({
  * Today's cash so far (Eastern day), summed live from Post Call Notes,
  * Affiliate PCN and Follow Up Payment only, re-polled every minute. Ignores the page's range filter.
  */
-export function LiveCashToday({ apiPath }: { apiPath: string }) {
+export function LiveCashToday({ apiPath, showAffiliate = true }: { apiPath: string; showAffiliate?: boolean }) {
   const { data, error } = useSWR<LiveCashResponse>(apiPath, fetcher, {
     refreshInterval: REFRESH_MS,
     refreshWhenHidden: false,
   });
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${showAffiliate ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
       <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
@@ -85,7 +85,7 @@ export function LiveCashToday({ apiPath }: { apiPath: string }) {
         </div>
       </div>
       <SourceCard label="Post Call Notes (High Ticket)" entryNoun="close" source={data?.postCallNotes} />
-      <SourceCard label="Affiliate PCN (Software)" entryNoun="sale" source={data?.affiliatePcn} />
+      {showAffiliate ? <SourceCard label="Affiliate PCN (Software)" entryNoun="sale" source={data?.affiliatePcn} /> : null}
       <SourceCard label="Follow Up Payments" entryNoun="payment" source={data?.followUpPayments} />
     </div>
   );

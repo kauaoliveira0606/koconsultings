@@ -51,7 +51,6 @@ export function PaidPnlSection({
   const { data } = useSectionData<PaidPnl>(apiPath, range);
   const money = (value: number | undefined) =>
     formatStatValue(value, "currency");
-  const rate = formatStatValue(data?.lowTicketAttributionRate, "percent");
   return (
     <>
       <DashboardSection title="PNL (Paid Traffic)">
@@ -59,7 +58,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.cash}
-            subtext={`True cash: affiliate ${money(data?.paidCashLowTicket)} attributed (${money(data?.loggedLowTicketPaid)} logged) + high ticket ${money(data?.paidCashHighTicket)} + VIP ${money(data?.paidCashVip)} + Bronson AI ${money(data?.paidCashAi)}.`}
+            subtext={`True cash: high ticket ${money(data?.paidCashHighTicket)} + VIP ${money(data?.paidCashVip)} + Bronson AI ${money(data?.paidCashAi)}${data?.paidCashLowTicket ? ` + old affiliate ${money(data.paidCashLowTicket)}` : ""}.`}
           />
           <PnlCard
             label="Sales Team Commission"
@@ -93,7 +92,7 @@ export function PaidPnlSection({
           <PnlCard
             label="Cash Collected"
             value={data?.organicCash}
-            subtext="True cash: attributed affiliate + high ticket + VIP + Bronson AI."
+            subtext="True cash: high ticket + VIP + Bronson AI (plus any old affiliate cash in range)."
           />
           <PnlCard
             label="Fees"
@@ -106,19 +105,9 @@ export function PaidPnlSection({
             value={data ? data.organicCash - data.organicFees : undefined}
             subtext="What your 20% is taken on."
           />
-          <PnlCard
-            label="Affiliate (Attributed)"
-            value={data?.organicCashLowTicket}
-            subtext={`${money(data?.loggedLowTicketOrganic)} logged x ${rate} attribution.`}
-          />
           <PnlCard label="High Ticket" value={data?.organicCashHighTicket} />
           <PnlCard label="VIP" value={data?.organicCashVip} subtext="Webinar VIP purchases from organic." />
           <PnlCard label="Bronson AI" value={data?.organicCashAi} subtext="$147/mo subscriptions from organic." />
-          <PnlCard
-            label="Affiliate Attribution"
-            value={data?.portalLowTicketCash}
-            subtext={`${rate} of logged affiliate. The portal tracked this much of ${money((data?.loggedLowTicketPaid ?? 0) + (data?.loggedLowTicketOrganic ?? 0))} logged; paid and organic are split in the logged proportion.`}
-          />
         </div>
       </DashboardSection>
     </>

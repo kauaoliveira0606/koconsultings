@@ -1,14 +1,13 @@
 "use client";
 
-import { StatCard, type StatCardStatus } from "@/components/dashboard/StatCard";
+import type { StatCardStatus } from "@/components/dashboard/StatCard";
 import { DashboardSection } from "@/components/dashboard/StatCardGrid";
-import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
 import { WebinarSection } from "@/components/dashboard/WebinarSection";
+import { WebinarBreakdownSection } from "@/components/dashboard/WebinarBreakdownSection";
 import type { WebinarTotals } from "@/lib/metrics";
-import { PieSplit } from "@/components/dashboard/PieSplit";
 import { RateColumns } from "@/components/dashboard/RateColumns";
 import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
@@ -109,37 +108,6 @@ type MetricsResponse = {
   refundChargebackRate: number | null;
 };
 
-type LeadSourcesResponse = {
-  paidLeadsTracked: number;
-  organicLeadsTracked: number;
-  cashCollectedPaid: number | null;
-  cashCollectedOrganic: number | null;
-  unattributedCash: number | null;
-  unattributedCount: number;
-  adSpend: number | null;
-  paidRoas: number | null;
-  pcn: {
-    totalLogged: number;
-    matchedToLead: number;
-    paidClosed: number;
-    organicClosed: number;
-  };
-};
-
-type ConnectionRateResponse = {
-  trackingStart: string;
-  paid: { optIns: number; connected: number; rate: number | null };
-  organic: { optIns: number; connected: number; rate: number | null };
-};
-
-type PlanSplitResponse = {
-  monthly: number;
-  yearly: number;
-  unknown: number;
-  total: number;
-  yearlyShare: number | null;
-};
-
 // --- KPI helpers: same green/yellow/red scale the Weekly Scorecard uses, so
 // a target set once in lib/goals.ts lights up consistently everywhere. A
 // metric with no goal defined yet just shows nothing extra — never a fake
@@ -169,22 +137,10 @@ export default function OverviewPage() {
   const { range, setRange } = useSharedRange();
 
   const { data: metrics } = useSectionData<MetricsResponse>("/api/bronson/overview/metrics", range);
-  const { data: leadSources } = useSectionData<LeadSourcesResponse>(
-    "/api/bronson/overview/lead-sources",
-    range
-  );
-  const { data: connectionRate } = useSectionData<ConnectionRateResponse>(
-    "/api/bronson/overview/connection-rate",
-    range
-  );
-  const { data: planSplit } = useSectionData<PlanSplitResponse>(
-    "/api/bronson/overview/plan-split",
-    range
-  );
   const { data: goals } = useSectionData<GoalsConfig>("/api/bronson/goals", range);
 
   const adsActive = metrics?.adsActive ?? false;
-  // Paid ROAS counts ALL paid cash: affiliate, high ticket, webinar VIP and Bronson AI, as split on the form.
+  // Paid ROAS counts ALL paid cash: high ticket, webinar VIP and Bronson AI (plus any old affiliate cash), as split on the form.
   const paidCash = addCash(
     metrics?.cashCollectedLowTicketPaid,
     metrics?.cashCollectedHighTicketPaid,
@@ -203,7 +159,7 @@ export default function OverviewPage() {
       </div>
 
       <DashboardSection title="Live Cash Today">
-        <LiveCashToday apiPath="/api/bronson/overview/live-cash" />
+        <LiveCashToday apiPath="/api/bronson/overview/live-cash" showAffiliate={false} />
       </DashboardSection>
 
       {/* TIER 1 — KEYSTONE METRICS, grouped Cash | ROAS | Efficiency: the numbers that answer "scale or pull the brake" */}
@@ -220,12 +176,6 @@ export default function OverviewPage() {
                   subtext: "Cash actually collected, not revenue booked.",
                   status: kpiStatus(metrics?.totalCashCollected, goals?.totalCashCollected, "higher"),
                   goal: kpiLabel(goals?.totalCashCollected, "higher", "currency"),
-                },
-                {
-                  label: "Attributed Affiliate Cash",
-                  value: metrics?.attributedCashLowTicket,
-                  format: "currency",
-                  subtext: `What the affiliate portal tracked and pays on, reversed sales out. ${formatStatValue(metrics?.cashCollectedLowTicket, "currency")} logged on the form.`,
                 },
                 {
                   label: "Ad Spend",
@@ -249,7 +199,7 @@ export default function OverviewPage() {
                   value: paidRoas,
                   format: "ratio",
                   override: !adsActive ? notActive : undefined,
-                  subtext: "Paid cash (affiliate + high ticket + VIP) ÷ ad spend.",
+                  subtext: "Paid cash (high ticket + VIP + Bronson AI) ÷ ad spend.",
                   status: adsActive ? kpiStatus(paidRoas, goals?.roasTotal?.min, "higher") : null,
                   goal: adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null,
                 },
@@ -278,23 +228,11 @@ export default function OverviewPage() {
                   format: "currency",
                   subtext: "High ticket cash ÷ calls booked. Show rate, close rate, price and collections in one number.",
                 },
-                {
-                  label: "Cash Collected / Opt-In (Paid)",
-                  value: metrics?.cashCollectedPerOptInPaid,
-                  format: "currency",
-                  subtext: "Affiliate paid cash ÷ paid opt-ins.",
-                },
               ],
             },
           ]}
         />
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
-          <span>
-            Affiliate commission this range:{" "}
-            <span className="font-semibold text-[var(--text)]">
-              {formatStatValue(metrics?.lowTicketCommission, "currency")}
-            </span>
-          </span>
           <span>
             High Ticket commission this range:{" "}
             <span className="font-semibold text-[var(--text)]">
@@ -318,30 +256,12 @@ export default function OverviewPage() {
 
       <WebinarSection webinar={metrics?.webinar} goals={goals} />
 
+      <WebinarBreakdownSection apiPath="/api/bronson/overview/webinars" goals={goals} />
+
       {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. Kept right under the keystones. */}
       <DashboardSection title="Unit Economics">
         <MetricGroups
           groups={[
-            {
-              title: "Affiliate",
-              metrics: [
-                {
-                  label: "CAC (Paid)",
-                  value: metrics?.cacLowTicketPaid,
-                  format: "currency",
-                  override: !adsActive ? notActive : undefined,
-                  subtext: "Ad spend ÷ affiliate sales from paid.",
-                  status: adsActive ? kpiStatus(metrics?.cacLowTicketPaid, goals?.cpaLowTicket?.max, "lower") : null,
-                  goal: adsActive ? kpiLabel(goals?.cpaLowTicket?.max, "lower", "currency") : null,
-                },
-                {
-                  label: "AOV",
-                  value: metrics?.averageOrderValueLowTicket,
-                  format: "currency",
-                  subtext: "Affiliate cash ÷ affiliate sales.",
-                },
-              ],
-            },
             {
               title: "High Ticket",
               metrics: [
@@ -377,12 +297,6 @@ export default function OverviewPage() {
               title: "Conversion",
               metrics: [
                 {
-                  label: "Lead-To-Close Rate",
-                  value: metrics?.leadToCloseRate,
-                  format: "percent",
-                  subtext: "Affiliate sales ÷ tracked leads.",
-                },
-                {
                   label: "Time To Close (Avg Days)",
                   value: metrics?.avgDaysToClose,
                   format: "number",
@@ -397,6 +311,7 @@ export default function OverviewPage() {
       {/* TIER 2 — REVENUE BREAKDOWN */}
       <DashboardSection title="Revenue Breakdown">
         <RevenueBreakdown
+          showAffiliate={false}
           lowTicketOrganic={metrics?.cashCollectedLowTicketOrganic}
           lowTicketPaid={metrics?.cashCollectedLowTicketPaid}
           highTicketOrganic={metrics?.cashCollectedHighTicketOrganic}
@@ -473,27 +388,6 @@ export default function OverviewPage() {
         <MetricGroups
           groups={[
             {
-              title: "Opt-Ins",
-              metrics: [
-                {
-                  label: "Opt-Ins (Paid)",
-                  value: metrics?.optInsPaid,
-                  format: "number",
-                  subtext: "Leads table, source = Paid.",
-                  status: kpiStatus(metrics?.optInsPaid, goals?.optInsPaid, "higher"),
-                  goal: kpiLabel(goals?.optInsPaid, "higher", "number"),
-                },
-                {
-                  label: "Opt-Ins (Organic)",
-                  value: metrics?.optInsOrganic,
-                  format: "number",
-                  subtext: "Leads table, source = Organic.",
-                  status: kpiStatus(metrics?.optInsOrganic, goals?.optInsOrganic, "higher"),
-                  goal: kpiLabel(goals?.optInsOrganic, "higher", "number"),
-                },
-              ],
-            },
-            {
               title: "Paid Funnel",
               metrics: [
                 {
@@ -506,14 +400,6 @@ export default function OverviewPage() {
                   goal: adsActive ? kpiLabel(goals?.costPerLeadMeta?.max, "lower", "currency") : null,
                 },
                 {
-                  label: "Opt-In Rate (Paid)",
-                  value: metrics?.optInRate,
-                  format: "percent",
-                  subtext: "From the form; if blank, paid leads ÷ VSL views.",
-                  status: kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher", goals?.optInRate?.redBelow ?? null),
-                  goal: [kpiLabel(goals?.optInRate?.min, "higher", "percent"), goals?.optInRate?.redBelow != null ? `under ${formatStatValue(goals.optInRate.redBelow, "percent")} is bad` : null].filter(Boolean).join(", ") || null,
-                },
-                {
                   label: "Landing Page Connect Rate",
                   value: metrics?.landingPageConnectRate,
                   format: "percent",
@@ -521,66 +407,6 @@ export default function OverviewPage() {
                   status: kpiStatus(metrics?.landingPageConnectRate, goals?.landingPageConnectRate?.min, "higher", goals?.landingPageConnectRate?.redBelow ?? null),
                   goal: [kpiLabel(goals?.landingPageConnectRate?.min, "higher", "percent"), goals?.landingPageConnectRate?.redBelow != null ? `under ${formatStatValue(goals.landingPageConnectRate.redBelow, "percent")} is bad` : null].filter(Boolean).join(", ") || null,
                 },
-              ],
-            },
-          ]}
-        />
-      </DashboardSection>
-
-      {/* TIER 4 — FRONT-END SALES CONVERSION: the setter funnel left to right, dial to close */}
-      <DashboardSection title="Front-End Sales Conversion">
-        <RateColumns
-          columns={[
-            {
-              title: "Pickup Rate",
-              value: metrics?.pickupRate,
-              formula: "Pickups ÷ Dials.",
-              inputs: [
-                { label: "Pickups", value: metrics?.pickups, note: "Setters' Affiliate EOD." },
-                { label: "Dials", value: metrics?.dials },
-              ],
-            },
-            {
-              title: "Connection Rate (Paid)",
-              value: connectionRate?.paid.rate,
-              formula: "Paid leads with a 1+ min call ÷ paid opt-ins.",
-              status: kpiStatus(connectionRate?.paid.rate, goals?.connectionRate?.min, "higher"),
-              goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
-              inputs: [
-                { label: "Connected", value: connectionRate?.paid.connected, note: connectionRate ? `Tracked since ${connectionRate.trackingStart}.` : undefined },
-                { label: "Paid Opt-Ins", value: connectionRate?.paid.optIns },
-              ],
-            },
-            {
-              title: "Connection Rate (Organic)",
-              value: connectionRate?.organic.rate,
-              formula: "Organic leads with a 1+ min call ÷ organic opt-ins.",
-              status: kpiStatus(connectionRate?.organic.rate, goals?.connectionRate?.min, "higher"),
-              goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
-              inputs: [
-                { label: "Connected", value: connectionRate?.organic.connected, note: connectionRate ? `Tracked since ${connectionRate.trackingStart}.` : undefined },
-                { label: "Organic Opt-Ins", value: connectionRate?.organic.optIns },
-              ],
-            },
-            {
-              title: "Pitch Rate",
-              value: metrics?.pitchRate,
-              formula: "Software Pitched ÷ Pickups.",
-              inputs: [
-                { label: "Software Pitched", value: metrics?.softwarePitched, note: "Setters' Affiliate EOD." },
-                { label: "Pickups", value: metrics?.pickups },
-              ],
-            },
-            {
-              title: "Close Rate (Affiliate)",
-              value: metrics?.closeRateLowTicket,
-              formula: "Software Closed ÷ Software Pitched.",
-              status: kpiStatus(metrics?.closeRateLowTicket, goals?.closeRateLowTicket?.min, "higher"),
-              goal: kpiLabel(goals?.closeRateLowTicket?.min, "higher", "percent"),
-              inputs: [
-                { label: "Software Closed", value: metrics?.softwareClosed },
-                { label: "Software Pitched", value: metrics?.softwarePitched },
-                { label: "Affiliate Sales", value: metrics?.sales, note: "As logged on the daily metrics form." },
               ],
             },
           ]}
@@ -613,184 +439,12 @@ export default function OverviewPage() {
                 { label: "Calls Showed", value: metrics?.highTicketCallsShowed },
               ],
             },
-            {
-              title: "Pitch Rate",
-              value: metrics?.highTicketPitchRate,
-              formula: "Pitched high ticket calls ÷ software closes.",
-              inputs: [
-                { label: "Pitched High Ticket Calls", value: metrics?.highTicketCallsPitched, note: "Setters' Affiliate EOD." },
-                { label: "Software Closes", value: metrics?.softwareClosed, note: "Setters' Affiliate EOD." },
-              ],
-            },
-            {
-              title: "Booking Rate (From Affiliate)",
-              value: metrics?.highTicketBookingRateFromLowTicket,
-              formula: "New HT calls booked ÷ Affiliate Sales.",
-              inputs: [
-                { label: "New HT Calls Booked", value: metrics?.newHighTicketCallsBooked },
-                { label: "Affiliate Sales", value: metrics?.sales },
-              ],
-            },
           ]}
         />
-
-        {/* Yearly / Monthly Plan Split — de-emphasized sub-section, global range now */}
-        <div className="mt-4">
-          <div className="mb-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
-            Yearly / Monthly Plan Split
-          </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm lg:col-span-2">
-              {planSplit ? (
-                <PieSplit
-                  unit={["close", "closes"]}
-                  emptyText="No monthly or yearly plans in this range."
-                  slices={[
-                    { key: "monthly", label: "Monthly Plans", value: planSplit.monthly, detail: "Affiliate PCN, Plan? = Monthly." },
-                    { key: "yearly", label: "Yearly Plans", value: planSplit.yearly, detail: "Affiliate PCN, Plan? = Yearly." },
-                    ...(planSplit.unknown > 0
-                      ? [{ key: "unknown", label: "No Plan Logged", value: planSplit.unknown, detail: "Affiliate PCN with Plan? left blank." }]
-                      : []),
-                  ]}
-                />
-              ) : (
-                <p className="text-sm text-[var(--text-muted)]">Loading...</p>
-              )}
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <StatCard
-                label="Yearly Share"
-                value={planSplit?.yearlyShare}
-                format="percent"
-                size="lg"
-                subtext="Yearly ÷ total PCN closes."
-                status={kpiStatus(planSplit?.yearlyShare, goals?.yearlyShare?.min, "higher")}
-                goal={kpiLabel(goals?.yearlyShare?.min, "higher", "percent")}
-              />
-              <StatCard
-                label="Total Closes"
-                value={planSplit?.total}
-                format="number"
-                size="lg"
-                subtext="Monthly + Yearly + unclassified."
-              />
-            </div>
-          </div>
-        </div>
       </DashboardSection>
 
       <DashboardSection title="Offer Split & PIF Rate">
         <OfferSplitSection apiPath="/api/bronson/overview/offer-split" range={range} />
-      </DashboardSection>
-
-      {/* TIER 7 — FUNNEL & MARKETING HEALTH (diagnostic only) */}
-      <DashboardSection title="Funnel, Marketing Health & Lead Sources — Diagnostic Only">
-        <p className="mb-3 text-sm text-[var(--text-muted)]">
-          Check this tier when something upstream breaks — not part of the daily glance.
-        </p>
-        <MetricGroups
-          groups={[
-            {
-              title: "VSL",
-              metrics: [
-                {
-                  label: "VSL Views",
-                  value: metrics?.vslViews,
-                  format: "number",
-                  status: kpiStatus(metrics?.vslViews, goals?.vslViews, "higher"),
-                  goal: kpiLabel(goals?.vslViews, "higher", "number"),
-                },
-                {
-                  label: "Play Rate (Paid)",
-                  value: metrics?.vslPlayRate,
-                  format: "percent",
-                  subtext: "Plays ÷ views, from VTurb.",
-                  status: kpiStatus(metrics?.vslPlayRate, goals?.vslPlayRate?.min, "higher"),
-                  goal: kpiLabel(goals?.vslPlayRate?.min, "higher", "percent"),
-                },
-                {
-                  label: "Engagement Rate (Paid)",
-                  value: metrics?.vslEngagementRate,
-                  format: "percent",
-                  subtext: "From VTurb.",
-                  status: kpiStatus(metrics?.vslEngagementRate, goals?.vslEngagementRate?.min, "higher"),
-                  goal: kpiLabel(goals?.vslEngagementRate?.min, "higher", "percent"),
-                },
-              ],
-            },
-            {
-              title: "Funnel Conversion",
-              metrics: [
-                {
-                  label: "Paid",
-                  value: metrics?.funnelConversionRatePaid,
-                  format: "percent",
-                  subtext: "Affiliate sales from paid ÷ paid opt-ins.",
-                  status: kpiStatus(metrics?.funnelConversionRatePaid, goals?.funnelConversionRate?.min, "higher"),
-                  goal: kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent"),
-                },
-                {
-                  label: "Organic",
-                  value: metrics?.funnelConversionRateOrganic,
-                  format: "percent",
-                  subtext: "Affiliate sales from organic ÷ organic opt-ins.",
-                  status: kpiStatus(metrics?.funnelConversionRateOrganic, goals?.funnelConversionRate?.min, "higher"),
-                  goal: kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent"),
-                },
-              ],
-            },
-            {
-              title: "Lead Sources",
-              metrics: [
-                {
-                  label: "Paid Leads (Tracked)",
-                  value: leadSources?.paidLeadsTracked,
-                  format: "number",
-                  subtext: "Leads table, source = Paid.",
-                },
-                {
-                  label: "Organic Leads (Tracked)",
-                  value: leadSources?.organicLeadsTracked,
-                  format: "number",
-                  subtext: "Leads table, source = Organic.",
-                },
-              ],
-            },
-          ]}
-        />
-        <div className="mt-4 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-sm backdrop-blur-sm">
-          <p className="text-[var(--text)]">
-            {leadSources ? (
-              <>
-                <span className="font-semibold">{leadSources.pcn.matchedToLead}</span>/
-                {leadSources.pcn.totalLogged} Affiliate PCN calls in this range matched a lead by
-                email ({leadSources.pcn.paidClosed} paid closes, {leadSources.pcn.organicClosed}{" "}
-                organic closes attributed above).
-              </>
-            ) : null}
-          </p>
-          {leadSources?.unattributedCount ? (
-            <p className="mt-2 text-[var(--text-muted)]">
-              <span className="font-semibold text-[var(--text)]">
-                {formatStatValue(leadSources.unattributedCash, "currency")}
-              </span>{" "}
-              from {leadSources.unattributedCount} closed{" "}
-              {leadSources.unattributedCount === 1 ? "call" : "calls"}{" "}
-              couldn&apos;t be matched to a lead email, so it&apos;s not counted above as Paid or
-              Organic.
-            </p>
-          ) : null}
-        </div>
-      </DashboardSection>
-
-      <DashboardSection title="Attribution — Base 44 + Wix">
-        <AttributionSection
-          apiPath="/api/bronson/overview/attribution"
-          byRepPath="/api/bronson/overview/attribution/by-rep"
-          brandLabel="Base 44 + Wix"
-          theme="deepspace"
-          goal={goals?.attributionRate?.min}
-        />
       </DashboardSection>
 
       <DashboardSection title="Refund / Chargeback">

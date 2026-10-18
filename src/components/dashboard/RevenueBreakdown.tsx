@@ -16,6 +16,8 @@ export type RevenueBreakdownProps = {
   /** Booked high ticket revenue, payment plans included. Reference only. */
   revenueHighTicket: Cash;
   adSpend: Cash;
+  /** False hides the Affiliate column (Bronson, off affiliate since Oct 2026). Old affiliate cash still counts in Combined. */
+  showAffiliate?: boolean;
 };
 
 /** Adds what is there; stays empty while nothing has loaded. */
@@ -57,6 +59,9 @@ function Footer({ rows }: { rows: [string, Cash][] }) {
 
 const PANEL =
   "flex flex-col rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-sm";
+const GRID: Record<number, string> = { 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-2 xl:grid-cols-4" };
+const SPAN: Record<number, string> = { 2: "lg:col-span-2", 3: "lg:col-span-3", 4: "lg:col-span-2 xl:col-span-4" };
+
 const PANEL_TITLE =
   "border-b border-[var(--panel-border)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-strong)]";
 
@@ -76,14 +81,17 @@ export function RevenueBreakdown({
   aiPaid,
   revenueHighTicket,
   adSpend,
+  showAffiliate = true,
 }: RevenueBreakdownProps) {
   const showAi = aiOrganic !== undefined || aiPaid !== undefined;
-  const parts = showAi ? "Affiliate + HT + VIP + AI" : "Affiliate + HT + VIP";
+  const parts = [showAffiliate ? "Affiliate" : null, "HT", "VIP", showAi ? "AI" : null].filter(Boolean).join(" + ");
+  const panels = 2 + (showAffiliate ? 1 : 0) + (showAi ? 1 : 0);
   const organic = addCash(lowTicketOrganic, highTicketOrganic, vipOrganic, aiOrganic);
   const paid = addCash(lowTicketPaid, highTicketPaid, vipPaid, aiPaid);
   return (
     <div>
-      <div className={`grid grid-cols-1 gap-4 ${showAi ? "lg:grid-cols-2 xl:grid-cols-4" : "lg:grid-cols-3"}`}>
+      <div className={`grid grid-cols-1 gap-4 ${GRID[panels]}`}>
+        {showAffiliate ? (
         <div className={PANEL}>
           <div className={PANEL_TITLE}>Affiliate</div>
           <div className="flex flex-1 divide-x divide-[var(--panel-border)]">
@@ -92,6 +100,7 @@ export function RevenueBreakdown({
           </div>
           <Footer rows={[["Affiliate total", addCash(lowTicketOrganic, lowTicketPaid)]]} />
         </div>
+        ) : null}
 
         <div className={PANEL}>
           <div className={PANEL_TITLE}>High Ticket</div>
@@ -127,7 +136,7 @@ export function RevenueBreakdown({
           </div>
         ) : null}
 
-        <div className={`${PANEL} ${showAi ? "lg:col-span-2 xl:col-span-4" : "lg:col-span-3"}`}>
+        <div className={`${PANEL} ${SPAN[panels]}`}>
           <div className={PANEL_TITLE}>Combined</div>
           <div className="flex-1">
             <Cell label="Total Cash" value={addCash(organic, paid)} />

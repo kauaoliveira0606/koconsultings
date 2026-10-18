@@ -169,6 +169,34 @@ export type LeaderboardRow = {
 };
 
 /** a + b, where a blank side counts as 0 but both blank stays null (no data). */
+/**
+ * One Marketing Daily Metrics record per date. The team submits the
+ * post-webinar card as its own row with only the live webinar fields
+ * (Show Rate, Live Attendees, ...), on the same date as that day's daily row.
+ * Every per-day map downstream keeps one row per date, so the rows are merged
+ * here: a later row only fills fields the earlier row left blank.
+ */
+function mergeSameDateRecords<R extends { id: string; fields: Record<string, unknown> }>(records: R[]): R[] {
+  const byDate = new Map<string, R>();
+  const out: R[] = [];
+  for (const r of records) {
+    const date = parseDateOnly(r.fields.Date);
+    const first = date ? byDate.get(date) : undefined;
+    if (!date || !first) {
+      const copy = { ...r, fields: { ...r.fields } };
+      if (date) byDate.set(date, copy);
+      out.push(copy);
+      continue;
+    }
+    for (const [k, v] of Object.entries(r.fields)) {
+      if (v !== null && v !== undefined && v !== "" && (first.fields[k] === undefined || first.fields[k] === null || first.fields[k] === "")) {
+        first.fields[k] = v;
+      }
+    }
+  }
+  return out;
+}
+
 function addNullable(a: number | null, b: number | null): number | null {
   return a === null && b === null ? null : (a ?? 0) + (b ?? 0);
 }
@@ -287,12 +315,13 @@ export function createAirtableTables(
    * old refund columns only count on days that table has no row for.
    */
   async function getMarketingDailyMetrics(): Promise<MarketingDailyMetricRow[]> {
-    const [formRecords, vslByDate, htVslByDate, refundsByDate] = await Promise.all([
+    const [rawFormRecords, vslByDate, htVslByDate, refundsByDate] = await Promise.all([
       airtableListAll<Record<string, unknown>>(baseId, tableIds.marketingDailyMetrics),
       getVslDailyStats(tableIds.vslDailyStats),
       getVslDailyStats(tableIds.htVslDailyStats),
       getRefundsByDate(),
     ]);
+    const formRecords = mergeSameDateRecords(rawFormRecords);
     const formDates = new Set(formRecords.map((r) => parseDateOnly(r.fields.Date)));
     const extraDates = new Set(
       [...vslByDate.keys(), ...htVslByDate.keys(), ...refundsByDate.keys()].filter(

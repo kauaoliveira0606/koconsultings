@@ -7,6 +7,7 @@ import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdo
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
 import { WebinarSection } from "@/components/dashboard/WebinarSection";
+import { WebinarBreakdownSection } from "@/components/dashboard/WebinarBreakdownSection";
 import type { WebinarTotals } from "@/lib/metrics";
 import { PieSplit } from "@/components/dashboard/PieSplit";
 import { RateColumns } from "@/components/dashboard/RateColumns";
@@ -300,6 +301,8 @@ export default function OverviewPage() {
       </DashboardSection>
 
       <WebinarSection webinar={metrics?.webinar} goals={goals} />
+
+      <WebinarBreakdownSection apiPath="/api/aval/overview/webinars" goals={goals} />
 
       {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. Kept right under the keystones. */}
       <DashboardSection title="Unit Economics">
