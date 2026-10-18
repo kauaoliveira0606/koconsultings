@@ -17,7 +17,8 @@ import type { GoalsConfig } from "./goals";
 export async function getAvalGoals(): Promise<GoalsConfig> {
   return {
     adSpendMeta: null,
-    costPerLeadMeta: { max: 15 },
+    // No CPL goal on Aval (user, 2026-10-17).
+    costPerLeadMeta: null,
     cashCollectedLowTicket: null,
     funnelConversionRate: { min: 0.1 },
     roasTotal: { min: 3 },
