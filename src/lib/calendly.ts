@@ -40,6 +40,7 @@ type CalendlyEvent = {
   uri: string;
   name: string;
   status: "active" | "canceled";
+  created_at: string;
   start_time: string;
   end_time: string;
   event_memberships: { user_name?: string }[];
@@ -239,4 +240,59 @@ export async function getCallsOnDate({
     })
   );
   return { calls, skipped: [...skippedCounts.values()] };
+}
+
+export type CalendlyBooking = {
+  /** Eastern date the booking was made. */
+  bookedDate: string;
+  start: string;
+  inviteeEmail: string | null;
+  canceled: boolean;
+};
+
+/**
+ * Sales calls booked (made) on Eastern dates from..to, inclusive. A call
+ * canceled only because it was rescheduled is dropped, since its new time is
+ * its own booking: one person rebooking is one booking. Canceled calls stay.
+ */
+export async function getBookingsMade({
+  pat,
+  organization,
+  isSalesCall,
+  from,
+  to,
+}: {
+  pat: string;
+  organization: string;
+  isSalesCall: (eventName: string) => boolean;
+  /** YYYY-MM-DD, Eastern. */
+  from: string;
+  to: string;
+}): Promise<CalendlyBooking[]> {
+  // A call is never booked for before it was made: list calls starting from
+  // the first booking day through 90 days out, then keep those made in range.
+  const day = new Date(`${from}T00:00:00Z`).getTime();
+  const min = new Date(day - 6 * 60 * 60 * 1000).toISOString();
+  const max = new Date(day + 90 * 24 * 60 * 60 * 1000).toISOString();
+  const events = (await listEvents(pat, organization, min, max)).filter((e) => {
+    const made = toEasternDateOnly(e.created_at);
+    return !!made && made >= from && made <= to && isSalesCall(e.name);
+  });
+  const rows = await Promise.all(
+    events.map(async (e) => {
+      const { collection: invitees } = await calendlyGet<{ collection: CalendlyInvitee[] }>(
+        pat,
+        `${e.uri}/invitees?count=100`
+      );
+      const invitee = invitees.find((i) => i.status === "active") ?? invitees[0] ?? null;
+      if (e.status === "canceled" && invitee?.rescheduled) return null;
+      return {
+        bookedDate: toEasternDateOnly(e.created_at)!,
+        start: e.start_time,
+        inviteeEmail: invitee?.email ?? null,
+        canceled: e.status === "canceled",
+      };
+    })
+  );
+  return rows.filter((r): r is CalendlyBooking => r !== null);
 }
