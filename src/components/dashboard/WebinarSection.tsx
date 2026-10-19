@@ -2,6 +2,7 @@
 
 import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
+import { HeroStat } from "@/components/dashboard/HeroStat";
 import { WebinarBreakdownTable } from "@/components/dashboard/WebinarBreakdownTable";
 import type { WebinarTotals } from "@/lib/metrics";
 import type { GoalsConfig, MaxGoal, MinGoal } from "@/lib/goals";
@@ -34,8 +35,8 @@ function kpi(
 }
 
 /**
- * Everything webinar in one section: booked calls, cash and ROAS on top, then
- * in funnel order ads, landing page and opt-ins, the live webinar (post-webinar card), VIP, then one column per
+ * Everything webinar in one section: hero cards for the numbers checked first,
+ * then in funnel order ads, landing page and opt-ins, the live webinar (post-webinar card), VIP, then one column per
  * webinar. All from the Marketing Daily Metrics form.
  */
 export function WebinarSection({
@@ -43,63 +44,87 @@ export function WebinarSection({
   goals,
   breakdownApiPath,
   title = "Webinar",
+  period,
 }: {
-  webinar: WebinarTotals | undefined;
+  webinar: (WebinarTotals & { startDate?: string | null }) | undefined;
   goals?: GoalsConfig;
   breakdownApiPath: string;
   title?: string;
+  /** Shown in the hero cards' pill, e.g. 10/14 → 10/19. */
+  period?: string | null;
 }) {
   const adsActive = (webinar?.adSpend ?? 0) > 0;
   const notActive = webinar && !adsActive ? "Not Active" : undefined;
   return (
     <DashboardSection title={title}>
-      <div className="mb-4">
-        <MetricGroups
-          groups={[
-            {
-              title: "Booked Calls",
-              metrics: [
-                {
-                  label: "Calls Booked",
-                  value: webinar?.callsBooked,
-                  format: "number",
-                  subtext: "Live attendees at pitch × booking rate, per post-webinar card.",
-                },
-                {
-                  label: "Cost Per Booked Call",
-                  value: webinar?.costPerBookedCall,
-                  format: "currency",
-                  override: notActive,
-                  subtext: "Ad spend ÷ calls booked off the webinars.",
-                },
-                {
-                  label: "Cash Per Booked Call",
-                  value: webinar?.cashPerBookedCall,
-                  format: "currency",
-                  subtext: "Webinar cash (high ticket + VIP) ÷ calls booked.",
-                },
-              ],
-            },
-            {
-              title: "Cash & ROAS",
-              metrics: [
-                {
-                  label: "ROAS (Paid)",
-                  value: webinar?.roasPaid,
-                  format: "ratio",
-                  override: notActive,
-                  subtext: "Paid high ticket + paid VIP cash ÷ ad spend.",
-                  ...(adsActive ? kpi(webinar?.roasPaid, goals?.roasTotal, "ratio") : {}),
-                },
-                { label: "Webinar Cash", value: webinar?.webinarCash, format: "currency", subtext: "High ticket + VIP, paid + organic, from the form." },
-                { label: "Webinar Cash (Paid)", value: webinar?.webinarCashPaid, format: "currency" },
-                { label: "Webinar Cash (Organic)", value: webinar?.webinarCashOrganic, format: "currency" },
-                { label: "High Ticket Cash", value: webinar?.highTicketCash, format: "currency", subtext: "Paid + organic." },
-              ],
-            },
-          ]}
+      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <HeroStat
+          label="Cost Per Booked Call"
+          value={webinar?.costPerBookedCall}
+          format="currency"
+          period={period}
+          override={notActive}
+          sub="Ad spend ÷ calls booked"
+        />
+        <HeroStat
+          label="Calls Booked"
+          value={webinar?.callsBooked}
+          format="number"
+          period={period}
+          sub="At pitch × booking rate"
+        />
+        <HeroStat
+          label="Cost Per Lead"
+          value={webinar?.costPerLeadPaid}
+          format="currency"
+          period={period}
+          override={notActive}
+          {...(adsActive ? kpi(webinar?.costPerLeadPaid, goals?.costPerLeadMeta, "currency") : {})}
+          sub="Paid"
+        />
+        <HeroStat
+          label="ROAS (Paid)"
+          value={webinar?.roasPaid}
+          format="ratio"
+          period={period}
+          override={notActive}
+          {...(adsActive ? kpi(webinar?.roasPaid, goals?.roasTotal, "ratio") : {})}
+          sub="Paid VIP cash ÷ ad spend"
+        />
+        <HeroStat
+          size="md"
+          label="Take Rate (Paid)"
+          value={webinar?.takeRatePaid}
+          format="percent"
+          {...kpi(webinar?.takeRatePaid, goals?.vipTakeRate, "percent")}
+          sub={`${formatStatValue(webinar?.vipPurchasesPaid, "number")} of ${formatStatValue(webinar?.optInsPaid, "number")} opt-ins`}
+        />
+        <HeroStat
+          size="md"
+          label="Take Rate (Organic)"
+          value={webinar?.takeRateOrganic}
+          format="percent"
+          {...kpi(webinar?.takeRateOrganic, goals?.vipTakeRate, "percent")}
+          sub={`${formatStatValue(webinar?.vipPurchasesOrganic, "number")} of ${formatStatValue(webinar?.optInsOrganic, "number")} opt-ins`}
+        />
+        <HeroStat
+          size="md"
+          label="VIP Cash"
+          value={webinar?.vipCash}
+          format="currency"
+          sub={`${formatStatValue(webinar?.vipCashPaid, "currency")} paid · ${formatStatValue(webinar?.vipCashOrganic, "currency")} organic`}
+        />
+        <HeroStat
+          size="md"
+          label="Ad Spend"
+          value={webinar?.adSpend}
+          format="currency"
+          sub="Meta, since the webinar launched"
         />
       </div>
+      <p className="mb-6 text-xs text-slate-400">
+        Webinar cash is VIP only for now: no sales form tags a high ticket sale as coming from the webinar yet.
+      </p>
       <MetricGroups
         groups={[
           {
@@ -163,7 +188,6 @@ export function WebinarSection({
               { label: "VIP Purchases", value: webinar?.vipPurchases, format: "number", subtext: "Paid + organic." },
               { label: "VIP Purchases (Paid)", value: webinar?.vipPurchasesPaid, format: "number" },
               { label: "VIP Purchases (Organic)", value: webinar?.vipPurchasesOrganic, format: "number" },
-              { label: "VIP Cash", value: webinar?.vipCash, format: "currency", subtext: "Paid + organic." },
               { label: "VIP Cash (Paid)", value: webinar?.vipCashPaid, format: "currency" },
               { label: "VIP Cash (Organic)", value: webinar?.vipCashOrganic, format: "currency" },
             ],
@@ -171,7 +195,7 @@ export function WebinarSection({
         ]}
       />
       <p className="mt-3 text-sm text-[var(--text-muted)]">
-        From the Marketing Daily Metrics form, for the date range above. VIP cash counts in Total Cash Collected and ROAS, paid and organic.
+        From the Marketing Daily Metrics form, for the date range above, counting only days since the webinar funnel started{webinar?.startDate ? ` (${new Date(`${webinar.startDate}T00:00:00Z`).toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })})` : ""}.
       </p>
       <WebinarBreakdownTable apiPath={breakdownApiPath} goals={goals} />
     </DashboardSection>

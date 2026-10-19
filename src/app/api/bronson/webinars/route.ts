@@ -3,6 +3,7 @@ import { getMarketingDailyMetrics } from "@/lib/airtable/tables";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange } from "@/lib/date-range";
 import { webinarTotals } from "@/lib/metrics";
+import { webinarStartDate } from "@/lib/webinar-breakdown";
 
 export const revalidate = 60;
 
@@ -10,5 +11,9 @@ export const revalidate = 60;
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
   const marketing = await getMarketingDailyMetrics();
-  return Response.json(webinarTotals(marketing.filter((r) => isDateInRange(r.date, range))));
+  // Only days since the webinar funnel started, so ad spend from the funnels
+  // that ran before it doesn't land on the webinar's cost per lead / call.
+  const start = webinarStartDate(marketing);
+  const days = marketing.filter((r) => isDateInRange(r.date, range) && !!start && !!r.date && r.date >= start);
+  return Response.json({ ...webinarTotals(days), startDate: start });
 }

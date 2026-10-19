@@ -197,8 +197,6 @@ type WebinarDay = {
   liveAttendeesAtPitch: number | null;
   retentionRateUntilPitch: number | null;
   webinarBookingRate: number | null;
-  cashCollectedHighTicketPaid: number | null;
-  cashCollectedHighTicketOrganic: number | null;
 };
 
 /** Calls booked off one post-webinar card: attendees at pitch × booking rate. */
@@ -207,30 +205,19 @@ export function webinarCallsBooked(r: Pick<WebinarDay, "liveAttendeesAtPitch" | 
 }
 
 /**
- * Cash and ROAS for a set of webinar days: high ticket + VIP from the form
- * (Bronson AI is its own product, not the webinar). ROAS is paid cash ÷ ad
- * spend; cost per booked call is ad spend ÷ calls booked off the webinars.
+ * Cash and ROAS for a set of webinar days. Only VIP cash is webinar cash:
+ * nothing on the sales forms tags a high ticket sale as coming from the
+ * webinar, and the form's high ticket cash on those days is from other
+ * funnels (user, 2026-10-19). ROAS is paid VIP cash ÷ ad spend; cost per
+ * booked call is ad spend ÷ calls booked off the webinars.
  */
 export function webinarMoney(days: WebinarDay[], adSpend: number | null, callsBooked: number | null) {
-  const add = (a: number | null, b: number | null) => (a === null && b === null ? null : (a ?? 0) + (b ?? 0));
-  const htPaid = sum(days.map((r) => r.cashCollectedHighTicketPaid));
-  const htOrganic = sum(days.map((r) => r.cashCollectedHighTicketOrganic));
   const vipPaid = sum(days.map((r) => r.vipCashPaid));
-  const vipOrganic = sum(days.map((r) => r.vipCashOrganic));
-  const paidCash = add(htPaid, vipPaid);
-  const organicCash = add(htOrganic, vipOrganic);
   const spending = (adSpend ?? 0) > 0;
   return {
     callsBooked,
     costPerBookedCall: spending ? safeDivide(adSpend, callsBooked || null) : null,
-    highTicketCash: add(htPaid, htOrganic),
-    highTicketCashPaid: htPaid,
-    highTicketCashOrganic: htOrganic,
-    webinarCash: add(paidCash, organicCash),
-    webinarCashPaid: paidCash,
-    webinarCashOrganic: organicCash,
-    roasPaid: spending && paidCash !== null ? safeDivide(paidCash, adSpend) : null,
-    cashPerBookedCall: safeDivide(add(paidCash, organicCash), callsBooked || null),
+    roasPaid: spending && vipPaid !== null ? safeDivide(vipPaid, adSpend) : null,
   };
 }
 

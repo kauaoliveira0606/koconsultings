@@ -45,14 +45,11 @@ function groups(goals: GoalsConfig | undefined): Group[] {
       ],
     },
     {
-      title: "Calls, Cash & ROAS",
+      title: "Calls & ROAS",
       metrics: [
         { label: "Calls Booked", format: "number", value: (w) => w.callsBooked, card: true },
         { label: "Cost Per Booked Call", format: "currency", value: (w) => w.costPerBookedCall, card: true },
         { label: "ROAS (Paid)", format: "ratio", value: (w) => w.roasPaid, goal: goals?.roasTotal },
-        { label: "Webinar Cash", format: "currency", value: (w) => w.webinarCash },
-        { label: "Webinar Cash (Paid)", format: "currency", value: (w) => w.webinarCashPaid },
-        { label: "High Ticket Cash", format: "currency", value: (w) => w.highTicketCash },
       ],
     },
     {

@@ -83,6 +83,16 @@ function summarize(
   };
 }
 
+/**
+ * First day of the webinar funnel: the first form day with webinar opt-ins or
+ * VIP purchases, or the first post-webinar card. Ad spend before it belongs
+ * to the funnels that ran before the webinar.
+ */
+export function webinarStartDate(rows: MarketingDailyMetricRow[]): string | null {
+  const dates = rows.filter((r) => r.date && (hasDailyWebinarData(r) || hasCard(r))).map((r) => r.date as string);
+  return dates.length ? dates.sort()[0] : null;
+}
+
 /** Newest webinar first; the in-progress one (if it has any data) on top. */
 export function webinarBreakdown(rows: MarketingDailyMetricRow[], today: string): WebinarBreakdownRow[] {
   const dated = rows
