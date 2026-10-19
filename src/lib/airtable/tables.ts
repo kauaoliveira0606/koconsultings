@@ -695,6 +695,7 @@ export type PostCallNoteRow = {
   date: string | null;
   repName: string | null;
   leadName: string | null;
+  leadEmail: string | null;
   source: string | null;
   callOutcome: string | null;
   offerPitched: string | null;
@@ -715,6 +716,7 @@ export async function getPostCallNotes(): Promise<PostCallNoteRow[]> {
       date: parseDateOnly(f.Date),
       repName: (f["Setters Full Name"] as string) ?? (f["Setters Name"] as string) ?? null,
       leadName: (f["Full Name (Lead)"] as string) ?? null,
+      leadEmail: (f["Email (Lead)"] as string) ?? null,
       source: (f["Source of Lead (Where they came from)"] as string) ?? null,
       callOutcome: (f["Call Outcome"] as string) ?? null,
       offerPitched: (f["Offer Pitched On/Closed"] as string) ?? null,
@@ -775,6 +777,8 @@ export type BookingRow = {
   canceledBy: string | null;
   /** "Masterclass" (Inner Table Gameplan Masterclass) or "VSL" (Inner Table Gameplan). */
   funnel: string | null;
+  /** Lowercased; ties the booking to the lead's Post Call Note. */
+  email?: string | null;
 };
 
 export async function getBookings(): Promise<BookingRow[]> {
@@ -789,6 +793,7 @@ export async function getBookings(): Promise<BookingRow[]> {
     rescheduled: r.fields.Rescheduled === true,
     canceledBy: (r.fields["Canceled By"] as string) ?? null,
     funnel: (r.fields.Funnel as string) ?? null,
+    email: typeof r.fields.Email === "string" ? r.fields.Email.trim().toLowerCase() : null,
   }));
 }
 

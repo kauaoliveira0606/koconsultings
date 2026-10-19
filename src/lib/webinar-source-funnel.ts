@@ -9,14 +9,17 @@ import { connectedBookingIds, countedBookings, isConnectable, type BookingSource
 import type { WebinarRun } from "@/lib/webinar-schedule";
 
 /**
- * Bronson's webinar funnel split paid vs organic, all automatic (user,
- * 2026-10-19): WebinarJam registrants (Masterclass Registrants table) ->
- * attended live -> stayed until the pitch (watched 1 hour+) -> Calendly
- * bookings -> a 1+ min GHL call before the booked call. The source is the
- * lead's masterclass paid / organic tag (ad campaign UTM = paid).
+ * One webinar's funnel split paid vs organic, all automatic (user,
+ * 2026-10-19). Front end: WebinarJam registrants -> attended live -> stayed
+ * until the pitch (watched 1 hour+) -> Calendly bookings. Back end, once the
+ * call is on the calendar: a 1+ min GHL call before it (connected) -> the
+ * lead's Post Call Note (showed, closed, cash). The source is the lead's
+ * paid / organic tag (ad campaign UTM = paid).
  *
  * A booking belongs to the latest webinar held on or before the day it was
- * made; bookings from before the first webinar belong to none.
+ * made, so calls booked the days after a webinar count toward it; bookings
+ * from before the first webinar belong to none. Ad spend only buys paid
+ * traffic, so every cost metric is over the paid count alone.
  */
 export type SourceFunnel = {
   registered: number;
@@ -26,16 +29,28 @@ export type SourceFunnel = {
   canceled: number;
   connected: number;
   connectable: number;
+  /** Booked calls whose time has passed, not canceled by the lead: the ones that could have shown. */
+  due: number;
+  showed: number;
+  closed: number;
+  cashCollected: number;
   showRate: number | null;
   bookingRate: number | null;
   connectionRate: number | null;
+  /** Calls that showed ÷ calls due so far. */
+  callShowRate: number | null;
+  /** Closed ÷ calls that showed. */
+  closeRate: number | null;
   /** Paid only: the webinar's ad spend ÷ paid bookings. */
   costPerBookedCall: number | null;
+  /** Paid only: the webinar's ad spend ÷ paid calls that showed. */
+  costPerLiveCall: number | null;
 };
 
 export type WebinarSourceRow = {
   number: number;
   date: string;
+  promoStart: string;
   status: "done" | "upcoming";
   adSpend: number | null;
   paid: SourceFunnel;
@@ -43,9 +58,37 @@ export type WebinarSourceRow = {
   total: SourceFunnel;
 };
 
-type Counts = Pick<SourceFunnel, "registered" | "attended" | "stayed" | "booked" | "canceled" | "connected" | "connectable">;
+/** The Post Call Note fields the back end needs. */
+export type CallNote = {
+  date: string | null;
+  leadEmail: string | null;
+  callOutcome: string | null;
+  cashCollected: number | null;
+};
 
-const zero = (): Counts => ({ registered: 0, attended: 0, stayed: 0, booked: 0, canceled: 0, connected: 0, connectable: 0 });
+/** A call that happened: anything logged except a no show or a reschedule. */
+const SHOWED = (outcome: string) => outcome !== "No Show" && outcome !== "Reschedule";
+/** Same closed outcomes as the rest of the dashboard (wasClosed). */
+const CLOSED = (outcome: string) => outcome === "Closed (PIF)" || outcome === "Payment Plan";
+
+type Counts = Pick<
+  SourceFunnel,
+  "registered" | "attended" | "stayed" | "booked" | "canceled" | "connected" | "connectable" | "due" | "showed" | "closed" | "cashCollected"
+>;
+
+const zero = (): Counts => ({
+  registered: 0,
+  attended: 0,
+  stayed: 0,
+  booked: 0,
+  canceled: 0,
+  connected: 0,
+  connectable: 0,
+  due: 0,
+  showed: 0,
+  closed: 0,
+  cashCollected: 0,
+});
 
 function finish(c: Counts, adSpend: number | null): SourceFunnel {
   return {
@@ -53,19 +96,15 @@ function finish(c: Counts, adSpend: number | null): SourceFunnel {
     showRate: safeDivide(c.attended, c.registered || null),
     bookingRate: safeDivide(c.booked, c.stayed || null),
     connectionRate: safeDivide(c.connected, c.connectable || null),
+    callShowRate: safeDivide(c.showed, c.due || null),
+    closeRate: safeDivide(c.closed, c.showed || null),
     costPerBookedCall: adSpend ? safeDivide(adSpend, c.booked || null) : null,
+    costPerLiveCall: adSpend ? safeDivide(adSpend, c.showed || null) : null,
   };
 }
 
-const plus = (a: Counts, b: Counts): Counts => ({
-  registered: a.registered + b.registered,
-  attended: a.attended + b.attended,
-  stayed: a.stayed + b.stayed,
-  booked: a.booked + b.booked,
-  canceled: a.canceled + b.canceled,
-  connected: a.connected + b.connected,
-  connectable: a.connectable + b.connectable,
-});
+const plus = (a: Counts, b: Counts): Counts =>
+  Object.fromEntries(Object.keys(a).map((k) => [k, a[k as keyof Counts] + b[k as keyof Counts]])) as Counts;
 
 /** Newest webinar first, planned ones included. */
 export function webinarSourceRows(
@@ -74,8 +113,10 @@ export function webinarSourceRows(
   registrants: MasterclassRegistrantRow[],
   bookings: BookingRow[],
   calls: ConnectedCallRow[],
+  notes: CallNote[],
   today: string,
 ): WebinarSourceRow[] {
+  const now = Date.now();
   const dates = [...runs].map((r) => r.date).sort();
   const webinarFor = (day: string) => [...dates].reverse().find((d) => d <= day) ?? null;
 
@@ -94,6 +135,14 @@ export function webinarSourceRows(
     if (r.stage === "Stayed Until Pitch") c.stayed += 1;
   }
 
+  // Post Call Notes by lead email, oldest first.
+  const notesByEmail = new Map<string, CallNote[]>();
+  for (const n of notes) {
+    const email = n.leadEmail?.trim().toLowerCase();
+    if (!email || !n.date) continue;
+    notesByEmail.set(email, [...(notesByEmail.get(email) ?? []), n]);
+  }
+
   const counted = countedBookings(bookings);
   const conn = connectedBookingIds(counted, calls);
   for (const b of counted) {
@@ -107,6 +156,14 @@ export function webinarSourceRows(
       c.connectable += 1;
       if (conn.has(b.id)) c.connected += 1;
     }
+    // A call still ahead, or one the lead canceled themselves, can't count against show rate.
+    if (isConnectable(b) && !!b.callTime && new Date(b.callTime).getTime() <= now) c.due += 1;
+    // The lead's notes from the day they booked on: showed if any call happened,
+    // closed if any closed, and the cash they logged.
+    const after = (b.email ? notesByEmail.get(b.email) ?? [] : []).filter((n) => n.date! >= b.bookedDate!);
+    if (after.some((n) => !!n.callOutcome && SHOWED(n.callOutcome))) c.showed += 1;
+    if (after.some((n) => !!n.callOutcome && CLOSED(n.callOutcome))) c.closed += 1;
+    c.cashCollected += after.reduce((s, n) => s + (n.cashCollected ?? 0), 0);
   }
 
   return runs
@@ -120,6 +177,7 @@ export function webinarSourceRows(
       return {
         number: i + 1,
         date: run.date,
+        promoStart: run.promoStart,
         status,
         adSpend,
         paid: held(finish(c.Paid, adSpend)),
@@ -128,21 +186,4 @@ export function webinarSourceRows(
       };
     })
     .reverse();
-}
-
-/** Range totals: every webinar whose date falls in the range. */
-export function sumSourceRows(rows: WebinarSourceRow[]): Pick<WebinarSourceRow, "adSpend" | "paid" | "organic" | "total"> {
-  const pick = (r: SourceFunnel): Counts => ({
-    registered: r.registered,
-    attended: r.attended,
-    stayed: r.stayed,
-    booked: r.booked,
-    canceled: r.canceled,
-    connected: r.connected,
-    connectable: r.connectable,
-  });
-  const paid = rows.reduce((a, r) => plus(a, pick(r.paid)), zero());
-  const organic = rows.reduce((a, r) => plus(a, pick(r.organic)), zero());
-  const adSpend = rows.length ? rows.reduce((n, r) => n + (r.adSpend ?? 0), 0) : null;
-  return { adSpend, paid: finish(paid, adSpend), organic: finish(organic, null), total: finish(plus(paid, organic), null) };
 }

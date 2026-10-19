@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import type { BookingRow, MasterclassRegistrantRow } from "@/lib/airtable/tables";
-import { getAvalConnectedCalls, getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
+import { getAvalConnectedCalls, getAvalMarketingDailyMetrics, getAvalPostCallNotes } from "@/lib/airtable/tables-aval";
 import { getBookingsMade } from "@/lib/calendly";
 import { calendlyFor } from "@/lib/calendly-offers";
 import { avalContactIds } from "@/lib/ghl-aval";
@@ -65,6 +65,7 @@ const avalInputs = unstable_cache(
         rescheduled: false,
         canceledBy: b.canceledBy === "host" ? "Host" : b.canceledBy ? "Invitee" : null,
         funnel: "Masterclass",
+        email: email || null,
       };
     });
     return { registrants, bookings };
@@ -80,10 +81,11 @@ export async function avalBookings(today: string): Promise<BookingRow[]> {
 
 /** Newest webinar first, paid vs organic, for Aval. */
 export async function avalWebinarSourceRows(today: string): Promise<WebinarSourceRow[]> {
-  const [{ registrants, bookings }, marketing, calls] = await Promise.all([
+  const [{ registrants, bookings }, marketing, calls, notes] = await Promise.all([
     avalInputs(today),
     getAvalMarketingDailyMetrics(),
     getAvalConnectedCalls(),
+    getAvalPostCallNotes(),
   ]);
   // A person can be two GHL contacts: point each booking at the one that has calls.
   const called = new Set(calls.flatMap((c) => (c.contactId ? [c.contactId] : [])));
@@ -91,5 +93,5 @@ export async function avalWebinarSourceRows(today: string): Promise<WebinarSourc
     const all = (b.contactId ?? "").split(",").filter(Boolean);
     return { ...b, contactId: all.find((id) => called.has(id)) ?? all[0] ?? null };
   });
-  return webinarSourceRows(WEBINAR_SCHEDULE.aval, marketing, registrants, matched, calls, today);
+  return webinarSourceRows(WEBINAR_SCHEDULE.aval, marketing, registrants, matched, calls, notes, today);
 }
