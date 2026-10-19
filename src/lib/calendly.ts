@@ -39,6 +39,7 @@ export type LiveCallsResponse = {
 type CalendlyEvent = {
   uri: string;
   name: string;
+  event_type: string;
   status: "active" | "canceled";
   created_at: string;
   start_time: string;
@@ -252,6 +253,9 @@ export type CalendlyBooking = {
   canceled: boolean;
   /** Calendly's canceler_type ("host" / "invitee") when canceled. */
   canceledBy: string | null;
+  /** The event type's URI; stays the same when the event is renamed. */
+  eventType: string;
+  eventName: string;
 };
 
 /**
@@ -297,7 +301,8 @@ export async function getBookingsMade({
         inviteeEmail: invitee?.email ?? null,
         canceled: e.status === "canceled",
         canceledBy:
-          e.status === "canceled" ? ((invitee?.cancellation ?? e.cancellation)?.canceler_type ?? null) : null,
+          e.status === "canceled" ? ((invitee?.cancellation ?? e.cancellation)?.canceler_type ?? null) : null,        eventType: e.event_type,
+        eventName: e.name,
       };
     })
   );
