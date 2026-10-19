@@ -333,17 +333,14 @@ function buildSpecs(
           format: "currency",
           goal: goals.costPerLeadMeta?.max ?? null,
           goalDirection: "lower",
-          // Paid-lead count: Leads table, falling back to the Marketing
-          // Daily Metrics "Opt ins (Paid)" count on days it has nothing.
-          // Form's typed CPL first; calculated only on days it's blank.
+          redAt: goals.costPerLeadMeta?.redAbove ?? null,
+          // Form's typed CPL first; calculated only on days it's blank, as
+          // ad spend ÷ paid webinar opt-ins (not the old Leads-table
+          // affiliate opt-ins). The week averages the days (TYPED_RATE_KEYS).
           day: (c) =>
             (c.m ? num(c.m.costPerLeadMeta) : null) ??
-            safeDivide(dAdSpend(c), dPaidLeads(c) || null),
-          week: (days) =>
-            safeDivide(
-              sum(days.map(dAdSpend)),
-              days.reduce((n, c) => n + (dPaidLeads(c) ?? 0), 0) || null,
-            ),
+            safeDivide(dAdSpend(c), dWebinarOptInsPaid(c) || null),
+          week: (days) => average(days.map((c) => (c.m ? num(c.m.costPerLeadMeta) : null) ?? safeDivide(dAdSpend(c), dWebinarOptInsPaid(c) || null))),
         },
         {
           key: "cashCollectedLowTicket",
