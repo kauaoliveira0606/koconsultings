@@ -1,9 +1,11 @@
 import type { StatFormat } from "./format";
-import type { BookingRow } from "@/lib/airtable/tables";
+import type { BookingRow, MasterclassRegistrantRow } from "@/lib/airtable/tables";
 import {
   BOOKINGS_TRACKING_START,
   connectedBookingIds,
   countedBookings,
+  isConnectable,
+  stayedUntilPitch,
   type BookingSource,
   type SourceBookingStats,
 } from "@/lib/booking-source";
@@ -162,6 +164,8 @@ type DayCtx = {
   connectedOrganic: number | null;
   /** Calendly bookings made that day by source (Bronson); null before tracking. */
   bk: Record<BookingSource, SourceBookingStats> | null;
+  /** Registrants who stayed until the pitch that session day, by source. */
+  stayed: Record<BookingSource, number> | null;
 };
 
 /**
@@ -176,6 +180,7 @@ export type ScorecardExtras = {
   connectionTrackingStart?: string;
   /** Bronson: Calendly bookings with the lead's masterclass paid / organic tag. */
   bookings?: BookingRow[];
+  registrants?: MasterclassRegistrantRow[];
   attribution?: {
     portal: {
       date: string | null;
@@ -927,7 +932,7 @@ function buildSpecs(
             ),
         },
         // Bronson (user, 2026-10-19): Calendly bookings by the lead's masterclass
-        // paid / organic tag; booking rate over the form's webinar opt-ins, and
+        // paid / organic tag; booking rate over registrants who stayed until the pitch, and
         // connected = a 1+ min GHL call between booking and the call (automatic).
         {
           key: "callsPaidBooked",
@@ -944,10 +949,12 @@ function buildSpecs(
           format: "percent",
           goal: null,
           goalDirection: null,
-          day: (c) => (c.bk ? safeDivide(c.bk.Paid.booked, dWebinarOptInsPaid(c) || null) : null),
+          day: (c) => (c.bk && c.stayed ? safeDivide(c.bk.Paid.booked, c.stayed.Paid || null) : null),
           week: (days) => {
-            const t = days.filter((c) => c.bk);
-            return t.length ? safeDivide(sum(t.map((c) => c.bk!.Paid.booked)), sum(t.map(dWebinarOptInsPaid)) || null) : null;
+            const t = days.filter((c) => c.bk && c.stayed);
+            return t.length
+              ? safeDivide(sum(t.map((c) => c.bk!.Paid.booked)), sum(t.map((c) => c.stayed!.Paid)) || null)
+              : null;
           },
         },
         {
@@ -977,10 +984,12 @@ function buildSpecs(
           format: "percent",
           goal: null,
           goalDirection: null,
-          day: (c) => (c.bk ? safeDivide(c.bk.Organic.booked, dWebinarOptInsOrg(c) || null) : null),
+          day: (c) => (c.bk && c.stayed ? safeDivide(c.bk.Organic.booked, c.stayed.Organic || null) : null),
           week: (days) => {
-            const t = days.filter((c) => c.bk);
-            return t.length ? safeDivide(sum(t.map((c) => c.bk!.Organic.booked)), sum(t.map(dWebinarOptInsOrg)) || null) : null;
+            const t = days.filter((c) => c.bk && c.stayed);
+            return t.length
+              ? safeDivide(sum(t.map((c) => c.bk!.Organic.booked)), sum(t.map((c) => c.stayed!.Organic)) || null)
+              : null;
           },
         },
         {
@@ -1518,6 +1527,7 @@ const emptyDay = (date: string): DayCtx => ({
   connectedPaid: null,
   connectedOrganic: null,
   bk: null,
+  stayed: null,
 });
 
 /** Rolls every source up per Eastern day; returns a lookup for one day's inputs. */
@@ -1636,7 +1646,7 @@ function indexDays(
       const st = day[b.source];
       st.booked += 1;
       if (b.canceled) st.canceled += 1;
-      else {
+      if (isConnectable(b)) {
         st.connectable += 1;
         if (conn.has(b.id)) st.connected += 1;
       }
@@ -1660,6 +1670,10 @@ function indexDays(
     connectedPaid: connTracked(date) ? (connPaidByDate.get(date) ?? 0) : null,
     connectedOrganic: connTracked(date) ? (connOrgByDate.get(date) ?? 0) : null,
     bk: extras.bookings && date >= BOOKINGS_TRACKING_START ? (bkByDate.get(date) ?? zeroBk()) : null,
+    stayed:
+      extras.registrants && date >= BOOKINGS_TRACKING_START
+        ? stayedUntilPitch(extras.registrants, (d) => d === date)
+        : null,
   });
 }
 

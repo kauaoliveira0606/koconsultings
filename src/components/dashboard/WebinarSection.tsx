@@ -20,7 +20,7 @@ type SourceBookings = {
   canceled: number;
   connected: number;
   connectable: number;
-  optIns: number;
+  stayedAtPitch: number;
   bookingRate: number | null;
   connectionRate: number | null;
 };
@@ -205,13 +205,13 @@ export function WebinarSection({
                               label: `Booking Rate (${name})`,
                               value: b.bookingRate,
                               format: "percent" as const,
-                              subtext: `${b.booked} bookings ÷ ${b.optIns} ${k} webinar opt-ins${since}.`,
+                              subtext: `${b.booked} bookings ÷ ${b.stayedAtPitch} ${k} registrants who stayed until the pitch${since}.`,
                             },
                             {
                               label: `Connection Rate (${name})`,
                               value: b.connectionRate,
                               format: "percent" as const,
-                              subtext: `${b.connected} of ${b.connectable} booked leads (not canceled) had a 1+ min call before their call. Automatic from GHL call logs.`,
+                              subtext: `${b.connected} of ${b.connectable} booked leads had a 1+ min call before their call (leads who canceled themselves left out). Automatic from GHL call logs.`,
                               ...kpi(b.connectionRate, goals?.connectionRate, "percent"),
                             },
                           ];

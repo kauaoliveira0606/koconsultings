@@ -1,4 +1,4 @@
-import type { BookingRow, ConnectedCallRow } from "@/lib/airtable/tables";
+import type { BookingRow, ConnectedCallRow, MasterclassRegistrantRow } from "@/lib/airtable/tables";
 import { toEasternDateOnly } from "@/lib/date-range";
 
 /** First day the Bookings table has rows (backfilled from Calendly). */
@@ -11,7 +11,24 @@ export type BookingSource = "Paid" | "Organic";
  * time is its own row), so one person rebooking is one booking.
  */
 export function countedBookings(bookings: BookingRow[]): BookingRow[] {
-  return bookings.filter((b) => !b.rescheduled && !!b.bookedDate);
+  // Masterclass funnel only; the VSL book-a-call event is a different funnel.
+  return bookings.filter((b) => !b.rescheduled && !!b.bookedDate && b.funnel !== "VSL");
+}
+
+/**
+ * Booking rate's denominator (user, 2026-10-19): registrants who stayed until
+ * the pitch, by source, counted on the session day they watched.
+ */
+export function stayedUntilPitch(
+  registrants: MasterclassRegistrantRow[],
+  inRange: (date: string) => boolean,
+): Record<BookingSource, number> {
+  const out: Record<BookingSource, number> = { Paid: 0, Organic: 0 };
+  for (const r of registrants) {
+    if (r.stage !== "Stayed Until Pitch" || !r.sessionDate || !inRange(r.sessionDate)) continue;
+    if (r.source === "Paid" || r.source === "Organic") out[r.source] += 1;
+  }
+  return out;
 }
 
 /**
@@ -36,13 +53,21 @@ export function connectedBookingIds(bookings: BookingRow[], calls: ConnectedCall
   return out;
 }
 
+/**
+ * Counts toward connection rate unless the lead canceled it themselves (user,
+ * 2026-10-19): a host cancel usually means the setter reached them first.
+ */
+export function isConnectable(b: BookingRow): boolean {
+  return !(b.canceled && b.canceledBy === "Invitee");
+}
+
 export type SourceBookingStats = {
   /** Bookings made in the range (reschedules counted once). */
   booked: number;
   canceled: number;
-  /** Non-canceled bookings whose lead got a 1+ min call before the call. */
+  /** Connectable bookings whose lead got a 1+ min call before the call. */
   connected: number;
-  /** Non-canceled bookings, the connection rate's denominator. */
+  /** Bookings the lead didn't cancel themselves, the connection rate's denominator. */
   connectable: number;
 };
 
@@ -60,7 +85,7 @@ export function bookingStats(
     const s = out[b.source];
     s.booked += 1;
     if (b.canceled) s.canceled += 1;
-    else {
+    if (isConnectable(b)) {
       s.connectable += 1;
       if (connected.has(b.id)) s.connected += 1;
     }

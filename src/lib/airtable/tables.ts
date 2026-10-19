@@ -771,6 +771,10 @@ export type BookingRow = {
   contactId: string | null;
   canceled: boolean;
   rescheduled: boolean;
+  /** "Invitee" = the lead canceled themselves; "Host" = our side canceled. */
+  canceledBy: string | null;
+  /** "Masterclass" (Inner Table Gameplan Masterclass) or "VSL" (Inner Table Gameplan). */
+  funnel: string | null;
 };
 
 export async function getBookings(): Promise<BookingRow[]> {
@@ -783,6 +787,31 @@ export async function getBookings(): Promise<BookingRow[]> {
     contactId: (r.fields["Contact ID"] as string) || null,
     canceled: r.fields.Canceled === true,
     rescheduled: r.fields.Rescheduled === true,
+    canceledBy: (r.fields["Canceled By"] as string) ?? null,
+    funnel: (r.fields.Funnel as string) ?? null,
+  }));
+}
+
+// One row per WebinarJam registrant per session, written by the WebinarJam
+// workflow (bVSWLTEH1cHOsNDH) since 2026-10-19 and backfilled from the
+// WebinarJam API. Stage only moves forward; attendees are dated by the day
+// they watched live. Source follows the masterclass paid / organic tag.
+const MASTERCLASS_REGISTRANTS_TABLE_ID = "tblekAN7Ba1YCeEa9";
+
+export type MasterclassRegistrantRow = {
+  id: string;
+  sessionDate: string | null;
+  source: string | null;
+  stage: string | null;
+};
+
+export async function getMasterclassRegistrants(): Promise<MasterclassRegistrantRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, MASTERCLASS_REGISTRANTS_TABLE_ID);
+  return records.map((r) => ({
+    id: r.id,
+    sessionDate: parseDateOnly(r.fields["Session Date"]),
+    source: (r.fields.Source as string) ?? null,
+    stage: (r.fields.Stage as string) ?? null,
   }));
 }
 
