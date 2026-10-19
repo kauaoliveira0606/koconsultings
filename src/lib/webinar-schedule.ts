@@ -10,8 +10,8 @@ export type WebinarOffer = "bronson" | "aval";
 
 export const WEBINAR_SCHEDULE: Record<WebinarOffer, WebinarRun[]> = {
   bronson: [
-    // 5-day promo, first campaign.
-    { promoStart: "2026-10-14", date: "2026-10-18" },
+    // First campaign; promo started Oct 11 (user, 2026-10-19).
+    { promoStart: "2026-10-11", date: "2026-10-18" },
     // "Not this Wednesday, the following one." Promo length assumed 5 days like the first.
     { promoStart: "2026-10-24", date: "2026-10-28" },
   ],
