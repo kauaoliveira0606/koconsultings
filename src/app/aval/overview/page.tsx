@@ -6,7 +6,6 @@ import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
-import { WebinarSection } from "@/components/dashboard/WebinarSection";
 import type { WebinarTotals } from "@/lib/metrics";
 import { PieSplit } from "@/components/dashboard/PieSplit";
 import { RateColumns } from "@/components/dashboard/RateColumns";
@@ -291,8 +290,6 @@ export default function OverviewPage() {
           </span>
         </div>
       </DashboardSection>
-
-      <WebinarSection webinar={metrics?.webinar} goals={goals} breakdownApiPath="/api/aval/overview/webinars" />
 
       {/* TIER 2 — REVENUE BREAKDOWN */}
       <DashboardSection title="Revenue Breakdown">

@@ -197,7 +197,42 @@ type WebinarDay = {
   liveAttendeesAtPitch: number | null;
   retentionRateUntilPitch: number | null;
   webinarBookingRate: number | null;
+  cashCollectedHighTicketPaid: number | null;
+  cashCollectedHighTicketOrganic: number | null;
 };
+
+/** Calls booked off one post-webinar card: attendees at pitch × booking rate. */
+export function webinarCallsBooked(r: Pick<WebinarDay, "liveAttendeesAtPitch" | "webinarBookingRate">): number | null {
+  return r.liveAttendeesAtPitch === null || r.webinarBookingRate === null ? null : r.liveAttendeesAtPitch * r.webinarBookingRate;
+}
+
+/**
+ * Cash and ROAS for a set of webinar days: high ticket + VIP from the form
+ * (Bronson AI is its own product, not the webinar). ROAS is paid cash ÷ ad
+ * spend; cost per booked call is ad spend ÷ calls booked off the webinars.
+ */
+export function webinarMoney(days: WebinarDay[], adSpend: number | null, callsBooked: number | null) {
+  const add = (a: number | null, b: number | null) => (a === null && b === null ? null : (a ?? 0) + (b ?? 0));
+  const htPaid = sum(days.map((r) => r.cashCollectedHighTicketPaid));
+  const htOrganic = sum(days.map((r) => r.cashCollectedHighTicketOrganic));
+  const vipPaid = sum(days.map((r) => r.vipCashPaid));
+  const vipOrganic = sum(days.map((r) => r.vipCashOrganic));
+  const paidCash = add(htPaid, vipPaid);
+  const organicCash = add(htOrganic, vipOrganic);
+  const spending = (adSpend ?? 0) > 0;
+  return {
+    callsBooked,
+    costPerBookedCall: spending ? safeDivide(adSpend, callsBooked || null) : null,
+    highTicketCash: add(htPaid, htOrganic),
+    highTicketCashPaid: htPaid,
+    highTicketCashOrganic: htOrganic,
+    webinarCash: add(paidCash, organicCash),
+    webinarCashPaid: paidCash,
+    webinarCashOrganic: organicCash,
+    roasPaid: spending && paidCash !== null ? safeDivide(paidCash, adSpend) : null,
+    cashPerBookedCall: safeDivide(add(paidCash, organicCash), callsBooked || null),
+  };
+}
 
 /**
  * Webinar funnel numbers from the Marketing Daily Metrics form. Counts and
@@ -233,6 +268,7 @@ export function webinarTotals(rows: WebinarDay[]) {
     liveAttendeesAtPitch: sum(cards.map((r) => r.liveAttendeesAtPitch)),
     retentionRateUntilPitch: average(cards.map((r) => r.retentionRateUntilPitch)),
     bookingRate: average(cards.map((r) => r.webinarBookingRate)),
+    ...webinarMoney(rows, adSpend, sum(cards.map(webinarCallsBooked))),
     optInsPaid,
     optInsOrganic,
     optIns,

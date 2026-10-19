@@ -45,6 +45,17 @@ function groups(goals: GoalsConfig | undefined): Group[] {
       ],
     },
     {
+      title: "Calls, Cash & ROAS",
+      metrics: [
+        { label: "Calls Booked", format: "number", value: (w) => w.callsBooked, card: true },
+        { label: "Cost Per Booked Call", format: "currency", value: (w) => w.costPerBookedCall, card: true },
+        { label: "ROAS (Paid)", format: "ratio", value: (w) => w.roasPaid, goal: goals?.roasTotal },
+        { label: "Webinar Cash", format: "currency", value: (w) => w.webinarCash },
+        { label: "Webinar Cash (Paid)", format: "currency", value: (w) => w.webinarCashPaid },
+        { label: "High Ticket Cash", format: "currency", value: (w) => w.highTicketCash },
+      ],
+    },
+    {
       title: "Post-Webinar Card",
       metrics: [
         { label: "Show Rate", format: "percent", value: (w) => w.showRate, card: true },
@@ -57,10 +68,10 @@ function groups(goals: GoalsConfig | undefined): Group[] {
   ];
 }
 
-function goalText(goal: MinGoal | null | undefined): string | null {
+function goalText(goal: MinGoal | null | undefined, format: StatFormat): string | null {
   if (!goal) return null;
-  const bad = goal.redBelow !== undefined && goal.redBelow !== goal.min ? `, under ${formatStatValue(goal.redBelow, "percent")} is bad` : "";
-  return `≥ ${formatStatValue(goal.min, "percent")}${bad}`;
+  const bad = goal.redBelow !== undefined && goal.redBelow !== goal.min ? `, under ${formatStatValue(goal.redBelow, format)} is bad` : "";
+  return `≥ ${formatStatValue(goal.min, format)}${bad}`;
 }
 
 /**
@@ -107,7 +118,7 @@ export function WebinarBreakdownTable({ apiPath, goals }: { apiPath: string; goa
                     </th>
                   </tr>
                   {g.metrics.map((m) => {
-                    const goal = goalText(m.goal);
+                    const goal = goalText(m.goal, m.format);
                     return (
                       <tr key={m.label}>
                         <th className="sticky left-0 bg-[var(--panel-bg)] px-3 py-2.5 text-left align-middle">

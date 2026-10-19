@@ -9,6 +9,7 @@ export type SidebarItem = { href: string; label: string };
 /** Line icons keyed by the tab's last path segment. */
 const ICONS: Record<string, ReactNode> = {
   overview: <path d="M3 3h6v6H3zM11 3h6v4h-6zM11 9h6v8h-6zM3 11h6v6H3z" />,
+  webinars: <path d="M2.5 3.5h15v10h-15zM7 17h6M10 13.5V17M8.5 6.5v4l3.5-2-3.5-2z" />,
   scorecard: <path d="M10 17a7 7 0 100-14 7 7 0 000 14zm0-3.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zm0-2.5a1 1 0 100-2 1 1 0 000 2z" />,
   "cash-calendar": <path d="M3.5 5h13v11.5h-13zM3.5 8.5h13M7 3v3.5M13 3v3.5" />,
   "sales-team": <path d="M7.5 9a2.75 2.75 0 100-5.5 2.75 2.75 0 000 5.5zM2.5 16.5c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5M13.5 9a2.25 2.25 0 100-4.5M14.5 12.2c1.8.4 3 1.8 3 4.3" />,

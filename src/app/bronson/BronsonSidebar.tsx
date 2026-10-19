@@ -4,6 +4,7 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 
 const NAV_ITEMS = [
   { href: "/bronson/overview", label: "Overview" },
+  { href: "/bronson/webinars", label: "Webinars" },
   { href: "/bronson/scorecard", label: "Scorecard" },
   { href: "/bronson/cash-calendar", label: "Cash Calendar" },
   { href: "/bronson/sales-team", label: "Sales Team" },

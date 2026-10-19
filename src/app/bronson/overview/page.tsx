@@ -5,7 +5,6 @@ import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
-import { WebinarSection } from "@/components/dashboard/WebinarSection";
 import type { WebinarTotals } from "@/lib/metrics";
 import { RateColumns } from "@/components/dashboard/RateColumns";
 import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
@@ -251,8 +250,6 @@ export default function OverviewPage() {
           </span>
         </div>
       </DashboardSection>
-
-      <WebinarSection webinar={metrics?.webinar} goals={goals} breakdownApiPath="/api/bronson/overview/webinars" />
 
       {/* TIER 2 — REVENUE BREAKDOWN */}
       <DashboardSection title="Revenue Breakdown">

@@ -1,6 +1,6 @@
 import type { MarketingDailyMetricRow } from "@/lib/airtable/tables";
 import { addDaysToDateString } from "@/lib/date-range";
-import { average, safeDivide, sum } from "@/lib/metrics";
+import { average, safeDivide, sum, webinarCallsBooked, webinarMoney } from "@/lib/metrics";
 
 /**
  * One row per webinar. A webinar is a date with a post-webinar card on the
@@ -33,7 +33,7 @@ export type WebinarBreakdownRow = {
   liveAttendeesAtPitch: number | null;
   retentionRateUntilPitch: number | null;
   bookingRate: number | null;
-};
+} & ReturnType<typeof webinarMoney>;
 
 const hasCard = (r: MarketingDailyMetricRow) =>
   [r.webinarShowRate, r.liveAttendees, r.liveAttendeesAtPitch, r.retentionRateUntilPitch, r.webinarBookingRate].some(
@@ -79,6 +79,7 @@ function summarize(
     liveAttendeesAtPitch: card?.liveAttendeesAtPitch ?? null,
     retentionRateUntilPitch: card?.retentionRateUntilPitch ?? null,
     bookingRate: card?.webinarBookingRate ?? null,
+    ...webinarMoney(days, adSpend, card ? webinarCallsBooked(card) : null),
   };
 }
 

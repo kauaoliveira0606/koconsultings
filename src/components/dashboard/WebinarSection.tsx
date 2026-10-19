@@ -34,23 +34,72 @@ function kpi(
 }
 
 /**
- * Everything webinar in one section, in funnel order: ads, landing page and
- * opt-ins, the live webinar (post-webinar card), VIP, then one column per
+ * Everything webinar in one section: booked calls, cash and ROAS on top, then
+ * in funnel order ads, landing page and opt-ins, the live webinar (post-webinar card), VIP, then one column per
  * webinar. All from the Marketing Daily Metrics form.
  */
 export function WebinarSection({
   webinar,
   goals,
   breakdownApiPath,
+  title = "Webinar",
 }: {
   webinar: WebinarTotals | undefined;
   goals?: GoalsConfig;
   breakdownApiPath: string;
+  title?: string;
 }) {
   const adsActive = (webinar?.adSpend ?? 0) > 0;
   const notActive = webinar && !adsActive ? "Not Active" : undefined;
   return (
-    <DashboardSection title="Webinar">
+    <DashboardSection title={title}>
+      <div className="mb-4">
+        <MetricGroups
+          groups={[
+            {
+              title: "Booked Calls",
+              metrics: [
+                {
+                  label: "Calls Booked",
+                  value: webinar?.callsBooked,
+                  format: "number",
+                  subtext: "Live attendees at pitch × booking rate, per post-webinar card.",
+                },
+                {
+                  label: "Cost Per Booked Call",
+                  value: webinar?.costPerBookedCall,
+                  format: "currency",
+                  override: notActive,
+                  subtext: "Ad spend ÷ calls booked off the webinars.",
+                },
+                {
+                  label: "Cash Per Booked Call",
+                  value: webinar?.cashPerBookedCall,
+                  format: "currency",
+                  subtext: "Webinar cash (high ticket + VIP) ÷ calls booked.",
+                },
+              ],
+            },
+            {
+              title: "Cash & ROAS",
+              metrics: [
+                {
+                  label: "ROAS (Paid)",
+                  value: webinar?.roasPaid,
+                  format: "ratio",
+                  override: notActive,
+                  subtext: "Paid high ticket + paid VIP cash ÷ ad spend.",
+                  ...(adsActive ? kpi(webinar?.roasPaid, goals?.roasTotal, "ratio") : {}),
+                },
+                { label: "Webinar Cash", value: webinar?.webinarCash, format: "currency", subtext: "High ticket + VIP, paid + organic, from the form." },
+                { label: "Webinar Cash (Paid)", value: webinar?.webinarCashPaid, format: "currency" },
+                { label: "Webinar Cash (Organic)", value: webinar?.webinarCashOrganic, format: "currency" },
+                { label: "High Ticket Cash", value: webinar?.highTicketCash, format: "currency", subtext: "Paid + organic." },
+              ],
+            },
+          ]}
+        />
+      </div>
       <MetricGroups
         groups={[
           {
