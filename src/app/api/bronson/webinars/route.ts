@@ -6,9 +6,9 @@ import {
   getMarketingDailyMetrics,
   getMasterclassRegistrants,
 } from "@/lib/airtable/tables";
-import { BOOKINGS_TRACKING_START, bookingStats, stayedUntilPitch } from "@/lib/booking-source";
+import { webinarSourceRows } from "@/lib/webinar-source-funnel";
 import { parseRangeFromRequest } from "@/lib/api-range";
-import { isDateInRange } from "@/lib/date-range";
+import { easternDateString, isDateInRange } from "@/lib/date-range";
 import { safeDivide, webinarTotals } from "@/lib/metrics";
 import { webinarRows, webinarStartDate } from "@/lib/webinar-breakdown";
 import { WEBINAR_SCHEDULE } from "@/lib/webinar-schedule";
@@ -18,12 +18,12 @@ export const revalidate = 60;
 /** Webinar tab: the funnel totals for the selected range, from the form only. */
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
-  const [marketing, eod, bookings, calls, registrants] = await Promise.all([
+  const [marketing, eod, registrants, bookings, calls] = await Promise.all([
     getMarketingDailyMetrics(),
     getBronsonAffiliateEod(),
+    getMasterclassRegistrants(),
     getBookings(),
     getConnectedCalls(),
-    getMasterclassRegistrants(),
   ]);
   // Only promo days and webinar days of the webinars run, so ad spend from
   // older funnels and break days doesn't land on cost per lead / call.
@@ -40,28 +40,21 @@ export async function GET(request: NextRequest) {
     connected += r.selfBookedConnected ?? 0;
   }
 
-  // Paid / organic booking + connection rates, automatic (user, 2026-10-19):
-  // Calendly bookings carry the lead's masterclass tag; connected = a 1+ min
-  // GHL call between booking and the call. Counted from the Bookings table start.
-  const tracked = (d: string) => d >= BOOKINGS_TRACKING_START && isDateInRange(d, range);
-  const stats = bookingStats(bookings, calls, tracked);
-  const stayed = stayedUntilPitch(registrants, tracked);
-  // Booking rate (user, 2026-10-19) = bookings ÷ registrants who stayed until the pitch.
-  const bySource = (s: (typeof stats)["Paid"], stayedAtPitch: number) => ({
-    ...s,
-    stayedAtPitch,
-    bookingRate: safeDivide(s.booked, stayedAtPitch || null),
-    connectionRate: safeDivide(s.connected, s.connectable || null),
-  });
+  // Calls booked = the real Calendly masterclass bookings of the webinars held in
+  // range (user, 2026-10-19), not the form's at pitch × booking rate estimate.
+  const totals = webinarTotals(days);
+  const held = webinarSourceRows(WEBINAR_SCHEDULE.bronson, marketing, registrants, bookings, calls, easternDateString()).filter(
+    (w) => w.status === "done" && isDateInRange(w.date, range),
+  );
+  const callsBooked = held.length ? held.reduce((n, w) => n + w.total.booked, 0) : totals.callsBooked;
+  const spending = (totals.adSpend ?? 0) > 0;
 
   return Response.json({
-    ...webinarTotals(days),
+    ...totals,
+    callsBooked,
+    costPerBookedCall: held.length ? (spending ? safeDivide(totals.adSpend, callsBooked || null) : null) : totals.costPerBookedCall,
+    callsBookedFrom: held.length ? "calendly" : "form",
     startDate: start,
     connection: { reachOut, connected, rate: safeDivide(connected, reachOut || null) },
-    bookings: {
-      trackingStart: BOOKINGS_TRACKING_START,
-      paid: bySource(stats.Paid, stayed.Paid),
-      organic: bySource(stats.Organic, stayed.Organic),
-    },
   });
 }
