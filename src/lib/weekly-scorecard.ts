@@ -897,6 +897,26 @@ function buildSpecs(
           week: (days) => safeDivide(sum(days.map(dVipPurchasesOrg)), sum(days.map(dWebinarOptInsOrg)) || null),
         },
         {
+          // Bronson (user, 2026-10-19): 1+ min calls to masterclass registrants by their
+          // paid / organic GHL tag ÷ the form's webinar opt-ins, from the tag start date.
+          key: "webinarConnRatePaid",
+          label: "Connection Rate (Paid)",
+          format: "percent",
+          goal: goals.connectionRate?.min ?? null,
+          goalDirection: "higher",
+          day: dConnRate((c) => c.connectedPaid, (c) => dWebinarOptInsPaid(c) ?? 0),
+          week: wConnRate((c) => c.connectedPaid, (c) => dWebinarOptInsPaid(c) ?? 0),
+        },
+        {
+          key: "webinarConnRateOrganic",
+          label: "Connection Rate (Organic)",
+          format: "percent",
+          goal: goals.connectionRate?.min ?? null,
+          goalDirection: "higher",
+          day: dConnRate((c) => c.connectedOrganic, (c) => dWebinarOptInsOrg(c) ?? 0),
+          week: wConnRate((c) => c.connectedOrganic, (c) => dWebinarOptInsOrg(c) ?? 0),
+        },
+        {
           key: "hookRate",
           label: "Hook Rate",
           format: "percent",
@@ -1252,6 +1272,8 @@ const WEBINAR_CARD_KEYS = [
   "liveAttendeesAtPitch",
   "retentionRateUntilPitch",
   "webinarBookingRate",
+  "webinarConnRatePaid",
+  "webinarConnRateOrganic",
 ];
 export const BRONSON_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.filter(
   (g) => !BRONSON_DROPPED_SECTIONS.has(g.title),

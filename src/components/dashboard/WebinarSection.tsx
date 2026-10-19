@@ -12,6 +12,16 @@ import type { StatCardStatus } from "@/components/dashboard/StatCard";
 
 const AVERAGED = "From the form, averaged across the days in range.";
 
+/** Bronson only: 1+ minute calls to masterclass registrants by their paid / organic GHL tag. */
+export type WebinarConnection = {
+  trackingStart: string;
+  paid: { optIns: number; connected: number; rate: number | null };
+  organic: { optIns: number; connected: number; rate: number | null };
+};
+
+const shortDate = (d: string) =>
+  new Date(`${d}T00:00:00Z`).toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
 /** Status + goal text for one KPI with a good line and (optionally) a bad line. */
 function kpi(
   value: number | null | undefined,
@@ -46,7 +56,7 @@ export function WebinarSection({
   title = "Webinar",
   period,
 }: {
-  webinar: (WebinarTotals & { startDate?: string | null }) | undefined;
+  webinar: (WebinarTotals & { startDate?: string | null; connection?: WebinarConnection }) | undefined;
   goals?: GoalsConfig;
   breakdownApiPath: string;
   title?: string;
@@ -55,6 +65,7 @@ export function WebinarSection({
 }) {
   const adsActive = (webinar?.adSpend ?? 0) > 0;
   const notActive = webinar && !adsActive ? "Not Active" : undefined;
+  const conn = webinar?.connection;
   return (
     <DashboardSection title={title}>
       <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -157,6 +168,29 @@ export function WebinarSection({
               { label: "Webinar Opt-Ins (Organic)", value: webinar?.optInsOrganic, format: "number" },
             ],
           },
+          ...(conn
+            ? [
+                {
+                  title: "Calls",
+                  metrics: [
+                    {
+                      label: "Connection Rate (Paid)",
+                      value: conn.paid.rate,
+                      format: "percent" as const,
+                      subtext: `${formatStatValue(conn.paid.connected, "number")} paid registrants on a 1+ min call ÷ ${formatStatValue(conn.paid.optIns, "number")} paid webinar opt-ins, since ${shortDate(conn.trackingStart)}.`,
+                      ...kpi(conn.paid.rate, goals?.connectionRate, "percent"),
+                    },
+                    {
+                      label: "Connection Rate (Organic)",
+                      value: conn.organic.rate,
+                      format: "percent" as const,
+                      subtext: `${formatStatValue(conn.organic.connected, "number")} organic registrants on a 1+ min call ÷ ${formatStatValue(conn.organic.optIns, "number")} organic webinar opt-ins, since ${shortDate(conn.trackingStart)}.`,
+                      ...kpi(conn.organic.rate, goals?.connectionRate, "percent"),
+                    },
+                  ],
+                },
+              ]
+            : []),
           {
             title: "Live Webinar",
             metrics: [
