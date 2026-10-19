@@ -47,12 +47,14 @@ export async function GET(request: NextRequest) {
     (w) => w.status === "done" && isDateInRange(w.date, range),
   );
   const callsBooked = held.length ? held.reduce((n, w) => n + w.total.booked, 0) : totals.callsBooked;
+  // Ad spend only buys paid calls (user, 2026-10-19): cost per booked call is over paid bookings.
+  const paidBooked = held.reduce((n, w) => n + w.paid.booked, 0);
   const spending = (totals.adSpend ?? 0) > 0;
 
   return Response.json({
     ...totals,
     callsBooked,
-    costPerBookedCall: held.length ? (spending ? safeDivide(totals.adSpend, callsBooked || null) : null) : totals.costPerBookedCall,
+    costPerBookedCall: held.length && spending ? safeDivide(totals.adSpend, paidBooked || null) : null,
     callsBookedFrom: held.length ? "calendly" : "form",
     startDate: start,
     connection: { reachOut, connected, rate: safeDivide(connected, reachOut || null) },

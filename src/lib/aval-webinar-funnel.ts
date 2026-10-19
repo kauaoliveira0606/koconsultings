@@ -73,6 +73,11 @@ const avalInputs = unstable_cache(
   { revalidate: 900 },
 );
 
+/** Aval's masterclass Calendly bookings (reschedules counted once), with source. */
+export async function avalBookings(today: string): Promise<BookingRow[]> {
+  return (await avalInputs(today)).bookings;
+}
+
 /** Newest webinar first, paid vs organic, for Aval. */
 export async function avalWebinarSourceRows(today: string): Promise<WebinarSourceRow[]> {
   const [{ registrants, bookings }, marketing, calls] = await Promise.all([

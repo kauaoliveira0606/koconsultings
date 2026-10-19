@@ -216,7 +216,9 @@ export function webinarMoney(days: WebinarDay[], adSpend: number | null, callsBo
   const spending = (adSpend ?? 0) > 0;
   return {
     callsBooked,
-    costPerBookedCall: spending ? safeDivide(adSpend, callsBooked || null) : null,
+    // Ad spend buys paid calls only (user, 2026-10-19), and the form's calls
+    // booked estimate has no paid split, so there is no cost per booked call here.
+    costPerBookedCall: null as number | null,
     roasPaid: spending && vipPaid !== null ? safeDivide(vipPaid, adSpend) : null,
   };
 }

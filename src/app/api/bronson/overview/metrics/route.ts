@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
+import { countedBookings } from "@/lib/booking-source";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
 import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
@@ -12,6 +13,7 @@ import {
   getBronsonEodCloser,
   getPostCallNotes,
   wasHighTicketPitched,
+  getBookings,
 } from "@/lib/airtable/tables";
 import { isPaidSource, normalizeEmail } from "@/lib/airtable/lead-source-lookup";
 import { COMMISSIONS_OFFERS, getPortalCashByDay } from "@/lib/airtable/commissions";
@@ -25,7 +27,7 @@ const BRONSON_AI_MONTHLY_PRICE = 147;
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
 
-  const [marketing, leads, affiliateEod, eodCloser, postCallNotes, affiliatePcn] =
+  const [marketing, leads, affiliateEod, eodCloser, postCallNotes, affiliatePcn, bookings] =
     await Promise.all([
       getMarketingDailyMetrics(),
       getLeads(),
@@ -33,6 +35,7 @@ export async function GET(request: NextRequest) {
       getBronsonEodCloser(),
       getPostCallNotes(),
       getBronsonAffiliatePcn(),
+      getBookings(),
     ]);
 
   const inRangeMarketing = marketing.filter((r) => isDateInRange(r.date, range));
@@ -177,9 +180,14 @@ export async function GET(request: NextRequest) {
       ? safeDivide(paidCash - fees.paidFees - paidCommissions, adSpend)
       : null;
 
-  const costPerCallHT = adsActive ? safeDivide(adSpend, highTicketCallsBooked || null) : null;
-  // Cost per live call: ad spend over the calls that actually showed up.
-  const costPerLiveCallHT = adsActive ? safeDivide(adSpend, highTicketCallsShowed || null) : null;
+  // Ad spend only buys paid calls (user, 2026-10-19): cost per call is over the
+  // paid Calendly bookings made in range (lead tagged masterclass paid; reschedules once).
+  const paidCallsBooked = countedBookings(bookings).filter(
+    (b) => b.source === "Paid" && isDateInRange(b.bookedDate, range),
+  ).length;
+  const costPerCallHT = adsActive ? safeDivide(adSpend, paidCallsBooked || null) : null;
+  // Cost per live call needs paid calls that showed, which nothing tracks yet: blank, never all shows.
+  const costPerLiveCallHT: number | null = null;
 
   // Time to Close: average days from a lead's opt-in to the call that
   // actually collected cash for them, matched by email via Affiliate PCN.

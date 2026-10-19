@@ -477,13 +477,18 @@ function buildSpecs(
           week: (days) => safeDivide(wSpendOrNull(days), sum(days.map(dHtClosedPaid)) || null),
         },
         {
+          // Ad spend only buys paid calls (user, 2026-10-19): over the paid Calendly
+          // bookings made that day. Blank where bookings aren't tracked, never all calls.
           key: "costPerCallHT",
-          label: "Cost Per Call (HT)",
+          label: "Cost Per Call (HT, Paid)",
           format: "currency",
           goal: null,
           goalDirection: null,
-          day: (c) => safeDivide(dSpendOrNull(c), dHtBooked(c) || null),
-          week: (days) => safeDivide(wSpendOrNull(days), sum(days.map(dHtBooked)) || null),
+          day: (c) => (c.bk ? safeDivide(dSpendOrNull(c), c.bk.Paid.booked || null) : null),
+          week: (days) => {
+            const t = days.filter((c) => c.bk);
+            return t.length ? safeDivide(wSpendOrNull(t), sum(t.map((c) => c.bk!.Paid.booked)) || null) : null;
+          },
         },
         {
           key: "cashPerOptInPaid",

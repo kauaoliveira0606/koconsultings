@@ -63,12 +63,12 @@ export function WebinarSection({
     <DashboardSection title={title}>
       <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <HeroStat
-          label="Cost Per Booked Call"
+          label="Cost Per Booked Call (Paid)"
           value={webinar?.costPerBookedCall}
           format="currency"
           period={period}
           override={notActive}
-          sub={webinar?.callsBookedFrom === "calendly" ? "Ad spend ÷ Calendly bookings" : "Ad spend ÷ calls booked"}
+          sub={webinar?.callsBookedFrom === "calendly" ? "Ad spend ÷ paid Calendly bookings" : "Needs paid bookings from Calendly"}
         />
         <HeroStat
           label="Calls Booked"

@@ -48,7 +48,7 @@ function groups(goals: GoalsConfig | undefined): Group[] {
       title: "Calls & ROAS",
       metrics: [
         { label: "Calls Booked", format: "number", value: (w) => w.callsBooked, card: true },
-        { label: "Cost Per Booked Call", format: "currency", value: (w) => w.costPerBookedCall, card: true },
+        { label: "Cost Per Booked Call (Paid)", format: "currency", value: (w) => w.costPerBookedCall, card: true },
         { label: "ROAS (Paid)", format: "ratio", value: (w) => w.roasPaid, goal: goals?.roasTotal },
       ],
     },

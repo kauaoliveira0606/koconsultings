@@ -24,15 +24,16 @@ export async function GET() {
   const booked = new Map(
     webinarSourceRows(WEBINAR_SCHEDULE.bronson, marketing, registrants, bookings, calls, today)
       .filter((w) => w.status === "done")
-      .map((w) => [w.date, w.total.booked]),
+      .map((w) => [w.date, { total: w.total.booked, paid: w.paid.booked }]),
   );
   const webinars = webinarBreakdown(marketing, today, WEBINAR_SCHEDULE.bronson).map((w) => {
     const n = booked.get(w.date);
     if (n === undefined) return w;
     return {
       ...w,
-      callsBooked: n,
-      costPerBookedCall: (w.adSpend ?? 0) > 0 ? safeDivide(w.adSpend, n || null) : null,
+      callsBooked: n.total,
+      // Ad spend only buys paid calls (user, 2026-10-19).
+      costPerBookedCall: (w.adSpend ?? 0) > 0 ? safeDivide(w.adSpend, n.paid || null) : null,
     };
   });
   return Response.json({ webinars });

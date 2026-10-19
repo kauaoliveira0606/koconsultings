@@ -1,9 +1,10 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
+import { avalBookings } from "@/lib/aval-webinar-funnel";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
 import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
-import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
+import { isDateInRange, toEasternDateOnly, easternDateString } from "@/lib/date-range";
 import {
   getAvalLeads,
   getAvalMarketingDailyMetrics,
@@ -169,9 +170,18 @@ export async function GET(request: NextRequest) {
       ? safeDivide(paidCash - fees.paidFees - paidCommissions, adSpend)
       : null;
 
-  const costPerCallHT = adsActive ? safeDivide(adSpend, highTicketCallsBooked || null) : null;
+  // Ad spend only buys paid calls (user, 2026-10-19): cost per call is over the
+  // paid masterclass Calendly bookings made in range. Blank if they can't be read.
+  const paidCallsBooked = await avalBookings(easternDateString())
+    .then((rows) => rows.filter((b) => b.source === "Paid" && isDateInRange(b.bookedDate, range)).length)
+    .catch((err) => {
+      console.error("Aval paid bookings", err);
+      return null;
+    });
+  const costPerCallHT = adsActive && paidCallsBooked !== null ? safeDivide(adSpend, paidCallsBooked || null) : null;
   // Cost per live call: ad spend over the calls that actually showed up.
-  const costPerLiveCallHT = adsActive ? safeDivide(adSpend, highTicketCallsShowed || null) : null;
+  // Cost per live call needs paid calls that showed, which nothing tracks yet: blank, never all shows.
+  const costPerLiveCallHT: number | null = null;
 
   // Time to Close: average days from a lead's opt-in to the call that
   // actually collected cash for them, matched by email across Affiliate PCN

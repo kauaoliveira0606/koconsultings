@@ -26,7 +26,7 @@ function rows(goals: GoalsConfig | undefined): Row[] {
     { label: "Booking Rate", format: "percent", value: (f) => f.bookingRate },
     { label: "Canceled", format: "number", value: (f) => f.canceled },
     { label: "Connection Rate", format: "percent", value: (f) => f.connectionRate, goal: goals?.connectionRate },
-    { label: "Cost Per Booked Call", format: "currency", value: (f) => f.costPerBookedCall, paidOnly: true },
+    { label: "Cost Per Booked Call (Paid)", format: "currency", value: (f) => f.costPerBookedCall, paidOnly: true },
   ];
 }
 

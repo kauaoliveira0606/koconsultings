@@ -29,10 +29,12 @@ export async function GET(request: NextRequest) {
   const held = (funnel ?? []).filter((w) => w.status === "done" && isDateInRange(w.date, range));
   if (funnel && !held.length) return Response.json({ ...totals, callsBookedFrom: "form", startDate: start });
   const callsBooked = funnel ? held.reduce((n, w) => n + w.total.booked, 0) : null;
+  // Ad spend only buys paid calls (user, 2026-10-19): cost per booked call is over paid bookings.
+  const paidBooked = funnel ? held.reduce((n, w) => n + w.paid.booked, 0) : null;
   return Response.json({
     ...totals,
     callsBooked,
-    costPerBookedCall: (totals.adSpend ?? 0) > 0 ? safeDivide(totals.adSpend, callsBooked || null) : null,
+    costPerBookedCall: (totals.adSpend ?? 0) > 0 ? safeDivide(totals.adSpend, paidBooked || null) : null,
     callsBookedFrom: "calendly",
     startDate: start,
   });

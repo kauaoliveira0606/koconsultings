@@ -12,11 +12,18 @@ export async function GET() {
   const [marketing, booked] = await Promise.all([
     getAvalMarketingDailyMetrics(),
     avalWebinarSourceRows(today)
-      .then((rows) => new Map<string, number | null>(rows.filter((w) => w.status === "done").map((w) => [w.date, w.total.booked])))
+      .then(
+        (rows) =>
+          new Map<string, { total: number; paid: number } | null>(
+            rows.filter((w) => w.status === "done").map((w) => [w.date, { total: w.total.booked, paid: w.paid.booked }]),
+          ),
+      )
       .catch((err) => {
         console.error("Aval webinar funnel", err);
         // Held webinars show blank, never the estimate.
-        return new Map<string, number | null>(WEBINAR_SCHEDULE.aval.filter((r) => r.date < today).map((r) => [r.date, null]));
+        return new Map<string, { total: number; paid: number } | null>(
+          WEBINAR_SCHEDULE.aval.filter((r) => r.date < today).map((r) => [r.date, null]),
+        );
       }),
   ]);
   // Calls booked per webinar = its real Calendly masterclass bookings (user, 2026-10-19).
@@ -25,8 +32,9 @@ export async function GET() {
     if (n === undefined) return w;
     return {
       ...w,
-      callsBooked: n,
-      costPerBookedCall: n !== null && (w.adSpend ?? 0) > 0 ? safeDivide(w.adSpend, n || null) : null,
+      callsBooked: n?.total ?? null,
+      // Ad spend only buys paid calls (user, 2026-10-19).
+      costPerBookedCall: n && (w.adSpend ?? 0) > 0 ? safeDivide(w.adSpend, n.paid || null) : null,
     };
   });
   return Response.json({ webinars });
