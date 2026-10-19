@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { avalBookings } from "@/lib/aval-webinar-funnel";
+import { WEBINAR_SCHEDULE } from "@/lib/webinar-schedule";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
 import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
@@ -178,7 +179,10 @@ export async function GET(request: NextRequest) {
       console.error("Aval paid bookings", err);
       return null;
     });
-  const costPerCallHT = adsActive && paidCallsBooked !== null ? safeDivide(adSpend, paidCallsBooked || null) : null;
+  // Only the ad spend from days bookings are tracked (from the first webinar's promo), so older spend isn't put on these calls.
+  const trackedFrom = WEBINAR_SCHEDULE.aval.map((r) => r.promoStart).sort()[0];
+  const trackedSpend = sum(inRangeMarketing.filter((r) => !!r.date && r.date >= trackedFrom).map((r) => r.adSpendMeta));
+  const costPerCallHT = adsActive && paidCallsBooked !== null ? safeDivide(trackedSpend, paidCallsBooked || null) : null;
   // Cost per live call: ad spend over the calls that actually showed up.
   // Cost per live call needs paid calls that showed, which nothing tracks yet: blank, never all shows.
   const costPerLiveCallHT: number | null = null;

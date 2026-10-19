@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
-import { countedBookings } from "@/lib/booking-source";
+import { BOOKINGS_TRACKING_START, countedBookings } from "@/lib/booking-source";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
 import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
@@ -185,7 +185,9 @@ export async function GET(request: NextRequest) {
   const paidCallsBooked = countedBookings(bookings).filter(
     (b) => b.source === "Paid" && isDateInRange(b.bookedDate, range),
   ).length;
-  const costPerCallHT = adsActive ? safeDivide(adSpend, paidCallsBooked || null) : null;
+  // Only the ad spend from days bookings are tracked, so older spend isn't put on these calls.
+  const trackedSpend = sum(inRangeMarketing.filter((r) => !!r.date && r.date >= BOOKINGS_TRACKING_START).map((r) => r.adSpendMeta));
+  const costPerCallHT = adsActive ? safeDivide(trackedSpend, paidCallsBooked || null) : null;
   // Cost per live call needs paid calls that showed, which nothing tracks yet: blank, never all shows.
   const costPerLiveCallHT: number | null = null;
 
