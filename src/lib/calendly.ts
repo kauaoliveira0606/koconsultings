@@ -272,7 +272,8 @@ export async function getBookingsMade({
 }: {
   pat: string;
   organization: string;
-  isSalesCall: (eventName: string) => boolean;
+  /** Gets the event's name as it was when booked, plus its event type URI (stable across renames). */
+  isSalesCall: (eventName: string, eventType: string) => boolean;
   /** YYYY-MM-DD, Eastern. */
   from: string;
   to: string;
@@ -284,7 +285,7 @@ export async function getBookingsMade({
   const max = new Date(day + 90 * 24 * 60 * 60 * 1000).toISOString();
   const events = (await listEvents(pat, organization, min, max)).filter((e) => {
     const made = toEasternDateOnly(e.created_at);
-    return !!made && made >= from && made <= to && isSalesCall(e.name);
+    return !!made && made >= from && made <= to && isSalesCall(e.name, e.event_type);
   });
   const rows = await Promise.all(
     events.map(async (e) => {

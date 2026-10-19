@@ -10,8 +10,14 @@ import { WEBINAR_SCHEDULE } from "@/lib/webinar-schedule";
 
 /** Aval's masterclass webinar in WebinarJam ("One Shift" system). */
 const AVAL_WEBINAR_ID = "2";
-/** The Calendly event masterclass leads book (user, 2026-10-19). */
-const AVAL_MASTERCLASS_EVENT = "Mind Over Market Gameplan Call (Masterclass)";
+/**
+ * The Calendly event masterclass leads book, "Mind Over Market Gameplan Call
+ * (Masterclass)" (user, 2026-10-19). Matched by its event type, not its name:
+ * it was "Mind Over Market Gameplan Call" until 2026-10-19, and bookings keep
+ * the name they were made under, while that old name now belongs to another
+ * event (formerly "Path To Profits - Gameplan Call").
+ */
+const AVAL_MASTERCLASS_EVENT_TYPE = "https://api.calendly.com/event_types/b8ebda9b-293f-4790-b41c-0e189b770d7e";
 
 type AvalInputs = { registrants: MasterclassRegistrantRow[]; bookings: BookingRow[] };
 
@@ -41,7 +47,7 @@ const avalInputs = unstable_cache(
     const from = [...WEBINAR_SCHEDULE.aval].map((r) => r.promoStart).sort()[0];
     const made = await getBookingsMade({
       ...(await calendlyFor("aval")),
-      isSalesCall: (name) => name.trim() === AVAL_MASTERCLASS_EVENT,
+      isSalesCall: (_name, eventType) => eventType === AVAL_MASTERCLASS_EVENT_TYPE,
       from,
       to: today,
     });
