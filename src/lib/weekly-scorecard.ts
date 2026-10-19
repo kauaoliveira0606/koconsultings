@@ -118,6 +118,9 @@ type EodDay = {
   htClosed: number | null;
   htCash: number | null;
   newHtBooked: number | null;
+  // Self-booked high ticket leads: given to the setter to reach out to / reached live.
+  sbReach: number | null;
+  sbConnected: number | null;
 };
 
 /** EOD Closer, summed across all closer rows for one day (legacy fallback). */
@@ -897,24 +900,19 @@ function buildSpecs(
           week: (days) => safeDivide(sum(days.map(dVipPurchasesOrg)), sum(days.map(dWebinarOptInsOrg)) || null),
         },
         {
-          // Bronson (user, 2026-10-19): 1+ min calls to masterclass registrants by their
-          // paid / organic GHL tag ÷ the form's webinar opt-ins, from the tag start date.
-          key: "webinarConnRatePaid",
-          label: "Connection Rate (Paid)",
+          // Bronson (user, 2026-10-19): self-booked leads connected ÷ self-booked
+          // calls to reach out to, both from the setters' Affiliate EOD.
+          key: "callConnectionRate",
+          label: "Call Connection Rate",
           format: "percent",
           goal: goals.connectionRate?.min ?? null,
           goalDirection: "higher",
-          day: dConnRate((c) => c.connectedPaid, (c) => dWebinarOptInsPaid(c) ?? 0),
-          week: wConnRate((c) => c.connectedPaid, (c) => dWebinarOptInsPaid(c) ?? 0),
-        },
-        {
-          key: "webinarConnRateOrganic",
-          label: "Connection Rate (Organic)",
-          format: "percent",
-          goal: goals.connectionRate?.min ?? null,
-          goalDirection: "higher",
-          day: dConnRate((c) => c.connectedOrganic, (c) => dWebinarOptInsOrg(c) ?? 0),
-          week: wConnRate((c) => c.connectedOrganic, (c) => dWebinarOptInsOrg(c) ?? 0),
+          day: (c) => safeDivide(c.eod?.sbConnected ?? null, c.eod?.sbReach || null),
+          week: (days) =>
+            safeDivide(
+              sumLeads(days, (c) => c.eod?.sbConnected ?? null),
+              sumLeads(days, (c) => c.eod?.sbReach ?? null),
+            ),
         },
         {
           key: "hookRate",
@@ -1272,8 +1270,7 @@ const WEBINAR_CARD_KEYS = [
   "liveAttendeesAtPitch",
   "retentionRateUntilPitch",
   "webinarBookingRate",
-  "webinarConnRatePaid",
-  "webinarConnRateOrganic",
+  "callConnectionRate",
 ];
 export const BRONSON_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.filter(
   (g) => !BRONSON_DROPPED_SECTIONS.has(g.title),
@@ -1461,6 +1458,8 @@ function indexDays(
       htClosed: null,
       htCash: null,
       newHtBooked: null,
+      sbReach: null,
+      sbConnected: null,
     };
     const add = (a: number | null, b: number | null) =>
       a === null && b === null ? null : (a ?? 0) + (b ?? 0);
@@ -1475,6 +1474,8 @@ function indexDays(
       htClosed: add(cur.htClosed, num(r.highTicketSetClosed)),
       htCash: add(cur.htCash, num(r.cashCollectedHighTicket)),
       newHtBooked: add(cur.newHtBooked, num(r.newHighTicketCallsBooked)),
+      sbReach: add(cur.sbReach, num(r.selfBookedToReachOut ?? null)),
+      sbConnected: add(cur.sbConnected, num(r.selfBookedConnected ?? null)),
     });
   }
 

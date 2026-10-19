@@ -12,15 +12,8 @@ import type { StatCardStatus } from "@/components/dashboard/StatCard";
 
 const AVERAGED = "From the form, averaged across the days in range.";
 
-/** Bronson only: 1+ minute calls to masterclass registrants by their paid / organic GHL tag. */
-export type WebinarConnection = {
-  trackingStart: string;
-  paid: { optIns: number; connected: number; rate: number | null };
-  organic: { optIns: number; connected: number; rate: number | null };
-};
-
-const shortDate = (d: string) =>
-  new Date(`${d}T00:00:00Z`).toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+/** Bronson only: self-booked leads connected ÷ self-booked calls to reach out to (Affiliate EOD). */
+export type WebinarConnection = { reachOut: number; connected: number; rate: number | null };
 
 /** Status + goal text for one KPI with a good line and (optionally) a bad line. */
 function kpi(
@@ -174,18 +167,11 @@ export function WebinarSection({
                   title: "Calls",
                   metrics: [
                     {
-                      label: "Connection Rate (Paid)",
-                      value: conn.paid.rate,
+                      label: "Call Connection Rate",
+                      value: conn.rate,
                       format: "percent" as const,
-                      subtext: `${formatStatValue(conn.paid.connected, "number")} paid registrants on a 1+ min call ÷ ${formatStatValue(conn.paid.optIns, "number")} paid webinar opt-ins, since ${shortDate(conn.trackingStart)}.`,
-                      ...kpi(conn.paid.rate, goals?.connectionRate, "percent"),
-                    },
-                    {
-                      label: "Connection Rate (Organic)",
-                      value: conn.organic.rate,
-                      format: "percent" as const,
-                      subtext: `${formatStatValue(conn.organic.connected, "number")} organic registrants on a 1+ min call ÷ ${formatStatValue(conn.organic.optIns, "number")} organic webinar opt-ins, since ${shortDate(conn.trackingStart)}.`,
-                      ...kpi(conn.organic.rate, goals?.connectionRate, "percent"),
+                      subtext: `${formatStatValue(conn.connected, "number")} self-booked leads connected ÷ ${formatStatValue(conn.reachOut, "number")} self-booked calls to reach out to, from the Affiliate EOD.`,
+                      ...kpi(conn.rate, goals?.connectionRate, "percent"),
                     },
                   ],
                 },
