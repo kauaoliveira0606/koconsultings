@@ -20,7 +20,7 @@ export async function GET() {
     return {
       ...w,
       callsBooked: n,
-      costPerBookedCall: (w.adSpend ?? 0) > 0 ? safeDivide(w.adSpend, n || null) : null,
+      costPerBookedCall: n !== null && (w.adSpend ?? 0) > 0 ? safeDivide(w.adSpend, n || null) : null,
     };
   });
   return Response.json({ webinars });

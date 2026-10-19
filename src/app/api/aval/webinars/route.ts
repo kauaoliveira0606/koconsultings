@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     isDateInRange(d, range),
   );
   if (!held.length) return Response.json({ ...totals, callsBookedFrom: "form", startDate: start });
-  const callsBooked = held.reduce((n, [, c]) => n + c, 0);
+  const callsBooked = held.some(([, c]) => c === null) ? null : held.reduce((n, [, c]) => n + (c ?? 0), 0);
   return Response.json({
     ...totals,
     callsBooked,

@@ -22,14 +22,20 @@ const bookedBetween = unstable_cache(
   { revalidate: 300 },
 );
 
-/** Calls booked per webinar held by today, keyed by webinar date. */
-export async function avalWebinarBookings(runs: WebinarRun[], today: string): Promise<Map<string, number>> {
+/**
+ * Calls booked per webinar held by today, keyed by webinar date. Null when
+ * Calendly or GHL can't be read: the card shows blank, never the estimate.
+ */
+export async function avalWebinarBookings(runs: WebinarRun[], today: string): Promise<Map<string, number | null>> {
   const dates = runs.map((r) => r.date).sort();
   const held = dates.filter((d) => d <= today);
   const counts = await Promise.all(
     held.map((d) => {
       const next = dates.find((n) => n > d);
-      return bookedBetween(d, next && next <= today ? addDaysToDateString(next, -1) : today);
+      return bookedBetween(d, next && next <= today ? addDaysToDateString(next, -1) : today).catch((err) => {
+        console.error("Aval webinar bookings", err);
+        return null;
+      });
     }),
   );
   return new Map(held.map((d, i) => [d, counts[i]]));
