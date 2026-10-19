@@ -123,6 +123,10 @@ export function WebinarSourceFunnel({
   return (
     <DashboardSection title="Paid vs Organic Funnel">
       <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {hero("Show Rate (Paid)", t?.paid.showRate, t ? `${t.paid.attended} attended of ${t.paid.registered} registered` : "Attended ÷ registered")}
+        {hero("Show Rate (Organic)", t?.organic.showRate, t ? `${t.organic.attended} attended of ${t.organic.registered} registered` : "Attended ÷ registered")}
+        {hero("Retention Until Pitch (Paid)", t?.paid.retentionRate, t ? `${t.paid.stayed} of ${t.paid.attended} attendees stayed` : "Stayed ÷ attended")}
+        {hero("Retention Until Pitch (Organic)", t?.organic.retentionRate, t ? `${t.organic.stayed} of ${t.organic.attended} attendees stayed` : "Stayed ÷ attended")}
         {hero("Booking Rate (Paid)", t?.paid.bookingRate, t ? `${t.paid.booked} booked of ${t.paid.stayed} at pitch` : "Booked ÷ stayed until pitch")}
         {hero("Booking Rate (Organic)", t?.organic.bookingRate, t ? `${t.organic.booked} booked of ${t.organic.stayed} at pitch` : "Booked ÷ stayed until pitch")}
         {hero("Connection Rate (Paid)", t?.paid.connectionRate, t ? `${t.paid.connected} of ${t.paid.connectable} booked leads` : "Booked leads reached", goals?.connectionRate)}

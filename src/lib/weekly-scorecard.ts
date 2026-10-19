@@ -5,6 +5,7 @@ import {
   connectedBookingIds,
   countedBookings,
   isConnectable,
+  sessionShows,
   stayedUntilPitch,
   type BookingSource,
   type SourceBookingStats,
@@ -166,6 +167,8 @@ type DayCtx = {
   bk: Record<BookingSource, SourceBookingStats> | null;
   /** Registrants who stayed until the pitch that session day, by source. */
   stayed: Record<BookingSource, number> | null;
+  /** Registered / attended live for that session day, by source. */
+  shows: Record<BookingSource, { registered: number; attended: number }> | null;
 };
 
 /**
@@ -931,6 +934,36 @@ function buildSpecs(
               sumLeads(days, (c) => c.eod?.sbReach ?? null),
             ),
         },
+        {
+          // Attended live ÷ registered for that session, by masterclass tag (WebinarJam).
+          key: "webinarShowRatePaid",
+          label: "Show Rate (Paid)",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: (c) => (c.shows ? safeDivide(c.shows.Paid.attended, c.shows.Paid.registered || null) : null),
+          week: (days) => {
+            const t = days.filter((c) => c.shows);
+            return t.length
+              ? safeDivide(sum(t.map((c) => c.shows!.Paid.attended)), sum(t.map((c) => c.shows!.Paid.registered)) || null)
+              : null;
+          },
+        },
+        {
+          // Attended live ÷ registered for that session, by masterclass tag (WebinarJam).
+          key: "webinarShowRateOrganic",
+          label: "Show Rate (Organic)",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: (c) => (c.shows ? safeDivide(c.shows.Organic.attended, c.shows.Organic.registered || null) : null),
+          week: (days) => {
+            const t = days.filter((c) => c.shows);
+            return t.length
+              ? safeDivide(sum(t.map((c) => c.shows!.Organic.attended)), sum(t.map((c) => c.shows!.Organic.registered)) || null)
+              : null;
+          },
+        },
         // Bronson (user, 2026-10-19): Calendly bookings by the lead's masterclass
         // paid / organic tag; booking rate over registrants who stayed until the pitch, and
         // connected = a 1+ min GHL call between booking and the call (automatic).
@@ -1361,6 +1394,8 @@ const WEBINAR_CARD_KEYS = [
   "retentionRateUntilPitch",
   "webinarBookingRate",
   "callConnectionRate",
+  "webinarShowRatePaid",
+  "webinarShowRateOrganic",
   "callsPaidBooked",
   "bookingRatePaid",
   "bookedConnRatePaid",
@@ -1528,6 +1563,7 @@ const emptyDay = (date: string): DayCtx => ({
   connectedOrganic: null,
   bk: null,
   stayed: null,
+  shows: null,
 });
 
 /** Rolls every source up per Eastern day; returns a lookup for one day's inputs. */
@@ -1673,6 +1709,10 @@ function indexDays(
     stayed:
       extras.registrants && date >= BOOKINGS_TRACKING_START
         ? stayedUntilPitch(extras.registrants, (d) => d === date)
+        : null,
+    shows:
+      extras.registrants && date >= BOOKINGS_TRACKING_START
+        ? sessionShows(extras.registrants, (d) => d === date)
         : null,
   });
 }

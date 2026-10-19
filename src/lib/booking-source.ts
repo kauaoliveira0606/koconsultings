@@ -92,3 +92,17 @@ export function bookingStats(
   }
   return out;
 }
+
+/** Registered and attended live per source for registrants whose session falls in the range. */
+export function sessionShows(
+  registrants: MasterclassRegistrantRow[],
+  inRange: (date: string) => boolean,
+): Record<BookingSource, { registered: number; attended: number }> {
+  const out = { Paid: { registered: 0, attended: 0 }, Organic: { registered: 0, attended: 0 } };
+  for (const r of registrants) {
+    if (!r.sessionDate || !inRange(r.sessionDate) || (r.source !== "Paid" && r.source !== "Organic")) continue;
+    out[r.source].registered += 1;
+    if (r.stage === "Attended" || r.stage === "Stayed Until Pitch") out[r.source].attended += 1;
+  }
+  return out;
+}
