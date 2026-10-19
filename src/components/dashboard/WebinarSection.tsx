@@ -15,6 +15,21 @@ const AVERAGED = "From the form, averaged across the days in range.";
 /** Bronson only: self-booked leads connected ÷ self-booked calls to reach out to (Affiliate EOD). */
 export type WebinarConnection = { reachOut: number; connected: number; rate: number | null };
 
+type SourceBookings = {
+  booked: number;
+  canceled: number;
+  connected: number;
+  connectable: number;
+  optIns: number;
+  bookingRate: number | null;
+  connectionRate: number | null;
+};
+/** Bronson only: Calendly bookings split by the lead's masterclass paid / organic tag. */
+export type WebinarBookings = { trackingStart: string; paid: SourceBookings; organic: SourceBookings };
+
+const shortDate = (d: string) =>
+  new Date(`${d}T00:00:00Z`).toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
 /** Status + goal text for one KPI with a good line and (optionally) a bad line. */
 function kpi(
   value: number | null | undefined,
@@ -49,7 +64,7 @@ export function WebinarSection({
   title = "Webinar",
   period,
 }: {
-  webinar: (WebinarTotals & { startDate?: string | null; connection?: WebinarConnection }) | undefined;
+  webinar: (WebinarTotals & { startDate?: string | null; connection?: WebinarConnection; bookings?: WebinarBookings }) | undefined;
   goals?: GoalsConfig;
   breakdownApiPath: string;
   title?: string;
@@ -59,6 +74,8 @@ export function WebinarSection({
   const adsActive = (webinar?.adSpend ?? 0) > 0;
   const notActive = webinar && !adsActive ? "Not Active" : undefined;
   const conn = webinar?.connection;
+  const bk = webinar?.bookings;
+  const since = bk ? `, since ${shortDate(bk.trackingStart)}` : "";
   return (
     <DashboardSection title={title}>
       <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -167,12 +184,39 @@ export function WebinarSection({
                   title: "Calls",
                   metrics: [
                     {
-                      label: "Call Connection Rate",
+                      label: "Call Connection Rate (EOD)",
                       value: conn.rate,
                       format: "percent" as const,
                       subtext: `${formatStatValue(conn.connected, "number")} self-booked leads connected ÷ ${formatStatValue(conn.reachOut, "number")} self-booked calls to reach out to, from the Affiliate EOD.`,
                       ...kpi(conn.rate, goals?.connectionRate, "percent"),
                     },
+                    ...(bk
+                      ? (["paid", "organic"] as const).flatMap((k) => {
+                          const b = bk[k];
+                          const name = k === "paid" ? "Paid" : "Organic";
+                          return [
+                            {
+                              label: `Calls Booked (${name})`,
+                              value: b.booked,
+                              format: "number" as const,
+                              subtext: `Calendly bookings by leads tagged masterclass ${k}${b.canceled ? `, ${b.canceled} canceled` : ""}${since}.`,
+                            },
+                            {
+                              label: `Booking Rate (${name})`,
+                              value: b.bookingRate,
+                              format: "percent" as const,
+                              subtext: `${b.booked} bookings ÷ ${b.optIns} ${k} webinar opt-ins${since}.`,
+                            },
+                            {
+                              label: `Connection Rate (${name})`,
+                              value: b.connectionRate,
+                              format: "percent" as const,
+                              subtext: `${b.connected} of ${b.connectable} booked leads (not canceled) had a 1+ min call before their call. Automatic from GHL call logs.`,
+                              ...kpi(b.connectionRate, goals?.connectionRate, "percent"),
+                            },
+                          ];
+                        })
+                      : []),
                   ],
                 },
               ]

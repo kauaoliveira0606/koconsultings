@@ -1,7 +1,7 @@
 "use client";
 
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
-import { WebinarSection, type WebinarConnection } from "@/components/dashboard/WebinarSection";
+import { WebinarSection, type WebinarBookings, type WebinarConnection } from "@/components/dashboard/WebinarSection";
 import type { GoalsConfig } from "@/lib/goals";
 import type { WebinarTotals } from "@/lib/metrics";
 import { useSharedRange } from "@/lib/range-context";
@@ -11,7 +11,7 @@ import { rangePeriodLabel } from "@/lib/range-label";
 /** Webinars tab (Bronson + Aval): every webinar number in one place. */
 export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
   const { range, setRange } = useSharedRange();
-  const { data: webinar } = useSectionData<WebinarTotals & { startDate: string | null; connection?: WebinarConnection }>(`/api/${offer}/webinars`, range);
+  const { data: webinar } = useSectionData<WebinarTotals & { startDate: string | null; connection?: WebinarConnection; bookings?: WebinarBookings }>(`/api/${offer}/webinars`, range);
   const { data: goals } = useSectionData<GoalsConfig>(`/api/${offer}/goals`, range);
 
   const period = rangePeriodLabel(range, webinar?.startDate);

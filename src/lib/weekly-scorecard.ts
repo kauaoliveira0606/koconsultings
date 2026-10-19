@@ -1,4 +1,12 @@
 import type { StatFormat } from "./format";
+import type { BookingRow } from "@/lib/airtable/tables";
+import {
+  BOOKINGS_TRACKING_START,
+  connectedBookingIds,
+  countedBookings,
+  type BookingSource,
+  type SourceBookingStats,
+} from "@/lib/booking-source";
 import type {
   BronsonAffiliateEodRow,
   BronsonEodCloserRow,
@@ -152,6 +160,8 @@ type DayCtx = {
   /** Connected (1+ min) calls by lead tag; null before tag tracking started. */
   connectedPaid: number | null;
   connectedOrganic: number | null;
+  /** Calendly bookings made that day by source (Bronson); null before tracking. */
+  bk: Record<BookingSource, SourceBookingStats> | null;
 };
 
 /**
@@ -164,6 +174,8 @@ export type ScorecardExtras = {
   pcn?: { date: string | null; plan: string | null }[];
   connected?: ConnectedCallRow[];
   connectionTrackingStart?: string;
+  /** Bronson: Calendly bookings with the lead's masterclass paid / organic tag. */
+  bookings?: BookingRow[];
   attribution?: {
     portal: {
       date: string | null;
@@ -914,6 +926,75 @@ function buildSpecs(
               sumLeads(days, (c) => c.eod?.sbReach ?? null),
             ),
         },
+        // Bronson (user, 2026-10-19): Calendly bookings by the lead's masterclass
+        // paid / organic tag; booking rate over the form's webinar opt-ins, and
+        // connected = a 1+ min GHL call between booking and the call (automatic).
+        {
+          key: "callsPaidBooked",
+          label: "Calls Booked (Paid)",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: (c) => (c.bk ? c.bk.Paid.booked : null),
+          week: (days) => (days.some((c) => c.bk) ? sum(days.map((c) => (c.bk ? c.bk.Paid.booked : null))) : null),
+        },
+        {
+          key: "bookingRatePaid",
+          label: "Booking Rate (Paid)",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: (c) => (c.bk ? safeDivide(c.bk.Paid.booked, dWebinarOptInsPaid(c) || null) : null),
+          week: (days) => {
+            const t = days.filter((c) => c.bk);
+            return t.length ? safeDivide(sum(t.map((c) => c.bk!.Paid.booked)), sum(t.map(dWebinarOptInsPaid)) || null) : null;
+          },
+        },
+        {
+          key: "bookedConnRatePaid",
+          label: "Connection Rate (Paid)",
+          format: "percent",
+          goal: goals.connectionRate?.min ?? null,
+          goalDirection: "higher",
+          day: (c) => (c.bk ? safeDivide(c.bk.Paid.connected, c.bk.Paid.connectable || null) : null),
+          week: (days) => {
+            const t = days.filter((c) => c.bk);
+            return t.length ? safeDivide(sum(t.map((c) => c.bk!.Paid.connected)), sum(t.map((c) => c.bk!.Paid.connectable)) || null) : null;
+          },
+        },
+        {
+          key: "callsOrganicBooked",
+          label: "Calls Booked (Organic)",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: (c) => (c.bk ? c.bk.Organic.booked : null),
+          week: (days) => (days.some((c) => c.bk) ? sum(days.map((c) => (c.bk ? c.bk.Organic.booked : null))) : null),
+        },
+        {
+          key: "bookingRateOrganic",
+          label: "Booking Rate (Organic)",
+          format: "percent",
+          goal: null,
+          goalDirection: null,
+          day: (c) => (c.bk ? safeDivide(c.bk.Organic.booked, dWebinarOptInsOrg(c) || null) : null),
+          week: (days) => {
+            const t = days.filter((c) => c.bk);
+            return t.length ? safeDivide(sum(t.map((c) => c.bk!.Organic.booked)), sum(t.map(dWebinarOptInsOrg)) || null) : null;
+          },
+        },
+        {
+          key: "bookedConnRateOrganic",
+          label: "Connection Rate (Organic)",
+          format: "percent",
+          goal: goals.connectionRate?.min ?? null,
+          goalDirection: "higher",
+          day: (c) => (c.bk ? safeDivide(c.bk.Organic.connected, c.bk.Organic.connectable || null) : null),
+          week: (days) => {
+            const t = days.filter((c) => c.bk);
+            return t.length ? safeDivide(sum(t.map((c) => c.bk!.Organic.connected)), sum(t.map((c) => c.bk!.Organic.connectable)) || null) : null;
+          },
+        },
         {
           key: "hookRate",
           label: "Hook Rate",
@@ -1271,6 +1352,12 @@ const WEBINAR_CARD_KEYS = [
   "retentionRateUntilPitch",
   "webinarBookingRate",
   "callConnectionRate",
+  "callsPaidBooked",
+  "bookingRatePaid",
+  "bookedConnRatePaid",
+  "callsOrganicBooked",
+  "bookingRateOrganic",
+  "bookedConnRateOrganic",
 ];
 export const BRONSON_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.filter(
   (g) => !BRONSON_DROPPED_SECTIONS.has(g.title),
@@ -1430,6 +1517,7 @@ const emptyDay = (date: string): DayCtx => ({
   pcnYearly: 0,
   connectedPaid: null,
   connectedOrganic: null,
+  bk: null,
 });
 
 /** Rolls every source up per Eastern day; returns a lookup for one day's inputs. */
@@ -1534,6 +1622,32 @@ function indexDays(
     !!extras.connectionTrackingStart &&
     date >= extras.connectionTrackingStart;
 
+  // Bookings by the day they were made, with "connected" judged per booking.
+  const bkByDate = new Map<string, Record<BookingSource, SourceBookingStats>>();
+  if (extras.bookings) {
+    const counted = countedBookings(extras.bookings);
+    const conn = connectedBookingIds(counted, extras.connected ?? []);
+    for (const b of counted) {
+      if (b.source !== "Paid" && b.source !== "Organic") continue;
+      const day = bkByDate.get(b.bookedDate!) ?? {
+        Paid: { booked: 0, canceled: 0, connected: 0, connectable: 0 },
+        Organic: { booked: 0, canceled: 0, connected: 0, connectable: 0 },
+      };
+      const st = day[b.source];
+      st.booked += 1;
+      if (b.canceled) st.canceled += 1;
+      else {
+        st.connectable += 1;
+        if (conn.has(b.id)) st.connected += 1;
+      }
+      bkByDate.set(b.bookedDate!, day);
+    }
+  }
+  const zeroBk = (): Record<BookingSource, SourceBookingStats> => ({
+    Paid: { booked: 0, canceled: 0, connected: 0, connectable: 0 },
+    Organic: { booked: 0, canceled: 0, connected: 0, connectable: 0 },
+  });
+
   return (date) => ({
     date,
     m: byDate.get(date),
@@ -1545,6 +1659,7 @@ function indexDays(
     pcnYearly: pcnYearlyByDate.get(date) ?? 0,
     connectedPaid: connTracked(date) ? (connPaidByDate.get(date) ?? 0) : null,
     connectedOrganic: connTracked(date) ? (connOrgByDate.get(date) ?? 0) : null,
+    bk: extras.bookings && date >= BOOKINGS_TRACKING_START ? (bkByDate.get(date) ?? zeroBk()) : null,
   });
 }
 

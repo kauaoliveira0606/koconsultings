@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import {
   getBronsonAffiliateEod,
   getBronsonAffiliatePcn,
+  getBookings,
   getBronsonEodCloser,
   getConnectedCalls,
   getLeads,
@@ -15,7 +16,7 @@ export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
   const weekStart = request.nextUrl.searchParams.get("weekStart");
-  const [marketing, leads, eod, closer, goals, pcn, connected] = await Promise.all([
+  const [marketing, leads, eod, closer, goals, pcn, connected, bookings] = await Promise.all([
     getMarketingDailyMetrics(),
     getLeads(),
     getBronsonAffiliateEod(),
@@ -23,10 +24,12 @@ export async function GET(request: NextRequest) {
     getGoals(),
     getBronsonAffiliatePcn(),
     getConnectedCalls(),
+    getBookings(),
   ]);
   const payload = await buildWeeklyScorecard(marketing, leads, eod, closer, weekStart, new Date(), goals, {
     pcn,
     connected,
+    bookings,
     connectionTrackingStart: CONNECTION_TRACKING_START,
     layout: BRONSON_SCORECARD_LAYOUT,
   });

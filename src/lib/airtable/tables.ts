@@ -755,6 +755,37 @@ export async function getConnectedCalls(): Promise<ConnectedCallRow[]> {
   }));
 }
 
+// One row per Calendly "Inner Table Gameplan" booking, written by the n8n
+// booking workflow (27mSFVcr9fHHm5uC) since 2026-10-19 and backfilled from
+// 2026-10-08. Source is the lead's "masterclass paid" / "masterclass organic"
+// GHL tag at booking time; "Unknown" when they never registered for the
+// masterclass. The cancel workflow ticks Canceled (and Rescheduled when the
+// cancel was a reschedule, whose new time is its own row).
+const BOOKINGS_TABLE_ID = "tblLZwboT5tfhq3H5";
+
+export type BookingRow = {
+  id: string;
+  bookedDate: string | null;
+  callTime: string | null;
+  source: string | null;
+  contactId: string | null;
+  canceled: boolean;
+  rescheduled: boolean;
+};
+
+export async function getBookings(): Promise<BookingRow[]> {
+  const records = await airtableListAll<Record<string, unknown>>(BRONSON_BASE_ID, BOOKINGS_TABLE_ID);
+  return records.map((r) => ({
+    id: r.id,
+    bookedDate: parseDateOnly(r.fields["Booked Date"]),
+    callTime: typeof r.fields["Call Time"] === "string" ? (r.fields["Call Time"] as string) : null,
+    source: (r.fields.Source as string) ?? null,
+    contactId: (r.fields["Contact ID"] as string) || null,
+    canceled: r.fields.Canceled === true,
+    rescheduled: r.fields.Rescheduled === true,
+  }));
+}
+
 export function wasPitched(row: PostCallNoteRow): boolean {
   return !!row.offerPitched && row.offerPitched !== "No Pitch/No Show";
 }
