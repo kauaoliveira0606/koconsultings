@@ -1,17 +1,24 @@
 import type { MarketingDailyMetricRow } from "@/lib/airtable/tables";
 import { addDaysToDateString } from "@/lib/date-range";
 import { average, safeDivide, sum, webinarCallsBooked, webinarMoney } from "@/lib/metrics";
+import { DEFAULT_PROMO_DAYS, type WebinarRun } from "@/lib/webinar-schedule";
 
 /**
- * One row per webinar. A webinar is a date with a post-webinar card on the
- * Marketing Daily Metrics form (any of the live fields filled). Its daily
- * numbers are every form day after the previous webinar, up to and including
- * the webinar date. Days after the last webinar make up the next one, shown
- * as in progress until its card comes in.
+ * One row per webinar actually run (or planned), from the offer's schedule in
+ * webinar-schedule.ts. Its daily numbers are the form days of its promo
+ * period, through the webinar day; the card stats come from the post-webinar
+ * card submitted on the webinar date. Break days between webinars count
+ * toward none. A card on a date that isn't scheduled still gets a column,
+ * with a default 5-day promo.
  */
 export type WebinarBreakdownRow = {
-  /** Webinar date, or null for the one still in progress. */
-  date: string | null;
+  /** 1 for the first webinar run, 2 for the next... */
+  number: number;
+  /** Webinar date. */
+  date: string;
+  status: "done" | "promo" | "upcoming";
+  hasCard: boolean;
+  /** Promo start and the last day counted (webinar day, or today mid-promo). */
   start: string;
   end: string;
   days: number;
@@ -40,13 +47,12 @@ const hasCard = (r: MarketingDailyMetricRow) =>
     (v) => v !== null,
   );
 
-const hasDailyWebinarData = (r: MarketingDailyMetricRow) =>
-  [r.webinarOptInsPaid, r.webinarOptInsOrganic, r.vipPurchasesPaid, r.vipPurchasesOrganic].some((v) => v !== null);
-
 const add = (a: number | null, b: number | null) => (a === null && b === null ? null : (a ?? 0) + (b ?? 0));
 
 function summarize(
-  date: string | null,
+  number: number,
+  status: WebinarBreakdownRow["status"],
+  date: string,
   start: string,
   end: string,
   days: MarketingDailyMetricRow[],
@@ -58,6 +64,9 @@ function summarize(
   const vipPurchasesOrganic = sum(days.map((r) => r.vipPurchasesOrganic));
   const adSpend = sum(days.map((r) => r.adSpendMeta));
   return {
+    number,
+    status,
+    hasCard: !!card,
     date,
     start,
     end,
@@ -83,33 +92,45 @@ function summarize(
   };
 }
 
-/**
- * First day of the webinar funnel: the first form day with webinar opt-ins or
- * VIP purchases, or the first post-webinar card. Ad spend before it belongs
- * to the funnels that ran before the webinar.
- */
-export function webinarStartDate(rows: MarketingDailyMetricRow[]): string | null {
-  const dates = rows.filter((r) => r.date && (hasDailyWebinarData(r) || hasCard(r))).map((r) => r.date as string);
-  return dates.length ? dates.sort()[0] : null;
+/** The schedule plus any post-webinar card on an unscheduled date, oldest first. */
+function allRuns(rows: MarketingDailyMetricRow[], schedule: WebinarRun[]): WebinarRun[] {
+  const scheduled = new Set(schedule.map((r) => r.date));
+  const extra = rows
+    .filter((r) => r.date && hasCard(r) && !scheduled.has(r.date))
+    .map((r) => ({ promoStart: addDaysToDateString(r.date as string, -(DEFAULT_PROMO_DAYS - 1)), date: r.date as string }));
+  return [...schedule, ...extra].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** Newest webinar first; the in-progress one (if it has any data) on top. */
-export function webinarBreakdown(rows: MarketingDailyMetricRow[], today: string): WebinarBreakdownRow[] {
-  const dated = rows
-    .filter((r): r is MarketingDailyMetricRow & { date: string } => r.date !== null)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const firstDaily = dated.find(hasDailyWebinarData)?.date;
-  const cards = dated.filter(hasCard);
-  if (!firstDaily && cards.length === 0) return [];
+/** First promo day of the first webinar. */
+export function webinarStartDate(rows: MarketingDailyMetricRow[], schedule: WebinarRun[]): string | null {
+  return allRuns(rows, schedule)[0]?.promoStart ?? null;
+}
 
-  const out: WebinarBreakdownRow[] = [];
-  let start = [firstDaily, cards[0]?.date].filter((d): d is string => !!d).sort()[0];
-  for (const card of cards) {
-    const days = dated.filter((r) => r.date >= start && r.date <= card.date);
-    out.push(summarize(card.date, start, card.date, days, card));
-    start = addDaysToDateString(card.date, 1);
-  }
-  const rest = dated.filter((r) => r.date >= start && r.date <= today);
-  if (rest.some(hasDailyWebinarData)) out.push(summarize(null, start, today, rest, undefined));
-  return out.reverse();
+/** Form days that belong to a webinar (inside a promo period, through the webinar day). */
+export function isWebinarDay(date: string | null, runs: WebinarRun[]): boolean {
+  return !!date && runs.some((r) => date >= r.promoStart && date <= r.date);
+}
+
+/** Every form row that belongs to a webinar run, for the range totals. */
+export function webinarRows(rows: MarketingDailyMetricRow[], schedule: WebinarRun[]): MarketingDailyMetricRow[] {
+  const runs = allRuns(rows, schedule);
+  return rows.filter((r) => isWebinarDay(r.date, runs));
+}
+
+/** Newest webinar first, planned ones included. */
+export function webinarBreakdown(
+  rows: MarketingDailyMetricRow[],
+  today: string,
+  schedule: WebinarRun[],
+): WebinarBreakdownRow[] {
+  const dated = rows.filter((r): r is MarketingDailyMetricRow & { date: string } => r.date !== null);
+  return allRuns(rows, schedule)
+    .map((run, i) => {
+      const end = run.date < today ? run.date : today;
+      const days = run.promoStart <= today ? dated.filter((r) => r.date >= run.promoStart && r.date <= end) : [];
+      const card = dated.find((r) => r.date === run.date && hasCard(r));
+      const status = card || run.date < today ? "done" : run.promoStart <= today ? "promo" : "upcoming";
+      return summarize(i + 1, status, run.date, run.promoStart, status === "upcoming" ? run.date : end, days, card);
+    })
+    .reverse();
 }

@@ -72,9 +72,8 @@ function goalText(goal: MinGoal | null | undefined, format: StatFormat): string 
 }
 
 /**
- * One column per webinar. A webinar is a date the team submitted the
- * post-webinar card for; its daily numbers are the form days since the
- * previous webinar. Not tied to the range picker: each column is one webinar.
+ * One column per webinar run (see webinar-schedule.ts), newest first, planned
+ * ones included. Not tied to the range picker: each column is one webinar.
  */
 export function WebinarBreakdownTable({ apiPath, goals }: { apiPath: string; goals?: GoalsConfig }) {
   const { data } = useSWR<{ webinars: WebinarBreakdownRow[] }>(apiPath, fetcher);
@@ -96,9 +95,15 @@ export function WebinarBreakdownTable({ apiPath, goals }: { apiPath: string; goa
                   <th className="sticky left-0 bg-[var(--panel-bg)] px-3 py-2.5 text-left font-semibold">Metric</th>
                   {webinars.map((w) => (
                     <th key={w.start} className="px-3 py-2.5 text-right align-bottom font-semibold">
-                      <div className="text-[var(--text-strong)]">{w.date ? `Webinar ${shortDate(w.date)}` : "Next Webinar"}</div>
+                      <div className="text-[var(--text-strong)]">
+                        Webinar #{w.number} · {shortDate(w.date)}
+                      </div>
                       <div className="text-xs font-normal">
-                        {w.date ? `${shortDate(w.start)} to ${shortDate(w.end)}` : `In progress since ${shortDate(w.start)}`}
+                        {w.status === "upcoming"
+                          ? `Upcoming · promo starts ${shortDate(w.start)}`
+                          : w.status === "promo"
+                            ? `In promo · since ${shortDate(w.start)}`
+                            : `Promo ${shortDate(w.start)} to ${shortDate(w.date)}`}
                       </div>
                     </th>
                   ))}
@@ -123,10 +128,10 @@ export function WebinarBreakdownTable({ apiPath, goals }: { apiPath: string; goa
                           {goal ? <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">{goal}</span> : null}
                         </th>
                         {webinars.map((w) => {
-                          if (m.card && !w.date) {
+                          if (w.status === "upcoming" || (m.card && !w.hasCard)) {
                             return (
                               <td key={w.start} className="px-3 py-2.5 text-right text-[var(--text-muted)]">
-                                No card yet
+                                {w.status === "upcoming" ? "Not started" : "No card yet"}
                               </td>
                             );
                           }
@@ -153,7 +158,7 @@ export function WebinarBreakdownTable({ apiPath, goals }: { apiPath: string; goa
           </div>
         )}
         <p className="mt-3 text-xs text-[var(--text-muted)]">
-          A webinar is a date with a post-webinar card on the Marketing Daily Metrics form. Its daily numbers are the form days since the previous webinar, up to and including the webinar day. Not tied to the date range above.
+          One column per webinar run. Its daily numbers are the form days of its promo period through the webinar day; the card numbers come from the post-webinar card submitted that day. Break days between webinars count toward none. Not tied to the date range above.
         </p>
       </div>
     </div>

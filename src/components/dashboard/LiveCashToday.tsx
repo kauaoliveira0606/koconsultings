@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import { HERO_GRADIENT } from "@/components/dashboard/HeroStat";
 import { formatStatValue } from "@/lib/format";
 import { BUSINESS_TIME_ZONE } from "@/lib/date-range";
 import type { LiveCashResponse, LiveCashSourceTotal } from "@/lib/airtable/live-cash";
@@ -73,7 +74,10 @@ export function LiveCashToday({ apiPath, showAffiliate = true }: { apiPath: stri
             Live
           </span>
         </div>
-        <div className="mt-2 text-4xl font-bold text-[var(--text-strong)]">
+        <div
+          className="mt-2 text-4xl font-extrabold leading-tight tracking-tight tabular-nums"
+          style={{ backgroundImage: HERO_GRADIENT, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
+        >
           {formatStatValue(data?.total, "currency")}
         </div>
         <div className="mt-1 text-xs text-[var(--text-muted)]">

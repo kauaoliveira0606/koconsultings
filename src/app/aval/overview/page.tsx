@@ -6,6 +6,8 @@ import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
+import { HeroStat } from "@/components/dashboard/HeroStat";
+import { rangePeriodLabel } from "@/lib/range-label";
 import type { WebinarTotals } from "@/lib/metrics";
 import { PieSplit } from "@/components/dashboard/PieSplit";
 import { RateColumns } from "@/components/dashboard/RateColumns";
@@ -150,6 +152,7 @@ function kpiLabel(
 
 export default function OverviewPage() {
   const { range, setRange } = useSharedRange();
+  const period = rangePeriodLabel(range);
 
   const { data: metrics } = useSectionData<MetricsResponse>("/api/aval/overview/metrics", range);
   const { data: leadSources } = useSectionData<LeadSourcesResponse>(
@@ -187,82 +190,73 @@ export default function OverviewPage() {
         <LiveCashToday apiPath="/api/aval/overview/live-cash" />
       </DashboardSection>
 
-      {/* TIER 1 — KEYSTONE METRICS, grouped Cash | ROAS | Efficiency: the numbers that answer "scale or pull the brake" */}
+      {/* TIER 1 — KEYSTONE METRICS as hero cards: the numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">
-        <MetricGroups
-          groups={[
-            {
-              title: "Cash",
-              metrics: [
-                {
-                  label: "Total Cash Collected",
-                  value: metrics?.totalCashCollected,
-                  format: "currency",
-                  subtext: "Cash actually collected, not revenue booked.",
-                  status: kpiStatus(metrics?.totalCashCollected, goals?.totalCashCollected, "higher"),
-                  goal: kpiLabel(goals?.totalCashCollected, "higher", "currency"),
-                },
-                {
-                  label: "Attributed Affiliate Cash",
-                  value: metrics?.attributedCashLowTicket,
-                  format: "currency",
-                  subtext: `What the affiliate portal tracked and pays on, reversed sales out. ${formatStatValue(metrics?.cashCollectedLowTicket, "currency")} logged on the form.`,
-                },
-                {
-                  label: "Ad Spend",
-                  value: metrics?.adSpend,
-                  format: "currency",
-                  subtext: "Meta ad spend from the daily metrics form.",
-                },
-                {
-                  label: "Net Cash",
-                  value: metrics?.netCash,
-                  format: "currency",
-                  subtext: "Cash − ad spend − commissions − processing and financing fees.",
-                },
-              ],
-            },
-            {
-              title: "ROAS",
-              metrics: [
-                {
-                  label: "Paid ROAS",
-                  value: paidRoas,
-                  format: "ratio",
-                  override: !adsActive ? notActive : undefined,
-                  subtext: "Paid cash (affiliate + high ticket + VIP) ÷ ad spend.",
-                  status: adsActive ? kpiStatus(paidRoas, goals?.roasTotal?.min, "higher") : null,
-                  goal: adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null,
-                },
-                {
-                  label: "Front-End ROAS",
-                  value: metrics?.frontEndRoas,
-                  format: "ratio",
-                  override: !adsActive ? notActive : undefined,
-                  subtext: "Paid cash after processing and financing fees ÷ ad spend.",
-                },
-                {
-                  label: "Net ROAS",
-                  value: metrics?.netRoas,
-                  format: "ratio",
-                  override: !adsActive ? notActive : undefined,
-                  subtext: "After all expenses: fees and sales team commissions.",
-                },
-              ],
-            },
-            {
-              title: "Efficiency",
-              metrics: [
-                {
-                  label: "Collected $ / Booked Call (HT)",
-                  value: metrics?.collectedPerBookedCallHT,
-                  format: "currency",
-                  subtext: "High ticket cash ÷ calls booked. Show rate, close rate, price and collections in one number.",
-                },
-              ],
-            },
-          ]}
-        />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <HeroStat
+            label="Total Cash Collected"
+            value={metrics?.totalCashCollected}
+            format="currency"
+            period={period}
+            status={kpiStatus(metrics?.totalCashCollected, goals?.totalCashCollected, "higher")}
+            goal={kpiLabel(goals?.totalCashCollected, "higher", "currency")}
+            sub="Collected, not booked"
+          />
+          <HeroStat
+            label="Net Cash"
+            value={metrics?.netCash}
+            format="currency"
+            period={period}
+            sub="After ad spend, commissions and fees"
+          />
+          <HeroStat
+            label="Paid ROAS"
+            value={paidRoas}
+            format="ratio"
+            period={period}
+            override={!adsActive ? notActive : undefined}
+            status={adsActive ? kpiStatus(paidRoas, goals?.roasTotal?.min, "higher") : null}
+            goal={adsActive ? kpiLabel(goals?.roasTotal?.min, "higher", "ratio") : null}
+            sub="Paid cash ÷ ad spend"
+          />
+          <HeroStat
+            label="Ad Spend"
+            value={metrics?.adSpend}
+            format="currency"
+            period={period}
+            sub="Meta, from the daily form"
+          />
+          <HeroStat
+            size="md"
+            label="Front-End ROAS"
+            value={metrics?.frontEndRoas}
+            format="ratio"
+            override={!adsActive ? notActive : undefined}
+            sub="Paid cash after fees ÷ ad spend"
+          />
+          <HeroStat
+            size="md"
+            label="Net ROAS"
+            value={metrics?.netRoas}
+            format="ratio"
+            override={!adsActive ? notActive : undefined}
+            sub="After fees and commissions"
+          />
+          <HeroStat
+            size="md"
+            label="Cash / Booked Call (HT)"
+            value={metrics?.collectedPerBookedCallHT}
+            format="currency"
+            sub="High ticket cash ÷ calls booked"
+          />
+          <HeroStat
+            size="md"
+            label="Attributed Affiliate Cash"
+            value={metrics?.attributedCashLowTicket}
+            format="currency"
+            sub={`Portal tracked · ${formatStatValue(metrics?.cashCollectedLowTicket, "currency")} logged`}
+          />
+        </div>
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
           <span>
             Affiliate commission this range:{" "}
