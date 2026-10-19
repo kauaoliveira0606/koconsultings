@@ -188,6 +188,15 @@ type WebinarDay = {
   cpm: number | null;
   costPerLinkClick: number | null;
   linkClickThroughRate: number | null;
+  adSpendMeta: number | null;
+  costPerLeadMeta: number | null;
+  landingPageConnectRate: number | null;
+  // Post-webinar card (its own form row on the webinar date).
+  webinarShowRate: number | null;
+  liveAttendees: number | null;
+  liveAttendeesAtPitch: number | null;
+  retentionRateUntilPitch: number | null;
+  webinarBookingRate: number | null;
 };
 
 /**
@@ -205,7 +214,25 @@ export function webinarTotals(rows: WebinarDay[]) {
   const vipPurchases = add(vipPurchasesPaid, vipPurchasesOrganic);
   const vipCashPaid = sum(rows.map((r) => r.vipCashPaid));
   const vipCashOrganic = sum(rows.map((r) => r.vipCashOrganic));
+  const adSpend = sum(rows.map((r) => r.adSpendMeta));
+  const cards = rows.filter((r) =>
+    [r.webinarShowRate, r.liveAttendees, r.liveAttendeesAtPitch, r.retentionRateUntilPitch, r.webinarBookingRate].some(
+      (v) => v !== null,
+    ),
+  );
   return {
+    adSpend,
+    // Form's typed CPL first; otherwise ad spend ÷ paid webinar opt-ins.
+    costPerLeadPaid:
+      average(rows.map((r) => r.costPerLeadMeta)) ?? ((adSpend ?? 0) > 0 ? safeDivide(adSpend, optInsPaid || null) : null),
+    landingPageConnectRate: average(rows.map((r) => r.landingPageConnectRate)),
+    // Post-webinar card: counts add up, rates average across the webinars held.
+    webinarsHeld: cards.length,
+    showRate: average(cards.map((r) => r.webinarShowRate)),
+    liveAttendees: sum(cards.map((r) => r.liveAttendees)),
+    liveAttendeesAtPitch: sum(cards.map((r) => r.liveAttendeesAtPitch)),
+    retentionRateUntilPitch: average(cards.map((r) => r.retentionRateUntilPitch)),
+    bookingRate: average(cards.map((r) => r.webinarBookingRate)),
     optInsPaid,
     optInsOrganic,
     optIns,

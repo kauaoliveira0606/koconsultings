@@ -7,7 +7,6 @@ import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdo
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
 import { WebinarSection } from "@/components/dashboard/WebinarSection";
-import { WebinarBreakdownSection } from "@/components/dashboard/WebinarBreakdownSection";
 import type { WebinarTotals } from "@/lib/metrics";
 import { PieSplit } from "@/components/dashboard/PieSplit";
 import { RateColumns } from "@/components/dashboard/RateColumns";
@@ -185,7 +184,6 @@ export default function OverviewPage() {
         <h1 className="text-2xl font-bold text-[var(--text-strong)]">Overview</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
-
       <DashboardSection title="Live Cash Today">
         <LiveCashToday apiPath="/api/aval/overview/live-cash" />
       </DashboardSection>
@@ -300,11 +298,23 @@ export default function OverviewPage() {
         </div>
       </DashboardSection>
 
-      <WebinarSection webinar={metrics?.webinar} goals={goals} />
+      <WebinarSection webinar={metrics?.webinar} goals={goals} breakdownApiPath="/api/aval/overview/webinars" />
 
-      <WebinarBreakdownSection apiPath="/api/aval/overview/webinars" goals={goals} />
+      {/* TIER 2 — REVENUE BREAKDOWN */}
+      <DashboardSection title="Revenue Breakdown">
+        <RevenueBreakdown
+          lowTicketOrganic={metrics?.cashCollectedLowTicketOrganic}
+          lowTicketPaid={metrics?.cashCollectedLowTicketPaid}
+          highTicketOrganic={metrics?.cashCollectedHighTicketOrganic}
+          highTicketPaid={metrics?.cashCollectedHighTicketPaid}
+          vipOrganic={metrics?.webinar.vipCashOrganic}
+          vipPaid={metrics?.webinar.vipCashPaid}
+          revenueHighTicket={metrics?.revenueHighTicket}
+          adSpend={metrics?.adSpend}
+        />
+      </DashboardSection>
 
-      {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. Kept right under the keystones. */}
+      {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. */}
       <DashboardSection title="Unit Economics">
         <MetricGroups
           groups={[
@@ -374,139 +384,6 @@ export default function OverviewPage() {
                   format: "number",
                   subtext: "Days from opt-in to the call that collected their cash.",
                 },
-              ],
-            },
-          ]}
-        />
-      </DashboardSection>
-
-      {/* TIER 2 — REVENUE BREAKDOWN */}
-      <DashboardSection title="Revenue Breakdown">
-        <RevenueBreakdown
-          lowTicketOrganic={metrics?.cashCollectedLowTicketOrganic}
-          lowTicketPaid={metrics?.cashCollectedLowTicketPaid}
-          highTicketOrganic={metrics?.cashCollectedHighTicketOrganic}
-          highTicketPaid={metrics?.cashCollectedHighTicketPaid}
-          vipOrganic={metrics?.webinar.vipCashOrganic}
-          vipPaid={metrics?.webinar.vipCashPaid}
-          revenueHighTicket={metrics?.revenueHighTicket}
-          adSpend={metrics?.adSpend}
-        />
-      </DashboardSection>
-
-      {/* TIER 3 — ACQUISITION & LEAD FLOW */}
-      <DashboardSection title="Acquisition & Lead Flow">
-        <MetricGroups
-          groups={[
-            {
-              title: "Opt-Ins",
-              metrics: [
-                {
-                  label: "Opt-Ins (Paid)",
-                  value: metrics?.optInsPaid,
-                  format: "number",
-                  subtext: "Leads table, source = Paid.",
-                  status: kpiStatus(metrics?.optInsPaid, goals?.optInsPaid, "higher"),
-                  goal: kpiLabel(goals?.optInsPaid, "higher", "number"),
-                },
-                {
-                  label: "Opt-Ins (Organic)",
-                  value: metrics?.optInsOrganic,
-                  format: "number",
-                  subtext: "Leads table, source = Organic.",
-                  status: kpiStatus(metrics?.optInsOrganic, goals?.optInsOrganic, "higher"),
-                  goal: kpiLabel(goals?.optInsOrganic, "higher", "number"),
-                },
-              ],
-            },
-            {
-              title: "Paid Funnel",
-              metrics: [
-                {
-                  label: "Cost Per Lead (Paid)",
-                  value: metrics?.costPerLeadPaid,
-                  format: "currency",
-                  override: !adsActive ? notActive : undefined,
-                  subtext: "From the daily metrics form.",
-                  status: adsActive ? kpiStatus(metrics?.costPerLeadPaid, goals?.costPerLeadMeta?.max, "lower") : null,
-                  goal: adsActive ? kpiLabel(goals?.costPerLeadMeta?.max, "lower", "currency") : null,
-                },
-                {
-                  label: "Opt-In Rate (Paid)",
-                  value: metrics?.optInRate,
-                  format: "percent",
-                  subtext: "From the form; if blank, paid leads ÷ VSL views.",
-                  status: kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher", goals?.optInRate?.redBelow ?? null),
-                  goal: [kpiLabel(goals?.optInRate?.min, "higher", "percent"), goals?.optInRate?.redBelow != null ? `under ${formatStatValue(goals.optInRate.redBelow, "percent")} is bad` : null].filter(Boolean).join(", ") || null,
-                },
-                {
-                  label: "Landing Page Connect Rate",
-                  value: metrics?.landingPageConnectRate,
-                  format: "percent",
-                  subtext: "From the form, averaged across the days in range.",
-                  status: kpiStatus(metrics?.landingPageConnectRate, goals?.landingPageConnectRate?.min, "higher", goals?.landingPageConnectRate?.redBelow ?? null),
-                  goal: [kpiLabel(goals?.landingPageConnectRate?.min, "higher", "percent"), goals?.landingPageConnectRate?.redBelow != null ? `under ${formatStatValue(goals.landingPageConnectRate.redBelow, "percent")} is bad` : null].filter(Boolean).join(", ") || null,
-                },
-              ],
-            },
-          ]}
-        />
-      </DashboardSection>
-
-      {/* TIER 4 — FRONT-END SALES CONVERSION: the setter funnel left to right, dial to close */}
-      <DashboardSection title="Front-End Sales Conversion">
-        <RateColumns
-          columns={[
-            {
-              title: "Pickup Rate",
-              value: metrics?.pickupRate,
-              formula: "Pickups ÷ Dials.",
-              inputs: [
-                { label: "Pickups", value: metrics?.pickups, note: "Setters' Affiliate EOD." },
-                { label: "Dials", value: metrics?.dials },
-              ],
-            },
-            {
-              title: "Connection Rate (Paid)",
-              value: connectionRate?.paid.rate,
-              formula: "Paid leads with a 1+ min call ÷ paid opt-ins.",
-              status: kpiStatus(connectionRate?.paid.rate, goals?.connectionRate?.min, "higher"),
-              goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
-              inputs: [
-                { label: "Connected", value: connectionRate?.paid.connected, note: connectionRate ? `Tracked since ${connectionRate.trackingStart}.` : undefined },
-                { label: "Paid Opt-Ins", value: connectionRate?.paid.optIns },
-              ],
-            },
-            {
-              title: "Connection Rate (Organic)",
-              value: connectionRate?.organic.rate,
-              formula: "Organic leads with a 1+ min call ÷ organic opt-ins.",
-              status: kpiStatus(connectionRate?.organic.rate, goals?.connectionRate?.min, "higher"),
-              goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
-              inputs: [
-                { label: "Connected", value: connectionRate?.organic.connected, note: connectionRate ? `Tracked since ${connectionRate.trackingStart}.` : undefined },
-                { label: "Organic Opt-Ins", value: connectionRate?.organic.optIns },
-              ],
-            },
-            {
-              title: "Pitch Rate",
-              value: metrics?.pitchRate,
-              formula: "Software Pitched ÷ Pickups.",
-              inputs: [
-                { label: "Software Pitched", value: metrics?.softwarePitched, note: "Setters' Affiliate EOD." },
-                { label: "Pickups", value: metrics?.pickups },
-              ],
-            },
-            {
-              title: "Close Rate (Affiliate)",
-              value: metrics?.closeRateLowTicket,
-              formula: "Software Closed ÷ Software Pitched.",
-              status: kpiStatus(metrics?.closeRateLowTicket, goals?.closeRateLowTicket?.min, "higher"),
-              goal: kpiLabel(goals?.closeRateLowTicket?.min, "higher", "percent"),
-              inputs: [
-                { label: "Software Closed", value: metrics?.softwareClosed },
-                { label: "Software Pitched", value: metrics?.softwarePitched },
-                { label: "Affiliate Sales", value: metrics?.sales, note: "As logged on the daily metrics form." },
               ],
             },
           ]}
@@ -609,8 +486,110 @@ export default function OverviewPage() {
         <OfferSplitSection apiPath="/api/aval/overview/offer-split" range={range} />
       </DashboardSection>
 
+      {/* AFFILIATE (Base44): lead flow, setter funnel, funnel health, attribution. Kept together below the webinar and high ticket. */}
+      <DashboardSection title="Affiliate Lead Flow">
+        <MetricGroups
+          groups={[
+            {
+              title: "Opt-Ins",
+              metrics: [
+                {
+                  label: "Opt-Ins (Paid)",
+                  value: metrics?.optInsPaid,
+                  format: "number",
+                  subtext: "Leads table, source = Paid.",
+                  status: kpiStatus(metrics?.optInsPaid, goals?.optInsPaid, "higher"),
+                  goal: kpiLabel(goals?.optInsPaid, "higher", "number"),
+                },
+                {
+                  label: "Opt-Ins (Organic)",
+                  value: metrics?.optInsOrganic,
+                  format: "number",
+                  subtext: "Leads table, source = Organic.",
+                  status: kpiStatus(metrics?.optInsOrganic, goals?.optInsOrganic, "higher"),
+                  goal: kpiLabel(goals?.optInsOrganic, "higher", "number"),
+                },
+              ],
+            },
+            {
+              title: "Opt-In Rate",
+              metrics: [
+                {
+                  label: "Opt-In Rate (Paid)",
+                  value: metrics?.optInRate,
+                  format: "percent",
+                  subtext: "From the form; if blank, paid leads ÷ VSL views.",
+                  status: kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher", goals?.optInRate?.redBelow ?? null),
+                  goal: [kpiLabel(goals?.optInRate?.min, "higher", "percent"), goals?.optInRate?.redBelow != null ? `under ${formatStatValue(goals.optInRate.redBelow, "percent")} is bad` : null].filter(Boolean).join(", ") || null,
+                },
+              ],
+            },
+          ]}
+        />
+      </DashboardSection>
+
+      {/* TIER 4 — FRONT-END SALES CONVERSION: the setter funnel left to right, dial to close */}
+      <DashboardSection title="Affiliate Sales Conversion">
+        <RateColumns
+          columns={[
+            {
+              title: "Pickup Rate",
+              value: metrics?.pickupRate,
+              formula: "Pickups ÷ Dials.",
+              inputs: [
+                { label: "Pickups", value: metrics?.pickups, note: "Setters' Affiliate EOD." },
+                { label: "Dials", value: metrics?.dials },
+              ],
+            },
+            {
+              title: "Connection Rate (Paid)",
+              value: connectionRate?.paid.rate,
+              formula: "Paid leads with a 1+ min call ÷ paid opt-ins.",
+              status: kpiStatus(connectionRate?.paid.rate, goals?.connectionRate?.min, "higher"),
+              goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Connected", value: connectionRate?.paid.connected, note: connectionRate ? `Tracked since ${connectionRate.trackingStart}.` : undefined },
+                { label: "Paid Opt-Ins", value: connectionRate?.paid.optIns },
+              ],
+            },
+            {
+              title: "Connection Rate (Organic)",
+              value: connectionRate?.organic.rate,
+              formula: "Organic leads with a 1+ min call ÷ organic opt-ins.",
+              status: kpiStatus(connectionRate?.organic.rate, goals?.connectionRate?.min, "higher"),
+              goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Connected", value: connectionRate?.organic.connected, note: connectionRate ? `Tracked since ${connectionRate.trackingStart}.` : undefined },
+                { label: "Organic Opt-Ins", value: connectionRate?.organic.optIns },
+              ],
+            },
+            {
+              title: "Pitch Rate",
+              value: metrics?.pitchRate,
+              formula: "Software Pitched ÷ Pickups.",
+              inputs: [
+                { label: "Software Pitched", value: metrics?.softwarePitched, note: "Setters' Affiliate EOD." },
+                { label: "Pickups", value: metrics?.pickups },
+              ],
+            },
+            {
+              title: "Close Rate (Affiliate)",
+              value: metrics?.closeRateLowTicket,
+              formula: "Software Closed ÷ Software Pitched.",
+              status: kpiStatus(metrics?.closeRateLowTicket, goals?.closeRateLowTicket?.min, "higher"),
+              goal: kpiLabel(goals?.closeRateLowTicket?.min, "higher", "percent"),
+              inputs: [
+                { label: "Software Closed", value: metrics?.softwareClosed },
+                { label: "Software Pitched", value: metrics?.softwarePitched },
+                { label: "Affiliate Sales", value: metrics?.sales, note: "As logged on the daily metrics form." },
+              ],
+            },
+          ]}
+        />
+      </DashboardSection>
+
       {/* TIER 7 — FUNNEL & MARKETING HEALTH (diagnostic only) */}
-      <DashboardSection title="Funnel, Marketing Health & Lead Sources — Diagnostic Only">
+      <DashboardSection title="Affiliate Funnel Health & Lead Sources (Diagnostic Only)">
         <p className="mb-3 text-sm text-[var(--text-muted)]">
           Check this tier when something upstream breaks — not part of the daily glance.
         </p>
@@ -709,7 +688,7 @@ export default function OverviewPage() {
         </div>
       </DashboardSection>
 
-      <DashboardSection title="Attribution — Base 44">
+      <DashboardSection title="Affiliate Attribution (Base 44)">
         <AttributionSection
           apiPath="/api/aval/overview/attribution"
           byRepPath="/api/aval/overview/attribution/by-rep"
@@ -756,7 +735,6 @@ export default function OverviewPage() {
           From the Refunds table in Airtable.
         </p>
       </DashboardSection>
-
     </div>
   );
 }

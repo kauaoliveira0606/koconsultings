@@ -1,5 +1,8 @@
+"use client";
+
 import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
+import { WebinarBreakdownTable } from "@/components/dashboard/WebinarBreakdownTable";
 import type { WebinarTotals } from "@/lib/metrics";
 import type { GoalsConfig, MaxGoal, MinGoal } from "@/lib/goals";
 import { cellStatus } from "@/lib/weekly-scorecard";
@@ -30,18 +33,67 @@ function kpi(
   };
 }
 
-/** Webinar funnel, all from the Marketing Daily Metrics form. */
+/**
+ * Everything webinar in one section, in funnel order: ads, landing page and
+ * opt-ins, the live webinar (post-webinar card), VIP, then one column per
+ * webinar. All from the Marketing Daily Metrics form.
+ */
 export function WebinarSection({
   webinar,
   goals,
+  breakdownApiPath,
 }: {
   webinar: WebinarTotals | undefined;
   goals?: GoalsConfig;
+  breakdownApiPath: string;
 }) {
+  const adsActive = (webinar?.adSpend ?? 0) > 0;
+  const notActive = webinar && !adsActive ? "Not Active" : undefined;
   return (
-    <DashboardSection title="Webinar Funnel">
+    <DashboardSection title="Webinar">
       <MetricGroups
         groups={[
+          {
+            title: "Ads",
+            metrics: [
+              { label: "Ad Spend", value: webinar?.adSpend, format: "currency", subtext: "Meta ad spend from the form." },
+              { label: "CPM", value: webinar?.cpm, format: "currency", subtext: AVERAGED, ...kpi(webinar?.cpm, goals?.cpm, "currency") },
+              { label: "Hook Rate", value: webinar?.hookRate, format: "percent", subtext: AVERAGED, ...kpi(webinar?.hookRate, goals?.hookRate, "percent") },
+              { label: "Hold Rate", value: webinar?.holdRate, format: "percent", subtext: AVERAGED, ...kpi(webinar?.holdRate, goals?.holdRate, "percent") },
+              { label: "Link Click-Through Rate", value: webinar?.linkClickThroughRate, format: "percent", subtext: AVERAGED, ...kpi(webinar?.linkClickThroughRate, goals?.linkClickThroughRate, "percent") },
+              { label: "Cost Per Link Click", value: webinar?.costPerLinkClick, format: "currency", subtext: AVERAGED },
+              { label: "Frequency", value: webinar?.adFrequency, format: "number", subtext: AVERAGED, ...kpi(webinar?.adFrequency, goals?.adFrequency, "number") },
+            ],
+          },
+          {
+            title: "Landing Page & Opt-Ins",
+            metrics: [
+              {
+                label: "Cost Per Lead (Paid)",
+                value: webinar?.costPerLeadPaid,
+                format: "currency",
+                override: notActive,
+                subtext: "From the form; if blank, ad spend ÷ paid webinar opt-ins.",
+                ...(adsActive ? kpi(webinar?.costPerLeadPaid, goals?.costPerLeadMeta, "currency") : {}),
+              },
+              { label: "Landing Page Connect Rate", value: webinar?.landingPageConnectRate, format: "percent", subtext: AVERAGED, ...kpi(webinar?.landingPageConnectRate, goals?.landingPageConnectRate, "percent") },
+              { label: "Opt-In Rate", value: webinar?.optInRate, format: "percent", subtext: AVERAGED, ...kpi(webinar?.optInRate, goals?.webinarOptInRate, "percent") },
+              { label: "Webinar Opt-Ins", value: webinar?.optIns, format: "number", subtext: "Paid + organic." },
+              { label: "Webinar Opt-Ins (Paid)", value: webinar?.optInsPaid, format: "number" },
+              { label: "Webinar Opt-Ins (Organic)", value: webinar?.optInsOrganic, format: "number" },
+            ],
+          },
+          {
+            title: "Live Webinar",
+            metrics: [
+              { label: "Webinars Held", value: webinar?.webinarsHeld, format: "number", subtext: "Post-webinar cards in this range." },
+              { label: "Show Rate", value: webinar?.showRate, format: "percent", subtext: "From the post-webinar card, averaged across webinars." },
+              { label: "Live Attendees", value: webinar?.liveAttendees, format: "number", subtext: "Summed across webinars." },
+              { label: "Live Attendees at Pitch", value: webinar?.liveAttendeesAtPitch, format: "number", subtext: "Summed across webinars." },
+              { label: "Retention Until Pitch", value: webinar?.retentionRateUntilPitch, format: "percent", subtext: "Averaged across webinars." },
+              { label: "Booking Rate", value: webinar?.bookingRate, format: "percent", subtext: "Averaged across webinars." },
+            ],
+          },
           {
             title: "VIP",
             metrics: [
@@ -67,31 +119,12 @@ export function WebinarSection({
               { label: "VIP Cash (Organic)", value: webinar?.vipCashOrganic, format: "currency" },
             ],
           },
-          {
-            title: "Opt-Ins",
-            metrics: [
-              { label: "Webinar Opt-Ins", value: webinar?.optIns, format: "number", subtext: "Paid + organic." },
-              { label: "Webinar Opt-Ins (Paid)", value: webinar?.optInsPaid, format: "number" },
-              { label: "Webinar Opt-Ins (Organic)", value: webinar?.optInsOrganic, format: "number" },
-              { label: "Opt-In Rate", value: webinar?.optInRate, format: "percent", subtext: AVERAGED, ...kpi(webinar?.optInRate, goals?.webinarOptInRate, "percent") },
-            ],
-          },
-          {
-            title: "Ads",
-            metrics: [
-              { label: "Hook Rate", value: webinar?.hookRate, format: "percent", subtext: AVERAGED, ...kpi(webinar?.hookRate, goals?.hookRate, "percent") },
-              { label: "Hold Rate", value: webinar?.holdRate, format: "percent", subtext: AVERAGED, ...kpi(webinar?.holdRate, goals?.holdRate, "percent") },
-              { label: "Link Click-Through Rate", value: webinar?.linkClickThroughRate, format: "percent", subtext: AVERAGED, ...kpi(webinar?.linkClickThroughRate, goals?.linkClickThroughRate, "percent") },
-              { label: "Cost Per Link Click", value: webinar?.costPerLinkClick, format: "currency", subtext: AVERAGED },
-              { label: "CPM", value: webinar?.cpm, format: "currency", subtext: AVERAGED, ...kpi(webinar?.cpm, goals?.cpm, "currency") },
-              { label: "Frequency", value: webinar?.adFrequency, format: "number", subtext: AVERAGED, ...kpi(webinar?.adFrequency, goals?.adFrequency, "number") },
-            ],
-          },
         ]}
       />
       <p className="mt-3 text-sm text-[var(--text-muted)]">
-        From the Marketing Daily Metrics form. VIP cash counts in Total Cash Collected and ROAS, paid and organic.
+        From the Marketing Daily Metrics form, for the date range above. VIP cash counts in Total Cash Collected and ROAS, paid and organic.
       </p>
+      <WebinarBreakdownTable apiPath={breakdownApiPath} goals={goals} />
     </DashboardSection>
   );
 }

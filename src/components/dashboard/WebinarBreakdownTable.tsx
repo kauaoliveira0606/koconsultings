@@ -1,7 +1,6 @@
 "use client";
 
 import useSWR from "swr";
-import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { STATUS_TEXT_STYLE } from "@/components/dashboard/status";
 import { formatStatValue, type StatFormat } from "@/lib/format";
 import type { GoalsConfig, MinGoal } from "@/lib/goals";
@@ -42,7 +41,7 @@ function groups(goals: GoalsConfig | undefined): Group[] {
         { label: "Take Rate (Organic)", format: "percent", value: (w) => w.takeRateOrganic, goal: goals?.vipTakeRate },
         { label: "VIP Cash", format: "currency", value: (w) => w.vipCash },
         { label: "Ad Spend", format: "currency", value: (w) => w.adSpend },
-        { label: "Cost Per Opt-In (Paid)", format: "currency", value: (w) => w.costPerOptInPaid },
+        { label: "Cost Per Lead (Paid)", format: "currency", value: (w) => w.costPerLeadPaid },
       ],
     },
     {
@@ -69,12 +68,13 @@ function goalText(goal: MinGoal | null | undefined): string | null {
  * post-webinar card for; its daily numbers are the form days since the
  * previous webinar. Not tied to the range picker: each column is one webinar.
  */
-export function WebinarBreakdownSection({ apiPath, goals }: { apiPath: string; goals?: GoalsConfig }) {
+export function WebinarBreakdownTable({ apiPath, goals }: { apiPath: string; goals?: GoalsConfig }) {
   const { data } = useSWR<{ webinars: WebinarBreakdownRow[] }>(apiPath, fetcher);
   const webinars = data?.webinars;
 
   return (
-    <DashboardSection title="Per-Webinar Breakdown">
+    <div className="mt-4">
+      <div className="mb-2 text-sm font-semibold text-[var(--text-strong)]">Per Webinar</div>
       <div className="min-w-0 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
         {!webinars ? (
           <p className="text-sm text-[var(--text-muted)]">Loading...</p>
@@ -148,6 +148,6 @@ export function WebinarBreakdownSection({ apiPath, goals }: { apiPath: string; g
           A webinar is a date with a post-webinar card on the Marketing Daily Metrics form. Its daily numbers are the form days since the previous webinar, up to and including the webinar day. Not tied to the date range above.
         </p>
       </div>
-    </DashboardSection>
+    </div>
   );
 }

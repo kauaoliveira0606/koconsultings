@@ -6,7 +6,6 @@ import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdo
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
 import { WebinarSection } from "@/components/dashboard/WebinarSection";
-import { WebinarBreakdownSection } from "@/components/dashboard/WebinarBreakdownSection";
 import type { WebinarTotals } from "@/lib/metrics";
 import { RateColumns } from "@/components/dashboard/RateColumns";
 import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
@@ -157,7 +156,6 @@ export default function OverviewPage() {
         <h1 className="text-2xl font-bold text-[var(--text-strong)]">Overview</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
-
       <DashboardSection title="Live Cash Today">
         <LiveCashToday apiPath="/api/bronson/overview/live-cash" showAffiliate={false} />
       </DashboardSection>
@@ -254,11 +252,26 @@ export default function OverviewPage() {
         </div>
       </DashboardSection>
 
-      <WebinarSection webinar={metrics?.webinar} goals={goals} />
+      <WebinarSection webinar={metrics?.webinar} goals={goals} breakdownApiPath="/api/bronson/overview/webinars" />
 
-      <WebinarBreakdownSection apiPath="/api/bronson/overview/webinars" goals={goals} />
+      {/* TIER 2 — REVENUE BREAKDOWN */}
+      <DashboardSection title="Revenue Breakdown">
+        <RevenueBreakdown
+          showAffiliate={false}
+          lowTicketOrganic={metrics?.cashCollectedLowTicketOrganic}
+          lowTicketPaid={metrics?.cashCollectedLowTicketPaid}
+          highTicketOrganic={metrics?.cashCollectedHighTicketOrganic}
+          highTicketPaid={metrics?.cashCollectedHighTicketPaid}
+          vipOrganic={metrics?.webinar.vipCashOrganic}
+          vipPaid={metrics?.webinar.vipCashPaid}
+          aiOrganic={metrics?.bronsonAi?.cashOrganic ?? null}
+          aiPaid={metrics?.bronsonAi?.cashPaid ?? null}
+          revenueHighTicket={metrics?.revenueHighTicket}
+          adSpend={metrics?.adSpend}
+        />
+      </DashboardSection>
 
-      {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. Kept right under the keystones. */}
+      {/* UNIT ECONOMICS: what a customer costs against what they pay, per ticket. */}
       <DashboardSection title="Unit Economics">
         <MetricGroups
           groups={[
@@ -308,21 +321,38 @@ export default function OverviewPage() {
         />
       </DashboardSection>
 
-      {/* TIER 2 — REVENUE BREAKDOWN */}
-      <DashboardSection title="Revenue Breakdown">
-        <RevenueBreakdown
-          showAffiliate={false}
-          lowTicketOrganic={metrics?.cashCollectedLowTicketOrganic}
-          lowTicketPaid={metrics?.cashCollectedLowTicketPaid}
-          highTicketOrganic={metrics?.cashCollectedHighTicketOrganic}
-          highTicketPaid={metrics?.cashCollectedHighTicketPaid}
-          vipOrganic={metrics?.webinar.vipCashOrganic}
-          vipPaid={metrics?.webinar.vipCashPaid}
-          aiOrganic={metrics?.bronsonAi?.cashOrganic ?? null}
-          aiPaid={metrics?.bronsonAi?.cashPaid ?? null}
-          revenueHighTicket={metrics?.revenueHighTicket}
-          adSpend={metrics?.adSpend}
+      {/* TIER 5 — HIGH-TICKET BACKEND */}
+      <DashboardSection title="High-Ticket Backend">
+        <RateColumns
+          columns={[
+            {
+              title: "Show Rate",
+              value: metrics?.highTicketShowRate,
+              formula: "Calls Showed ÷ Calls Booked.",
+              status: kpiStatus(metrics?.highTicketShowRate, goals?.showRate?.min, "higher"),
+              goal: kpiLabel(goals?.showRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Calls Showed", value: metrics?.highTicketCallsShowed, note: "High Ticket Closer's EOD log." },
+                { label: "Calls Booked", value: metrics?.highTicketCallsBooked, note: "High Ticket Closer's EOD log." },
+              ],
+            },
+            {
+              title: "Close Rate",
+              value: metrics?.highTicketCloseRate,
+              formula: "HT Deals Closed ÷ Calls Showed.",
+              status: kpiStatus(metrics?.highTicketCloseRate, goals?.highTicketCloseRate?.min, "higher"),
+              goal: kpiLabel(goals?.highTicketCloseRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Closed (HT)", value: metrics?.highTicketClosed, note: "Closed (PIF) or Payment Plan." },
+                { label: "Calls Showed", value: metrics?.highTicketCallsShowed },
+              ],
+            },
+          ]}
         />
+      </DashboardSection>
+
+      <DashboardSection title="Offer Split & PIF Rate">
+        <OfferSplitSection apiPath="/api/bronson/overview/offer-split" range={range} />
       </DashboardSection>
 
       {/* BRONSON AI: the $147/mo subscription, its own product (not part of the webinar). */}
@@ -381,70 +411,6 @@ export default function OverviewPage() {
         <p className="mt-3 text-sm text-[var(--text-muted)]">
           From the Marketing Daily Metrics form (the closers&apos; EOD fills the Sold count on days the form left blank). Bronson AI cash counts in Total Cash Collected, ROAS, Net Cash and the paid / organic splits, with 2.5% processing and no sales commission.
         </p>
-      </DashboardSection>
-
-      {/* TIER 3 — ACQUISITION & LEAD FLOW */}
-      <DashboardSection title="Acquisition & Lead Flow">
-        <MetricGroups
-          groups={[
-            {
-              title: "Paid Funnel",
-              metrics: [
-                {
-                  label: "Cost Per Lead (Paid)",
-                  value: metrics?.costPerLeadPaid,
-                  format: "currency",
-                  override: !adsActive ? notActive : undefined,
-                  subtext: "From the daily metrics form.",
-                  status: adsActive ? kpiStatus(metrics?.costPerLeadPaid, goals?.costPerLeadMeta?.max, "lower") : null,
-                  goal: adsActive ? kpiLabel(goals?.costPerLeadMeta?.max, "lower", "currency") : null,
-                },
-                {
-                  label: "Landing Page Connect Rate",
-                  value: metrics?.landingPageConnectRate,
-                  format: "percent",
-                  subtext: "From the form, averaged across the days in range.",
-                  status: kpiStatus(metrics?.landingPageConnectRate, goals?.landingPageConnectRate?.min, "higher", goals?.landingPageConnectRate?.redBelow ?? null),
-                  goal: [kpiLabel(goals?.landingPageConnectRate?.min, "higher", "percent"), goals?.landingPageConnectRate?.redBelow != null ? `under ${formatStatValue(goals.landingPageConnectRate.redBelow, "percent")} is bad` : null].filter(Boolean).join(", ") || null,
-                },
-              ],
-            },
-          ]}
-        />
-      </DashboardSection>
-
-      {/* TIER 5 — HIGH-TICKET BACKEND */}
-      <DashboardSection title="High-Ticket Backend">
-        <RateColumns
-          columns={[
-            {
-              title: "Show Rate",
-              value: metrics?.highTicketShowRate,
-              formula: "Calls Showed ÷ Calls Booked.",
-              status: kpiStatus(metrics?.highTicketShowRate, goals?.showRate?.min, "higher"),
-              goal: kpiLabel(goals?.showRate?.min, "higher", "percent"),
-              inputs: [
-                { label: "Calls Showed", value: metrics?.highTicketCallsShowed, note: "High Ticket Closer's EOD log." },
-                { label: "Calls Booked", value: metrics?.highTicketCallsBooked, note: "High Ticket Closer's EOD log." },
-              ],
-            },
-            {
-              title: "Close Rate",
-              value: metrics?.highTicketCloseRate,
-              formula: "HT Deals Closed ÷ Calls Showed.",
-              status: kpiStatus(metrics?.highTicketCloseRate, goals?.highTicketCloseRate?.min, "higher"),
-              goal: kpiLabel(goals?.highTicketCloseRate?.min, "higher", "percent"),
-              inputs: [
-                { label: "Closed (HT)", value: metrics?.highTicketClosed, note: "Closed (PIF) or Payment Plan." },
-                { label: "Calls Showed", value: metrics?.highTicketCallsShowed },
-              ],
-            },
-          ]}
-        />
-      </DashboardSection>
-
-      <DashboardSection title="Offer Split & PIF Rate">
-        <OfferSplitSection apiPath="/api/bronson/overview/offer-split" range={range} />
       </DashboardSection>
 
       <DashboardSection title="Refund / Chargeback">

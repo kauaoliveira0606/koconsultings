@@ -1,6 +1,6 @@
 import type { MarketingDailyMetricRow } from "@/lib/airtable/tables";
 import { addDaysToDateString } from "@/lib/date-range";
-import { safeDivide, sum } from "@/lib/metrics";
+import { average, safeDivide, sum } from "@/lib/metrics";
 
 /**
  * One row per webinar. A webinar is a date with a post-webinar card on the
@@ -25,7 +25,8 @@ export type WebinarBreakdownRow = {
   takeRateOrganic: number | null;
   vipCash: number | null;
   adSpend: number | null;
-  costPerOptInPaid: number | null;
+  /** Form's typed CPL averaged over the days; if blank, ad spend ÷ paid opt-ins (same rule as the range card). */
+  costPerLeadPaid: number | null;
   // From the post-webinar card.
   showRate: number | null;
   liveAttendees: number | null;
@@ -71,7 +72,8 @@ function summarize(
     takeRateOrganic: safeDivide(vipPurchasesOrganic, optInsOrganic),
     vipCash: add(sum(days.map((r) => r.vipCashPaid)), sum(days.map((r) => r.vipCashOrganic))),
     adSpend,
-    costPerOptInPaid: safeDivide(adSpend, optInsPaid || null),
+    costPerLeadPaid:
+      average(days.map((r) => r.costPerLeadMeta)) ?? ((adSpend ?? 0) > 0 ? safeDivide(adSpend, optInsPaid || null) : null),
     showRate: card?.webinarShowRate ?? null,
     liveAttendees: card?.liveAttendees ?? null,
     liveAttendeesAtPitch: card?.liveAttendeesAtPitch ?? null,
