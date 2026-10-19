@@ -22,7 +22,6 @@ function rows(goals: GoalsConfig | undefined): Row[] {
     { label: "Attended Live", format: "number", value: (f) => f.attended },
     { label: "Show Rate", format: "percent", value: (f) => f.showRate },
     { label: "Stayed Until Pitch", format: "number", value: (f) => f.stayed },
-    { label: "Retention Until Pitch", format: "percent", value: (f) => f.retentionRate },
     { label: "Calls Booked", format: "number", value: (f) => f.booked },
     { label: "Booking Rate", format: "percent", value: (f) => f.bookingRate },
     { label: "Canceled", format: "number", value: (f) => f.canceled },
@@ -125,8 +124,6 @@ export function WebinarSourceFunnel({
       <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {hero("Show Rate (Paid)", t?.paid.showRate, t ? `${t.paid.attended} attended of ${t.paid.registered} registered` : "Attended ÷ registered")}
         {hero("Show Rate (Organic)", t?.organic.showRate, t ? `${t.organic.attended} attended of ${t.organic.registered} registered` : "Attended ÷ registered")}
-        {hero("Retention Until Pitch (Paid)", t?.paid.retentionRate, t ? `${t.paid.stayed} of ${t.paid.attended} attendees stayed` : "Stayed ÷ attended")}
-        {hero("Retention Until Pitch (Organic)", t?.organic.retentionRate, t ? `${t.organic.stayed} of ${t.organic.attended} attendees stayed` : "Stayed ÷ attended")}
         {hero("Booking Rate (Paid)", t?.paid.bookingRate, t ? `${t.paid.booked} booked of ${t.paid.stayed} at pitch` : "Booked ÷ stayed until pitch")}
         {hero("Booking Rate (Organic)", t?.organic.bookingRate, t ? `${t.organic.booked} booked of ${t.organic.stayed} at pitch` : "Booked ÷ stayed until pitch")}
         {hero("Connection Rate (Paid)", t?.paid.connectionRate, t ? `${t.paid.connected} of ${t.paid.connectable} booked leads` : "Booked leads reached", goals?.connectionRate)}
@@ -175,7 +172,7 @@ export function WebinarSourceFunnel({
           />
         )}
         <p className="mt-3 text-xs text-[var(--text-muted)]">
-          Automatic, no form input. Registered, attended and stayed until pitch (watched live 1 hour or more) come from WebinarJam; attendees count toward the session they watched. Source is the lead&apos;s masterclass paid / organic tag (ad campaign UTM = paid). A Calendly booking counts toward the latest webinar held on or before the day it was made; a reschedule counts once. Connection rate = booked leads with a 1+ min GHL call before their call; bookings the lead canceled themselves are left out. The post-webinar card above uses the form&apos;s own at-pitch count, so it can differ.
+          Automatic, no form input. Retention until pitch is not split here: it&apos;s the room at the pitch minute ÷ the room&apos;s peak, so it stays manual on the post-webinar card. Registered, attended and stayed until pitch (watched live 1 hour or more) come from WebinarJam; attendees count toward the session they watched. Source is the lead&apos;s masterclass paid / organic tag (ad campaign UTM = paid). A Calendly booking counts toward the latest webinar held on or before the day it was made; a reschedule counts once. Connection rate = booked leads with a 1+ min GHL call before their call; bookings the lead canceled themselves are left out. The post-webinar card above uses the form&apos;s own at-pitch count, so it can differ.
         </p>
       </div>
     </DashboardSection>

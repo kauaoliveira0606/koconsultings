@@ -27,7 +27,6 @@ export type SourceFunnel = {
   connected: number;
   connectable: number;
   showRate: number | null;
-  retentionRate: number | null;
   bookingRate: number | null;
   connectionRate: number | null;
   /** Paid only: the webinar's ad spend ÷ paid bookings. */
@@ -52,7 +51,6 @@ function finish(c: Counts, adSpend: number | null): SourceFunnel {
   return {
     ...c,
     showRate: safeDivide(c.attended, c.registered || null),
-    retentionRate: safeDivide(c.stayed, c.attended || null),
     bookingRate: safeDivide(c.booked, c.stayed || null),
     connectionRate: safeDivide(c.connected, c.connectable || null),
     costPerBookedCall: adSpend ? safeDivide(adSpend, c.booked || null) : null,
