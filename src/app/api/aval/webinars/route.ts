@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
 import { parseRangeFromRequest } from "@/lib/api-range";
-import { avalWebinarBookings } from "@/lib/aval-webinar-bookings";
+import { avalWebinarSourceRows } from "@/lib/aval-webinar-funnel";
 import { easternDateString, isDateInRange } from "@/lib/date-range";
 import { safeDivide, webinarTotals } from "@/lib/metrics";
 import { webinarRows, webinarStartDate } from "@/lib/webinar-breakdown";
@@ -19,12 +19,16 @@ export async function GET(request: NextRequest) {
   const days = webinarRows(marketing, WEBINAR_SCHEDULE.aval).filter((r) => isDateInRange(r.date, range));
   const totals = webinarTotals(days);
 
-  // Calls booked = the real Calendly masterclass bookings of the webinars held in range.
-  const held = [...(await avalWebinarBookings(WEBINAR_SCHEDULE.aval, easternDateString())).entries()].filter(([d]) =>
-    isDateInRange(d, range),
-  );
-  if (!held.length) return Response.json({ ...totals, callsBookedFrom: "form", startDate: start });
-  const callsBooked = held.some(([, c]) => c === null) ? null : held.reduce((n, [, c]) => n + (c ?? 0), 0);
+  // Calls booked = the real Calendly masterclass bookings of the webinars held in
+  // range (same numbers as the paid vs organic funnel). Blank if Calendly,
+  // WebinarJam or GHL can't be read, never the estimate.
+  const funnel = await avalWebinarSourceRows(easternDateString()).catch((err) => {
+    console.error("Aval webinar funnel", err);
+    return null;
+  });
+  const held = (funnel ?? []).filter((w) => w.status === "done" && isDateInRange(w.date, range));
+  if (funnel && !held.length) return Response.json({ ...totals, callsBookedFrom: "form", startDate: start });
+  const callsBooked = funnel ? held.reduce((n, w) => n + w.total.booked, 0) : null;
   return Response.json({
     ...totals,
     callsBooked,

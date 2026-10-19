@@ -243,11 +243,15 @@ export async function getCallsOnDate({
 }
 
 export type CalendlyBooking = {
+  /** The scheduled event's URI, unique per booking. */
+  id: string;
   /** Eastern date the booking was made. */
   bookedDate: string;
   start: string;
   inviteeEmail: string | null;
   canceled: boolean;
+  /** Calendly's canceler_type ("host" / "invitee") when canceled. */
+  canceledBy: string | null;
 };
 
 /**
@@ -287,10 +291,13 @@ export async function getBookingsMade({
       const invitee = invitees.find((i) => i.status === "active") ?? invitees[0] ?? null;
       if (e.status === "canceled" && invitee?.rescheduled) return null;
       return {
+        id: e.uri,
         bookedDate: toEasternDateOnly(e.created_at)!,
         start: e.start_time,
         inviteeEmail: invitee?.email ?? null,
         canceled: e.status === "canceled",
+        canceledBy:
+          e.status === "canceled" ? ((invitee?.cancellation ?? e.cancellation)?.canceler_type ?? null) : null,
       };
     })
   );

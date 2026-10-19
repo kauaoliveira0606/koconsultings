@@ -93,19 +93,22 @@ function FunnelTable({
 }
 
 /**
- * Bronson's webinar funnel split paid vs organic, built automatically from
+ * The webinar funnel split paid vs organic (Bronson + Aval), built automatically from
  * WebinarJam, Calendly and GHL call logs (see webinar-source-funnel.ts).
  */
 export function WebinarSourceFunnel({
+  apiPath,
   range,
   goals,
   period,
 }: {
+  /** e.g. /api/bronson/webinars/funnel */
+  apiPath: string;
   range: Parameters<typeof useSectionData>[1];
   goals?: GoalsConfig;
   period?: string | null;
 }) {
-  const { data } = useSectionData<Payload>("/api/bronson/webinars/funnel", range);
+  const { data } = useSectionData<Payload>(apiPath, range);
   const t = data?.range;
   const hero = (label: string, value: number | null | undefined, sub: string, goal?: MinGoal | null) => (
     <HeroStat

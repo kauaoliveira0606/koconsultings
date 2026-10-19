@@ -30,7 +30,7 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
         breakdownApiPath={`/api/${offer}/overview/webinars`}
         period={period}
       />
-      {offer === "bronson" ? <WebinarSourceFunnel range={range} goals={goals} period={period} /> : null}
+      <WebinarSourceFunnel apiPath={`/api/${offer}/webinars/funnel`} range={range} goals={goals} period={period} />
     </div>
   );
 }

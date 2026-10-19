@@ -17,7 +17,9 @@ export const WEBINAR_SCHEDULE: Record<WebinarOffer, WebinarRun[]> = {
   ],
   aval: [
     { promoStart: "2026-10-14", date: "2026-10-18" },
-    // Next one after a 2-week break; date not set yet.
+    // Next one after a 2-week break: WebinarJam's next session is Sun Nov 1, 7 PM
+    // (seen 2026-10-19). Promo length assumed 5 days like the first.
+    { promoStart: "2026-10-28", date: "2026-11-01" },
   ],
 };
 
