@@ -249,6 +249,7 @@ export type CalendlyBooking = {
   /** Eastern date the booking was made. */
   bookedDate: string;
   start: string;
+  inviteeName: string | null;
   inviteeEmail: string | null;
   canceled: boolean;
   /** Calendly's canceler_type ("host" / "invitee") when canceled. */
@@ -299,6 +300,7 @@ export async function getBookingsMade({
         id: e.uri,
         bookedDate: toEasternDateOnly(e.created_at)!,
         start: e.start_time,
+        inviteeName: invitee?.name ?? null,
         inviteeEmail: invitee?.email ?? null,
         canceled: e.status === "canceled",
         canceledBy:

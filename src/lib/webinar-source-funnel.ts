@@ -47,6 +47,22 @@ export type SourceFunnel = {
   costPerLiveCall: number | null;
 };
 
+/** One booked call, for the paid vs organic call list. */
+export type BookedCall = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  bookedDate: string;
+  callTime: string | null;
+  /** "Paid", "Organic", or "Unknown" (the booker never registered for the webinar). */
+  source: string;
+  status: "Upcoming" | "Due" | "Canceled (Lead)" | "Canceled (Host)";
+  connected: boolean;
+  /** The lead's latest post call note outcome since booking. */
+  outcome: string | null;
+  cashCollected: number;
+};
+
 export type WebinarSourceRow = {
   number: number;
   date: string;
@@ -56,11 +72,14 @@ export type WebinarSourceRow = {
   paid: SourceFunnel;
   organic: SourceFunnel;
   total: SourceFunnel;
+  /** Every booked call counted toward this webinar, newest call first. */
+  calls: BookedCall[];
 };
 
 /** The Post Call Note fields the back end needs. */
 export type CallNote = {
   date: string | null;
+  leadName?: string | null;
   leadEmail: string | null;
   callOutcome: string | null;
   cashCollected: number | null;
@@ -145,10 +164,35 @@ export function webinarSourceRows(
 
   const counted = countedBookings(bookings);
   const conn = connectedBookingIds(counted, calls);
+  const callLists = new Map<string, BookedCall[]>();
   for (const b of counted) {
-    if (b.source !== "Paid" && b.source !== "Organic") continue;
     const w = webinarFor(b.bookedDate!);
     if (!w) continue;
+    const after = (b.email ? notesByEmail.get(b.email) ?? [] : []).filter((n) => n.date! >= b.bookedDate!);
+    const latest = [...after].sort((x, y) => x.date!.localeCompare(y.date!)).at(-1);
+    const source = b.source === "Paid" || b.source === "Organic" ? b.source : "Unknown";
+    callLists.set(w, [
+      ...(callLists.get(w) ?? []),
+      {
+        id: b.id,
+        name: b.name ?? after.find((n) => n.leadName)?.leadName ?? null,
+        email: b.email ?? null,
+        bookedDate: b.bookedDate!,
+        callTime: b.callTime,
+        source,
+        status: b.canceled
+          ? b.canceledBy === "Invitee"
+            ? "Canceled (Lead)"
+            : "Canceled (Host)"
+          : b.callTime && new Date(b.callTime).getTime() > now
+            ? "Upcoming"
+            : "Due",
+        connected: conn.has(b.id),
+        outcome: latest?.callOutcome ?? null,
+        cashCollected: after.reduce((s, n) => s + (n.cashCollected ?? 0), 0),
+      },
+    ]);
+    if (b.source !== "Paid" && b.source !== "Organic") continue;
     const c = at(w)[b.source];
     c.booked += 1;
     if (b.canceled) c.canceled += 1;
@@ -160,7 +204,6 @@ export function webinarSourceRows(
     if (isConnectable(b) && !!b.callTime && new Date(b.callTime).getTime() <= now) c.due += 1;
     // The lead's notes from the day they booked on: showed if any call happened,
     // closed if any closed, and the cash they logged.
-    const after = (b.email ? notesByEmail.get(b.email) ?? [] : []).filter((n) => n.date! >= b.bookedDate!);
     if (after.some((n) => !!n.callOutcome && SHOWED(n.callOutcome))) c.showed += 1;
     if (after.some((n) => !!n.callOutcome && CLOSED(n.callOutcome))) c.closed += 1;
     c.cashCollected += after.reduce((s, n) => s + (n.cashCollected ?? 0), 0);
@@ -183,6 +226,7 @@ export function webinarSourceRows(
         paid: held(finish(c.Paid, adSpend)),
         organic: held(finish(c.Organic, null)),
         total: held(finish(plus(c.Paid, c.Organic), null)),
+        calls: (callLists.get(run.date) ?? []).sort((x, y) => (y.callTime ?? "").localeCompare(x.callTime ?? "")),
       };
     })
     .reverse();

@@ -66,6 +66,7 @@ const avalInputs = unstable_cache(
         canceledBy: b.canceledBy === "host" ? "Host" : b.canceledBy ? "Invitee" : null,
         funnel: "Masterclass",
         email: email || null,
+        name: b.inviteeName,
       };
     });
     return { registrants, bookings };

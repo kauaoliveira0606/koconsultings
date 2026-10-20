@@ -779,6 +779,7 @@ export type BookingRow = {
   funnel: string | null;
   /** Lowercased; ties the booking to the lead's Post Call Note. */
   email?: string | null;
+  name?: string | null;
 };
 
 export async function getBookings(): Promise<BookingRow[]> {
@@ -794,6 +795,7 @@ export async function getBookings(): Promise<BookingRow[]> {
     canceledBy: (r.fields["Canceled By"] as string) ?? null,
     funnel: (r.fields.Funnel as string) ?? null,
     email: typeof r.fields.Email === "string" ? r.fields.Email.trim().toLowerCase() : null,
+    name: (r.fields.Name as string) || null,
   }));
 }
 

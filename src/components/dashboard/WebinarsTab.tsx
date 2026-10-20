@@ -10,7 +10,7 @@ import { formatStatValue, type StatFormat } from "@/lib/format";
 import type { GoalsConfig, MaxGoal, MinGoal } from "@/lib/goals";
 import { cellStatus } from "@/lib/weekly-scorecard";
 import type { WebinarReport } from "@/lib/webinar-report";
-import type { SourceFunnel } from "@/lib/webinar-source-funnel";
+import type { BookedCall, SourceFunnel } from "@/lib/webinar-source-funnel";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -211,6 +211,96 @@ function Table({ groups, w }: { groups: Group[]; w: WebinarReport }) {
   );
 }
 
+const SOURCE_STYLE: Record<string, string> = {
+  Paid: "border-sky-400/40 bg-sky-400/15 text-sky-200",
+  Organic: "border-emerald-400/40 bg-emerald-400/15 text-emerald-200",
+  Unknown: "border-white/15 bg-white/5 text-[var(--text-muted)]",
+};
+
+const callTimeLabel = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "America/New_York",
+      }) + " ET"
+    : "—";
+
+/** Every booked call for the webinar, tagged paid / organic, filterable by source. */
+function BookedCallsList({ calls }: { calls: BookedCall[] }) {
+  const [filter, setFilter] = useState<"All" | "Paid" | "Organic" | "Unknown">("All");
+  const count = (src: string) => calls.filter((c) => c.source === src).length;
+  const shown = filter === "All" ? calls : calls.filter((c) => c.source === filter);
+  const options = [
+    { key: "All" as const, n: calls.length },
+    { key: "Paid" as const, n: count("Paid") },
+    { key: "Organic" as const, n: count("Organic") },
+    ...(count("Unknown") ? [{ key: "Unknown" as const, n: count("Unknown") }] : []),
+  ];
+  return (
+    <div className="min-w-0 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
+      <div className="mb-4 flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => setFilter(o.key)}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${
+              filter === o.key
+                ? "border-sky-400 bg-sky-400/15 text-white"
+                : "border-[var(--panel-border)] text-[var(--text-muted)] hover:text-white"
+            }`}
+          >
+            {o.key} · {o.n}
+          </button>
+        ))}
+      </div>
+      {shown.length === 0 ? (
+        <p className="text-sm text-[var(--text-muted)]">No calls booked{filter === "All" ? "" : ` from ${filter.toLowerCase()} leads`} for this webinar yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
+            <thead>
+              <tr className="text-[13px] text-[var(--text-muted)]">
+                {["Lead", "Source", "Booked", "Call Time", "Status", "Connected", "Outcome", "Cash"].map((h, i) => (
+                  <th key={h} className={`px-3 py-2.5 font-semibold ${i === 7 ? "text-right" : "text-left"}`}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((c) => (
+                <tr key={c.id}>
+                  <td className="px-3 py-2.5">
+                    <span className="font-medium text-[var(--text-strong)]">{c.name ?? c.email ?? "—"}</span>
+                    {c.name && c.email ? <span className="block text-xs text-[var(--text-muted)]">{c.email}</span> : null}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className={`inline-block rounded-md border px-2 py-0.5 text-xs font-bold ${SOURCE_STYLE[c.source]}`}>
+                      {c.source}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-white">{shortDate(c.bookedDate)}</td>
+                  <td className="px-3 py-2.5 text-white">{callTimeLabel(c.callTime)}</td>
+                  <td className="px-3 py-2.5 text-white">{c.status === "Due" ? "Call Time Passed" : c.status}</td>
+                  <td className="px-3 py-2.5 text-white">{c.connected ? "Yes" : "No"}</td>
+                  <td className="px-3 py-2.5 text-white">{c.outcome ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-white">
+                    {c.cashCollected ? formatStatValue(c.cashCollected, "currency") : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Webinars tab (Bronson + Aval), one webinar at a time (user, 2026-10-19):
  * Front End runs from the ads to the booked call, ending on cost per booked
@@ -285,6 +375,10 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
               {hero("Cash Collected", w.total.cashCollected, "currency", "From the booked leads' post call notes")}
             </div>
             <Table groups={backEnd(goals)} w={w} />
+          </DashboardSection>
+
+          <DashboardSection title="Booked Calls: Paid vs Organic">
+            <BookedCallsList key={w.date} calls={w.calls ?? []} />
           </DashboardSection>
 
           <p className="mt-3 text-xs text-[var(--text-muted)]">
