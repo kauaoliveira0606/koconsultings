@@ -124,6 +124,7 @@ export type AvalPostCallNoteRow = {
   offerPitched: string | null;
   cashCollected: number | null;
   totalRevenue: number | null;
+  fathomLink: string | null;
 };
 
 export async function getAvalPostCallNotes(): Promise<AvalPostCallNoteRow[]> {
@@ -145,6 +146,7 @@ export async function getAvalPostCallNotes(): Promise<AvalPostCallNoteRow[]> {
       offerPitched: (f["Offer Pitched On/Closed"] as string) ?? null,
       cashCollected: parseNumericText(f["Cash Collected"]),
       totalRevenue: parseNumericText(f["Total Revenue"]),
+      fathomLink: typeof f["Fathom Link"] === "string" ? f["Fathom Link"].trim() || null : null,
     };
   });
 }

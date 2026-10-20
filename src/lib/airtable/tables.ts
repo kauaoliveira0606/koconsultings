@@ -701,6 +701,7 @@ export type PostCallNoteRow = {
   offerPitched: string | null;
   cashCollected: number | null;
   totalRevenue: number | null;
+  fathomLink: string | null;
 };
 
 export async function getPostCallNotes(): Promise<PostCallNoteRow[]> {
@@ -722,6 +723,7 @@ export async function getPostCallNotes(): Promise<PostCallNoteRow[]> {
       offerPitched: (f["Offer Pitched On/Closed"] as string) ?? null,
       cashCollected: parseNumericText(f["Cash Collected"]),
       totalRevenue: parseNumericText(f["Total Revenue"]),
+      fathomLink: typeof f["Fathom Link"] === "string" ? f["Fathom Link"].trim() || null : null,
     };
   });
 }

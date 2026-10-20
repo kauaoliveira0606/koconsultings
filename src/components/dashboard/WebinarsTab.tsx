@@ -261,11 +261,11 @@ function BookedCallsList({ calls }: { calls: BookedCall[] }) {
         <p className="text-sm text-[var(--text-muted)]">No calls booked{filter === "All" ? "" : ` from ${filter.toLowerCase()} leads`} for this webinar yet.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
+          <table className="w-full min-w-[860px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
             <thead>
               <tr className="text-[13px] text-[var(--text-muted)]">
-                {["Lead", "Source", "Booked", "Call Time", "Status", "Connected", "Outcome", "Cash"].map((h, i) => (
-                  <th key={h} className={`px-3 py-2.5 font-semibold ${i === 7 ? "text-right" : "text-left"}`}>
+                {["Lead", "Source", "Booked", "Call Time", "Status", "Connected", "Outcome", "Fathom", "Cash"].map((h, i) => (
+                  <th key={h} className={`px-3 py-2.5 font-semibold ${i === 8 ? "text-right" : "text-left"}`}>
                     {h}
                   </th>
                 ))}
@@ -288,6 +288,25 @@ function BookedCallsList({ calls }: { calls: BookedCall[] }) {
                   <td className="px-3 py-2.5 text-white">{c.status === "Due" ? "Call Time Passed" : c.status}</td>
                   <td className="px-3 py-2.5 text-white">{c.connected ? "Yes" : "No"}</td>
                   <td className="px-3 py-2.5 text-white">{c.outcome ?? "—"}</td>
+                  <td className="px-3 py-2.5">
+                    {c.fathomLinks?.length ? (
+                      <span className="flex flex-wrap gap-x-3 gap-y-1">
+                        {c.fathomLinks.map((href, i) => (
+                          <a
+                            key={href}
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-sky-300 underline-offset-2 hover:underline"
+                          >
+                            {c.fathomLinks.length > 1 ? `Call ${i + 1}` : "Watch"}
+                          </a>
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="text-[var(--text-muted)]">—</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-white">
                     {c.cashCollected ? formatStatValue(c.cashCollected, "currency") : "—"}
                   </td>

@@ -61,6 +61,8 @@ export type BookedCall = {
   /** The lead's latest post call note outcome since booking. */
   outcome: string | null;
   cashCollected: number;
+  /** Fathom recordings from the lead's post call notes since booking, oldest first. */
+  fathomLinks: string[];
 };
 
 export type WebinarSourceRow = {
@@ -80,6 +82,7 @@ export type WebinarSourceRow = {
 export type CallNote = {
   date: string | null;
   leadName?: string | null;
+  fathomLink?: string | null;
   leadEmail: string | null;
   callOutcome: string | null;
   cashCollected: number | null;
@@ -190,6 +193,13 @@ export function webinarSourceRows(
         connected: conn.has(b.id),
         outcome: latest?.callOutcome ?? null,
         cashCollected: after.reduce((s, n) => s + (n.cashCollected ?? 0), 0),
+        fathomLinks: [
+          ...new Set(
+            [...after]
+              .sort((x, y) => x.date!.localeCompare(y.date!))
+              .flatMap((n) => (n.fathomLink?.startsWith("http") ? [n.fathomLink] : [])),
+          ),
+        ],
       },
     ]);
     if (b.source !== "Paid" && b.source !== "Organic") continue;
