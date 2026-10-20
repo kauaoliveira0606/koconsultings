@@ -197,7 +197,8 @@ export function webinarSourceRows(
           ...new Set(
             [...after]
               .sort((x, y) => x.date!.localeCompare(y.date!))
-              .flatMap((n) => (n.fathomLink?.startsWith("http") ? [n.fathomLink] : [])),
+              // Reps sometimes paste two recordings into one field.
+              .flatMap((n) => (n.fathomLink ?? "").split(/[\s,]+/).filter((l) => l.startsWith("http"))),
           ),
         ],
       },
