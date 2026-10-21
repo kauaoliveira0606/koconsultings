@@ -24,6 +24,18 @@ type ClientMetrics = {
 };
 
 type MetricsResponse = {
+  pacing: {
+    monthStart: string;
+    through: string;
+    daysElapsed: number;
+    daysTotal: number;
+    cashToDate: number;
+    cash: number;
+    myProfitToDate: number;
+    bronsonShare: number;
+    avalShare: number;
+    myProfit: number;
+  } | null;
   totalCashCollected: number;
   totalAdSpend: number;
   totalProfit: number;
@@ -73,6 +85,10 @@ export default function AgencyPage() {
   const { range, setRange } = useSharedRange();
   const period = rangePeriodLabel(range);
   const { data } = useSectionData<MetricsResponse>("/api/agency/overview/metrics", range);
+  const pace = data?.pacing ?? null;
+  const paceLabel = pace
+    ? new Date(`${pace.monthStart}T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" })
+    : null;
 
   const totalRow = data
     ? {
@@ -191,6 +207,43 @@ export default function AgencyPage() {
         </div>
       </DashboardSection>
 
+      <DashboardSection title="Pacing This Month">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <HeroStat
+            label="My Profit Pace"
+            value={pace?.myProfit}
+            format="currency"
+            period={paceLabel}
+            sub={pace ? `${formatStatValue(pace.myProfitToDate, "currency")} so far · ${pace.daysElapsed} of ${pace.daysTotal} days in` : "Starts once the 1st's forms are in"}
+          />
+          <HeroStat
+            label="Cash Pace"
+            value={pace?.cash}
+            format="currency"
+            period={paceLabel}
+            sub={pace ? `${formatStatValue(pace.cashToDate, "currency")} so far, Bronson + Aval` : undefined}
+          />
+          <HeroStat
+            label="Bronson Share Pace"
+            value={pace?.bronsonShare}
+            format="currency"
+            period={paceLabel}
+            sub="Paid and organic each projected, then the split rule"
+          />
+          <HeroStat
+            label="Aval Share Pace"
+            value={pace?.avalShare}
+            format="currency"
+            period={paceLabel}
+            sub="11.5% of profit, projected"
+          />
+        </div>
+        <p className="mt-3 text-xs text-[var(--text-muted)]">
+          Always this month, whatever range is picked above. Completed days only
+          {pace ? ` (through ${pace.through.slice(5).replace("-", "/")})` : ""}, projected to month end at the same daily rate. Bills are entered at month end and aren&apos;t in the pace until then.
+        </p>
+      </DashboardSection>
+
       <DashboardSection title="Bronson Split">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <SplitCard
@@ -227,6 +280,27 @@ export default function AgencyPage() {
               ["Organic leg", data?.bronsonSplit.organicShare],
             ]}
             result={data?.clients.bronson.agencyProfit}
+          />
+        </div>
+      </DashboardSection>
+
+      <DashboardSection title="Aval Split">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <SplitCard
+            title="Aval Profit"
+            lines={[
+              ["Cash collected", data?.clients.aval.cash],
+              ["Ad spend", data ? -data.clients.aval.adSpend : undefined],
+              ["Sales team payout", data ? -data.clients.aval.salesTeamPayout : undefined],
+              ["Fees", data ? -data.clients.aval.fees : undefined],
+            ]}
+            result={data?.clients.aval.profit}
+          />
+          <SplitCard
+            title="Your Aval Share × 11.5%"
+            lines={[["Aval profit", data?.clients.aval.profit]]}
+            result={data?.clients.aval.agencyProfit}
+            note="Before October 2026: 11.5% of cash minus ad spend, nothing else off."
           />
         </div>
       </DashboardSection>

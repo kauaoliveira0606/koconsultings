@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
-import { isDateInRange } from "@/lib/date-range";
+import { addDaysToDateString, easternDateString, isDateInRange } from "@/lib/date-range";
 import {
   BRONSON_BASE_ID,
   getMarketingDailyMetrics as getBronsonMarketingDailyMetrics,
@@ -181,7 +181,48 @@ export async function GET(request: NextRequest) {
     .map(([date, v]) => ({ date, ...v }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  // This month's pace, whatever range is picked: completed days only. Today
+  // never counts, and yesterday waits until both offers' forms are in, same
+  // as the Scorecard's pacing. Bills are booked once a month, so they come
+  // off the projection as they are instead of being scaled up.
+  const today = easternDateString();
+  const yesterday = addDaysToDateString(today, -1);
+  const formsIn = [bronsonMarketing, avalMarketing].every((rows) => rows.some((r) => r.date === yesterday));
+  const through = formsIn ? yesterday : addDaysToDateString(yesterday, -1);
+  const monthStart = `${today.slice(0, 7)}-01`;
+  const [year, month] = today.split("-").map(Number);
+  const daysTotal = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const daysElapsed = through >= monthStart ? Number(through.slice(8, 10)) : 0;
+  const inMonth = (r: DailyOfferRow) => r.date >= monthStart && r.date <= through;
+  let pacing = null;
+  if (daysElapsed > 0) {
+    const scale = daysTotal / daysElapsed;
+    const bronsonMonth = bronsonAllRows.filter(inMonth);
+    const avalMonth = avalAllRows.filter(inMonth);
+    const split = bronsonSplitBreakdown(bronsonMonth);
+    const bills = sumExpenses(bronsonMonth);
+    const paidProfit = (split.paidProfit + bills) * scale - bills;
+    const organicNet = split.organicNet * scale;
+    // Same rule as the split: a losing paid month comes off organic before the 20%.
+    const bronsonShare = paidProfit < 0 ? 0.2 * (organicNet + paidProfit) : 0.5 * paidProfit + 0.2 * organicNet;
+    const avalShare = avalAgencyProfit(avalMonth) * scale;
+    const cashToDate = sumCash(bronsonMonth) + sumCash(avalMonth);
+    pacing = {
+      monthStart,
+      through,
+      daysElapsed,
+      daysTotal,
+      cashToDate,
+      cash: cashToDate * scale,
+      myProfitToDate: bronsonAgencyProfit(bronsonMonth) + avalAgencyProfit(avalMonth),
+      bronsonShare,
+      avalShare,
+      myProfit: bronsonShare + avalShare,
+    };
+  }
+
   return Response.json({
+    pacing,
     totalCashCollected,
     totalAdSpend,
     totalProfit,
