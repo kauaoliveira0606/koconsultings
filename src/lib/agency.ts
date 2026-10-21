@@ -353,38 +353,73 @@ export function profit(rows: DailyOfferRow[]): number {
   return sumMapValues(profitByDay(rows));
 }
 
-/** Bronson: 50% agency share of Paid profit (after ad spend + sales team + expenses + fees on paid high ticket), plus 20% of Organic cash after its high ticket fees (nothing else comes off organic) — per day. */
+/** Paid profit that day: paid cash after ad spend, paid commissions, expenses and paid fees. */
+function bronsonPaidProfit(r: DailyOfferRow): number {
+  const { paid: payoutPaid } = sumSalesTeamPayout([r]);
+  return paidCash(r) - r.adSpend - payoutPaid - r.expenses - (r.fees?.paid ?? 0);
+}
+
+/** Organic cash that day after its fees (nothing else comes off organic). */
+function bronsonOrganicNet(r: DailyOfferRow): number {
+  return organicCash(r) - (r.fees?.organic ?? 0);
+}
+
+/** Months (YYYY-MM) where paid traffic lost money overall across the rows given. */
+function bronsonLosingMonths(rows: DailyOfferRow[]): Set<string> {
+  const byMonth = new Map<string, number>();
+  for (const r of rows) {
+    const month = r.date.slice(0, 7);
+    byMonth.set(month, (byMonth.get(month) ?? 0) + bronsonPaidProfit(r));
+  }
+  return new Set([...byMonth].filter(([, p]) => p < 0).map(([m]) => m));
+}
+
+/**
+ * Bronson, netted per calendar month: when paid profit is positive, 50% of
+ * it plus 20% of organic cash after fees. When paid traffic ran at a loss,
+ * the loss comes off organic cash first and the agency gets 20% of what's
+ * left (no 50% share of the loss). Per day so it sums to the month: in a
+ * losing month each day is 20% of (organic + that day's paid profit).
+ */
 export function bronsonAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, number> {
+  const losing = bronsonLosingMonths(rows);
   const map = new Map<string, number>();
   for (const r of rows) {
-    const cashPaid = paidCash(r);
-    const cashOrganic = organicCash(r);
-    const { paid: payoutPaid } = sumSalesTeamPayout([r]);
-    const paidProfit = cashPaid - r.adSpend - payoutPaid - r.expenses - (r.fees?.paid ?? 0);
-    map.set(r.date, 0.5 * paidProfit + 0.2 * (cashOrganic - (r.fees?.organic ?? 0)));
+    const paidProfit = bronsonPaidProfit(r);
+    const organicNet = bronsonOrganicNet(r);
+    map.set(
+      r.date,
+      losing.has(r.date.slice(0, 7)) ? 0.2 * (organicNet + paidProfit) : 0.5 * paidProfit + 0.2 * organicNet
+    );
   }
   return map;
 }
 
 /** The two legs of Bronson's split over a range, so the page can show where the number comes from. */
 export function bronsonSplitBreakdown(rows: DailyOfferRow[]) {
+  const losing = bronsonLosingMonths(rows);
   let paidCashTotal = 0;
   let paidCosts = 0;
   let organicNet = 0;
+  let paidGain = 0;
+  let paidLoss = 0;
   for (const r of rows) {
-    const { paid: payoutPaid } = sumSalesTeamPayout([r]);
+    const paidProfit = bronsonPaidProfit(r);
     paidCashTotal += paidCash(r);
-    paidCosts += r.adSpend + payoutPaid + r.expenses + (r.fees?.paid ?? 0);
-    organicNet += organicCash(r) - (r.fees?.organic ?? 0);
+    paidCosts += paidCash(r) - paidProfit;
+    organicNet += bronsonOrganicNet(r);
+    if (losing.has(r.date.slice(0, 7))) paidLoss += paidProfit;
+    else paidGain += paidProfit;
   }
-  const paidProfit = paidCashTotal - paidCosts;
   return {
     paidCash: paidCashTotal,
     paidCosts,
-    paidProfit,
-    paidShare: 0.5 * paidProfit,
+    paidProfit: paidCashTotal - paidCosts,
+    paidShare: 0.5 * paidGain,
     organicNet,
-    organicShare: 0.2 * organicNet,
+    /** Paid loss carried onto organic (zero or negative). */
+    paidLoss,
+    organicShare: 0.2 * (organicNet + paidLoss),
   };
 }
 

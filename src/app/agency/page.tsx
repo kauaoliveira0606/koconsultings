@@ -41,6 +41,7 @@ type MetricsResponse = {
     paidProfit: number;
     paidShare: number;
     organicNet: number;
+    paidLoss: number;
     organicShare: number;
   };
   blendedRoas: number | null;
@@ -200,10 +201,23 @@ export default function AgencyPage() {
               ["Paid profit", data?.bronsonSplit.paidProfit],
             ]}
             result={data?.bronsonSplit.paidShare}
+            note={
+              data && data.bronsonSplit.paidLoss < 0
+                ? "Paid ran at a loss: no 50% share, the loss comes off organic instead."
+                : undefined
+            }
           />
           <SplitCard
             title="Organic × 20%"
-            lines={[["Organic cash after fees", data?.bronsonSplit.organicNet]]}
+            lines={[
+              ["Organic cash after fees", data?.bronsonSplit.organicNet],
+              ...(data && data.bronsonSplit.paidLoss < 0
+                ? ([
+                    ["Paid loss taken off", data.bronsonSplit.paidLoss],
+                    ["Left to split", data.bronsonSplit.organicNet + data.bronsonSplit.paidLoss],
+                  ] as [string, number][])
+                : []),
+            ]}
             result={data?.bronsonSplit.organicShare}
           />
           <SplitCard
@@ -333,10 +347,12 @@ function SplitCard({
   title,
   lines,
   result,
+  note,
 }: {
   title: string;
   lines: [string, number | undefined][];
   result: number | undefined;
+  note?: string;
 }) {
   const negative = (result ?? 0) < 0;
   return (
@@ -361,6 +377,7 @@ function SplitCard({
       >
         {formatStatValue(result, "currency")}
       </div>
+      {note ? <div className="mt-2 text-sm text-slate-400">{note}</div> : null}
     </div>
   );
 }
