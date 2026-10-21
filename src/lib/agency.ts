@@ -300,17 +300,20 @@ export const BRONSON_ACTUAL_COMMISSIONS_FROM = "2026-09-16";
 
 /**
  * Bronson is a profit share on PAID traffic only, so only paid-traffic
- * commissions come off — organic commissions are never deducted here. From
- * `BRONSON_ACTUAL_COMMISSIONS_FROM` the paid figure is the actual commission
- * from the Commissions tab (`paidByDay`); before that it stays the cash-based
- * estimate, since that period was paid out under the old rules.
+ * commissions come off the split (`bronsonAgencyProfitByDay` reads the paid
+ * side only). From `BRONSON_ACTUAL_COMMISSIONS_FROM` the paid figure is the
+ * actual commission from the Commissions tab (`paidByDay`), and the organic
+ * side carries the rest of what the team was paid (`organicByDay`) so the
+ * page shows the full payout; before that date it stays the paid-only
+ * cash-based estimate, since that period was paid out under the old rules.
  */
 export function withBronsonActualCommissions(
   rows: DailyOfferRow[],
-  paidByDay: Map<string, number>
+  paidByDay: Map<string, number>,
+  organicByDay: Map<string, number> = new Map()
 ): DailyOfferRow[] {
   const byDate = new Map(rows.map((r) => [r.date, r]));
-  for (const date of paidByDay.keys()) {
+  for (const date of [...paidByDay.keys(), ...organicByDay.keys()]) {
     if (date >= BRONSON_ACTUAL_COMMISSIONS_FROM && !byDate.has(date)) {
       byDate.set(date, {
         date,
@@ -330,7 +333,7 @@ export function withBronsonActualCommissions(
         r.date >= BRONSON_ACTUAL_COMMISSIONS_FROM
           ? (paidByDay.get(r.date) ?? 0)
           : commissionForDay(r.date, r.ltCashPaid, r.htCashPaid),
-      organic: 0,
+      organic: r.date >= BRONSON_ACTUAL_COMMISSIONS_FROM ? (organicByDay.get(r.date) ?? 0) : 0,
     },
   }));
 }
@@ -361,6 +364,28 @@ export function bronsonAgencyProfitByDay(rows: DailyOfferRow[]): Map<string, num
     map.set(r.date, 0.5 * paidProfit + 0.2 * (cashOrganic - (r.fees?.organic ?? 0)));
   }
   return map;
+}
+
+/** The two legs of Bronson's split over a range, so the page can show where the number comes from. */
+export function bronsonSplitBreakdown(rows: DailyOfferRow[]) {
+  let paidCashTotal = 0;
+  let paidCosts = 0;
+  let organicNet = 0;
+  for (const r of rows) {
+    const { paid: payoutPaid } = sumSalesTeamPayout([r]);
+    paidCashTotal += paidCash(r);
+    paidCosts += r.adSpend + payoutPaid + r.expenses + (r.fees?.paid ?? 0);
+    organicNet += organicCash(r) - (r.fees?.organic ?? 0);
+  }
+  const paidProfit = paidCashTotal - paidCosts;
+  return {
+    paidCash: paidCashTotal,
+    paidCosts,
+    paidProfit,
+    paidShare: 0.5 * paidProfit,
+    organicNet,
+    organicShare: 0.2 * organicNet,
+  };
 }
 
 export function bronsonAgencyProfit(rows: DailyOfferRow[]): number {

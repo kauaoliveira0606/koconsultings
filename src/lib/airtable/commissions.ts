@@ -300,6 +300,23 @@ export async function getPaidCommissionsByDay(offer: CommissionsOffer): Promise<
 }
 
 /**
+ * Every commission per day, all time, split into paid traffic and the rest
+ * (organic + unmatched leads). The Agency page shows the full payout but only
+ * the paid part comes off the profit split.
+ */
+export async function getCommissionsByDay(
+  offer: CommissionsOffer
+): Promise<{ paidByDay: Map<string, number>; organicByDay: Map<string, number> }> {
+  const { paidByDay, allByDay } = await computeCommissions(offer, { start: null, end: null }, false);
+  const organicByDay = new Map<string, number>();
+  for (const [date, all] of allByDay) {
+    const organic = all - (paidByDay.get(date) ?? 0);
+    if (organic) organicByDay.set(date, organic);
+  }
+  return { paidByDay, organicByDay };
+}
+
+/**
  * True low ticket cash per day: what the affiliate portal tracked (every
  * Shared ID, including sales with none; reversed sales taken out). This is
  * the money that actually gets paid, as opposed to what reps log.
@@ -322,7 +339,7 @@ async function computeCommissions(
   offer: CommissionsOffer,
   range: ResolvedRange,
   withClawbacks: boolean
-): Promise<{ response: CommissionsResponse; paidByDay: Map<string, number> }> {
+): Promise<{ response: CommissionsResponse; paidByDay: Map<string, number>; allByDay: Map<string, number> }> {
   const { baseId } = offer;
   const aliases: Record<string, string> = offer.sharedIdAliases ?? {};
   const list = (tableId: string) => airtableListAll<Record<string, unknown>>(baseId, tableId);
@@ -362,6 +379,10 @@ async function computeCommissions(
   const paidByDay = new Map<string, number>();
   const addPaid = (date: string | null, amount: number) => {
     if (date && amount) paidByDay.set(date, (paidByDay.get(date) ?? 0) + amount);
+  };
+  const allByDay = new Map<string, number>();
+  const addAll = (date: string | null, amount: number) => {
+    if (date && amount) allByDay.set(date, (allByDay.get(date) ?? 0) + amount);
   };
 
   let portalSyncedAt: string | null = null;
@@ -453,6 +474,7 @@ async function computeCommissions(
     row.realCash += cash;
     row.reversedSales += parseNumericText(f["Reversed Purchases"]) ?? 0;
     row.reversedCash += parseNumericText(f["Reversed Commission"]) ?? 0;
+    addAll(date, cash * LOW_TICKET_RATE);
     if (paidSplit) {
       const paid = cash * LOW_TICKET_RATE * paidShare(row.rep, date);
       row.paidCommission += paid;
@@ -524,6 +546,7 @@ async function computeCommissions(
     }
 
     const source = paidSplit ? leadSource(deal.leadEmail) : "organic";
+    addAll(deal.date, closerCommission + setterCommission);
     if (source === "paid") addPaid(deal.date, closerCommission + setterCommission);
     if (source === "unmatched") {
       unmatchedLeads.push({
@@ -690,5 +713,5 @@ async function computeCommissions(
     highTicket: highTicketRows,
     highTicketDeals,
   };
-  return { response, paidByDay };
+  return { response, paidByDay, allByDay };
 }

@@ -35,6 +35,14 @@ type MetricsResponse = {
   myProfit: number;
   bronsonReimbursement: number;
   bronsonTotalOwed: number;
+  bronsonSplit: {
+    paidCash: number;
+    paidCosts: number;
+    paidProfit: number;
+    paidShare: number;
+    organicNet: number;
+    organicShare: number;
+  };
   blendedRoas: number | null;
   clients: {
     bronson: ClientMetrics;
@@ -150,7 +158,7 @@ export default function AgencyPage() {
             label="Total Sales Team Payouts"
             value={data?.totalSalesTeamPayout}
             format="currency"
-            sub="Bronson: actual paid-traffic commissions from his Commissions tab (organic not deducted). Aval (from Oct 2026) and Andy: 10%/20% weekday/weekend on Affiliate, 15% on High Ticket (5% setter + 10% closer)."
+            sub="Everything the sales teams were paid. Bronson: actual commissions from his Commissions tab; only the paid-traffic part comes off your split. Aval (from Oct 2026) and Andy: 10%/20% weekday/weekend on Affiliate, 15% on High Ticket (5% setter + 10% closer)."
           />
           <HeroStat
             size="md"
@@ -179,6 +187,33 @@ export default function AgencyPage() {
               sub="Through September 2026 only. Bronson: 5% of organic cash + 5% of paid profit. Andy: 5% of organic + paid profit. No cut on Aval. Comes out of your own take-home."
             />
           )}
+        </div>
+      </DashboardSection>
+
+      <DashboardSection title="Bronson Split">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <SplitCard
+            title="Paid Traffic × 50%"
+            lines={[
+              ["Paid cash", data?.bronsonSplit.paidCash],
+              ["Ad spend, paid commissions, expenses, fees", data ? -data.bronsonSplit.paidCosts : undefined],
+              ["Paid profit", data?.bronsonSplit.paidProfit],
+            ]}
+            result={data?.bronsonSplit.paidShare}
+          />
+          <SplitCard
+            title="Organic × 20%"
+            lines={[["Organic cash after fees", data?.bronsonSplit.organicNet]]}
+            result={data?.bronsonSplit.organicShare}
+          />
+          <SplitCard
+            title="Your Bronson Share"
+            lines={[
+              ["Paid leg", data?.bronsonSplit.paidShare],
+              ["Organic leg", data?.bronsonSplit.organicShare],
+            ]}
+            result={data?.clients.bronson.agencyProfit}
+          />
         </div>
       </DashboardSection>
 
@@ -231,7 +266,7 @@ export default function AgencyPage() {
                     <td className="px-5 py-4 text-right text-rose-400">
                       {formatStatValue(c?.fees, "currency")}
                     </td>
-                    <td className="px-5 py-4 text-right font-semibold text-emerald-400">
+                    <td className={`px-5 py-4 text-right font-semibold ${(c?.agencyProfit ?? 0) < 0 ? "text-rose-400" : "text-emerald-400"}`}>
                       {formatStatValue(c?.agencyProfit, "currency")}
                     </td>
                     {hasSalesManagerCut && (
@@ -239,7 +274,7 @@ export default function AgencyPage() {
                         {formatStatValue(c?.salesManagerCut, "currency")}
                       </td>
                     )}
-                    <td className="px-5 py-4 text-right font-semibold text-emerald-400">
+                    <td className={`px-5 py-4 text-right font-semibold ${(c?.personalProfit ?? 0) < 0 ? "text-rose-400" : "text-emerald-400"}`}>
                       {formatStatValue(c?.personalProfit, "currency")}
                     </td>
                   </tr>
@@ -289,6 +324,43 @@ export default function AgencyPage() {
       <DashboardSection title="Cash Calendar">
         <AgencyCashCalendar />
       </DashboardSection>
+    </div>
+  );
+}
+
+/** One leg of the Bronson split: the math lines, then the result in the hero gradient (rose when negative). */
+function SplitCard({
+  title,
+  lines,
+  result,
+}: {
+  title: string;
+  lines: [string, number | undefined][];
+  result: number | undefined;
+}) {
+  const negative = (result ?? 0) < 0;
+  return (
+    <div
+      className="rounded-2xl border border-white/[0.08] p-5 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.8)]"
+      style={{ background: PANEL_GRADIENT }}
+    >
+      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300">{title}</div>
+      <div className="mt-3 space-y-1.5 text-sm tabular-nums">
+        {lines.map(([label, value]) => (
+          <div key={label} className="flex justify-between gap-4">
+            <span className="text-slate-400">{label}</span>
+            <span className={(value ?? 0) < 0 ? "text-rose-400" : "text-[var(--text-strong)]"}>
+              {formatStatValue(value, "currency")}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div
+        className="mt-4 border-t border-white/[0.08] pt-3 text-3xl font-extrabold tabular-nums"
+        style={negative ? { color: "#fb7185" } : GRADIENT_TEXT}
+      >
+        {formatStatValue(result, "currency")}
+      </div>
     </div>
   );
 }

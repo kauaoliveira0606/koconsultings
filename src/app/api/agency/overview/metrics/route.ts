@@ -30,6 +30,7 @@ import {
   sumFees,
   profit,
   bronsonAgencyProfit,
+  bronsonSplitBreakdown,
   avalAgencyProfit,
   ecomSimAgencyProfit,
   bronsonSalesManagerCut,
@@ -42,7 +43,7 @@ import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { getFinancedHighTicketCashByDay } from "@/lib/deal-fees";
 import {
   COMMISSIONS_OFFERS,
-  getPaidCommissionsByDay,
+  getCommissionsByDay,
   getPortalCashByDay,
 } from "@/lib/airtable/commissions";
 
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
     ecomMarketing,
     bronsonExpenses,
     ecomExpenses,
-    bronsonPaidCommissions,
+    bronsonCommissions,
     bronsonPortalCash,
     bronsonFinanced,
     avalFinanced,
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
     emptyIfNoAccess(getEcomSimMarketingDailyMetrics()),
     listExpenses(EXPENSE_TABLES.bronson),
     emptyIfNoAccess(listExpenses(EXPENSE_TABLES.ecomSimulation)),
-    getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
+    getCommissionsByDay(COMMISSIONS_OFFERS.bronson),
     getPortalCashByDay(COMMISSIONS_OFFERS.bronson),
     getFinancedHighTicketCashByDay(BRONSON_BASE_ID),
     getFinancedHighTicketCashByDay(AVAL_BASE_ID),
@@ -91,8 +92,9 @@ export async function GET(request: NextRequest) {
   // Closer / Affiliate EOD blending here (unlike each offer's own
   // /overview/metrics route, which does blend those in for a more complete
   // real-time picture).
-  // Bronson's sales team payout is the actual paid-traffic commission from its
-  // Commissions tab (organic commissions are not deducted), not a cash estimate.
+  // Bronson's sales team payout is the actual commission from its Commissions
+  // tab, not a cash estimate. All of it shows; only the paid-traffic part comes
+  // off the profit split.
   const bronsonEffectiveExpenses = effectiveExpenses(EXPENSE_TABLES.bronson, bronsonExpenses);
   // Bronson's low ticket cash is TRUE cash (what the affiliate portal tracked
   // and pays), not what was logged on the form.
@@ -101,7 +103,8 @@ export async function GET(request: NextRequest) {
     withAttributedLowTicket(
       withBronsonActualCommissions(
         buildDailyOfferRows(bronsonMarketing, expensesByMonth(bronsonEffectiveExpenses)),
-        bronsonPaidCommissions
+        bronsonCommissions.paidByDay,
+        bronsonCommissions.organicByDay
       ),
       bronsonPortalCash
     ),
@@ -190,6 +193,7 @@ export async function GET(request: NextRequest) {
     myProfit,
     bronsonReimbursement,
     bronsonTotalOwed: bronson.agencyProfit + bronsonReimbursement,
+    bronsonSplit: bronsonSplitBreakdown(bronsonRows),
     blendedRoas: totalAdSpend > 0 ? totalCashCollected / totalAdSpend : null,
     clients,
     byDay,
