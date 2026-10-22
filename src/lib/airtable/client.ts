@@ -171,17 +171,21 @@ function cacheKey(scope: string, baseId: string, tableId: string, params: ListPa
   return `airtable:${CACHE_VERSION}:${scope}:${baseId}:${tableId}:${JSON.stringify(params)}`;
 }
 
-async function readEntry(key: string): Promise<CacheEntry | null> {
+async function readEntry(key: string, freshSeconds: number): Promise<CacheEntry | null> {
   const local = memory.get(key);
+  // A fresh copy in this instance's memory skips the download from the shared cache.
+  if (local && Date.now() - local.at < freshSeconds * 1000) return local;
   let shared: CacheEntry | null = null;
   try {
     shared = (await getCache().get(key)) as CacheEntry | null;
   } catch {
     // Runtime Cache unavailable: fall back to this instance's memory.
   }
-  if (!local) return shared;
-  if (!shared) return local;
-  return shared.at > local.at ? shared : local;
+  if (shared && (!local || shared.at > local.at)) {
+    memory.set(key, shared);
+    return shared;
+  }
+  return local ?? null;
 }
 
 function refresh(
@@ -211,7 +215,7 @@ async function staleWhileRevalidate(
   freshSeconds: number,
   maxStaleSeconds: number
 ): Promise<AirtableRecord<unknown>[]> {
-  const entry = await readEntry(key);
+  const entry = await readEntry(key, freshSeconds);
   const age = entry ? (Date.now() - entry.at) / 1000 : Infinity;
   if (!entry || age > maxStaleSeconds) return refresh(key, load);
   if (age > freshSeconds) {
