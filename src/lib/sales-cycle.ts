@@ -226,7 +226,7 @@ async function buildRows(offer: SalesCycleOffer): Promise<SalesCycleRow[]> {
 
 /** Every closed lead's sales cycle, cached 15 minutes (re-read in the background after that). */
 export function getSalesCycleRows(offer: SalesCycleOffer): Promise<SalesCycleRow[]> {
-  return staleWhileRevalidate(`sales-cycle:${offer.key}:v1`, () => buildRows(offer), 900, 24 * 60 * 60);
+  return staleWhileRevalidate(`sales-cycle:${offer.key}:v2`, () => buildRows(offer), 900, 24 * 60 * 60);
 }
 
 /** The Overview route: closes dated inside the range, with the averages over the ones that have a cycle. */
