@@ -824,6 +824,15 @@ function buildSpecs(
             average(days.map(fromM((r) => r.vslEngagementRate))),
         },
         {
+          key: "htVslViews",
+          label: "High Ticket VSL Views",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: fromM((r) => r.htVslViews),
+          week: wSum(fromM((r) => r.htVslViews)),
+        },
+        {
           key: "htVslPlayRate",
           label: "High Ticket VSL Play Rate",
           format: "percent",
@@ -1457,6 +1466,9 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
     title: "Affiliate",
     keys: [
       "base44OptInsOrganic",
+      "vslViews",
+      "vslPlayRate",
+      "vslEngagementRate",
       "dials",
       "pickups",
       "pickupRate",
@@ -1508,6 +1520,7 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
     title: "VSL (High Ticket)",
     keys: [
       "landingPageConnectRate",
+      "htVslViews",
       "htVslPlayRate",
       "htVslEngagementRate",
       "htCallsBooked",

@@ -82,6 +82,9 @@ type MetricsResponse = {
   vslViews: number | null;
   vslPlayRate: number | null;
   vslEngagementRate: number | null;
+  htVslViews: number | null;
+  htVslPlayRate: number | null;
+  htVslEngagementRate: number | null;
   funnelConversionRatePaid: number | null;
   funnelConversionRateOrganic: number | null;
 
@@ -564,6 +567,29 @@ export default function OverviewPage() {
                   subtext: "From VTurb.",
                   status: kpiStatus(metrics?.vslEngagementRate, goals?.vslEngagementRate?.min, "higher"),
                   goal: kpiLabel(goals?.vslEngagementRate?.min, "higher", "percent"),
+                },
+              ],
+            },
+            {
+              title: "High Ticket VSL",
+              metrics: [
+                {
+                  label: "VSL Views",
+                  value: metrics?.htVslViews,
+                  format: "number",
+                  subtext: "The /apply VSL, from VTurb.",
+                },
+                {
+                  label: "Play Rate",
+                  value: metrics?.htVslPlayRate,
+                  format: "percent",
+                  subtext: "Plays ÷ views, from VTurb.",
+                },
+                {
+                  label: "Engagement Rate",
+                  value: metrics?.htVslEngagementRate,
+                  format: "percent",
+                  subtext: "From VTurb.",
                 },
               ],
             },

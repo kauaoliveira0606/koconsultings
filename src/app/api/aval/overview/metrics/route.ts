@@ -229,6 +229,15 @@ export async function GET(request: NextRequest) {
   const highTicketDealsClosedPaid = sum(inRangeMarketing.map((r) => r.highTicketDealsClosedPaid));
 
   const vsl = vslTotals(inRangeMarketing);
+  // High ticket VSL on /apply, same weighting.
+  const htVsl = vslTotals(
+    inRangeMarketing.map((r) => ({
+      vslViews: r.htVslViews,
+      vslPlays: r.htVslPlays,
+      vslPlayRate: r.htVslPlayRate,
+      vslEngagementRate: r.htVslEngagementRate,
+    }))
+  );
   // Opt-in rate only counts paid leads from days that actually have VSL
   // views, so days before a VSL existed can't inflate the rate.
   const vslDays = new Set(
@@ -322,6 +331,9 @@ export async function GET(request: NextRequest) {
 
     // Tier 7 — Funnel / marketing health (diagnostic)
     ...vsl,
+    htVslViews: htVsl.vslViews,
+    htVslPlayRate: htVsl.vslPlayRate,
+    htVslEngagementRate: htVsl.vslEngagementRate,
     // The form's own typed rate when the team filled it in; otherwise worked
     // out from what the form does have: low ticket sales ÷ opt-ins, per source.
     // (Aval's form has no paid conversion column at all, so paid is always computed there.)
