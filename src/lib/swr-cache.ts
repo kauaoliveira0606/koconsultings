@@ -18,57 +18,70 @@ type CacheEntry<T> = { at: number; value: T };
 const memory = new Map<string, CacheEntry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
 
-async function readEntry<T>(key: string, freshSeconds: number): Promise<CacheEntry<T> | null> {
-  const local = memory.get(key) as CacheEntry<T> | undefined;
-  // A fresh copy in this instance's memory skips the download from the shared cache.
-  if (local && Date.now() - local.at < freshSeconds * 1000) return local;
-  let shared: CacheEntry<T> | null = null;
+async function readShared<T>(key: string): Promise<CacheEntry<T> | null> {
   try {
     const raw = (await getCache().get(key)) as CacheEntry<T> | null;
     // Entries written in an older shape (another deploy) count as missing.
-    if (raw && typeof raw.at === "number" && "value" in raw) shared = raw;
+    if (raw && typeof raw.at === "number" && "value" in raw) return raw;
   } catch {
-    // Runtime Cache unavailable: fall back to this instance's memory.
+    // Runtime Cache unavailable: this instance's memory is all there is.
   }
-  if (shared && (!local || shared.at > local.at)) {
-    memory.set(key, shared);
-    return shared;
-  }
-  return local ?? null;
+  return null;
 }
 
-function refresh<T>(key: string, load: () => Promise<T>): Promise<T> {
+/** Runs one update of a key at a time per instance; others wait on the same one. */
+function update<T>(key: string, next: () => Promise<CacheEntry<T>>): Promise<T> {
   const running = inFlight.get(key);
   if (running) return running as Promise<T>;
-  const job = (async () => {
-    const value = await load();
-    const entry: CacheEntry<T> = { at: Date.now(), value };
-    memory.set(key, entry);
-    try {
-      await getCache().set(key, entry, { ttl: 7 * 24 * 60 * 60, name: "" });
-    } catch {
-      // Too big or cache unavailable: the in-memory copy still serves this instance.
-    }
-    return value;
-  })().finally(() => inFlight.delete(key));
+  const job = next()
+    .then((entry) => {
+      memory.set(key, entry);
+      return entry.value;
+    })
+    .finally(() => inFlight.delete(key));
   inFlight.set(key, job);
   return job;
 }
 
+/** Reads the source and stores the result in memory and the shared cache. */
+async function load<T>(key: string, read: () => Promise<T>): Promise<CacheEntry<T>> {
+  const entry: CacheEntry<T> = { at: Date.now(), value: await read() };
+  try {
+    await getCache().set(key, entry, { ttl: 7 * 24 * 60 * 60, name: "" });
+  } catch {
+    // Too big or cache unavailable: the in-memory copy still serves this instance.
+  }
+  return entry;
+}
+
+/**
+ * Brings a stale key up to date: takes the shared copy (keeping its age) if
+ * another instance already refreshed it, otherwise re-reads the source.
+ */
+async function catchUp<T>(key: string, read: () => Promise<T>, freshSeconds: number): Promise<CacheEntry<T>> {
+  const shared = await readShared<T>(key);
+  if (shared && Date.now() - shared.at < freshSeconds * 1000) return shared;
+  return load(key, read);
+}
+
 export async function staleWhileRevalidate<T>(
   key: string,
-  load: () => Promise<T>,
+  read: () => Promise<T>,
   freshSeconds: number,
   maxStaleSeconds: number
 ): Promise<T> {
-  const t0 = Date.now();
-  const hadLocal = memory.has(key);
-  const entry = await readEntry<T>(key, freshSeconds);
-  console.log(`[swr-timing] ${key.slice(0, 60)} read=${Date.now() - t0}ms local=${hadLocal} hit=${!!entry}`);
+  // This instance's own copy is answered with without waiting on the shared
+  // cache (a download there took ~1.2s for a big table).
+  let entry = memory.get(key) as CacheEntry<T> | undefined;
+  if (!entry) {
+    const shared = await readShared<T>(key);
+    if (shared) memory.set(key, shared);
+    entry = shared ?? undefined;
+  }
   const age = entry ? (Date.now() - entry.at) / 1000 : Infinity;
-  if (!entry || age > maxStaleSeconds) return refresh(key, load);
+  if (!entry || age > maxStaleSeconds) return update(key, () => load(key, read));
   if (age > freshSeconds) {
-    waitUntil(refresh(key, load).catch(() => undefined));
+    waitUntil(update(key, () => catchUp(key, read, freshSeconds)).catch(() => undefined));
   }
   return entry.value;
 }
