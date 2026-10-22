@@ -310,6 +310,21 @@ export default function OverviewPage() {
               title: "Affiliate",
               metrics: [
                 {
+                  label: "CAC (Paid)",
+                  value: metrics?.cacLowTicketPaid,
+                  format: "currency",
+                  override: !adsActive ? notActive : undefined,
+                  subtext: "Ad spend ÷ affiliate sales from paid.",
+                  status: adsActive ? kpiStatus(metrics?.cacLowTicketPaid, goals?.cpaLowTicket?.max, "lower") : null,
+                  goal: adsActive ? kpiLabel(goals?.cpaLowTicket?.max, "lower", "currency") : null,
+                },
+                {
+                  label: "Cash Collected / Opt-In (Paid)",
+                  value: metrics?.cashCollectedPerOptInPaid,
+                  format: "currency",
+                  subtext: "Affiliate paid cash ÷ paid opt-ins.",
+                },
+                {
                   label: "AOV",
                   value: metrics?.averageOrderValueLowTicket,
                   format: "currency",
@@ -473,6 +488,14 @@ export default function OverviewPage() {
               title: "Opt-Ins",
               metrics: [
                 {
+                  label: "Opt-Ins (Paid)",
+                  value: metrics?.optInsPaid,
+                  format: "number",
+                  subtext: "Leads table, source = Paid.",
+                  status: kpiStatus(metrics?.optInsPaid, goals?.optInsPaid, "higher"),
+                  goal: kpiLabel(goals?.optInsPaid, "higher", "number"),
+                },
+                {
                   label: "Opt-Ins (Organic)",
                   value: metrics?.optInsOrganic,
                   format: "number",
@@ -497,6 +520,17 @@ export default function OverviewPage() {
               inputs: [
                 { label: "Pickups", value: metrics?.pickups, note: "Setters' Affiliate EOD." },
                 { label: "Dials", value: metrics?.dials },
+              ],
+            },
+            {
+              title: "Connection Rate (Paid)",
+              value: connectionRate?.paid.rate,
+              formula: "Paid leads with a 1+ min call ÷ paid opt-ins.",
+              status: kpiStatus(connectionRate?.paid.rate, goals?.connectionRate?.min, "higher"),
+              goal: kpiLabel(goals?.connectionRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Connected", value: connectionRate?.paid.connected, note: connectionRate ? `Tracked since ${connectionRate.trackingStart}.` : undefined },
+                { label: "Paid Opt-Ins", value: connectionRate?.paid.optIns },
               ],
             },
             {
@@ -605,6 +639,14 @@ export default function OverviewPage() {
               title: "Funnel Conversion",
               metrics: [
                 {
+                  label: "Paid",
+                  value: metrics?.funnelConversionRatePaid,
+                  format: "percent",
+                  subtext: "Affiliate sales from paid ÷ paid opt-ins.",
+                  status: kpiStatus(metrics?.funnelConversionRatePaid, goals?.funnelConversionRate?.min, "higher"),
+                  goal: kpiLabel(goals?.funnelConversionRate?.min, "higher", "percent"),
+                },
+                {
                   label: "Organic",
                   value: metrics?.funnelConversionRateOrganic,
                   format: "percent",
@@ -617,6 +659,12 @@ export default function OverviewPage() {
             {
               title: "Lead Sources",
               metrics: [
+                {
+                  label: "Paid Leads (Tracked)",
+                  value: leadSources?.paidLeadsTracked,
+                  format: "number",
+                  subtext: "Leads table, source = Paid.",
+                },
                 {
                   label: "Organic Leads (Tracked)",
                   value: leadSources?.organicLeadsTracked,

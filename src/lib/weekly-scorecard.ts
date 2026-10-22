@@ -1441,12 +1441,10 @@ export const BRONSON_PACING_ROWS = {
 };
 
 /**
- * Aval's scorecard (user, 2026-10-16): paid traffic is off, so Lead Flow is
- * just the organic Base44 opt-ins and the paid connection rate is dropped
- * (with almost no paid opt-ins, calls to older paid leads ÷ that day's paid
- * opt-ins read as 200%). The live webinar form fields join the Webinar
- * section, the VSL rows track the high ticket VSL on /apply, and funnel
- * conversion is no longer tracked. CPA – Affiliate is dropped too.
+ * Aval's scorecard: all affiliate rows, paid and organic, are back (user,
+ * 2026-10-22: paid opt-ins, paid connection rate, CPA – Affiliate). The
+ * live webinar form fields join the Webinar section and the VSL rows track
+ * the high ticket VSL on /apply.
  * Sections are one per funnel (user, 2026-10-16): General, Affiliate,
  * Webinar, VSL (High Ticket).
  */
@@ -1465,6 +1463,7 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
     emoji: "🤝",
     title: "Affiliate",
     keys: [
+      "optInsPaid",
       "base44OptInsOrganic",
       "vslViews",
       "vslPlayRate",
@@ -1474,6 +1473,7 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "pickups",
       "pickupRate",
       "connectionRate",
+      "connectionRatePaid",
       "connectionRateOrganic",
       "softwarePitched",
       "pitchRate",
@@ -1487,6 +1487,7 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "cashLtPaid",
       "cashLtOrganic",
       "cashPerOptInPaid",
+      "cpaLowTicket",
       "yearlyShare",
       "attributionRate",
       "htBookingRateFromLt",
@@ -1541,7 +1542,7 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
   },
 ];
 
-/** Aval's pacing rows: organic opt-ins only, same reason as above. */
+/** Aval's pacing rows: paid and organic affiliate opt-ins, CPA – Affiliate. */
 export const AVAL_PACING_ROWS = {
   totals: [
     "totalCashCollected",
@@ -1552,12 +1553,13 @@ export const AVAL_PACING_ROWS = {
     "cashHtPaid",
     "cashHtOrganic",
     "adSpendMeta",
+    "optInsPaid",
     "base44OptInsOrganic",
     "salesLowTicket",
     "htCallsBooked",
     "htDealsClosed",
   ],
-  rates: ["roasTotal", "costPerLeadMeta"],
+  rates: ["roasTotal", "costPerLeadMeta", "cpaLowTicket"],
 };
 
 const CASH_KEYS = new Set([
