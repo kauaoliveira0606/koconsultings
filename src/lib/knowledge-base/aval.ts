@@ -37,6 +37,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
       title: "High Ticket Packages",
       description: "Offer: Learn how to be consistently profitable in less than 180 days, or you don't pay.",
       layout: "pricing",
+      compare: true,
       items: [
         {
           title: "$6.8K",

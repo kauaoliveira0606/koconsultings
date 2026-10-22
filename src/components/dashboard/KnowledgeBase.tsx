@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import type { KbGroup, KbItem, KbSection, KbSectionId } from "@/lib/knowledge-base/types";
 
 /**
@@ -147,14 +147,18 @@ function Group({ group }: { group: KbGroup }) {
 
 function GroupBody({ group }: { group: KbGroup }) {
   switch (group.layout) {
-    case "pricing":
+    case "pricing": {
+      // Compare mode: every card lists the same deliverables in the same order,
+      // and each card is a subgrid so the rows line up across columns.
+      const features = group.compare ? [...new Set(group.items.flatMap((item) => item.bullets ?? []))] : undefined;
       return (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className={`grid gap-4 lg:grid-cols-3 ${features ? "lg:gap-y-0" : ""}`}>
           {group.items.map((item) => (
-            <PricingCard key={item.title} item={item} />
+            <PricingCard key={item.title} item={item} features={features} />
           ))}
         </div>
       );
+    }
     case "rows":
       return (
         <div className="divide-y divide-[var(--panel-border)] overflow-hidden rounded-lg border border-[var(--panel-border)]">
@@ -228,35 +232,72 @@ function Card({ item, wide }: { item: KbItem; wide?: boolean }) {
   );
 }
 
-function PricingCard({ item }: { item: KbItem }) {
+function PricingCard({ item, features }: { item: KbItem; features?: string[] }) {
   const featured = Boolean(item.badge);
   return (
     <div
       className={`flex min-w-0 flex-col rounded-xl border p-6 ${
+        features ? "lg:grid lg:[grid-row:span_var(--rows)] lg:[grid-template-rows:subgrid]" : ""
+      } ${
         featured
           ? "border-sky-300/50 bg-sky-400/10 ring-1 ring-sky-300/30"
           : "border-[var(--panel-border)] bg-[var(--panel-subtle)]"
       }`}
+      style={features ? ({ "--rows": features.length + 3 } as CSSProperties) : undefined}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="text-4xl font-bold tracking-tight text-[var(--text-strong)]">{item.title}</div>
-        {item.badge ? (
-          <span className="rounded-full bg-sky-300/20 px-2.5 py-1 text-xs font-semibold text-sky-200">{item.badge}</span>
-        ) : null}
-      </div>
-      {item.meta ? (
-        <div className="mt-2 inline-flex w-fit rounded-full bg-[var(--panel-bg)] px-2.5 py-1 text-xs font-medium text-[var(--text)]">
-          {item.meta}
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="text-4xl font-bold tracking-tight text-[var(--text-strong)]">{item.title}</div>
+          {item.badge ? (
+            <span className="rounded-full bg-sky-300/20 px-2.5 py-1 text-xs font-semibold text-sky-200">{item.badge}</span>
+          ) : null}
         </div>
-      ) : null}
-      {item.text?.map((p, i) => (
-        <p key={i} className="mt-3 text-sm leading-relaxed text-[var(--text)] opacity-90">
-          {p}
-        </p>
-      ))}
+        {item.meta ? (
+          <div className="mt-2 inline-flex w-fit rounded-full bg-[var(--panel-bg)] px-2.5 py-1 text-xs font-medium text-[var(--text)]">
+            {item.meta}
+          </div>
+        ) : null}
+        {item.text?.map((p, i) => (
+          <p key={i} className="mt-3 text-sm leading-relaxed text-[var(--text)] opacity-90">
+            {p}
+          </p>
+        ))}
+      </div>
       <div className="my-5 h-px bg-[var(--panel-border)]" />
-      {item.bullets?.length ? <CheckList items={item.bullets} /> : null}
-      {item.checkouts?.length ? <Checkouts checkouts={item.checkouts} /> : null}
+      {features ? (
+        <>
+          {features.map((f) => (
+            <FeatureRow key={f} text={f} included={item.bullets?.includes(f) ?? false} />
+          ))}
+          <div>{item.checkouts?.length ? <Checkouts checkouts={item.checkouts} /> : null}</div>
+        </>
+      ) : (
+        <>
+          {item.bullets?.length ? <CheckList items={item.bullets} /> : null}
+          {item.checkouts?.length ? <Checkouts checkouts={item.checkouts} /> : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+function FeatureRow({ text, included }: { text: string; included: boolean }) {
+  return (
+    <div
+      className={`flex gap-2.5 border-b border-[var(--panel-border)]/50 py-2 text-sm leading-relaxed text-[var(--text)] ${
+        included ? "" : "opacity-35"
+      }`}
+    >
+      {included ? (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-0.5 shrink-0 text-emerald-300">
+          <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-0.5 shrink-0">
+          <path d="M4.5 4.5l7 7m0-7l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      )}
+      <span className={included ? "" : "line-through"}>{text}</span>
     </div>
   );
 }

@@ -37,7 +37,14 @@ export type KbItem = {
  */
 export type KbLayout = "cards" | "stack" | "pricing" | "rows" | "gallery" | "quotes";
 
-export type KbGroup = { title: string; description?: string; layout?: KbLayout; items: KbItem[] };
+export type KbGroup = {
+  title: string;
+  description?: string;
+  layout?: KbLayout;
+  /** Pricing only: list every deliverable on every card, lined up row by row, so packages are easy to compare. */
+  compare?: boolean;
+  items: KbItem[];
+};
 
 export type KbSectionId = "offers" | "content" | "wins" | "disclaimers";
 
