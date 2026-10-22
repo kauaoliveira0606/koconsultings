@@ -68,7 +68,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Community",
             "Course",
             "Personal psychology coach",
-            "In-person mastermind",
+            "In-person mastermind 2 times a year",
           ],
         },
         {
