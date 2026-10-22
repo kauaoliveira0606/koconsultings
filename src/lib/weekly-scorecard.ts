@@ -1442,7 +1442,7 @@ export const BRONSON_PACING_ROWS = {
 
 /**
  * Aval's scorecard: all affiliate rows, paid and organic, are back (user,
- * 2026-10-22: paid opt-ins, paid connection rate, CPA – Affiliate). The
+ * 2026-10-22: paid opt-ins, paid connection rate, CPA – Affiliate, funnel conversion). The
  * live webinar form fields join the Webinar section and the VSL rows track
  * the high ticket VSL on /apply.
  * Sections are one per funnel (user, 2026-10-16): General, Affiliate,
@@ -1483,6 +1483,8 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "closeRateLowTicket",
       "aovLowTicket",
       "leadToCloseRate",
+      "funnelConvPaid",
+      "funnelConvOrganic",
       "cashCollectedLowTicket",
       "cashLtPaid",
       "cashLtOrganic",
