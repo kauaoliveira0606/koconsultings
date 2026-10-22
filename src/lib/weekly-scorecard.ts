@@ -1469,6 +1469,7 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "vslViews",
       "vslPlayRate",
       "vslEngagementRate",
+      "optInRate",
       "dials",
       "pickups",
       "pickupRate",
