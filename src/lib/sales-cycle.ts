@@ -8,7 +8,9 @@
  *   Plan or Deposit.
  * - Affiliate (Aval only; Bronson no longer runs affiliate): an Affiliate
  *   Post Call Note with cash logged.
- * A lead who bought affiliate first and high ticket later has one row each.
+ * A lead who bought affiliate first and high ticket later has one row each,
+ * and on Aval also counts toward the affiliate to high ticket cycle: days from
+ * their first affiliate sale to their first high ticket close.
  *
  * First opt-in is the earliest of the lead's GHL contact creation (every
  * funnel lands there: webinar, VSL, application, affiliate) and the Leads
@@ -85,8 +87,25 @@ export type SalesCycleRow = {
   days: number | null;
 };
 
+/** A lead who bought affiliate first and later closed high ticket (Aval). */
+export type AscensionRow = {
+  email: string;
+  name: string | null;
+  affiliateDate: string;
+  highTicketDate: string;
+  highTicketOutcome: string | null;
+  highTicketOffer: string | null;
+  highTicketCash: number | null;
+  /** Whole days from the first affiliate sale to the first high ticket close. */
+  days: number;
+};
+
 export type SalesCycleResponse = {
   rows: SalesCycleRow[];
+  /** Affiliate to high ticket, by high ticket close date in range; empty without affiliate. */
+  ascensions: AscensionRow[];
+  avgDaysAscension: number | null;
+  medianDaysAscension: number | null;
   closes: number;
   matched: number;
   avgDays: number | null;
@@ -233,11 +252,34 @@ export function getSalesCycleRows(offer: SalesCycleOffer): Promise<SalesCycleRow
 export function salesCycleGet(offer: SalesCycleOffer) {
   return async (request: NextRequest) => {
     const range = parseRangeFromRequest(request);
-    const rows = (await getSalesCycleRows(offer)).filter((r) => isDateInRange(r.closeDate, range));
+    const all = await getSalesCycleRows(offer);
+    const rows = all.filter((r) => isDateInRange(r.closeDate, range));
+    // Affiliate -> high ticket: the same email's first affiliate sale, then a
+    // later (or same-day) first high ticket close. Matched by email only.
+    const firstAffiliate = new Map<string, SalesCycleRow>();
+    for (const r of all) if (r.kind === "Affiliate" && r.email) firstAffiliate.set(r.email, r);
+    const ascensions: AscensionRow[] = [];
+    for (const ht of rows) {
+      const aff = ht.kind === "High Ticket" && ht.email ? firstAffiliate.get(ht.email) : undefined;
+      if (!aff || aff.closeDate > ht.closeDate) continue;
+      ascensions.push({
+        email: ht.email!,
+        name: ht.name ?? aff.name,
+        affiliateDate: aff.closeDate,
+        highTicketDate: ht.closeDate,
+        highTicketOutcome: ht.outcome,
+        highTicketOffer: ht.offer,
+        highTicketCash: ht.cashCollected,
+        days: daysBetween(aff.closeDate, ht.closeDate),
+      });
+    }
     const days = (kind?: SalesCycleRow["kind"]) =>
       rows.filter((r) => !kind || r.kind === kind).map((r) => r.days);
     return Response.json({
       rows,
+      ascensions,
+      avgDaysAscension: average(ascensions.map((a) => a.days)),
+      medianDaysAscension: median(ascensions.map((a) => a.days)),
       closes: rows.length,
       matched: rows.filter((r) => r.days !== null).length,
       avgDays: average(days()),

@@ -193,6 +193,85 @@ export function SalesCycleSection({ apiPath, range, period }: { apiPath: string;
           )}
         </div>
       </div>
+
+      {data?.hasAffiliate ? <AscensionCycle data={data} period={period} /> : null}
+    </div>
+  );
+}
+
+/** Affiliate buyers who moved up to high ticket: days from the first affiliate sale to the first high ticket close. */
+function AscensionCycle({ data, period }: { data: SalesCycleResponse; period: string | null }) {
+  const rows = data.ascensions;
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Affiliate → High Ticket</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <HeroStat
+          size="md"
+          label="Avg Affiliate → HT"
+          value={data.avgDaysAscension}
+          format="number"
+          override={daysLabel(data.avgDaysAscension)}
+          period={period}
+          sub="First affiliate sale to first high ticket close"
+        />
+        <HeroStat
+          size="md"
+          label="Median Affiliate → HT"
+          value={data.medianDaysAscension}
+          format="number"
+          override={daysLabel(data.medianDaysAscension)}
+          period={period}
+          sub="Half moved up faster than this"
+        />
+        <HeroStat
+          size="md"
+          label="Moved Up"
+          value={rows.length}
+          format="number"
+          period={period}
+          sub="High ticket closes who bought affiliate first"
+        />
+      </div>
+      <div className={PANEL}>
+        {rows.length === 0 ? (
+          <p className="text-sm text-[var(--text-muted)]">No affiliate buyers closed high ticket in this range.</p>
+        ) : (
+          <div className="max-h-[420px] overflow-auto">
+            <table className="w-full min-w-[720px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
+              <thead className="sticky top-0 bg-[var(--panel-bg)]">
+                <tr className="text-[13px] text-[var(--text-muted)]">
+                  {["Lead", "Affiliate Sale", "High Ticket Close", "Outcome", "Cash", "Cycle"].map((h, i) => (
+                    <th key={h} className={`px-3 py-2.5 font-semibold ${i >= 4 ? "text-right" : "text-left"}`}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.email}>
+                    <td className="px-3 py-2.5">
+                      <span className="font-medium text-[var(--text-strong)]">{r.name ?? r.email}</span>
+                      {r.name ? <span className="block text-xs text-[var(--text-muted)]">{r.email}</span> : null}
+                    </td>
+                    <td className="px-3 py-2.5 text-white">{shortDate(r.affiliateDate)}</td>
+                    <td className="px-3 py-2.5 text-white">{shortDate(r.highTicketDate)}</td>
+                    <td className="px-3 py-2.5 text-white">
+                      {r.highTicketOutcome ?? "—"}
+                      {r.highTicketOffer ? <span className="block text-xs text-[var(--text-muted)]">{r.highTicketOffer}</span> : null}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-white">
+                      {r.highTicketCash ? formatStatValue(r.highTicketCash, "currency") : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-white">{daysLabel(r.days)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
