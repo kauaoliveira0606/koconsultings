@@ -53,7 +53,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Private support chat",
             "Community",
             "Course",
-            "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
           ],
         },
@@ -61,14 +60,13 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
           title: "$4K",
           meta: "6 months + $500 a month after 6 months to keep access",
           text: [
-            "Guarantee: get a payout in less than 180 days or you don't pay. Don't throw it around; only bring it up if it's the last thing needed to make the sale.",
+            "Guarantee: get a payout in less than 180 days or you don't pay.",
           ],
           bullets: [
             "5 live trading classes a week",
             "Private support chat",
             "Community",
             "Course",
-            "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
             "In-person mastermind",
           ],
@@ -83,7 +81,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
           bullets: [
             "5 live trading classes a week",
             "Course",
-            "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
           ],
           checkouts: [
             {
@@ -159,7 +156,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Lifetime MOM, which has 10 calls per week (including the live trading)",
             "Private support chat with Aval and coach",
             "Private GC with the rest of the group (3 other people right now)",
-            "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
           ],
           checkouts: [{ title: "$15K checkout", href: "https://whop.com/checkout/plan_3z7etzwEAX14c" }],
