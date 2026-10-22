@@ -74,9 +74,7 @@ export async function staleWhileRevalidate<T>(
   // cache (a download there took ~1.2s for a big table).
   let entry = memory.get(key) as CacheEntry<T> | undefined;
   if (!entry) {
-    const t0 = Date.now();
     const shared = await readShared<T>(key);
-    console.log(`[swr-timing] memory-miss ${key.replace(/[{].*/, "")} shared=${Date.now() - t0}ms`);
     if (shared) memory.set(key, shared);
     entry = shared ?? undefined;
   }

@@ -1,8 +1,9 @@
-import { airtableListAll } from "./client";
+import { airtableListAll, airtableListAllIncremental } from "./client";
 import {
   createAirtableTables,
   type BronsonAffiliateEodRow,
   type BronsonEodCloserRow,
+  CONNECTED_CALL_FIELDS,
   type ConnectedCallRow,
   type TableIds,
 } from "./tables";
@@ -41,9 +42,11 @@ export const {
 const AVAL_CONNECTED_CALLS_TABLE_ID = "tbl9glaXKhORUZKe9";
 
 export async function getAvalConnectedCalls(): Promise<ConnectedCallRow[]> {
-  const records = await airtableListAll<Record<string, unknown>>(
+  // Big and upsert-only (never deleted): the partitioned read, like Leads.
+  const records = await airtableListAllIncremental<Record<string, unknown>>(
     AVAL_BASE_ID,
-    AVAL_CONNECTED_CALLS_TABLE_ID
+    AVAL_CONNECTED_CALLS_TABLE_ID,
+    CONNECTED_CALL_FIELDS
   );
   return records.map((r) => ({
     id: r.id,

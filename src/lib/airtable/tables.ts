@@ -743,10 +743,15 @@ export type ConnectedCallRow = {
   callsOverOneMin: number | null;
 };
 
+/** The columns the dashboard reads from a Connected Calls table. */
+export const CONNECTED_CALL_FIELDS = ["Date", "Contact ID", "Source", "Calls Over 1 Min"];
+
 export async function getConnectedCalls(): Promise<ConnectedCallRow[]> {
-  const records = await airtableListAll<Record<string, unknown>>(
+  // Big and upsert-only (never deleted): the partitioned read, like Leads.
+  const records = await airtableListAllIncremental<Record<string, unknown>>(
     BRONSON_BASE_ID,
-    CONNECTED_CALLS_TABLE_ID
+    CONNECTED_CALLS_TABLE_ID,
+    CONNECTED_CALL_FIELDS
   );
 
   return records.map((r) => ({

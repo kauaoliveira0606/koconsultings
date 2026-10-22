@@ -284,28 +284,27 @@ function creationPartitions(now: Date): string[] {
  */
 export async function airtableListAllIncremental<TFields = Record<string, unknown>>(
   baseId: string,
-  tableId: string
+  tableId: string,
+  /** Only these columns (smaller cache entries, faster reads); all when left out. */
+  fields?: string[]
 ): Promise<AirtableRecord<TFields>[]> {
-  const t0 = Date.now();
+  const pick = fields ? { fields } : {};
   const formulas = creationPartitions(new Date());
   const merged = new Map<string, AirtableRecord<unknown>>();
   // All at once: cache hits cost Airtable nothing, and reads that do go to
   // Airtable are throttled per base in limitPerBase.
   const [partitions, recent] = await Promise.all([
     Promise.all(
-      formulas.map((filterByFormula) => cachedPartition(baseId, tableId, { filterByFormula }))
+      formulas.map((filterByFormula) =>
+        cachedPartition(baseId, tableId, { filterByFormula, ...pick })
+      )
     ),
-    cachedRecent(
-    baseId,
-    tableId,
-    {
+    cachedRecent(baseId, tableId, {
       filterByFormula: `OR(DATETIME_DIFF(NOW(),CREATED_TIME(),'hours')<${RECENT_HOURS},DATETIME_DIFF(NOW(),LAST_MODIFIED_TIME(),'hours')<${RECENT_HOURS})`,
+      ...pick,
     }),
   ]);
   for (const records of partitions) for (const r of records) merged.set(r.id, r);
-  const t1 = Date.now();
   for (const r of recent) merged.set(r.id, r);
-  const out = [...merged.values()] as AirtableRecord<TFields>[];
-  console.log(`[swr-timing] incremental ${tableId} read=${t1 - t0}ms merge=${Date.now() - t1}ms rows=${out.length}`);
-  return out;
+  return [...merged.values()] as AirtableRecord<TFields>[];
 }
