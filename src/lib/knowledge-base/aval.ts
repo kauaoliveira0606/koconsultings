@@ -39,7 +39,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
       layout: "pricing",
       items: [
         {
-          title: "$5.5K",
+          title: "$6.8K",
           meta: "6 months + $500 a month after 6 months to keep access",
           badge: "Guarantee",
           text: ["Guarantee: get a payout in less than 180 days or you don't pay."],
@@ -48,7 +48,8 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "5 live trading classes a week",
             "2 psychology a week",
             "3 coaching a week",
-            "2 1-1s",
+            "6 1-1 calls (one a month)",
+            "In-person mastermind 2 times a year",
             "Private support chat",
             "Community",
             "Course",
@@ -74,7 +75,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
           ],
         },
         {
-          title: "$3.5K",
+          title: "$4K",
           meta: "6 months + $500 a month after 6 months to keep access",
           text: [
             "Guarantee: get a payout in less than 180 days or you don't pay. Don't throw it around; only bring it up if it's the last thing needed to make the sale.",
@@ -86,6 +87,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Course",
             "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
+            "In-person mastermind",
           ],
           checkouts: [
             {
