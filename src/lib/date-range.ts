@@ -30,15 +30,18 @@ export type ResolvedRange = { start: string | null; end: string | null };
  */
 export const BUSINESS_TIME_ZONE = "America/New_York";
 
+// en-CA formats as YYYY-MM-DD. Built once: constructing a formatter costs
+// ~25µs, and this runs for every lead row (10k+) on every request.
+const EASTERN_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: BUSINESS_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 /** `YYYY-MM-DD` for the given instant in US Eastern. */
 export function easternDateString(d: Date = new Date()): string {
-  // en-CA formats as YYYY-MM-DD
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: BUSINESS_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
+  return EASTERN_DATE.format(d);
 }
 
 /** Add (or subtract) whole days to a `YYYY-MM-DD` string. Pure calendar math. */

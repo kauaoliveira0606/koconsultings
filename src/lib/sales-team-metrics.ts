@@ -7,16 +7,18 @@ export const WORK_START_HOUR_ET = 9;
 export const WORK_END_HOUR_ET = 23;
 
 /** Minutes ET is ahead of UTC at a given instant (negative: -240 in EDT, -300 in EST). */
+const ET_PARTS = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  hourCycle: "h23",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 function etOffsetMinutes(ms: number): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(ms);
+  const parts = ET_PARTS.formatToParts(ms);
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
   const wallAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"));
   return Math.round((wallAsUtc - Math.floor(ms / 60000) * 60000) / 60000);
