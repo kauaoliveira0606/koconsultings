@@ -50,7 +50,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "3 coaching a week",
             "6 1-1 calls (one a month)",
             "In-person mastermind 2 times a year",
-            "Private support chat",
+            "1:1 support chat",
             "Community",
             "Course",
             "Personal psychology coach",
@@ -64,7 +64,7 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
           ],
           bullets: [
             "5 live trading classes a week",
-            "Private support chat",
+            "1:1 support chat",
             "Community",
             "Course",
             "Personal psychology coach",
