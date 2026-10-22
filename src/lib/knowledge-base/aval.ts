@@ -56,23 +56,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
           ],
-          checkouts: [
-            {
-              title: "$5.5K financed",
-              text: "Financed only. This link doesn't include the $500 a month, so send them the $500 a month link below once they finish the plan.",
-              href: "https://whop.com/checkout/plan_IBrM5tY5A2zUG",
-            },
-            {
-              title: "$5.5K paid with a card, then $500 a month",
-              text: "They pay $5.5K with a card. The $500 a month recurring is built into this link and starts once the 6 month program is over.",
-              href: "https://whop.com/checkout/plan_fGciGgxNLZr6L",
-            },
-            {
-              title: "$500 a month",
-              text: "The $500 monthly recurring membership. Send it after a financed buyer finishes the plan.",
-              href: "https://whop.com/checkout/plan_qD7kXE3CdUHYD",
-            },
-          ],
         },
         {
           title: "$4K",
@@ -88,23 +71,6 @@ export const AVAL_KNOWLEDGE_BASE = withAllSections({
             "Daily feed of watchlists: pre-market watchlist delivered to your phone every morning before the bell",
             "Personal psychology coach",
             "In-person mastermind",
-          ],
-          checkouts: [
-            {
-              title: "$3.5K financed",
-              text: "Financed only. This link doesn't include the $500 a month, so once they finish the plan they need a new link: send them the $500 a month link below.",
-              href: "https://whop.com/checkout/plan_qxsQEDoXfTJqr",
-            },
-            {
-              title: "$3.5K paid with a card, then $500 a month",
-              text: "They pay $3.5K with a card, then the $500 a month recurring is built into this link and starts once the 6 month program is over.",
-              href: "https://whop.com/checkout/plan_N4CSWzQS6LsAe",
-            },
-            {
-              title: "$500 a month",
-              text: "The $500 monthly recurring membership. Send it after a financed buyer finishes the plan.",
-              href: "https://whop.com/checkout/plan_qD7kXE3CdUHYD",
-            },
           ],
         },
         {
