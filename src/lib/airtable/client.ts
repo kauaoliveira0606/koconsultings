@@ -1,4 +1,4 @@
-import { unstable_cache } from "next/cache";
+import { getCache, waitUntil } from "@vercel/functions";
 
 const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 
@@ -146,34 +146,83 @@ async function walkAllPagesWithRetry(
 }
 
 /**
- * Every dashboard tab fires several API routes in parallel (metrics,
- * lead-sources, cash-calendar, ...), and most of them need the same
- * underlying table (Leads, Marketing Daily Metrics, ...) — without sharing
- * a cache, each route independently re-walks the whole table (many
- * sequential paginated requests for a 1000+ row table), and enough of those
- * walks running at once can blow past Airtable's 5 req/sec-per-base rate
- * limit, which triggers the retry above to redo the *entire* walk. Caching
- * the assembled result here (not the raw fetch, which would replay expired
- * offset tokens — see walkAllPages above) means only the first route to ask
- * for a given table in this window actually talks to Airtable; everyone
- * else gets it from Next's shared Data Cache.
+ * Every dashboard tab fires several API routes in parallel, most needing the
+ * same tables, and reading a table means many sequential 100-row requests.
+ * So the assembled rows are cached (in Vercel's Runtime Cache, shared by all
+ * routes and kept across deploys), keyed by table and query.
  *
- * 60 seconds: it's not just new records — the team goes back and corrects
- * historical rows too (a setter's data logged wrong on an earlier day, then
- * fixed later), and that correction needs to actually show up without
- * anyone having to know a cache exists. This cache doesn't distinguish new
- * vs. edited rows either way — a fresh table walk always reflects
- * whatever's in Airtable *right now*, edits included — so the only thing
- * this window controls is how long a correction can take to appear. Next
- * serves the stale cached value immediately and revalidates in the
- * background once a cached entry goes stale, so this doesn't cost
- * correctness, only recency — 60s keeps that recency tight while still
- * giving the parallel-request burst on every page load a real window to
- * share one Airtable walk instead of each route re-fetching independently.
+ * Stale-while-revalidate, done by hand: Next's `unstable_cache` did NOT
+ * serve stale data in these route handlers, so whoever opened the dashboard
+ * after the 60s window waited 3-6s per section for Airtable (measured
+ * 2026-10-22). Here a cached copy older than `freshSeconds` is still
+ * answered with right away, and a re-read runs after the response (`waitUntil`).
+ * The client re-fetches each section shortly after it first loads (see
+ * useSectionData), so a stale answer is replaced within seconds. Only a key
+ * never seen before, or one older than `maxStaleSeconds`, makes the request
+ * wait for Airtable.
  */
-const cachedWalkAllPages = unstable_cache(walkAllPagesWithRetry, ["airtable-list-all"], {
-  revalidate: 60,
-});
+const CACHE_VERSION = "v1";
+type CacheEntry = { at: number; records: AirtableRecord<unknown>[] };
+
+const memory = new Map<string, CacheEntry>();
+const inFlight = new Map<string, Promise<AirtableRecord<unknown>[]>>();
+
+function cacheKey(scope: string, baseId: string, tableId: string, params: ListParams): string {
+  return `airtable:${CACHE_VERSION}:${scope}:${baseId}:${tableId}:${JSON.stringify(params)}`;
+}
+
+async function readEntry(key: string): Promise<CacheEntry | null> {
+  const local = memory.get(key);
+  let shared: CacheEntry | null = null;
+  try {
+    shared = (await getCache().get(key)) as CacheEntry | null;
+  } catch {
+    // Runtime Cache unavailable: fall back to this instance's memory.
+  }
+  if (!local) return shared;
+  if (!shared) return local;
+  return shared.at > local.at ? shared : local;
+}
+
+function refresh(
+  key: string,
+  load: () => Promise<AirtableRecord<unknown>[]>
+): Promise<AirtableRecord<unknown>[]> {
+  const running = inFlight.get(key);
+  if (running) return running;
+  const job = (async () => {
+    const records = await load();
+    const entry: CacheEntry = { at: Date.now(), records };
+    memory.set(key, entry);
+    try {
+      await getCache().set(key, entry, { ttl: 7 * 24 * 60 * 60, name: "" });
+    } catch {
+      // Too big or cache unavailable: the in-memory copy still serves this instance.
+    }
+    return records;
+  })().finally(() => inFlight.delete(key));
+  inFlight.set(key, job);
+  return job;
+}
+
+async function staleWhileRevalidate(
+  key: string,
+  load: () => Promise<AirtableRecord<unknown>[]>,
+  freshSeconds: number,
+  maxStaleSeconds: number
+): Promise<AirtableRecord<unknown>[]> {
+  const entry = await readEntry(key);
+  const age = entry ? (Date.now() - entry.at) / 1000 : Infinity;
+  if (!entry || age > maxStaleSeconds) return refresh(key, load);
+  if (age > freshSeconds) {
+    waitUntil(refresh(key, load).catch(() => undefined));
+  }
+  return entry.records;
+}
+
+const FRESH_SECONDS = 60;
+/** Even a week-old copy is shown first: the client re-fetches it seconds later. */
+const MAX_STALE_SECONDS = 7 * 24 * 60 * 60;
 
 /**
  * Fetches every record from an Airtable table, following the `offset`
@@ -185,7 +234,12 @@ export async function airtableListAll<TFields = Record<string, unknown>>(
   params: ListParams = {},
   revalidateSeconds = 60
 ): Promise<AirtableRecord<TFields>[]> {
-  const records = await cachedWalkAllPages(baseId, tableId, params, revalidateSeconds);
+  const records = await staleWhileRevalidate(
+    cacheKey("all", baseId, tableId, params),
+    () => walkAllPagesWithRetry(baseId, tableId, params, 0),
+    Math.max(revalidateSeconds, FRESH_SECONDS),
+    MAX_STALE_SECONDS
+  );
   return records as AirtableRecord<TFields>[];
 }
 
@@ -213,12 +267,27 @@ const RECENT_HOURS = 13;
 /** Half-months read on their own; everything older than this many months is one partition. */
 const PARTITION_MONTHS = 4;
 
-const cachedPartition = unstable_cache(walkAllPagesWithRetry, ["airtable-partition"], {
-  revalidate: PARTITION_TTL_SECONDS,
-});
-const cachedRecent = unstable_cache(walkAllPagesWithRetry, ["airtable-recent"], {
-  revalidate: 60,
-});
+/**
+ * A partition is re-read in the background once it is 6h old, and never
+ * served past PARTITION_TTL_SECONDS, so the RECENT_HOURS read always covers
+ * every change made since the partition was read.
+ */
+function cachedPartition(baseId: string, tableId: string, params: ListParams) {
+  return staleWhileRevalidate(
+    cacheKey("partition", baseId, tableId, params),
+    () => walkAllPagesWithRetry(baseId, tableId, params, 0),
+    PARTITION_TTL_SECONDS / 2,
+    PARTITION_TTL_SECONDS
+  );
+}
+function cachedRecent(baseId: string, tableId: string, params: ListParams) {
+  return staleWhileRevalidate(
+    cacheKey("recent", baseId, tableId, params),
+    () => walkAllPagesWithRetry(baseId, tableId, params, 0),
+    FRESH_SECONDS,
+    MAX_STALE_SECONDS
+  );
+}
 
 /** Formulas that split a table by when each row was created, with no row in two of them. */
 function creationPartitions(now: Date): string[] {
@@ -263,7 +332,7 @@ export async function airtableListAllIncremental<TFields = Record<string, unknow
     const batch = await Promise.all(
       formulas
         .slice(i, i + 3)
-        .map((filterByFormula) => cachedPartition(baseId, tableId, { filterByFormula }, 60))
+        .map((filterByFormula) => cachedPartition(baseId, tableId, { filterByFormula }))
     );
     for (const records of batch) for (const r of records) merged.set(r.id, r);
   }
@@ -272,8 +341,7 @@ export async function airtableListAllIncremental<TFields = Record<string, unknow
     tableId,
     {
       filterByFormula: `OR(DATETIME_DIFF(NOW(),CREATED_TIME(),'hours')<${RECENT_HOURS},DATETIME_DIFF(NOW(),LAST_MODIFIED_TIME(),'hours')<${RECENT_HOURS})`,
-    },
-    60
+    }
   );
   for (const r of recent) merged.set(r.id, r);
   return [...merged.values()] as AirtableRecord<TFields>[];

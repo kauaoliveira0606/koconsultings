@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { SWRConfig } from "swr";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { SWRConfig, type Middleware } from "swr";
 import { defaultRangeState, type RangeState } from "@/components/dashboard/RangeFilterBar";
 import type { RangePreset } from "@/lib/date-range";
 
@@ -11,6 +11,26 @@ type RangeContextValue = {
 };
 
 const RangeContext = createContext<RangeContextValue | null>(null);
+
+/**
+ * The API answers from a cached copy straight away and refreshes that copy
+ * in the background (see staleWhileRevalidate in lib/airtable/client.ts),
+ * so every section asks once more a few seconds after it loads to pick up
+ * the refreshed numbers.
+ */
+const REFETCH_AFTER_MS = 6000;
+const refetchOnceSoon: Middleware = (useSWRNext) => (key, fetcher, config) => {
+  const swr = useSWRNext(key, fetcher, config);
+  const serialized = typeof key === "string" ? key : JSON.stringify(key);
+  const { mutate } = swr;
+  useEffect(() => {
+    if (!key) return;
+    const timer = setTimeout(() => void mutate(), REFETCH_AFTER_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serialized]);
+  return swr;
+};
 
 /**
  * Holds the selected date range at the layout level so it survives
@@ -32,9 +52,13 @@ export function RangeProvider({
   const provider = (
     <RangeContext.Provider value={{ range, setRange }}>{children}</RangeContext.Provider>
   );
-  if (!refreshIntervalMs) return provider;
   return (
-    <SWRConfig value={{ refreshInterval: refreshIntervalMs, revalidateOnFocus: true }}>
+    <SWRConfig
+      value={{
+        use: [refetchOnceSoon],
+        ...(refreshIntervalMs ? { refreshInterval: refreshIntervalMs, revalidateOnFocus: true } : {}),
+      }}
+    >
       {provider}
     </SWRConfig>
   );
