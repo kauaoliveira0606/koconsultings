@@ -286,6 +286,7 @@ export async function airtableListAllIncremental<TFields = Record<string, unknow
   baseId: string,
   tableId: string
 ): Promise<AirtableRecord<TFields>[]> {
+  const t0 = Date.now();
   const formulas = creationPartitions(new Date());
   const merged = new Map<string, AirtableRecord<unknown>>();
   // All at once: cache hits cost Airtable nothing, and reads that do go to
@@ -302,6 +303,9 @@ export async function airtableListAllIncremental<TFields = Record<string, unknow
     }),
   ]);
   for (const records of partitions) for (const r of records) merged.set(r.id, r);
+  const t1 = Date.now();
   for (const r of recent) merged.set(r.id, r);
-  return [...merged.values()] as AirtableRecord<TFields>[];
+  const out = [...merged.values()] as AirtableRecord<TFields>[];
+  console.log(`[swr-timing] incremental ${tableId} read=${t1 - t0}ms merge=${Date.now() - t1}ms rows=${out.length}`);
+  return out;
 }
