@@ -61,7 +61,10 @@ export async function staleWhileRevalidate<T>(
   freshSeconds: number,
   maxStaleSeconds: number
 ): Promise<T> {
+  const t0 = Date.now();
+  const hadLocal = memory.has(key);
   const entry = await readEntry<T>(key, freshSeconds);
+  console.log(`[swr-timing] ${key.slice(0, 60)} read=${Date.now() - t0}ms local=${hadLocal} hit=${!!entry}`);
   const age = entry ? (Date.now() - entry.at) / 1000 : Infinity;
   if (!entry || age > maxStaleSeconds) return refresh(key, load);
   if (age > freshSeconds) {
