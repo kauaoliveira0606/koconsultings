@@ -153,7 +153,7 @@ async function walkAllPagesWithRetry(
  * before, or one older than its max staleness, makes a request wait for
  * Airtable.
  */
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 
 function cacheKey(scope: string, baseId: string, tableId: string, params: ListParams): string {
   return `airtable:${CACHE_VERSION}:${scope}:${baseId}:${tableId}:${JSON.stringify(params)}`;

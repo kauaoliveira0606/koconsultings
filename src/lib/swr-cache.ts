@@ -24,7 +24,9 @@ async function readEntry<T>(key: string, freshSeconds: number): Promise<CacheEnt
   if (local && Date.now() - local.at < freshSeconds * 1000) return local;
   let shared: CacheEntry<T> | null = null;
   try {
-    shared = (await getCache().get(key)) as CacheEntry<T> | null;
+    const raw = (await getCache().get(key)) as CacheEntry<T> | null;
+    // Entries written in an older shape (another deploy) count as missing.
+    if (raw && typeof raw.at === "number" && "value" in raw) shared = raw;
   } catch {
     // Runtime Cache unavailable: fall back to this instance's memory.
   }
