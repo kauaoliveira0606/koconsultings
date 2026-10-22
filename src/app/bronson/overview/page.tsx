@@ -4,6 +4,8 @@ import type { StatCardStatus } from "@/components/dashboard/StatCard";
 import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
+import { SalesCycleSection } from "@/components/dashboard/SalesCycleSection";
+import type { SalesCycleResponse } from "@/lib/sales-cycle";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
 import { HeroStat } from "@/components/dashboard/HeroStat";
 import { rangePeriodLabel } from "@/lib/range-label";
@@ -136,6 +138,7 @@ function kpiLabel(
 export default function OverviewPage() {
   const { range, setRange } = useSharedRange();
   const period = rangePeriodLabel(range);
+  const { data: salesCycle } = useSectionData<SalesCycleResponse>("/api/bronson/overview/sales-cycle", range);
 
   const { data: metrics } = useSectionData<MetricsResponse>("/api/bronson/overview/metrics", range);
   const { data: goals } = useSectionData<GoalsConfig>("/api/bronson/goals", range);
@@ -308,9 +311,9 @@ export default function OverviewPage() {
               metrics: [
                 {
                   label: "Time To Close (Avg Days)",
-                  value: metrics?.avgDaysToClose,
+                  value: salesCycle?.avgDays,
                   format: "number",
-                  subtext: "Days from opt-in to the call that collected their cash.",
+                  subtext: "Days from first opt-in to first close. Same as Avg Sales Cycle below.",
                 },
               ],
             },
@@ -350,6 +353,10 @@ export default function OverviewPage() {
 
       <DashboardSection title="Offer Split & PIF Rate">
         <OfferSplitSection apiPath="/api/bronson/overview/offer-split" range={range} />
+      </DashboardSection>
+
+      <DashboardSection title="Sales Cycle">
+        <SalesCycleSection apiPath="/api/bronson/overview/sales-cycle" range={range} period={period} />
       </DashboardSection>
 
       {/* BRONSON AI: the $147/mo subscription, its own product (not part of the webinar). */}

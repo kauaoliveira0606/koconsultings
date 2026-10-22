@@ -5,6 +5,8 @@ import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { AttributionSection } from "@/components/dashboard/AttributionSection";
 import { RevenueBreakdown, addCash } from "@/components/dashboard/RevenueBreakdown";
 import { OfferSplitSection } from "@/components/dashboard/OfferSplitSection";
+import { SalesCycleSection } from "@/components/dashboard/SalesCycleSection";
+import type { SalesCycleResponse } from "@/lib/sales-cycle";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
 import { HeroStat } from "@/components/dashboard/HeroStat";
 import { rangePeriodLabel } from "@/lib/range-label";
@@ -156,6 +158,7 @@ function kpiLabel(
 export default function OverviewPage() {
   const { range, setRange } = useSharedRange();
   const period = rangePeriodLabel(range);
+  const { data: salesCycle } = useSectionData<SalesCycleResponse>("/api/aval/overview/sales-cycle", range);
 
   const { data: metrics } = useSectionData<MetricsResponse>("/api/aval/overview/metrics", range);
   const { data: leadSources } = useSectionData<LeadSourcesResponse>(
@@ -374,9 +377,9 @@ export default function OverviewPage() {
                 },
                 {
                   label: "Time To Close (Avg Days)",
-                  value: metrics?.avgDaysToClose,
+                  value: salesCycle?.avgDays,
                   format: "number",
-                  subtext: "Days from opt-in to the call that collected their cash.",
+                  subtext: "Days from first opt-in to first close. Same as Avg Sales Cycle below.",
                 },
               ],
             },
@@ -478,6 +481,10 @@ export default function OverviewPage() {
 
       <DashboardSection title="Offer Split & PIF Rate">
         <OfferSplitSection apiPath="/api/aval/overview/offer-split" range={range} />
+      </DashboardSection>
+
+      <DashboardSection title="Sales Cycle">
+        <SalesCycleSection apiPath="/api/aval/overview/sales-cycle" range={range} period={period} />
       </DashboardSection>
 
       {/* AFFILIATE (Base44): lead flow, setter funnel, funnel health, attribution. Kept together below the webinar and high ticket. */}
