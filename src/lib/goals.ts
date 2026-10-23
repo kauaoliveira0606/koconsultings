@@ -54,7 +54,7 @@ export type GoalsConfig = {
   *
  * Client KPI targets updated 2026-09-29 (same across all 3 client dashboards):
  * show rate 70%, close rate 35%, low-ticket close rate 40%, VSL play rate
- * 60%, engagement rate 40%, CAC $100, attribution rate 90%, landing page
+ * 50%, engagement rate 20% (both updated 2026-10-23), CAC $100, attribution rate 90%, landing page
  * connect rate 80%, ROAS 3x, connection rate 40%, yearly share 30%, cost per
  * lead $15.
  */
@@ -77,7 +77,7 @@ export async function getGoals(): Promise<GoalsConfig> {
     closeRateLowTicket: { min: 0.4 },
     // User's KPI lines, 2026-10-14 (both offers): good / bad, yellow between.
     landingPageConnectRate: { min: 0.8, redBelow: 0.7 },
-    optInRate: { min: 0.3, redBelow: 0.2 },
+    optInRate: { min: 0.2 },
     webinarOptInRate: { min: 0.3, redBelow: 0.2 },
     hookRate: { min: 0.3, redBelow: 0.3 },
     holdRate: { min: 0.25, redBelow: 0.15 },

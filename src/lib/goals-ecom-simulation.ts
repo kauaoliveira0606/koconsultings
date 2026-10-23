@@ -9,7 +9,7 @@ import type { GoalsConfig } from "./goals";
   *
  * Client KPI targets updated 2026-09-29 (same across all 3 client dashboards):
  * show rate 70%, close rate 35%, low-ticket close rate 40%, VSL play rate
- * 60%, engagement rate 40%, CAC $100, attribution rate 90%, landing page
+ * 50%, engagement rate 20% (both updated 2026-10-23), CAC $100, attribution rate 90%, landing page
  * connect rate 80%, ROAS 3x, connection rate 40%, yearly share 30%, cost per
  * lead $15.
  */
@@ -30,7 +30,7 @@ export async function getEcomSimulationGoals(): Promise<GoalsConfig> {
     salesLowTicket: null,
     closeRateLowTicket: { min: 0.4 },
     landingPageConnectRate: { min: 0.8 },
-    optInRate: { min: 0.3 },
+    optInRate: { min: 0.2 },
     vslPlayRate: { min: 0.5 },
     vslEngagementRate: { min: 0.2 },
     connectionRate: { min: 0.4 },
