@@ -15,7 +15,7 @@ export default function BronsonLayout({ children }: { children: ReactNode }) {
   return (
     <RangeProvider initialPreset="this_month">
       <div
-        data-theme="deepspace"
+        data-theme="cream"
         style={{ background: "var(--app-bg)" }}
         className="flex min-h-screen flex-col text-[var(--text)] lg:flex-row"
       >

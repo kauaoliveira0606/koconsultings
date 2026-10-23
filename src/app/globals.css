@@ -387,6 +387,148 @@
   color-scheme: light;
 }
 
+/*
+ * `cream` theme (Bronson): the deepspace layout repainted light, a warm
+ * cream background with white cards and dark text. Shared components were
+ * written for the dark themes and hardcode light text (text-white,
+ * text-sky-300, …), so those get remapped to dark readable shades here.
+ * Scoped to [data-theme="cream"] so Aval and Agency stay dark.
+ */
+[data-theme="cream"] {
+  --app-bg:
+    radial-gradient(1100px 600px at -5% -15%, rgba(214, 196, 160, 0.35), transparent 60%),
+    linear-gradient(180deg, #f7f3ea 0%, #f1ebdf 100%);
+  --panel-bg: #fffdf8;
+  --panel-subtle: rgba(120, 95, 50, 0.06);
+  --panel-border: rgba(120, 95, 50, 0.16);
+  --text-strong: #1c1917;
+  --text: #292524;
+  --text-muted: #6b6257;
+  --accent: #0369a1;
+  --btn-active-bg: #1c1917;
+  --btn-active-fg: #ffffff;
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+[data-theme="cream"] :is(div, section, details, article)[class*="bg-[var(--panel-bg)]"] {
+  box-shadow: 0 10px 28px -20px rgba(80, 60, 20, 0.35);
+}
+[data-theme="cream"] :is(div, section, details, article)[class*="bg-[var(--panel-bg)]"].rounded-lg {
+  border-radius: 14px;
+}
+[data-theme="cream"] main h1 {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-strong);
+}
+[data-theme="cream"] h2.uppercase[class] {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--text-strong);
+}
+[data-theme="cream"] h2.uppercase[class]::before {
+  content: "";
+  flex-shrink: 0;
+  width: 4px;
+  height: 20px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #7dd3fc, #818cf8);
+}
+[data-theme="cream"] table thead tr {
+  background-color: var(--panel-subtle);
+}
+[data-theme="cream"] table thead th {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+[data-theme="cream"] table tbody tr:hover {
+  background-color: rgba(120, 95, 50, 0.05);
+}
+
+/* Sidebar: dark navy glass -> cream glass. */
+[data-theme="cream"] [class*="bg-[#070d20]"] {
+  background-color: rgba(251, 248, 241, 0.9) !important;
+}
+
+/* Hero cards: dark glass -> white card, deeper number gradients. */
+[data-theme="cream"] .ko-hero {
+  background: var(--panel-bg) !important;
+  border-color: var(--panel-border) !important;
+  box-shadow: 0 16px 40px -28px rgba(80, 60, 20, 0.45) !important;
+}
+[data-theme="cream"] .ko-hero-value[data-status="none"] {
+  background-image: linear-gradient(100deg, #0d9488 0%, #0284c7 45%, #4f46e5 100%) !important;
+}
+[data-theme="cream"] .ko-hero-value[data-status="green"] {
+  background-image: linear-gradient(100deg, #059669 0%, #16a34a 50%, #0d9488 100%) !important;
+}
+[data-theme="cream"] .ko-hero-value[data-status="yellow"] {
+  background-image: linear-gradient(100deg, #d97706 0%, #ea580c 100%) !important;
+}
+[data-theme="cream"] .ko-hero-value[data-status="red"] {
+  background-image: linear-gradient(100deg, #e11d48 0%, #dc2626 100%) !important;
+}
+
+/* Light text written for dark backgrounds -> dark readable shades. */
+[data-theme="cream"] .text-white,
+[data-theme="cream"] [class*="text-white/"],
+[data-theme="cream"] [class*="hover:text-white"]:hover {
+  color: var(--text-strong) !important;
+}
+[data-theme="cream"] :is(.text-slate-300, .text-slate-400) {
+  color: var(--text-muted) !important;
+}
+[data-theme="cream"] :is(.text-sky-100, .text-sky-200, .text-sky-300) {
+  color: #0369a1 !important;
+}
+[data-theme="cream"] :is(.text-emerald-200, .text-emerald-300, .text-emerald-400) {
+  color: #047857 !important;
+}
+[data-theme="cream"] :is(.text-amber-100, .text-amber-200, .text-amber-300, .text-amber-400, [class*="text-amber-300/"]) {
+  color: #b45309 !important;
+}
+[data-theme="cream"] :is(.text-red-200, .text-red-300, .text-red-400, .text-rose-300) {
+  color: #b91c1c !important;
+}
+[data-theme="cream"] .text-purple-300 {
+  color: #7e22ce !important;
+}
+[data-theme="cream"] .text-orange-300 {
+  color: #c2410c !important;
+}
+/* Keep white text where it sits on a solid dark fill. */
+[data-theme="cream"] :is(.bg-black, .bg-emerald-500, .bg-emerald-700):is(.text-white, [class*="text-white/"]),
+[data-theme="cream"] :is(.bg-black, .bg-emerald-500, .bg-emerald-700) :is(.text-white, [class*="text-white/"]) {
+  color: #ffffff !important;
+}
+[data-theme="cream"] [class*="bg-white/"],
+[data-theme="cream"] [class*="hover:bg-white/"]:hover {
+  background-color: var(--panel-subtle) !important;
+}
+[data-theme="cream"] [class*="border-white/"],
+[data-theme="cream"] [class*="border-white/"] tr {
+  border-color: var(--panel-border) !important;
+}
+[data-theme="cream"] input,
+[data-theme="cream"] select,
+[data-theme="cream"] textarea {
+  background-color: #ffffff;
+  color: var(--text-strong);
+  border-color: var(--panel-border);
+  color-scheme: light;
+}
+[data-theme="cream"] ::selection {
+  background: rgba(56, 189, 248, 0.3);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

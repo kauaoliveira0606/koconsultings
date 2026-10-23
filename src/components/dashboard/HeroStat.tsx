@@ -67,7 +67,7 @@ export function HeroStat({
   const display = override ?? heroValue(value, format);
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-6 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.8)]"
+      className="ko-hero relative overflow-hidden rounded-2xl border border-white/[0.08] p-6 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.8)]"
       style={{ background: "linear-gradient(160deg, rgba(30,41,59,0.75) 0%, rgba(13,18,30,0.92) 60%, rgba(10,14,24,0.95) 100%)" }}
     >
       <div
@@ -84,7 +84,8 @@ export function HeroStat({
         ) : null}
       </div>
       <div
-        className={`relative mt-3 whitespace-nowrap font-extrabold leading-none tracking-tight tabular-nums ${sizeClass(display.length, size)}`}
+        data-status={status ?? "none"}
+        className={`ko-hero-value relative mt-3 whitespace-nowrap font-extrabold leading-none tracking-tight tabular-nums ${sizeClass(display.length, size)}`}
         style={{ backgroundImage: GRADIENT[status ?? "none"], WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
       >
         {display}
