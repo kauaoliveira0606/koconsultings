@@ -314,11 +314,9 @@ export async function GET(request: NextRequest) {
     sales: salesCount,
     averageOrderValueLowTicket: safeDivide(cashLowTicket, salesCount || null),
     averageOrderValueHighTicket: safeDivide(cashHighTicket, highTicketClosed || null),
-    // Form's typed rates first (client rule); calculated only when the
-    // range has none typed.
-    closeRateLowTicket:
-      average(inRangeMarketing.map((r) => r.closeRateLowTicket)) ??
-      safeDivide(softwareClosed, softwarePitched || null),
+    // Software closed ÷ pickups (client definition, 2026-10-23). The form's
+    // typed close rate is ignored since it isn't on pickups.
+    closeRateLowTicket: safeDivide(softwareClosed, pickups || null),
     connectionRate:
       average(inRangeMarketing.map((r) => r.connectionRate)) ??
       safeDivide(pickups, (optInsPaid ?? 0) + optInsOrganic || null),

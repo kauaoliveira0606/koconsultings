@@ -124,7 +124,7 @@ function stats(setter: string, range: Tally, month: Tally, commissionMtd: number
     talkMinutes: range.talk,
     pickupRate: safeDivide(range.pickups, range.dials || null),
     pitchRate: safeDivide(range.pitched, range.pickups || null),
-    closeRate: safeDivide(range.closed, range.pitched || null),
+    closeRate: safeDivide(range.closed, range.pickups || null),
     highTicketPitched: range.htPitched,
     highTicketPitchRate: safeDivide(range.htPitched, range.closed || null),
     highTicketBooked: range.htBooked,

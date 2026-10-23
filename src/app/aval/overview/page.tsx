@@ -563,12 +563,12 @@ export default function OverviewPage() {
             {
               title: "Close Rate (Affiliate)",
               value: metrics?.closeRateLowTicket,
-              formula: "Software Closed ÷ Software Pitched.",
+              formula: "Software Closed ÷ Pickups.",
               status: kpiStatus(metrics?.closeRateLowTicket, goals?.closeRateLowTicket?.min, "higher"),
               goal: kpiLabel(goals?.closeRateLowTicket?.min, "higher", "percent"),
               inputs: [
                 { label: "Software Closed", value: metrics?.softwareClosed },
-                { label: "Software Pitched", value: metrics?.softwarePitched },
+                { label: "Pickups", value: metrics?.pickups },
                 { label: "Affiliate Sales", value: metrics?.sales, note: "As logged on the daily metrics form." },
               ],
             },

@@ -644,11 +644,10 @@ function buildSpecs(
           format: "percent",
           goal: goals.closeRateLowTicket?.min ?? null,
           goalDirection: "higher",
-          // Affiliate EOD "software closed" ÷ "software pitched", always —
-          // form value only when a day has no Affiliate EOD submission.
-          day: (c) =>
-            (c.m ? num(c.m.closeRateLowTicket) : null) ?? safeDivide(dEodClosed(c), dPitched(c)),
-          week: (days) => safeDivide(sum(days.map(dEodClosed)), sum(days.map(dPitched))),
+          // Affiliate EOD "software closed" ÷ pickups (client definition,
+          // 2026-10-23).
+          day: (c) => safeDivide(dEodClosed(c), dPickups(c) || null),
+          week: (days) => safeDivide(sum(days.map(dEodClosed)), sum(days.map(dPickups)) || null),
         },
         {
           key: "aovLowTicket",

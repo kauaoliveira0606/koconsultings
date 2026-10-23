@@ -45,7 +45,7 @@ function entry(s: SetterStats, goals: GoalsConfig | undefined): LeaderboardEntry
             label: "Close Rate",
             value: s.closeRate,
             format: "percent",
-            note: "Closed ÷ pitched",
+            note: "Closed ÷ pickups",
             status: kpi(s.closeRate, closeGoal, "atLeast"),
             goal: closeGoal ? `≥ ${pct(closeGoal)}` : undefined,
           },
