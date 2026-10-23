@@ -12,8 +12,9 @@ import { airtableListFresh } from "@/lib/airtable/client";
 import { getCallsOnDate } from "@/lib/calendly";
 import { calendlyFor, type CalendlyOffer } from "@/lib/calendly-offers";
 import { addDaysToDateString } from "@/lib/date-range";
+import { syncRoster } from "@/lib/roster-sync";
 
-const OFFERS: Record<
+export const OFFERS: Record<
   CalendlyOffer,
   { baseId: string; rosterTableId: string; setterEodTableId: string; setterEodNameField: string }
 > = {
@@ -32,8 +33,8 @@ const OFFERS: Record<
 };
 
 // Same IDs in both bases (cloned from one template).
-const EOD_CLOSER_TABLE_ID = "tbl0xIvtCZIjemZRZ";
-const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
+export const EOD_CLOSER_TABLE_ID = "tbl0xIvtCZIjemZRZ";
+export const POST_CALL_NOTE_TABLE_ID = "tbltiRXQvojxiTJaM";
 
 export type MissingNote = { host: string; lead: string; email: string | null; start: string };
 
@@ -49,7 +50,7 @@ export type AccountabilityReport = {
   pcnError: string | null;
 };
 
-const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+export const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** Rows whose Date is exactly `date`, only the name field. */
 async function namesFiledOn(baseId: string, tableId: string, nameField: string, date: string) {
@@ -64,6 +65,8 @@ async function namesFiledOn(baseId: string, tableId: string, nameField: string, 
 
 export async function getAccountabilityReport(offer: CalendlyOffer, date: string): Promise<AccountabilityReport> {
   const cfg = OFFERS[offer];
+  // Anyone new since the last sync gets on the roster before it's checked.
+  await syncRoster(offer).catch(() => null);
   const [roster, closerNames, setterNames] = await Promise.all([
     airtableListFresh<Record<string, unknown>>(cfg.baseId, cfg.rosterTableId),
     namesFiledOn(cfg.baseId, EOD_CLOSER_TABLE_ID, "Closer Name", date),
