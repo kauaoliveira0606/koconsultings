@@ -292,7 +292,8 @@ export async function GET(request: NextRequest) {
     dials,
     pickupRate: safeDivide(pickups, dials),
     softwarePitched,
-    pitchRate: safeDivide(softwarePitched, pickups),
+    // Affiliate pitch rate: software pitched ÷ pickups.
+    pitchRate: safeDivide(softwarePitched, pickups || null),
     sales: salesCount,
     averageOrderValueLowTicket: safeDivide(cashLowTicket, salesCount || null),
     averageOrderValueHighTicket: safeDivide(cashHighTicket, highTicketClosed || null),
@@ -312,11 +313,11 @@ export async function GET(request: NextRequest) {
     highTicketCloseRate: safeDivide(highTicketClosed, highTicketCallsShowed || null),
     newHighTicketCallsBooked,
     highTicketBookingRateFromLowTicket: safeDivide(newHighTicketCallsBooked, salesCount || null),
-    // Per the client: of the software the setters closed, how many of those
-    // buyers they pitched a high ticket call to. Both from the Affiliate EOD.
+    // High ticket booking pitch rate (client definition, 2026-10-24): software
+    // closes ÷ pitched high ticket calls. Both from the Affiliate EOD.
     softwareClosed,
     highTicketCallsPitched,
-    highTicketPitchRate: safeDivide(highTicketCallsPitched, softwareClosed || null),
+    highTicketPitchRate: safeDivide(softwareClosed, highTicketCallsPitched || null),
     revenueHighTicket,
 
     // Tier 6 — Unit economics (paid only — CAC is inherently a paid concept)

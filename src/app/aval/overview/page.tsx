@@ -414,12 +414,12 @@ export default function OverviewPage() {
               ],
             },
             {
-              title: "Pitch Rate",
+              title: "High Ticket Booking Pitch Rate",
               value: metrics?.highTicketPitchRate,
-              formula: "Pitched high ticket calls ÷ software closes.",
+              formula: "Software Closes ÷ Pitched High Ticket Calls.",
               inputs: [
-                { label: "Pitched High Ticket Calls", value: metrics?.highTicketCallsPitched, note: "Setters' Affiliate EOD." },
                 { label: "Software Closes", value: metrics?.softwareClosed, note: "Setters' Affiliate EOD." },
+                { label: "Pitched High Ticket Calls", value: metrics?.highTicketCallsPitched, note: "Setters' Affiliate EOD." },
               ],
             },
             {
@@ -552,7 +552,7 @@ export default function OverviewPage() {
               ],
             },
             {
-              title: "Pitch Rate",
+              title: "Affiliate Pitch Rate",
               value: metrics?.pitchRate,
               formula: "Software Pitched ÷ Pickups.",
               inputs: [
