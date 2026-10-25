@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { BOOKINGS_TRACKING_START, countedBookings } from "@/lib/booking-source";
+import { paidCallsShowed } from "@/lib/webinar-source-funnel";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
 import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
@@ -188,8 +189,9 @@ export async function GET(request: NextRequest) {
   // Only the ad spend from days bookings are tracked, so older spend isn't put on these calls.
   const trackedSpend = sum(inRangeMarketing.filter((r) => !!r.date && r.date >= BOOKINGS_TRACKING_START).map((r) => r.adSpendMeta));
   const costPerCallHT = adsActive ? safeDivide(trackedSpend, paidCallsBooked || null) : null;
-  // Cost per live call needs paid calls that showed, which nothing tracks yet: blank, never all shows.
-  const costPerLiveCallHT: number | null = null;
+  // Cost per live call: the same spend over the paid bookings that showed (a Post Call Note after booking, not a no show).
+  const paidCallsLive = paidCallsShowed(bookings, postCallNotes, (d) => isDateInRange(d, range)).showed;
+  const costPerLiveCallHT = adsActive ? safeDivide(trackedSpend, paidCallsLive || null) : null;
 
   // Time to Close: average days from a lead's opt-in to the call that
   // actually collected cash for them, matched by email via Affiliate PCN.

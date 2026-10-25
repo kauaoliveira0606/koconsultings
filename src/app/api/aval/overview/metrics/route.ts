@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { avalBookings } from "@/lib/aval-webinar-funnel";
+import { paidCallsShowed } from "@/lib/webinar-source-funnel";
 import { WEBINAR_SCHEDULE } from "@/lib/webinar-schedule";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
@@ -173,19 +174,19 @@ export async function GET(request: NextRequest) {
 
   // Ad spend only buys paid calls (user, 2026-10-19): cost per call is over the
   // paid masterclass Calendly bookings made in range. Blank if they can't be read.
-  const paidCallsBooked = await avalBookings(easternDateString())
-    .then((rows) => rows.filter((b) => b.source === "Paid" && isDateInRange(b.bookedDate, range)).length)
+  const paidCalls = await avalBookings(easternDateString())
+    .then((rows) => paidCallsShowed(rows, postCallNotes, (d) => isDateInRange(d, range)))
     .catch((err) => {
       console.error("Aval paid bookings", err);
       return null;
     });
+  const paidCallsBooked = paidCalls?.booked ?? null;
   // Only the ad spend from days bookings are tracked (from the first webinar's promo), so older spend isn't put on these calls.
   const trackedFrom = WEBINAR_SCHEDULE.aval.map((r) => r.promoStart).sort()[0];
   const trackedSpend = sum(inRangeMarketing.filter((r) => !!r.date && r.date >= trackedFrom).map((r) => r.adSpendMeta));
   const costPerCallHT = adsActive && paidCallsBooked !== null ? safeDivide(trackedSpend, paidCallsBooked || null) : null;
-  // Cost per live call: ad spend over the calls that actually showed up.
-  // Cost per live call needs paid calls that showed, which nothing tracks yet: blank, never all shows.
-  const costPerLiveCallHT: number | null = null;
+  // Cost per live call: the same spend over the paid bookings that showed (a Post Call Note after booking, not a no show).
+  const costPerLiveCallHT = adsActive && paidCalls ? safeDivide(trackedSpend, paidCalls.showed || null) : null;
 
   // Time to Close: average days from a lead's opt-in to the call that
   // actually collected cash for them, matched by email across Affiliate PCN

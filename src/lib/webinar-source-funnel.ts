@@ -242,3 +242,20 @@ export function webinarSourceRows(
     })
     .reverse();
 }
+
+/**
+ * Paid calls booked in a range and how many showed, by the same rules as a
+ * webinar's paid funnel: the lead's Post Call Notes from the day they booked
+ * on, matched by email. Feeds Cost Per Live Call on the Overview.
+ */
+export function paidCallsShowed(bookings: BookingRow[], notes: CallNote[], inRange: (day: string) => boolean): { booked: number; showed: number } {
+  const showedEmails = new Map<string, string[]>();
+  for (const n of notes) {
+    const email = n.leadEmail?.trim().toLowerCase();
+    if (!email || !n.date || !n.callOutcome || !SHOWED(n.callOutcome)) continue;
+    showedEmails.set(email, [...(showedEmails.get(email) ?? []), n.date]);
+  }
+  const paid = countedBookings(bookings).filter((b) => b.source === "Paid" && !!b.bookedDate && inRange(b.bookedDate));
+  const showed = paid.filter((b) => (b.email ? showedEmails.get(b.email.trim().toLowerCase()) ?? [] : []).some((d) => d >= b.bookedDate!));
+  return { booked: paid.length, showed: showed.length };
+}

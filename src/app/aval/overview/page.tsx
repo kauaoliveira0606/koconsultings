@@ -262,6 +262,40 @@ export default function OverviewPage() {
             format="currency"
             sub={`Portal tracked · ${formatStatValue(metrics?.cashCollectedLowTicket, "currency")} logged`}
           />
+          <HeroStat
+            size="md"
+            label="Cost Per Booked Call (Paid)"
+            value={metrics?.costPerCallHT}
+            format="currency"
+            override={!adsActive ? notActive : undefined}
+            sub="Ad spend ÷ paid calls booked"
+          />
+          <HeroStat
+            size="md"
+            label="Cost Per Live Call (Paid)"
+            value={metrics?.costPerLiveCallHT}
+            format="currency"
+            override={!adsActive ? notActive : undefined}
+            sub="Ad spend ÷ paid calls that showed"
+          />
+          <HeroStat
+            size="md"
+            label="Show Rate"
+            value={metrics?.highTicketShowRate}
+            format="percent"
+            status={kpiStatus(metrics?.highTicketShowRate, goals?.showRate?.min, "higher")}
+            goal={kpiLabel(goals?.showRate?.min, "higher", "percent")}
+            sub="Calls showed ÷ calls booked"
+          />
+          <HeroStat
+            size="md"
+            label="Close Rate"
+            value={metrics?.highTicketCloseRate}
+            format="percent"
+            status={kpiStatus(metrics?.highTicketCloseRate, goals?.highTicketCloseRate?.min, "higher")}
+            goal={kpiLabel(goals?.highTicketCloseRate?.min, "higher", "percent")}
+            sub="HT deals closed ÷ calls showed"
+          />
         </div>
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
           <span>
@@ -362,7 +396,7 @@ export default function OverviewPage() {
                   value: metrics?.costPerLiveCallHT,
                   format: "currency",
                   override: !adsActive ? notActive : undefined,
-                  subtext: "Ad spend ÷ paid calls that showed. Blank until paid shows are tracked.",
+                  subtext: "Ad spend ÷ paid calls that showed (Post Call Note after booking, not a no show).",
                 },
               ],
             },
