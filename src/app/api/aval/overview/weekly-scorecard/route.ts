@@ -8,7 +8,8 @@ import {
   getAvalLeads,
   getAvalMarketingDailyMetrics,
 } from "@/lib/airtable/tables-aval";
-import { AVAL_SCORECARD_LAYOUT, buildWeeklyScorecard } from "@/lib/weekly-scorecard";
+import { AVAL_SCORECARD_LAYOUT, buildWeeklyScorecard, isoAddDays, sundayOf } from "@/lib/weekly-scorecard";
+import { avalAffiliateBuyersBooked } from "@/lib/aval-ht-booked-from-affiliate";
 import { avalBookings } from "@/lib/aval-webinar-funnel";
 import { easternDateString } from "@/lib/date-range";
 import { getAvalGoals } from "@/lib/goals-aval";
@@ -34,12 +35,19 @@ export async function GET(request: NextRequest) {
       return undefined;
     }),
   ]);
+  const start = sundayOf(weekStart ?? easternDateString());
+  // HT Booking Rate (from Affiliate): blank, not wrong, if Calendly can't be read.
+  const affiliateBuyers = await avalAffiliateBuyersBooked(pcn, start, isoAddDays(start, 6)).catch((err) => {
+    console.error("Aval affiliate buyers booked", err);
+    return undefined;
+  });
   const payload = await buildWeeklyScorecard(marketing, leads, eod, closer, weekStart, new Date(), goals, {
     layout: AVAL_SCORECARD_LAYOUT,
     pcn,
     connected,
     connectionTrackingStart: CONNECTION_TRACKING_START,
     bookings,
+    affiliateBuyers,
     attribution: { portal, pcn, brands: BRANDS, dataFloor: DATA_FLOOR },
   });
   return Response.json(payload);

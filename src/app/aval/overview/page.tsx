@@ -72,6 +72,8 @@ type MetricsResponse = {
   softwareClosed: number | null;
   highTicketCallsPitched: number | null;
   newHighTicketCallsBooked: number | null;
+  affiliateBuyerCount: number | null;
+  affiliateBuyersBooked: number | null;
   revenueHighTicket: number | null;
 
   cacLowTicketPaid: number | null;
@@ -459,10 +461,10 @@ export default function OverviewPage() {
             {
               title: "Booking Rate (From Affiliate)",
               value: metrics?.highTicketBookingRateFromLowTicket,
-              formula: "New HT calls booked ÷ Affiliate Sales.",
+              formula: "Affiliate buyers who booked a high ticket call ÷ affiliate buyers.",
               inputs: [
-                { label: "New HT Calls Booked", value: metrics?.newHighTicketCallsBooked },
-                { label: "Affiliate Sales", value: metrics?.sales },
+                { label: "Buyers Who Booked HT", value: metrics?.affiliateBuyersBooked, note: "Calendly + GHL calendar, booked on or after the purchase day." },
+                { label: "Affiliate Buyers", value: metrics?.affiliateBuyerCount, note: "Affiliate Post Call Notes, one per email." },
               ],
             },
           ]}
