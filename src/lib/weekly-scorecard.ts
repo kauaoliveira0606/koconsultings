@@ -160,9 +160,6 @@ type DayCtx = {
   /** Affiliate PCN closes logged that day, and how many were Yearly plans. */
   pcnTotal: number;
   pcnYearly: number;
-  /** Aval: affiliate buyers that day, and how many booked a high ticket call; null when not tracked. */
-  ltBuyers: number | null;
-  ltBuyersBooked: number | null;
   /** Connected (1+ min) calls by lead tag; null before tag tracking started. */
   connectedPaid: number | null;
   connectedOrganic: number | null;
@@ -187,8 +184,6 @@ export type ScorecardExtras = {
   /** Bronson: Calendly bookings with the lead's masterclass paid / organic tag. */
   bookings?: BookingRow[];
   registrants?: MasterclassRegistrantRow[];
-  /** Aval: affiliate buyers by purchase day, each marked if they booked a high ticket call. */
-  affiliateBuyers?: { date: string; booked: boolean }[];
   attribution?: {
     portal: {
       date: string | null;
@@ -743,16 +738,10 @@ function buildSpecs(
           format: "percent",
           goal: null,
           goalDirection: null,
-          // Aval: affiliate buyers who booked an HT call ÷ affiliate buyers
-          // (client definition, 2026-10-25). Elsewhere: EOD new HT booked ÷ sales.
-          day: (c) =>
-            c.ltBuyers !== null
-              ? safeDivide(c.ltBuyersBooked, c.ltBuyers || null)
-              : safeDivide(dNewHtBooked(c), dSalesLT(c) || null),
-          week: (days) =>
-            days.some((c) => c.ltBuyers !== null)
-              ? safeDivide(sum(days.map((c) => c.ltBuyersBooked)), sum(days.map((c) => c.ltBuyers)) || null)
-              : safeDivide(sum(days.map(dNewHtBooked)), sum(days.map(dSalesLT)) || null),
+          // Affiliate EOD new high ticket calls booked ÷ Affiliate EOD software
+          // closes (client definition, 2026-10-25).
+          day: (c) => safeDivide(dNewHtBooked(c), dEodClosed(c) || null),
+          week: (days) => safeDivide(sum(days.map(dNewHtBooked)), sum(days.map(dEodClosed)) || null),
         },
         {
           key: "aovHighTicket",
@@ -1594,8 +1583,6 @@ const emptyDay = (date: string): DayCtx => ({
   organicLeads: 0,
   pcnTotal: 0,
   pcnYearly: 0,
-  ltBuyers: null,
-  ltBuyersBooked: null,
   connectedPaid: null,
   connectedOrganic: null,
   bk: null,
@@ -1691,13 +1678,6 @@ function indexDays(
     }
   }
 
-  const ltBuyersByDate = new Map<string, number>();
-  const ltBookedByDate = new Map<string, number>();
-  for (const b of extras.affiliateBuyers ?? []) {
-    ltBuyersByDate.set(b.date, (ltBuyersByDate.get(b.date) ?? 0) + 1);
-    if (b.booked) ltBookedByDate.set(b.date, (ltBookedByDate.get(b.date) ?? 0) + 1);
-  }
-
   // One Connected Calls row per lead per day, so a row count is distinct leads.
   const connPaidByDate = new Map<string, number>();
   const connOrgByDate = new Map<string, number>();
@@ -1747,8 +1727,6 @@ function indexDays(
     organicLeads: organicByDate.get(date) ?? 0,
     pcnTotal: pcnTotalByDate.get(date) ?? 0,
     pcnYearly: pcnYearlyByDate.get(date) ?? 0,
-    ltBuyers: extras.affiliateBuyers ? (ltBuyersByDate.get(date) ?? 0) : null,
-    ltBuyersBooked: extras.affiliateBuyers ? (ltBookedByDate.get(date) ?? 0) : null,
     connectedPaid: connTracked(date) ? (connPaidByDate.get(date) ?? 0) : null,
     connectedOrganic: connTracked(date) ? (connOrgByDate.get(date) ?? 0) : null,
     bk: extras.bookings && date >= BOOKINGS_TRACKING_START ? (bkByDate.get(date) ?? zeroBk()) : null,

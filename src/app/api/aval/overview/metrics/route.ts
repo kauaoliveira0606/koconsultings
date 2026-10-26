@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { avalBookings } from "@/lib/aval-webinar-funnel";
-import { avalAffiliateBuyersBooked } from "@/lib/aval-ht-booked-from-affiliate";
 import { paidCallsShowed } from "@/lib/webinar-source-funnel";
 import { WEBINAR_SCHEDULE } from "@/lib/webinar-schedule";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
@@ -93,19 +92,6 @@ export async function GET(request: NextRequest) {
   const softwareClosed = sum(inRangeEod.map((r) => r.softwareClosed));
   const highTicketCallsPitched = sum(inRangeEod.map((r) => r.highTicketCallsPitched));
   const newHighTicketCallsBooked = sum(inRangeEod.map((r) => r.newHighTicketCallsBooked));
-  // HT Booking Rate (from Affiliate): affiliate buyers (Post Call Notes) who
-  // booked a high ticket call ÷ affiliate buyers (client definition, 2026-10-25).
-  const pcnDates = affiliatePcn.flatMap((r) => (r.date ? [r.date.slice(0, 10)] : [])).sort();
-  const affiliateBuyers = await avalAffiliateBuyersBooked(
-    affiliatePcn,
-    range.start ?? pcnDates[0] ?? easternDateString(),
-    range.end ?? easternDateString()
-  ).catch((err) => {
-    console.error("Aval affiliate buyers booked", err);
-    return null;
-  });
-  const affiliateBuyerCount = affiliateBuyers ? affiliateBuyers.length : null;
-  const affiliateBuyersBooked = affiliateBuyers ? affiliateBuyers.filter((b) => b.booked).length : null;
 
   const highTicketPitched = inRangePostCallNotes.filter(wasHighTicketPitched).length;
   // Form first per day; EOD Closer, then Affiliate EOD, only fill days the
@@ -327,9 +313,8 @@ export async function GET(request: NextRequest) {
     highTicketClosed,
     highTicketCloseRate: safeDivide(highTicketClosed, highTicketCallsShowed || null),
     newHighTicketCallsBooked,
-    affiliateBuyerCount,
-    affiliateBuyersBooked,
-    highTicketBookingRateFromLowTicket: safeDivide(affiliateBuyersBooked, affiliateBuyerCount || null),
+    // Affiliate EOD new HT calls booked ÷ Affiliate EOD software closes (client, 2026-10-25).
+    highTicketBookingRateFromLowTicket: safeDivide(newHighTicketCallsBooked, softwareClosed || null),
     // High ticket booking pitch rate (client definition, 2026-10-24): software
     // closes ÷ pitched high ticket calls. Both from the Affiliate EOD.
     softwareClosed,
