@@ -6,8 +6,6 @@ import {
   getMarketingDailyMetrics as getBronsonMarketingDailyMetrics,
 } from "@/lib/airtable/tables";
 import { AVAL_BASE_ID, getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
-import { emptyIfNoAccess } from "@/lib/airtable/client";
-import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
 import {
   EXPENSE_TABLES,
   effectiveExpenses,
@@ -18,7 +16,6 @@ import {
 import {
   AGENCY_DATA_START,
   buildDailyOfferRows,
-  untilAndyLeft,
   withAttributedLowTicket,
   withBronsonActualCommissions,
   withAvalProfitSplit,
@@ -32,9 +29,7 @@ import {
   bronsonAgencyProfit,
   bronsonSplitBreakdown,
   avalAgencyProfit,
-  ecomSimAgencyProfit,
   bronsonSalesManagerCut,
-  ecomSimSalesManagerCut,
   type DailyOfferRow,
   paidCash,
   organicCash,
@@ -68,9 +63,7 @@ export async function GET(request: NextRequest) {
   const [
     bronsonMarketing,
     avalMarketing,
-    ecomMarketing,
     bronsonExpenses,
-    ecomExpenses,
     bronsonCommissions,
     bronsonPortalCash,
     bronsonFinanced,
@@ -78,9 +71,7 @@ export async function GET(request: NextRequest) {
   ] = await Promise.all([
     getBronsonMarketingDailyMetrics(),
     getAvalMarketingDailyMetrics(),
-    emptyIfNoAccess(getEcomSimMarketingDailyMetrics()),
     listExpenses(EXPENSE_TABLES.bronson),
-    emptyIfNoAccess(listExpenses(EXPENSE_TABLES.ecomSimulation)),
     getCommissionsByDay(COMMISSIONS_OFFERS.bronson),
     getPortalCashByDay(COMMISSIONS_OFFERS.bronson),
     getFinancedHighTicketCashByDay(BRONSON_BASE_ID),
@@ -117,9 +108,6 @@ export async function GET(request: NextRequest) {
     avalFinanced,
     DEAL_FEE_RATES.aval
   );
-  const ecomAllRows = untilAndyLeft(
-    buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses))
-  );
 
   // Bills the agency owner paid on his own card, booked on the 1st like every
   // expense. Bronson sends these back in full, on top of the profit split.
@@ -131,10 +119,9 @@ export async function GET(request: NextRequest) {
 
   const bronsonRows = bronsonAllRows.filter((r) => isDateInRange(r.date, range));
   const avalRows = avalAllRows.filter((r) => isDateInRange(r.date, range));
-  const ecomRows = ecomAllRows.filter((r) => isDateInRange(r.date, range));
 
   // Personal Profit = Agency Profit minus the sales manager's 5% cut, which
-  // comes out of the agency owner's own split (Bronson + Andy only, and only
+  // comes out of the agency owner's own split (Bronson only, and only
   // through September 2026: there is no sales manager after that).
   const withPersonal = <T extends { agencyProfit: number }>(c: T, salesManagerCut: number) => ({
     ...c,
@@ -149,26 +136,20 @@ export async function GET(request: NextRequest) {
     { ...clientSummary(avalRows), agencyProfit: avalAgencyProfit(avalRows) },
     0
   );
-  const ecomSimulation = withPersonal(
-    { ...clientSummary(ecomRows), agencyProfit: ecomSimAgencyProfit(ecomAllRows, range) },
-    ecomSimSalesManagerCut(ecomRows)
-  );
 
-  const clients = { bronson, aval, ecomSimulation };
-  const totalCashCollected = bronson.cash + aval.cash + ecomSimulation.cash;
-  const totalAdSpend = bronson.adSpend + aval.adSpend + ecomSimulation.adSpend;
-  const totalProfit = bronson.profit + aval.profit + ecomSimulation.profit;
-  const totalExpenses = bronson.expenses + aval.expenses + ecomSimulation.expenses;
-  const totalSalesTeamPayout =
-    bronson.salesTeamPayout + aval.salesTeamPayout + ecomSimulation.salesTeamPayout;
-  const totalFees = bronson.fees + aval.fees + ecomSimulation.fees;
-  const totalAgencyProfit = bronson.agencyProfit + aval.agencyProfit + ecomSimulation.agencyProfit;
-  const salesManagerCut =
-    bronson.salesManagerCut + aval.salesManagerCut + ecomSimulation.salesManagerCut;
-  const myProfit = bronson.personalProfit + aval.personalProfit + ecomSimulation.personalProfit;
+  const clients = { bronson, aval };
+  const totalCashCollected = bronson.cash + aval.cash;
+  const totalAdSpend = bronson.adSpend + aval.adSpend;
+  const totalProfit = bronson.profit + aval.profit;
+  const totalExpenses = bronson.expenses + aval.expenses;
+  const totalSalesTeamPayout = bronson.salesTeamPayout + aval.salesTeamPayout;
+  const totalFees = bronson.fees + aval.fees;
+  const totalAgencyProfit = bronson.agencyProfit + aval.agencyProfit;
+  const salesManagerCut = bronson.salesManagerCut + aval.salesManagerCut;
+  const myProfit = bronson.personalProfit + aval.personalProfit;
 
   const byDayMap = new Map<string, { cash: number; adSpend: number }>();
-  for (const rows of [bronsonRows, avalRows, ecomRows]) {
+  for (const rows of [bronsonRows, avalRows]) {
     for (const r of rows) {
       const cash = paidCash(r) + organicCash(r);
       const existing = byDayMap.get(r.date) ?? { cash: 0, adSpend: 0 };

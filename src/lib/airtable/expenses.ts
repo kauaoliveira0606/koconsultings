@@ -4,7 +4,7 @@ import { easternDateString } from "@/lib/date-range";
 const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 
 /**
- * "Expenses" table in the Bronson and Andy bases: monthly tool/software
+ * "Expenses" table in the Bronson base: monthly tool/software
  * bills typed straight into the /agency page (Tool + Cost + Month, where
  * Month is the 1st of that month). Aval has none — it's a straight
  * revenue share with only ad spend coming off.
@@ -26,13 +26,12 @@ export type ExpensesTable = {
   reimbursable?: boolean;
 };
 
-export const EXPENSE_TABLES: Record<"bronson" | "ecomSimulation", ExpensesTable> = {
+export const EXPENSE_TABLES: Record<"bronson", ExpensesTable> = {
   bronson: {
     baseId: "appiMw8gpaLv2WITA",
     tableId: "tblSPyipFbLZ3Uqck",
     reimbursable: true,
   },
-  ecomSimulation: { baseId: "appgcEYqudlGfqBjE", tableId: "tbl7nv9gTLKAy5iWY" },
 };
 
 export type ExpenseOffer = keyof typeof EXPENSE_TABLES;

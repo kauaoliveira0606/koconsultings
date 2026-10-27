@@ -29,7 +29,7 @@ type DayEntry = {
   agencyProfit: number;
   totalCash: number;
   myProfit: number;
-  byClient: { bronson: number; aval: number; ecomSimulation: number };
+  byClient: { bronson: number; aval: number };
 };
 
 type CashCalendarResponse = {
@@ -138,16 +138,10 @@ export function AgencyCashCalendar() {
                     </div>
                   ) : null}
                   {entry &&
-                  (entry.byClient.bronson !== 0 ||
-                    entry.byClient.aval !== 0 ||
-                    entry.byClient.ecomSimulation !== 0) ? (
+                  (entry.byClient.bronson !== 0 || entry.byClient.aval !== 0) ? (
                     <div className={`text-right text-[10px] leading-tight ${BUCKET_SUBTEXT_COLORS[bucket]}`}>
                       <div>B: {formatStatValue(entry.byClient.bronson, "currency")}</div>
                       <div>A: {formatStatValue(entry.byClient.aval, "currency")}</div>
-                      {/* Andy left after September 2026, so later days have no E line. */}
-                      {entry.byClient.ecomSimulation !== 0 ? (
-                        <div>E: {formatStatValue(entry.byClient.ecomSimulation, "currency")}</div>
-                      ) : null}
                     </div>
                   ) : null}
                 </div>

@@ -60,7 +60,6 @@ type MetricsResponse = {
   clients: {
     bronson: ClientMetrics;
     aval: ClientMetrics;
-    ecomSimulation: ClientMetrics;
   };
   byDay: { date: string; cash: number; adSpend: number }[];
 };
@@ -68,7 +67,6 @@ type MetricsResponse = {
 const CLIENT_ROWS: { key: keyof MetricsResponse["clients"]; label: string; dot: string }[] = [
   { key: "bronson", label: "Bronson", dot: "#f97316" },
   { key: "aval", label: "Aval", dot: "#a855f7" },
-  { key: "ecomSimulation", label: "Andy (Ecom Simulation)", dot: "#22d3ee" },
 ];
 
 // Same card surface as the HeroStat cards, so the table sits in the same family.
@@ -175,7 +173,7 @@ export default function AgencyPage() {
             label="Total Sales Team Payouts"
             value={data?.totalSalesTeamPayout}
             format="currency"
-            sub="Everything the sales teams were paid. Bronson: actual commissions from his Commissions tab; only the paid-traffic part comes off your split. Aval (from Oct 2026) and Andy: 10%/20% weekday/weekend on Affiliate, 15% on High Ticket (5% setter + 10% closer)."
+            sub="Everything the sales teams were paid. Bronson: actual commissions from his Commissions tab; only the paid-traffic part comes off your split. Aval (from Oct 2026): 10%/20% weekday/weekend on Affiliate, 15% on High Ticket (5% setter + 10% closer)."
           />
           <HeroStat
             size="md"
@@ -201,7 +199,7 @@ export default function AgencyPage() {
               label="Sales Manager Cut"
               value={data?.salesManagerCut}
               format="currency"
-              sub="Through September 2026 only. Bronson: 5% of organic cash + 5% of paid profit. Andy: 5% of organic + paid profit. No cut on Aval. Comes out of your own take-home."
+              sub="Through September 2026 only. Bronson: 5% of organic cash + 5% of paid profit. No cut on Aval. Comes out of your own take-home."
             />
           )}
         </div>
@@ -330,10 +328,6 @@ export default function AgencyPage() {
             <tbody>
               {CLIENT_ROWS.map(({ key, label, dot }) => {
                 const c = data?.clients[key];
-                // Andy left after September 2026: no row once the range has nothing of his.
-                if (key === "ecomSimulation" && c && c.cash === 0 && c.adSpend === 0 && c.expenses === 0) {
-                  return null;
-                }
                 return (
                   <tr key={key} className="border-b border-white/[0.06] transition-colors hover:bg-white/[0.03]">
                     <td className="px-5 py-4">

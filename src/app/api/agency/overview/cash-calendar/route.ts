@@ -4,8 +4,6 @@ import {
   getMarketingDailyMetrics as getBronsonMarketingDailyMetrics,
 } from "@/lib/airtable/tables";
 import { AVAL_BASE_ID, getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
-import { emptyIfNoAccess } from "@/lib/airtable/client";
-import { getMarketingDailyMetrics as getEcomSimMarketingDailyMetrics } from "@/lib/airtable/tables-ecom-simulation";
 import {
   EXPENSE_TABLES,
   effectiveExpenses,
@@ -14,7 +12,6 @@ import {
 } from "@/lib/airtable/expenses";
 import {
   buildDailyOfferRows,
-  untilAndyLeft,
   withAttributedLowTicket,
   withBronsonActualCommissions,
   withAvalProfitSplit,
@@ -22,9 +19,7 @@ import {
   cash,
   bronsonAgencyProfitByDay,
   avalAgencyProfitByDay,
-  ecomSimAgencyProfitByDay,
   bronsonSalesManagerCutByDay,
-  ecomSimSalesManagerCutByDay,
   type DailyOfferRow,
 } from "@/lib/agency";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
@@ -57,9 +52,7 @@ export async function GET(request: NextRequest) {
   const [
     bronsonMarketing,
     avalMarketing,
-    ecomMarketing,
     bronsonExpenses,
-    ecomExpenses,
     bronsonPaidCommissions,
     bronsonPortalCash,
     bronsonFinanced,
@@ -67,9 +60,7 @@ export async function GET(request: NextRequest) {
   ] = await Promise.all([
     getBronsonMarketingDailyMetrics(),
     getAvalMarketingDailyMetrics(),
-    emptyIfNoAccess(getEcomSimMarketingDailyMetrics()),
     listExpenses(EXPENSE_TABLES.bronson),
-    emptyIfNoAccess(listExpenses(EXPENSE_TABLES.ecomSimulation)),
     getPaidCommissionsByDay(COMMISSIONS_OFFERS.bronson),
     getPortalCashByDay(COMMISSIONS_OFFERS.bronson),
     getFinancedHighTicketCashByDay(BRONSON_BASE_ID),
@@ -100,21 +91,17 @@ export async function GET(request: NextRequest) {
     avalFinanced,
     DEAL_FEE_RATES.aval
   );
-  const ecomRows = untilAndyLeft(buildDailyOfferRows(ecomMarketing, expensesByMonth(ecomExpenses)));
 
   const bronsonAgencyByDay = bronsonAgencyProfitByDay(bronsonRows);
   const avalAgencyByDay = avalAgencyProfitByDay(avalRows);
-  const ecomAgencyByDay = ecomSimAgencyProfitByDay(ecomRows);
   const bronsonCashByDay = cashByDay(bronsonRows);
   const avalCashByDay = cashByDay(avalRows);
-  const ecomCashByDay = cashByDay(ecomRows);
-  // Sales manager's 5% cut, Bronson and Andy only — no cut on Aval — same
+  // Sales manager's 5% cut, Bronson only (no cut on Aval), same
   // rule as the top-level stat cards and By Client table, applied per day.
   const bronsonManagerCutByDay = bronsonSalesManagerCutByDay(bronsonRows);
-  const ecomManagerCutByDay = ecomSimSalesManagerCutByDay(ecomRows);
 
   const dates = new Set<string>(
-    [...bronsonRows, ...avalRows, ...ecomRows].map((r) => r.date).filter((d) => d.startsWith(month))
+    [...bronsonRows, ...avalRows].map((r) => r.date).filter((d) => d.startsWith(month))
   );
 
   const byDay: Record<
@@ -123,7 +110,7 @@ export async function GET(request: NextRequest) {
       agencyProfit: number;
       totalCash: number;
       myProfit: number;
-      byClient: { bronson: number; aval: number; ecomSimulation: number };
+      byClient: { bronson: number; aval: number };
     }
   > = {};
 
@@ -134,20 +121,16 @@ export async function GET(request: NextRequest) {
   for (const date of dates) {
     const bronsonAgency = bronsonAgencyByDay.get(date) ?? 0;
     const avalAgency = avalAgencyByDay.get(date) ?? 0;
-    const ecomAgency = ecomAgencyByDay.get(date) ?? 0;
-    const agencyProfit = bronsonAgency + avalAgency + ecomAgency;
-    const totalCash =
-      (bronsonCashByDay.get(date) ?? 0) + (avalCashByDay.get(date) ?? 0) + (ecomCashByDay.get(date) ?? 0);
+    const agencyProfit = bronsonAgency + avalAgency;
+    const totalCash = (bronsonCashByDay.get(date) ?? 0) + (avalCashByDay.get(date) ?? 0);
     const bronsonManagerCut = bronsonManagerCutByDay.get(date) ?? 0;
-    const ecomManagerCut = ecomManagerCutByDay.get(date) ?? 0;
-    const salesManagerCut = bronsonManagerCut + ecomManagerCut;
+    const salesManagerCut = bronsonManagerCut;
     const myProfit = agencyProfit - salesManagerCut;
     // Per-client figures are personal profit — each client's agency share
-    // minus the sales manager's cut on it — so B + A + E = myProfit.
+    // minus the sales manager's cut on it — so B + A = myProfit.
     const byClient = {
       bronson: bronsonAgency - bronsonManagerCut,
       aval: avalAgency,
-      ecomSimulation: ecomAgency - ecomManagerCut,
     };
 
     byDay[date] = { agencyProfit, totalCash, myProfit, byClient };

@@ -1,23 +1,14 @@
 /**
  * Shared math for the personal Agency rollup (/agency) — the one place
- * that intentionally combines all three offers' data, to answer "what does
+ * that intentionally combines every offer's data, to answer "what does
  * KOconsultings actually take home." Every individual offer dashboard
  * stays isolated to its own base; this is the deliberate aggregator.
  */
-import { isDateInRange, type ResolvedRange } from "./date-range";
 import { VIP_PROCESSING_RATE, type DealFeeRates } from "./deal-fee-rates";
 import { sumByDate } from "./metrics";
 
 /** Data before this date is out of scope for the agency rollup entirely, per the client. */
 export const AGENCY_DATA_START = "2026-09-01";
-
-/** Andy (Ecom Simulation) stopped being a client after this day; nothing of his counts from October 2026 on. */
-export const ANDY_LAST_DAY = "2026-09-30";
-
-/** Drops everything dated after Andy's last day as a client. */
-export function untilAndyLeft<T extends { date: string }>(rows: T[]): T[] {
-  return rows.filter((r) => r.date <= ANDY_LAST_DAY);
-}
 
 /** Aval moved from a revenue share to a profit split on this day: sales team commissions come off before the 11.5%. */
 export const AVAL_PROFIT_SPLIT_FROM = "2026-10-01";
@@ -52,7 +43,7 @@ export type DailyOfferRow = {
   aiCashPaid?: number;
   aiCashOrganic?: number;
   adSpend: number;
-  /** Monthly tool expenses, booked in full on the 1st of their month. Bronson/Andy only. */
+  /** Monthly tool expenses, booked in full on the 1st of their month. Bronson only. */
   expenses: number;
   /** Set when the offer's sales team payout is known rather than estimated from cash (Bronson, Aval's revenue-share days). */
   salesTeamPayout?: { paid: number; organic: number };
@@ -455,85 +446,24 @@ export function avalAgencyProfit(rows: DailyOfferRow[]): number {
 }
 
 /**
- * Andy (Ecom Simulation): 17.5% organic / 22.5% paid, doubling to 35%/45%
- * once that CALENDAR MONTH's combined (organic + paid) cash crosses
- * $100k — the whole month's cash re-rates at the higher tier, not just the
- * amount above $100k. `allRows` must be unfiltered by date range (every
- * row this offer has ever logged) so a month's tier is judged on its full
- * total even when only a narrower slice of it is being summed.
+ * Sales manager's 5% cut on Bronson, paid out of the agency owner's own
+ * split, per day: 5% of top-line organic cash plus 5% of paid profit (after
+ * ad spend, sales team and expenses, which all come off paid). No cut on
+ * Aval, and none on anything dated after `SALES_MANAGER_LAST_DAY`.
  */
-export function ecomSimAgencyProfitByDay(allRows: DailyOfferRow[]): Map<string, number> {
-  const monthCash = new Map<string, number>();
-  for (const r of allRows) {
-    const month = r.date.slice(0, 7);
-    monthCash.set(month, (monthCash.get(month) ?? 0) + cash(r));
-  }
-
-  const map = new Map<string, number>();
-  for (const r of allRows) {
-    const month = r.date.slice(0, 7);
-    const tierHit = (monthCash.get(month) ?? 0) > 100_000;
-    const rateOrganic = tierHit ? 0.35 : 0.175;
-    const ratePaid = tierHit ? 0.45 : 0.225;
-    const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
-    // Expenses split 50/50 between the organic and paid sides, per the client.
-    const organicProfit = organicCash(r) - payoutOrganic - r.expenses / 2;
-    const paidProfit = paidCash(r) - r.adSpend - payoutPaid - r.expenses / 2;
-    map.set(r.date, rateOrganic * organicProfit + ratePaid * paidProfit);
-  }
-  return map;
-}
-
-/** `allRows` unfiltered (see above); only rows inside `range` are summed into the total. */
-export function ecomSimAgencyProfit(allRows: DailyOfferRow[], range: ResolvedRange): number {
-  let total = 0;
-  for (const [date, value] of ecomSimAgencyProfitByDay(allRows)) {
-    if (isDateInRange(date, range)) total += value;
-  }
-  return total;
-}
-
-/**
- * Sales manager's 5% cut, paid out of the agency owner's own split — per
- * day. Mirrors each offer's own profit-share basis: Bronson's organic leg
- * is on top-line organic cash, Andy's is on organic profit (after sales
- * team); the paid leg is on paid profit (after ad spend + sales team) for
- * both. Expenses come off the same way as in each offer's own split:
- * Bronson all off paid, Andy 50/50. No cut on Aval, and none on anything
- * dated after `SALES_MANAGER_LAST_DAY`.
- */
-function salesManagerCutByDay(
-  rows: DailyOfferRow[],
-  organicBasis: "cash" | "profit"
-): Map<string, number> {
+export function bronsonSalesManagerCutByDay(rows: DailyOfferRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of rows) {
     if (r.date > SALES_MANAGER_LAST_DAY) continue;
-    const { paid: payoutPaid, organic: payoutOrganic } = sumSalesTeamPayout([r]);
-    const cashOrganic = organicCash(r);
-    const organicBase =
-      organicBasis === "cash" ? cashOrganic : cashOrganic - payoutOrganic - r.expenses / 2;
-    const paidExpenses = organicBasis === "cash" ? r.expenses : r.expenses / 2;
-    const paidProfit = paidCash(r) - r.adSpend - payoutPaid - paidExpenses;
-    map.set(r.date, 0.05 * organicBase + 0.05 * paidProfit);
+    const { paid: payoutPaid } = sumSalesTeamPayout([r]);
+    const paidProfit = paidCash(r) - r.adSpend - payoutPaid - r.expenses;
+    map.set(r.date, 0.05 * organicCash(r) + 0.05 * paidProfit);
   }
   return map;
-}
-
-export function bronsonSalesManagerCutByDay(rows: DailyOfferRow[]): Map<string, number> {
-  return salesManagerCutByDay(rows, "cash");
-}
-
-export function ecomSimSalesManagerCutByDay(rows: DailyOfferRow[]): Map<string, number> {
-  return salesManagerCutByDay(rows, "profit");
 }
 
 export function bronsonSalesManagerCut(rows: DailyOfferRow[]): number {
   return sumMapValues(bronsonSalesManagerCutByDay(rows));
-}
-
-export function ecomSimSalesManagerCut(rows: DailyOfferRow[]): number {
-  return sumMapValues(ecomSimSalesManagerCutByDay(rows));
 }
 
 function sumMapValues(map: Map<string, number>): number {

@@ -18,17 +18,9 @@ export async function GET(request: Request) {
   if (!/^\d{4}-\d{2}$/.test(month)) {
     return Response.json({ error: "month query param (YYYY-MM) is required" }, { status: 400 });
   }
-  const [bronson, ecomSimulation] = await Promise.all([
-    listExpenses(EXPENSE_TABLES.bronson),
-    // Andy is offboarded and the key lost access to his base: no rows, rather
-    // than failing Bronson's expenses with it.
-    listExpenses(EXPENSE_TABLES.ecomSimulation).catch(() => []),
-  ]);
+  const bronson = await listExpenses(EXPENSE_TABLES.bronson);
   return Response.json({
     bronson: effectiveExpenses(EXPENSE_TABLES.bronson, bronson).filter((e) => e.month === month),
-    ecomSimulation: effectiveExpenses(EXPENSE_TABLES.ecomSimulation, ecomSimulation).filter(
-      (e) => e.month === month
-    ),
   });
 }
 

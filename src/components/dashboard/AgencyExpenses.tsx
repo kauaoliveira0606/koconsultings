@@ -12,7 +12,7 @@ type Expense = {
   paidByMe: boolean;
   carriedFrom?: string;
 };
-type ExpensesResponse = { bronson: Expense[]; ecomSimulation: Expense[] };
+type ExpensesResponse = { bronson: Expense[] };
 type Offer = keyof ExpensesResponse;
 
 type OfferConfig = {
@@ -24,8 +24,6 @@ type OfferConfig = {
   pendingNote?: string;
   /** Rows can be ticked "I paid": the client reimburses those in full. */
   reimbursable?: boolean;
-  /** Last month ("YYYY-MM") this client is shown for. */
-  lastMonth?: string;
 };
 
 const OFFERS: OfferConfig[] = [
@@ -37,13 +35,6 @@ const OFFERS: OfferConfig[] = [
     pendingNote:
       "No bills entered yet. Expect roughly $2,000 to $3,000 of software this month (estimate only, not deducted).",
     reimbursable: true,
-  },
-  {
-    key: "ecomSimulation",
-    label: "Andy (Ecom Simulation)",
-    dot: "#22d3ee",
-    note: "Split 50/50 off organic and paid profit before your split.",
-    lastMonth: "2026-09",
   },
 ];
 
@@ -72,7 +63,7 @@ function monthLabel(month: string): string {
 const sum = (list: Expense[] | undefined) => (list ?? []).reduce((t, e) => t + e.cost, 0);
 
 /**
- * Monthly tool expenses per offer (Bronson + Andy only — Aval has none),
+ * Monthly tool expenses per offer (Bronson only, Aval has none),
  * written straight on the page. Each bill counts in full for its month and
  * comes off profit before the profit split, so saving one refreshes every
  * number on the Agency page.
@@ -116,7 +107,7 @@ export function AgencyExpenses() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {OFFERS.filter((offer) => !offer.lastMonth || month <= offer.lastMonth).map((offer) => (
+        {OFFERS.map((offer) => (
           <OfferExpenses
             key={offer.key}
             offer={offer}

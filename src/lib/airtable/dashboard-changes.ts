@@ -15,7 +15,6 @@ export type DashboardChangesTable = { baseId: string; tableId: string };
 export const DASHBOARD_CHANGES_TABLES = {
   bronson: { baseId: "appiMw8gpaLv2WITA", tableId: "tbl0tAPjjIBhUmydb" },
   aval: { baseId: "appgEcTIxQjmtRKbP", tableId: "tbls3zd3BvpygJ2Gm" },
-  ecomSimulation: { baseId: "appgcEYqudlGfqBjE", tableId: "tblcP8CxZw6jb5Fn2" },
 } satisfies Record<string, DashboardChangesTable>;
 
 const WINDOW_DAYS = 14;
