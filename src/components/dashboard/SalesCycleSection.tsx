@@ -199,6 +199,19 @@ export function SalesCycleSection({ apiPath, range, period }: { apiPath: string;
   );
 }
 
+/** Affiliate closes it takes to get one high ticket buyer: the inverse of the ascension rate. */
+function closesPerHt(buyers: number, ascended: number): number | null {
+  return ascended ? buyers / ascended : null;
+}
+
+/** "8.3 closes", or why there's no number yet. */
+function closesLabel(buyers: number, ascended: number): string {
+  if (!buyers) return "—";
+  if (!ascended) return `${buyers}+ closes`;
+  const n = buyers / ascended;
+  return `${n.toFixed(n < 10 ? 1 : 0)} closes`;
+}
+
 /** Affiliate buyers who moved up to high ticket: days from the first affiliate sale to the first high ticket close. */
 function AscensionCycle({ data, period }: { data: SalesCycleResponse; period: string | null }) {
   const rows = data.ascensions;
@@ -219,6 +232,22 @@ function AscensionCycle({ data, period }: { data: SalesCycleResponse; period: st
           format="percent"
           period="All Time"
           sub={`${data.ascensionAscendedAllTime} of ${data.ascensionBuyersAllTime} affiliate buyers ever have closed high ticket`}
+        />
+        <HeroStat
+          label="Affiliate Closes Per HT Buyer"
+          value={closesPerHt(data.ascensionBuyers, data.ascensionAscended)}
+          format="number"
+          override={closesLabel(data.ascensionBuyers, data.ascensionAscended)}
+          period={period}
+          sub="Affiliate buyers in this range ÷ the ones who closed high ticket"
+        />
+        <HeroStat
+          label="Affiliate Closes Per HT Buyer (All Time)"
+          value={closesPerHt(data.ascensionBuyersAllTime, data.ascensionAscendedAllTime)}
+          format="number"
+          override={closesLabel(data.ascensionBuyersAllTime, data.ascensionAscendedAllTime)}
+          period="All Time"
+          sub="Affiliate buyers ever ÷ the ones who closed high ticket"
         />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
