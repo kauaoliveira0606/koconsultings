@@ -205,6 +205,22 @@ function AscensionCycle({ data, period }: { data: SalesCycleResponse; period: st
   return (
     <div className="space-y-4 pt-2">
       <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Affiliate → High Ticket</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <HeroStat
+          label="Ascension Rate"
+          value={data.ascensionRate}
+          format="percent"
+          period={period}
+          sub={`${data.ascensionAscended} of ${data.ascensionBuyers} affiliate buyers in this range have closed high ticket since`}
+        />
+        <HeroStat
+          label="Ascension Rate (All Time)"
+          value={data.ascensionRateAllTime}
+          format="percent"
+          period="All Time"
+          sub={`${data.ascensionAscendedAllTime} of ${data.ascensionBuyersAllTime} affiliate buyers ever have closed high ticket`}
+        />
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <HeroStat
           size="md"

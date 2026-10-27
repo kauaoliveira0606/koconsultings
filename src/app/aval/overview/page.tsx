@@ -415,6 +415,12 @@ export default function OverviewPage() {
                   format: "number",
                   subtext: "Days from first opt-in to first close. Same as Avg Sales Cycle below.",
                 },
+                {
+                  label: "Ascension Rate",
+                  value: salesCycle?.ascensionRate,
+                  format: "percent",
+                  subtext: "Affiliate buyers in this range who have since closed high ticket ÷ affiliate buyers in this range. Matched by email.",
+                },
               ],
             },
           ]}

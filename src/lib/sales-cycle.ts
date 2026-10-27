@@ -106,6 +106,18 @@ export type SalesCycleResponse = {
   ascensions: AscensionRow[];
   avgDaysAscension: number | null;
   medianDaysAscension: number | null;
+  /**
+   * Ascension rate: affiliate buyers (first affiliate sale in range) who closed
+   * high ticket on or after that sale, at any time up to today, ÷ those buyers.
+   * Buyers with no email can't be matched and are left out of both sides.
+   */
+  ascensionRate: number | null;
+  ascensionBuyers: number;
+  ascensionAscended: number;
+  /** The same rate over every affiliate buyer ever. */
+  ascensionRateAllTime: number | null;
+  ascensionBuyersAllTime: number;
+  ascensionAscendedAllTime: number;
   closes: number;
   matched: number;
   avgDays: number | null;
@@ -273,6 +285,20 @@ export function salesCycleGet(offer: SalesCycleOffer) {
         days: daysBetween(aff.closeDate, ht.closeDate),
       });
     }
+    // Ascension rate by affiliate cohort: of the buyers whose first affiliate
+    // sale is in the range, how many have since closed high ticket.
+    const firstHighTicket = new Map<string, string>();
+    for (const r of all) if (r.kind === "High Ticket" && r.email) firstHighTicket.set(r.email, r.closeDate);
+    const cohort = (inRange: boolean) => {
+      const buyers = [...firstAffiliate.values()].filter((a) => !inRange || isDateInRange(a.closeDate, range));
+      const ascended = buyers.filter((a) => {
+        const ht = firstHighTicket.get(a.email!);
+        return !!ht && ht >= a.closeDate;
+      }).length;
+      return { buyers: buyers.length, ascended, rate: buyers.length ? ascended / buyers.length : null };
+    };
+    const ranged = cohort(true);
+    const allTime = cohort(false);
     const days = (kind?: SalesCycleRow["kind"]) =>
       rows.filter((r) => !kind || r.kind === kind).map((r) => r.days);
     return Response.json({
@@ -280,6 +306,12 @@ export function salesCycleGet(offer: SalesCycleOffer) {
       ascensions,
       avgDaysAscension: average(ascensions.map((a) => a.days)),
       medianDaysAscension: median(ascensions.map((a) => a.days)),
+      ascensionRate: ranged.rate,
+      ascensionBuyers: ranged.buyers,
+      ascensionAscended: ranged.ascended,
+      ascensionRateAllTime: allTime.rate,
+      ascensionBuyersAllTime: allTime.buyers,
+      ascensionAscendedAllTime: allTime.ascended,
       closes: rows.length,
       matched: rows.filter((r) => r.days !== null).length,
       avgDays: average(days()),
