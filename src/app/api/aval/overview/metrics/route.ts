@@ -2,7 +2,6 @@ import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { avalBookings } from "@/lib/aval-webinar-funnel";
 import { paidCallsShowed } from "@/lib/webinar-source-funnel";
-import { WEBINAR_SCHEDULE } from "@/lib/webinar-schedule";
 import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
 import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
@@ -21,6 +20,9 @@ import { COMMISSIONS_OFFERS, getPortalCashByDay } from "@/lib/airtable/commissio
 import { average, safeDivide, sum, sumByDate, vslTotals, formFirstByDay, webinarTotals } from "@/lib/metrics";
 
 export const revalidate = 60;
+
+/** First day paid bookings count toward Cost Per Booked/Live Call (Paid). */
+const COST_PER_CALL_TRACKED_FROM = "2026-10-28";
 
 /** Sun/Sat get the 20% affiliate commission rate; Mon–Fri get 10%. */
 function isWeekendDate(dateStr: string): boolean {
@@ -174,19 +176,21 @@ export async function GET(request: NextRequest) {
 
   // Ad spend only buys paid calls (user, 2026-10-19): cost per call is over the
   // paid masterclass Calendly bookings made in range. Blank if they can't be read.
+  // Bookings before COST_PER_CALL_TRACKED_FROM were inaccurate (user, 2026-10-27),
+  // so only bookings and spend from that day on count; earlier ranges show N/A.
+  const costPerCallTracked = !range.end || range.end >= COST_PER_CALL_TRACKED_FROM;
   const paidCalls = await avalBookings(easternDateString())
-    .then((rows) => paidCallsShowed(rows, postCallNotes, (d) => isDateInRange(d, range)))
+    .then((rows) => paidCallsShowed(rows, postCallNotes, (d) => d >= COST_PER_CALL_TRACKED_FROM && isDateInRange(d, range)))
     .catch((err) => {
       console.error("Aval paid bookings", err);
       return null;
     });
   const paidCallsBooked = paidCalls?.booked ?? null;
-  // Only the ad spend from days bookings are tracked (from the first webinar's promo), so older spend isn't put on these calls.
-  const trackedFrom = WEBINAR_SCHEDULE.aval.map((r) => r.promoStart).sort()[0];
-  const trackedSpend = sum(inRangeMarketing.filter((r) => !!r.date && r.date >= trackedFrom).map((r) => r.adSpendMeta));
-  const costPerCallHT = adsActive && paidCallsBooked !== null ? safeDivide(trackedSpend, paidCallsBooked || null) : null;
+  // Only the ad spend from the same days, so older spend isn't put on these calls.
+  const trackedSpend = sum(inRangeMarketing.filter((r) => !!r.date && r.date >= COST_PER_CALL_TRACKED_FROM).map((r) => r.adSpendMeta));
+  const costPerCallHT = adsActive && costPerCallTracked && paidCallsBooked !== null ? safeDivide(trackedSpend, paidCallsBooked || null) : null;
   // Cost per live call: the same spend over the paid bookings that showed (a Post Call Note after booking, not a no show).
-  const costPerLiveCallHT = adsActive && paidCalls ? safeDivide(trackedSpend, paidCalls.showed || null) : null;
+  const costPerLiveCallHT = adsActive && costPerCallTracked && paidCalls ? safeDivide(trackedSpend, paidCalls.showed || null) : null;
 
   // Time to Close: average days from a lead's opt-in to the call that
   // actually collected cash for them, matched by email across Affiliate PCN
@@ -327,6 +331,7 @@ export async function GET(request: NextRequest) {
     cacHighTicketPaid: safeDivide(adSpend, highTicketDealsClosedPaid || null),
     costPerCallHT,
     costPerLiveCallHT,
+    costPerCallTracked,
     leadToCloseRate: safeDivide(salesCount || null, inRangeLeads.length || null),
     avgDaysToClose,
 

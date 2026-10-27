@@ -79,6 +79,7 @@ type MetricsResponse = {
   leadToCloseRate: number | null;
   costPerCallHT: number | null;
   costPerLiveCallHT: number | null;
+  costPerCallTracked?: boolean;
   avgDaysToClose: number | null;
 
   vslViews: number | null;
@@ -267,16 +268,16 @@ export default function OverviewPage() {
             label="Cost Per Booked Call (Paid)"
             value={metrics?.costPerCallHT}
             format="currency"
-            override={!adsActive ? notActive : undefined}
-            sub="Ad spend ÷ paid calls booked"
+            override={!adsActive ? notActive : metrics?.costPerCallTracked === false ? "N/A" : undefined}
+            sub="Ad spend ÷ paid calls booked · tracked from Oct 28"
           />
           <HeroStat
             size="md"
             label="Cost Per Live Call (Paid)"
             value={metrics?.costPerLiveCallHT}
             format="currency"
-            override={!adsActive ? notActive : undefined}
-            sub="Ad spend ÷ paid calls that showed"
+            override={!adsActive ? notActive : metrics?.costPerCallTracked === false ? "N/A" : undefined}
+            sub="Ad spend ÷ paid calls that showed · tracked from Oct 28"
           />
           <HeroStat
             size="md"
@@ -388,14 +389,14 @@ export default function OverviewPage() {
                   label: "Cost Per Call",
                   value: metrics?.costPerCallHT,
                   format: "currency",
-                  override: !adsActive ? notActive : undefined,
+                  override: !adsActive ? notActive : metrics?.costPerCallTracked === false ? "N/A" : undefined,
                   subtext: "Ad spend ÷ paid calls booked (Calendly, lead tagged paid).",
                 },
                 {
                   label: "Cost Per Live Call",
                   value: metrics?.costPerLiveCallHT,
                   format: "currency",
-                  override: !adsActive ? notActive : undefined,
+                  override: !adsActive ? notActive : metrics?.costPerCallTracked === false ? "N/A" : undefined,
                   subtext: "Ad spend ÷ paid calls that showed (Post Call Note after booking, not a no show).",
                 },
               ],
