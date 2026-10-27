@@ -20,7 +20,9 @@ export async function GET(request: Request) {
   }
   const [bronson, ecomSimulation] = await Promise.all([
     listExpenses(EXPENSE_TABLES.bronson),
-    listExpenses(EXPENSE_TABLES.ecomSimulation),
+    // Andy is offboarded and the key lost access to his base: no rows, rather
+    // than failing Bronson's expenses with it.
+    listExpenses(EXPENSE_TABLES.ecomSimulation).catch(() => []),
   ]);
   return Response.json({
     bronson: effectiveExpenses(EXPENSE_TABLES.bronson, bronson).filter((e) => e.month === month),
