@@ -361,8 +361,11 @@ export default function OverviewPage() {
                   format: "currency",
                   override: !adsActive ? notActive : undefined,
                   subtext: "Ad spend ÷ affiliate sales from paid.",
-                  // Good while a customer costs less than they pay (user, 2026-10-27): under the affiliate AOV, not a fixed $100.
-                  status: adsActive ? kpiStatus(metrics?.cacLowTicketPaid, metrics?.averageOrderValueLowTicket, "lower") : null,
+                  // Good while a customer costs less than they pay (user, 2026-10-27): green at or under the
+                  // affiliate AOV, red over it, no yellow; not a fixed $100.
+                  status: adsActive
+                    ? kpiStatus(metrics?.cacLowTicketPaid, metrics?.averageOrderValueLowTicket, "lower", metrics?.averageOrderValueLowTicket ?? null)
+                    : null,
                   goal: adsActive ? kpiLabel(metrics?.averageOrderValueLowTicket, "lower", "currency") : null,
                 },
                 {
