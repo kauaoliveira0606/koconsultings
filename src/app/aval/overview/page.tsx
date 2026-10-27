@@ -97,6 +97,7 @@ type MetricsResponse = {
   chargebackCount: number | null;
   chargebackDollars: number | null;
   refundChargebackDollars: number | null;
+  cashAfterRefunds: number | null;
   refundChargebackRate: number | null;
 };
 
@@ -232,6 +233,13 @@ export default function OverviewPage() {
             format="currency"
             period={period}
             sub="Meta, from the daily form"
+          />
+          <HeroStat
+            size="md"
+            label="Cash After Refunds"
+            value={metrics?.cashAfterRefunds}
+            format="currency"
+            sub="Total cash collected − refunds and chargebacks"
           />
           <HeroStat
             size="md"

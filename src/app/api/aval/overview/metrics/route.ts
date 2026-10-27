@@ -231,6 +231,9 @@ export async function GET(request: NextRequest) {
     refundDollars !== null || chargebackDollars !== null
       ? (refundDollars ?? 0) + (chargebackDollars ?? 0)
       : null;
+  // Total cash collected minus refunds and chargebacks in the same range.
+  const cashAfterRefunds =
+    totalCashCollected !== null ? totalCashCollected - (refundChargebackDollars ?? 0) : null;
   const highTicketDealsClosedPaid = sum(inRangeMarketing.map((r) => r.highTicketDealsClosedPaid));
 
   const vsl = vslTotals(inRangeMarketing);
@@ -361,6 +364,7 @@ export async function GET(request: NextRequest) {
     chargebackCount,
     chargebackDollars,
     refundChargebackDollars,
+    cashAfterRefunds,
     refundChargebackRate: safeDivide(refundChargebackDollars, totalCashCollected),
   });
 }
