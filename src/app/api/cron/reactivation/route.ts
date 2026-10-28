@@ -20,12 +20,13 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const started = Date.now();
   const report: RunReport & { errors: string[] } = { firstTexts: 0, followUps: 0, replies: 0, skipped: {}, errors: [] };
   // Each step on its own, so a failed reply never blocks the sends.
   const steps = [
     () => runReplies(report),
     () => checkOptOuts(report),
-    () => runSends(new Date().getUTCMinutes() < 5, report),
+    () => runSends(new Date().getUTCMinutes() < 5, started + 240_000, report),
   ];
   for (const step of steps) {
     try {

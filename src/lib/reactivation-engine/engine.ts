@@ -142,7 +142,7 @@ const REPLY_SCHEMA = {
   additionalProperties: false,
 };
 
-// ---------- Time zones: texts only go out 9am to 9pm in the lead's time ----------
+// ---------- Time zones: when a lead may be texted ----------
 
 /** Single time zone countries by calling code, for leads GHL has no time zone for. */
 const COUNTRY_TZ: [string, string][] = [
@@ -155,10 +155,6 @@ const COUNTRY_TZ: [string, string][] = [
   ["+60", "Asia/Kuala_Lumpur"],
   ["+971", "Asia/Dubai"],
   ["+966", "Asia/Riyadh"],
-  ["+27", "Africa/Johannesburg"],
-  ["+234", "Africa/Lagos"],
-  ["+233", "Africa/Accra"],
-  ["+254", "Africa/Nairobi"],
   ["+49", "Europe/Berlin"],
   ["+33", "Europe/Paris"],
   ["+34", "Europe/Madrid"],
@@ -167,24 +163,27 @@ const COUNTRY_TZ: [string, string][] = [
   ["+64", "Pacific/Auckland"],
 ];
 
-/** The zones to check: the lead's own, or for a +1 number with none, both US coasts (so noon to 9pm Eastern). */
-export function leadZones(c: Pick<GhlContact, "timezone" | "phone">): string[] | null {
-  if (c.timezone) return [c.timezone];
+/** User, 2026-10-28: never text African numbers (+20, +21x to +26x, +27, +290, +291). */
+const AFRICA = /^\+(20|2[1-6]\d|27|29[01])/;
+
+type SendWindow = { timeZone: string; from: number; to: number };
+
+/** User, 2026-10-28: US (+1) numbers 9am to 10pm Eastern; everyone else 9am to 9pm their own time. */
+export function sendWindow(c: Pick<GhlContact, "timezone" | "phone">): SendWindow | null {
   const phone = c.phone ?? "";
-  if (phone.startsWith("+1")) return ["America/New_York", "America/Los_Angeles"];
-  const hit = COUNTRY_TZ.find(([code]) => phone.startsWith(code));
-  return hit ? [hit[1]] : null;
+  if (phone.startsWith("+1")) return { timeZone: "America/New_York", from: 9, to: 22 };
+  if (AFRICA.test(phone)) return null;
+  const timeZone = c.timezone || COUNTRY_TZ.find(([code]) => phone.startsWith(code))?.[1];
+  return timeZone ? { timeZone, from: 9, to: 21 } : null;
 }
 
-export function inWindow(zones: string[], now = new Date()): boolean {
-  return zones.every((timeZone) => {
-    const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", hourCycle: "h23" }).format(now));
-    return hour >= 9 && hour < 21;
-  });
+export function inWindow(w: SendWindow, now = new Date()): boolean {
+  const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: w.timeZone, hour: "numeric", hourCycle: "h23" }).format(now));
+  return hour >= w.from && hour < w.to;
 }
 
-function localTime(zones: string[]): string {
-  return new Date().toLocaleString("en-US", { timeZone: zones[0], weekday: "long", hour: "numeric", minute: "2-digit" });
+function localTime(timeZone: string): string {
+  return new Date().toLocaleString("en-US", { timeZone, weekday: "long", hour: "numeric", minute: "2-digit" });
 }
 
 // ---------- Who to text ----------
@@ -199,12 +198,13 @@ function textable(phone: string | undefined): boolean {
 /** BUILD.md "who to text", plus the user's blocked Base44 stages. The daily cap is counted by the caller. */
 async function skipReason(c: GhlContact): Promise<string | null> {
   if (!textable(c.phone)) return "no valid phone";
+  if (AFRICA.test(c.phone!)) return "African number";
   if (c.dnd) return "DND";
   // Cold means the reps have had their week with them.
   if (Date.now() - Date.parse(c.dateAdded) < 7 * DAY) return "signed up under 7 days ago";
-  const zones = leadZones(c);
-  if (!zones) return "unknown time zone";
-  if (!inWindow(zones)) return "outside 9am to 9pm their time";
+  const w = sendWindow(c);
+  if (!w) return "unknown time zone";
+  if (!inWindow(w)) return "outside send hours";
   if ((await contactStages(c.id)).some((s) => BLOCKED_STAGES.has(s))) return "blocked stage";
   const msgs = await history(c.id);
   if (msgs.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) return "said STOP";
@@ -217,7 +217,7 @@ async function skipReason(c: GhlContact): Promise<string | null> {
   return recentRep ? "rep text or call in the last 7 days" : null;
 }
 
-const PERMANENT_SKIPS = new Set(["no valid phone", "blocked stage", "said STOP"]);
+const PERMANENT_SKIPS = new Set(["no valid phone", "African number", "blocked stage", "said STOP"]);
 
 // ---------- Airtable rows ----------
 
@@ -263,9 +263,10 @@ export type RunReport = { firstTexts: number; followUps: number; replies: number
 /**
  * Texts: approved drafts, then due follow-ups, then new first texts up to the
  * daily cap (first texts only). `scanNew` is false on the 5-minute runs so GHL
- * is only searched for new leads once an hour.
+ * is only searched for new leads once an hour. Stops at `deadline` so the run
+ * ends inside Vercel's time limit; the next run picks up where it left off.
  */
-export async function runSends(scanNew: boolean, report: RunReport): Promise<void> {
+export async function runSends(scanNew: boolean, deadline: number, report: RunReport): Promise<void> {
   const settings = await getReactivationSettings();
   if (!settings.engineOn) return;
   const leads = await getReactivationRows("leads");
@@ -299,7 +300,7 @@ export async function runSends(scanNew: boolean, report: RunReport): Promise<voi
         "GHL Contact ID": c.id,
         Email: c.email ?? null,
         Phone: c.phone ?? null,
-        Timezone: leadZones(c)?.join(" / ") ?? null,
+        Timezone: sendWindow(c)?.timeZone ?? null,
         DND: false,
         Buyer: false,
         ...fields,
@@ -309,7 +310,7 @@ export async function runSends(scanNew: boolean, report: RunReport): Promise<voi
 
   // 1. Drafts approved in chat or on the dashboard.
   for (const d of messages.filter((m) => m.fields.Status === "approved" && m.fields.Direction === "out")) {
-    if (report.off || firstToday >= settings.dailyCap) break;
+    if (report.off || firstToday >= settings.dailyCap || Date.now() > deadline) break;
     const c = await getContact(s(d.fields["GHL Contact ID"]));
     const why = await skipReason(c);
     if (why) {
@@ -324,15 +325,15 @@ export async function runSends(scanNew: boolean, report: RunReport): Promise<voi
 
   // 2. Follow-ups: max 2 more, 3 days apart, only if they never replied.
   for (const lead of leads.filter((l) => l.fields.Status === "Texted")) {
-    if (report.off) return;
+    if (report.off || Date.now() > deadline) return;
     const id = s(lead.fields["GHL Contact ID"]);
     const mine = sentOut.filter((m) => m.fields["GHL Contact ID"] === id).sort((a, b) => s(a.fields["Sent At"]).localeCompare(s(b.fields["Sent At"])));
     const last = mine[mine.length - 1];
     const touch = Math.max(...mine.map((m) => Number(m.fields.Touch) || 1)) + 1;
     if (!last || touch > 3 || Date.now() - Date.parse(s(last.fields["Sent At"])) < 3 * DAY) continue;
     const c = await getContact(id);
-    const zones = leadZones(c);
-    if (c.dnd || !zones || !inWindow(zones)) continue;
+    const w = sendWindow(c);
+    if (c.dnd || !w || !inWindow(w)) continue;
     const body = await generate({
       model: MODELS.firstText,
       system: FIRST_TEXT_SYSTEM,
@@ -350,13 +351,11 @@ ${mine.map((m) => `- ${s(m.fields.Body)}`).join("\n")}`,
   // 3. New first texts, newest cold Base44 leads first.
   if (!scanNew || firstToday >= settings.dailyCap) return;
   const seen = new Set(leadById.keys());
-  let checked = 0;
   for await (const { contactId, createdAt } of base44Leads()) {
-    if (report.off || firstToday >= settings.dailyCap || checked >= 300) return;
+    if (report.off || firstToday >= settings.dailyCap || Date.now() > deadline) return;
     if (seen.has(contactId)) continue;
     seen.add(contactId);
     if (Date.now() - Date.parse(createdAt) < 7 * DAY) continue;
-    checked++;
     const c = await getContact(contactId);
     const why = await skipReason(c);
     if (why) {
@@ -427,12 +426,12 @@ export async function runReplies(report: RunReport): Promise<void> {
 
     if (settings.engineOn) {
       const c = await getContact(conv.contactId);
-      const zones = leadZones(c) ?? ["America/New_York"];
+      const timeZone = sendWindow(c)?.timeZone ?? c.timezone ?? "America/New_York";
       const out = await generate({
         model: MODELS.reply,
         system: REPLY_SYSTEM,
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-Their local time now: ${localTime(zones)}
+Their local time now: ${localTime(timeZone)}
 
 Full text thread, oldest first:
 ${thread(msgs)}

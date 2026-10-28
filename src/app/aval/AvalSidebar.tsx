@@ -5,6 +5,7 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 const NAV_ITEMS = [
   { href: "/aval/overview", label: "Overview" },
   { href: "/aval/webinars", label: "Webinars" },
+  { href: "/aval/reactivation", label: "Reactivation" },
   { href: "/aval/scorecard", label: "Scorecard" },
   { href: "/aval/cash-calendar", label: "Cash Calendar" },
   { href: "/aval/sales-team", label: "Sales Team" },

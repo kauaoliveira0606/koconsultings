@@ -197,7 +197,7 @@ function ControlsPanel() {
       <div className={panel}>
         <p className="text-sm text-[var(--text-muted)]">
           Controls are behind the admin password.{" "}
-          <a className="font-semibold text-sky-200 underline" href="/aval/admin-team/unlock?next=/aval/overview">
+          <a className="font-semibold text-sky-200 underline" href="/aval/admin-team/unlock?next=/aval/reactivation">
             Unlock
           </a>
         </p>
