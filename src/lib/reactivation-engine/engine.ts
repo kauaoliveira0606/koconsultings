@@ -182,8 +182,8 @@ const SEND_RULES: Record<
     usEastern: true,
     usHours: [9, 22],
     hours: [9, 21],
-    // BUILD.md safety switch: opt-outs over 3% or 3 failed sends in a row turn it OFF.
-    autoOff: true,
+    // User, 2026-10-28: never shut Aval off by itself either.
+    autoOff: false,
   },
   // User, 2026-10-28: never text Middle Eastern or African numbers.
   // BUILD.md default: 9am to 8pm in the lead's own time zone.
