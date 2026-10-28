@@ -164,3 +164,22 @@ export async function setReactivationSetting(key: "engine_on" | "daily_cap" | "o
 export async function setDraftStatus(messageId: string, status: "approved" | "rejected") {
   await patch(REACTIVATION_TABLES.messages, [{ id: messageId, fields: { Status: status } }]);
 }
+
+/** The engine's own uncached reads, with record ids and raw fields. */
+export async function getReactivationRows(table: keyof typeof REACTIVATION_TABLES, filterByFormula?: string) {
+  return airtableListFresh(AVAL_BASE_ID, REACTIVATION_TABLES[table], filterByFormula ? { filterByFormula } : undefined);
+}
+
+export async function createReactivationRow(table: keyof typeof REACTIVATION_TABLES, fields: Record<string, unknown>) {
+  const res = await fetch(`${AIRTABLE_API_BASE}/${AVAL_BASE_ID}/${REACTIVATION_TABLES[table]}`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ records: [{ fields }], typecast: true }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new AirtableError(`Airtable create failed: ${await res.text()}`, res.status);
+}
+
+export async function updateReactivationRow(table: keyof typeof REACTIVATION_TABLES, id: string, fields: Record<string, unknown>) {
+  await patch(REACTIVATION_TABLES[table], [{ id, fields }]);
+}
