@@ -15,7 +15,7 @@ import {
   history,
   recentConversations,
   sendSms,
-  tagTexted,
+  markTexted,
   type GhlContact,
   type GhlMessage,
 } from "./ghl";
@@ -295,7 +295,7 @@ export async function runSends(scanNew: boolean, deadline: number, report: RunRe
     const fields: Record<string, unknown> = { "Last Message At": now };
     if (touch === 1) {
       Object.assign(fields, { Status: "Texted", "First Texted At": now });
-      await tagTexted(c.id).catch((e) => console.error("reactivation tag failed", c.id, e));
+      await markTexted(c.id).catch((e) => console.error("reactivation GHL tag/stage failed", c.id, e));
     }
     if (lead) await updateReactivationRow("leads", lead.id, fields);
     else
