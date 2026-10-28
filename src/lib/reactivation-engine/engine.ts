@@ -173,7 +173,7 @@ const AFRICA_MIDDLE_EAST = "20|2[1-6]\\d|27|29[01]|90|96[1-8]|97[0-4]|98";
 
 const SEND_RULES: Record<
   ReactivationOffer,
-  { blockedCountries: RegExp; usEastern: boolean; usHours: [number, number]; hours: [number, number] }
+  { blockedCountries: RegExp; usEastern: boolean; usHours: [number, number]; hours: [number, number]; autoOff: boolean }
 > = {
   // User, 2026-10-28: never text African, Indian, Pakistani/South Asian or Middle Eastern numbers.
   // US (+1) numbers 9am to 10pm Eastern; everyone else 9am to 9pm their own time.
@@ -182,6 +182,8 @@ const SEND_RULES: Record<
     usEastern: true,
     usHours: [9, 22],
     hours: [9, 21],
+    // BUILD.md safety switch: opt-outs over 3% or 3 failed sends in a row turn it OFF.
+    autoOff: true,
   },
   // User, 2026-10-28: never text Middle Eastern or African numbers.
   // BUILD.md default: 9am to 8pm in the lead's own time zone.
@@ -190,6 +192,8 @@ const SEND_RULES: Record<
     usEastern: false,
     usHours: [9, 20],
     hours: [9, 20],
+    // User, 2026-10-28: never shut Bronson off by itself.
+    autoOff: false,
   },
 };
 
@@ -328,7 +332,7 @@ export async function runSends(
         if (lead) await updateReactivationRow(offer, "leads", lead.id, { Status: "Skipped" });
         else await createReactivationRow(offer, "leads", { Name: c.contactName || c.phone || c.id, "GHL Contact ID": c.id, Phone: c.phone ?? null, Status: "Skipped" });
       }
-      if (++failsInARow >= 3) {
+      if (++failsInARow >= 3 && SEND_RULES[offer].autoOff) {
         report.off = "3 texts in a row failed to send";
         await turnOff(offer, report.off);
       }
@@ -588,6 +592,7 @@ async function turnOff(offer: ReactivationOffer, reason: string) {
 
 /** BUILD.md safety switch: opt-outs over 3% of today's texts turn the engine OFF. */
 export async function checkOptOuts(offer: ReactivationOffer, report: RunReport): Promise<void> {
+  if (!SEND_RULES[offer].autoOff) return;
   if (!(await getReactivationSettings(offer)).engineOn) return;
   const today = easternDay(new Date());
   const messages = await getReactivationRows(offer, "messages");
