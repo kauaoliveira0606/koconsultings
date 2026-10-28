@@ -14,6 +14,7 @@ import type { WebinarTotals } from "@/lib/metrics";
 import { PieSplit } from "@/components/dashboard/PieSplit";
 import { RateColumns } from "@/components/dashboard/RateColumns";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
+import { ReactivationSection } from "@/components/dashboard/ReactivationSection";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
@@ -806,6 +807,16 @@ export default function OverviewPage() {
             : ""}
           From the Refunds table in Airtable.
         </p>
+      </DashboardSection>
+
+      <DashboardSection title="Reactivation">
+        <ReactivationSection range={range} />
+      </DashboardSection>
+
+      <DashboardSection title="Webinar Show Rate">
+        <div className="rounded-lg border border-dashed border-[var(--panel-border)] bg-[var(--panel-bg)] px-5 py-8 text-center text-sm text-[var(--text-muted)]">
+          Not built yet.
+        </div>
       </DashboardSection>
     </div>
   );

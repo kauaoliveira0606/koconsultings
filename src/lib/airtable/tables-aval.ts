@@ -244,7 +244,10 @@ export type AvalAffiliatePcnRow = {
   repName: string | null;
   leadName: string | null;
   leadEmail: string | null;
+  leadPhone: string | null;
   cpaCash: number | null;
+  /** When the note was filed: always after the close, used to order a same-day close against a text. */
+  createdTime: string;
 };
 
 export async function getAvalAffiliatePcn(): Promise<AvalAffiliatePcnRow[]> {
@@ -263,7 +266,9 @@ export async function getAvalAffiliatePcn(): Promise<AvalAffiliatePcnRow[]> {
       repName: (f["Your Name"] as string) ?? null,
       leadName: (f["Lead Name"] as string) ?? null,
       leadEmail: (f["Lead Email"] as string) ?? null,
+      leadPhone: (f["Phone number"] as string) ?? null,
       cpaCash: parseNumericText(f["CPA?"]),
+      createdTime: r.createdTime,
     };
   });
 }
