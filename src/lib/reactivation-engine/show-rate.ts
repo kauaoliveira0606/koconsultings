@@ -32,12 +32,21 @@ const STOP = /^\s*(stop|unsubscribe|remove me|cancel|quit|end)\b/i;
 const SIGNUP_PAGE = "https://www.ad-ventur.com/masterclass";
 const CHECK_IN_HOUR = 16;
 /** User, 2026-10-28: never send a link outside the approved set. */
-const APPROVED_LINKS = ["https://event.webinarjam.com/8wgzn9/go/live/13q192tyipsxs4", "https://www.ad-ventur.com/masterclass"];
+const APPROVED_LINKS = [
+  "https://event.webinarjam.com/8wgzn9/go/live/13q192tyipsxs4",
+  "https://www.ad-ventur.com/masterclass",
+  "https://www.youtube.com/@Bronny.builds",
+  "https://www.instagram.com/bronnybuilds/",
+];
+
+/** Protocol, "www.", trailing slash and trailing punctuation don't matter. */
+const normLink = (l: string) => l.toLowerCase().replace(/[.,!?)]+$/, "").replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
 
 /** False when a text carries any link that isn't approved; such a text is never sent. */
 function linksOk(text: string): boolean {
-  const links = text.match(/(https?:\/\/|www\.)\S+/gi) ?? [];
-  return links.every((l) => APPROVED_LINKS.some((ok) => l.replace(/[.,!?)]+$/, "") === ok || l.replace(/[.,!?)]+$/, "") === ok.replace("https://", "")));
+  // Bare domains count too ("evil.com/x"), not just https:// links.
+  const links = text.match(/\b(?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/\S*)?/gi) ?? [];
+  return links.every((l) => APPROVED_LINKS.some((ok) => normLink(l) === normLink(ok)));
 }
 
 const REGISTERED = new Set([MASTERCLASS_OPT_IN_STAGE, MASTERCLASS_VIP_STAGE]);
