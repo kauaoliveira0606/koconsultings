@@ -4,7 +4,8 @@ import { AVAL_BASE_ID } from "@/lib/airtable/tables-aval";
 
 const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 
-export type ReactivationOffer = "aval" | "bronson";
+/** "bronsonMasterclass" is the show-rate engine: replies to masterclass registrants, no cold texts. */
+export type ReactivationOffer = "aval" | "bronson" | "bronsonMasterclass";
 
 /**
  * The reactivation engine (texts cold leads, books calls) writes four tables
@@ -23,6 +24,11 @@ const REACTIVATION_BASES: Record<
   bronson: {
     baseId: BRONSON_BASE_ID,
     tables: { leads: "tblZR0PubDIa63Zfm", messages: "tblAVON2uKp3n9Gb4", aiCalls: "tblf8q6sm6OLYFTRb", settings: "tbl6hx62lgWZxhKzr" },
+  },
+  // Created 2026-10-28 for the masterclass show-rate engine ("Show Rate ..." tables).
+  bronsonMasterclass: {
+    baseId: BRONSON_BASE_ID,
+    tables: { leads: "tbl0lDXqb2TDAzteD", messages: "tblf95GScpqTQimQB", aiCalls: "tblLtwnCUqi1nZ1nf", settings: "tblrUSx0jAoEK34Wo" },
   },
 };
 
@@ -178,6 +184,11 @@ export async function setReactivationSetting(offer: ReactivationOffer, key: "eng
 /** Approve or reject a queued draft. Approved drafts are what the engine sends. */
 export async function setDraftStatus(offer: ReactivationOffer, messageId: string, status: "approved" | "rejected") {
   await patch(offer, "messages", [{ id: messageId, fields: { Status: status } }]);
+}
+
+/** Cached reads (60s) for dashboards, with record ids and raw fields. */
+export async function listReactivationRows(offer: ReactivationOffer, key: TableKey) {
+  return airtableListAll(base(offer), table(offer, key));
 }
 
 /** The engine's own uncached reads, with record ids and raw fields. */

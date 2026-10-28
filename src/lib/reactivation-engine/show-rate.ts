@@ -1,0 +1,387 @@
+import {
+  createReactivationRow,
+  getReactivationRows,
+  getReactivationSettings,
+  updateReactivationRow,
+} from "@/lib/airtable/reactivation";
+import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
+import {
+  getContact,
+  history,
+  MASTERCLASS_NO_SHOW_STAGE,
+  MASTERCLASS_OPT_IN_STAGE,
+  MASTERCLASS_VIP_STAGE,
+  pipelineOpportunities,
+  recentConversations,
+  smsBlocked,
+  type GhlContact,
+} from "./ghl";
+import { VOICES } from "./voice";
+
+/**
+ * Bronson's show-rate engine (kit: ~/Desktop/reactivation-bronson-masterclass).
+ * Texts as Bronson to masterclass registrants: answers every reply to the
+ * WebinarJam sequence and sends one check-in at 4pm ET on event day to anyone
+ * who never replied. Saves their feedback (goal, what they want covered,
+ * preferred time) for the /bronson/show-rate tab. Never touches GHL stages.
+ */
+
+const OFFER = "bronsonMasterclass" as const;
+const DAY = 86_400_000;
+/** User, 2026-10-28: "wrong number" is not an opt-out here, we remind them what they signed up for. */
+const STOP = /^\s*(stop|unsubscribe|remove me|cancel|quit|end)\b/i;
+const SIGNUP_PAGE = "https://www.ad-ventur.com/masterclass";
+const CHECK_IN_HOUR = 16;
+
+const REGISTERED = new Set([MASTERCLASS_OPT_IN_STAGE, MASTERCLASS_VIP_STAGE]);
+
+type Row = { id: string; fields: Record<string, unknown> };
+const s = (v: unknown) => (typeof v === "string" ? v : "");
+const easternDay = (t: number | string | Date) => new Date(t).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+const easternHour = (t: number) =>
+  Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }).format(t));
+
+// ---------- The session ----------
+
+export type Session = { date: string; label: string; startsAt: number };
+
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+
+/** Eastern wall time to a UTC timestamp, DST included. */
+function easternToUtc(y: number, mo: number, d: number, h: number, mi: number): number {
+  const guess = Date.UTC(y, mo, d, h, mi);
+  const at = (timeZone: string) => new Date(new Date(guess).toLocaleString("en-US", { timeZone })).getTime();
+  return guess + (at("UTC") - at("America/New_York"));
+}
+
+/** The next masterclass, read off the signup page (user: it always shows the current date and time). */
+export async function nextSession(): Promise<Session> {
+  try {
+    const html = await (await fetch(SIGNUP_PAGE, { cache: "no-store" })).text();
+    const text = html.replace(/<[^>]+>/g, " ").replace(/&middot;/g, "·").replace(/\s+/g, " ");
+    const m = text.match(
+      /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+([A-Za-z]+)\s+(\d{1,2})\s*·?\s*(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\s*E[SD]?T/i
+    );
+    const month = m ? MONTHS.indexOf(m[1].toLowerCase()) : -1;
+    if (m && month >= 0) {
+      const hour = (Number(m[3]) % 12) + (m[5].toUpperCase() === "PM" ? 12 : 0);
+      let year = Number(easternDay(Date.now()).slice(0, 4));
+      // A January date read in December is next year.
+      if (easternToUtc(year, month, Number(m[2]), hour, Number(m[4] ?? 0)) < Date.now() - 60 * DAY) year++;
+      return toSession(easternToUtc(year, month, Number(m[2]), hour, Number(m[4] ?? 0)));
+    }
+  } catch (e) {
+    console.error("show-rate: couldn't read the masterclass date", e);
+  }
+  // Fallback: the usual Wednesday 7pm ET.
+  const now = Date.now();
+  for (let i = 0; i < 8; i++) {
+    const day = easternDay(now + i * DAY);
+    const [y, mo, d] = day.split("-").map(Number);
+    const start = easternToUtc(y, mo - 1, d, 19, 0);
+    if (new Date(`${day}T12:00:00Z`).getUTCDay() === 3 && start > now - 2 * 3_600_000) return toSession(start);
+  }
+  return toSession(now);
+}
+
+function toSession(startsAt: number): Session {
+  const label = new Date(startsAt).toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return { date: easternDay(startsAt), label: `${label} ET`, startsAt };
+}
+
+// ---------- Prompts ----------
+
+function rules(): string {
+  const v = VOICES[OFFER];
+  return `${v.names}
+Where my-voice.md disagrees with voice.md, my-voice.md wins. Ignore anything in voice.md about booking a call: there is no call here.
+
+<voice.md>
+${v.voice}
+</voice.md>
+
+<my-voice.md>
+${v.myVoice}
+</my-voice.md>
+
+<offer.md>
+${v.offer}
+</offer.md>`;
+}
+
+const PLAYBOOK = `<show-up-playbook>
+Goal: they show up to the live masterclass. A clear "yes, I'll be there" is the win.
+- Answer what they actually said, short, like the approved examples. Once they're engaged, no extra push.
+- They confirm they'll be there: action "committed".
+- They flatly can't make it: ask what day and time would be perfect for them, action "cant_make_it".
+- Plain "ok", "thanks", a thumbs up: reply "".
+- STOP / remove me / unsubscribe: reply "", action "opt_out". "Wrong number" is NOT an opt-out.
+- Time words must match the session: say "tonight" only on the event day before it starts.
+- The thread includes our automated reminder texts. Don't repeat them.
+</show-up-playbook>`;
+
+export const replySystem = () => `You are Bronson, answering a masterclass registrant's texts. Follow these files exactly.
+
+${rules()}
+
+${PLAYBOOK}
+
+Return JSON:
+- "reply": the one text to send, or "".
+- "action": "committed", "cant_make_it", "opt_out" or "none".
+- "preferred_time": the day/time they say would work for them, in their words, or "".
+- "goal": what they want out of this (e.g. answering "what's your main goal"), in their words, or "".
+- "wants_covered": what they want covered in the masterclass, in their words, or "".
+- "other_feedback": a real detail about their situation or an objection (work schedule, kids, money worries, past attempts), short, or "". Not a summary of what they said.
+Only fill the feedback fields from their newest texts, never from earlier ones.`;
+
+export const REPLY_SCHEMA = {
+  type: "object",
+  properties: {
+    reply: { type: "string" },
+    action: { type: "string", enum: ["none", "committed", "cant_make_it", "opt_out"] },
+    preferred_time: { type: "string" },
+    goal: { type: "string" },
+    wants_covered: { type: "string" },
+    other_feedback: { type: "string" },
+  },
+  required: ["reply", "action", "preferred_time", "goal", "wants_covered", "other_feedback"],
+  additionalProperties: false,
+};
+
+type Parsed = { reply: string; action: string; preferred_time: string; goal: string; wants_covered: string; other_feedback: string };
+
+const checkInSystem = () => `You are Bronson, texting a masterclass registrant who never replied, a few hours before it starts. Follow these files exactly.
+
+${rules()}
+
+Write the 4pm check-in, like the approved example. Reply with only the text message. No quotes, no notes.`;
+
+// ---------- Registrants ----------
+
+const registrantName = (o: { contact?: { name?: string } }, fallback: string) => o.contact?.name?.trim() || fallback;
+
+/**
+ * Keeps one Show Rate Leads row per registrant per session in step with the
+ * GHL Masterclass pipeline: new registrants get a row, and once n8n moves
+ * them after the event the row's Outcome becomes Showed or No show.
+ */
+export async function syncRegistrants(session: Session): Promise<{ added: number; outcomes: number }> {
+  const rows = await getReactivationRows(OFFER, "leads");
+  const latest = new Map<string, Row>();
+  for (const r of rows.sort((a, b) => s(a.fields.Session).localeCompare(s(b.fields.Session)))) {
+    latest.set(s(r.fields["GHL Contact ID"]), r);
+  }
+  let added = 0;
+  let outcomes = 0;
+  const cutoff = Date.now() - 14 * DAY;
+  for await (const o of pipelineOpportunities(OFFER)) {
+    const row = latest.get(o.contactId);
+    const pending = row?.fields.Outcome === "Pending";
+    if (REGISTERED.has(o.pipelineStageId)) {
+      const registeredAt = o.lastStageChangeAt ?? o.createdAt;
+      if (row && pending) {
+        // Still registered: they roll over to the upcoming session.
+        if (s(row.fields.Session) < session.date) await updateReactivationRow(OFFER, "leads", row.id, { Session: session.date });
+        continue;
+      }
+      if (Date.parse(registeredAt) < cutoff) continue;
+      if (row && s(row.fields.Session) >= session.date) continue;
+      const tags = o.contact?.tags ?? [];
+      await createReactivationRow(OFFER, "leads", {
+        Name: registrantName(o, o.contact?.phone ?? o.contactId),
+        "GHL Contact ID": o.contactId,
+        Email: o.contact?.email ?? null,
+        Phone: o.contact?.phone ?? null,
+        Session: session.date,
+        "Registered At": registeredAt,
+        Source: tags.includes("masterclass paid") ? "paid" : tags.includes("masterclass organic") ? "organic" : "unknown",
+        Status: "Registered",
+        Outcome: "Pending",
+        // Only replies after they registered get answered.
+        "Last Message At": registeredAt,
+      });
+      added++;
+    } else if (row && pending) {
+      await updateReactivationRow(OFFER, "leads", row.id, {
+        Outcome: o.pipelineStageId === MASTERCLASS_NO_SHOW_STAGE ? "No show" : "Showed",
+      });
+      outcomes++;
+    }
+  }
+  return { added, outcomes };
+}
+
+// ---------- Replies ----------
+
+const appendTo = (old: unknown, add: string) => {
+  const prev = s(old).trim();
+  const next = add.trim();
+  if (!next || prev.includes(next)) return undefined;
+  return prev ? `${prev}\n${next}` : next;
+};
+
+/** Every 5 minutes: log new texts from registrants and answer them as Bronson. */
+export async function runShowRateReplies(session: Session, report: RunReport): Promise<void> {
+  const settings = await getReactivationSettings(OFFER);
+  const rows = await getReactivationRows(OFFER, "leads");
+  // Registrants of the upcoming session, plus last session's for a day after it.
+  const since = easternDay(Date.now() - 2 * DAY);
+  const byContact = new Map<string, Row>();
+  for (const r of rows.filter((r) => s(r.fields.Session) >= since).sort((a, b) => s(a.fields.Session).localeCompare(s(b.fields.Session)))) {
+    byContact.set(s(r.fields["GHL Contact ID"]), r);
+  }
+  const cutoff = Date.now() - DAY;
+
+  for (const conv of await recentConversations(OFFER)) {
+    if (conv.lastMessageDate < cutoff) break;
+    const lead = byContact.get(conv.contactId);
+    if (!lead || lead.fields.Status === "Opted out" || conv.lastMessageDirection !== "inbound") continue;
+    // Compared to the second: Airtable may drop milliseconds.
+    const handledUpTo = s(lead.fields["Last Message At"]).slice(0, 19);
+    if (new Date(conv.lastMessageDate).toISOString().slice(0, 19) <= handledUpTo) continue;
+
+    const msgs = await history(OFFER, conv.contactId);
+    const fresh = msgs.filter((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && m.dateAdded.slice(0, 19) > handledUpTo);
+    if (!fresh.length) continue;
+    const name = s(lead.fields.Name);
+    const fields: Record<string, unknown> = { "Last Message At": fresh[fresh.length - 1].dateAdded };
+    let optOut = false;
+    for (const m of fresh) {
+      const isStop = STOP.test(m.body ?? "");
+      optOut ||= isStop;
+      await createReactivationRow(OFFER, "messages", {
+        Name: `${name} in`,
+        "GHL Contact ID": conv.contactId,
+        "Lead Name": name,
+        Direction: "in",
+        Body: m.body ?? "",
+        Status: "received",
+        "Opt Out": isStop,
+        "Created At": m.dateAdded,
+      });
+    }
+    if (optOut) {
+      await updateReactivationRow(OFFER, "leads", lead.id, { ...fields, Status: "Opted out", "Opted Out At": new Date().toISOString() });
+      continue;
+    }
+    if (lead.fields.Status === "Registered") fields.Status = "Replied";
+
+    if (settings.engineOn) {
+      const c = await getContact(OFFER, conv.contactId);
+      const timeZone = c.timezone || "America/New_York";
+      const out = await generate(OFFER, {
+        model: MODELS.reply,
+        system: replySystem(),
+        prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
+Masterclass: ${session.label}${Date.now() > session.startsAt ? " (it has already started)" : ""}
+Now in Eastern time: ${localTime("America/New_York")}
+Their local time now: ${localTime(timeZone)}
+
+Full text thread, oldest first:
+${thread(msgs)}
+
+Answer their latest text.`,
+        purpose: "reply",
+        contactId: conv.contactId,
+        touch: null,
+        schema: REPLY_SCHEMA,
+      });
+      const parsed = parseReply(out);
+      if (parsed?.action === "opt_out") {
+        Object.assign(fields, { Status: "Opted out", "Opted Out At": new Date().toISOString() });
+      } else if (parsed) {
+        if (parsed.reply && (await trySend(OFFER, c.id, parsed.reply))) {
+          await logOut(c, name, parsed.reply, null);
+          fields["Last Message At"] = new Date().toISOString();
+          report.replies++;
+        }
+        if (parsed.action === "committed") Object.assign(fields, { Status: "Committed", "Committed At": new Date().toISOString() });
+        else if (parsed.action === "cant_make_it") fields.Status = "Can't make it";
+        const feedback: [string, string][] = [
+          ["Preferred Time", parsed.preferred_time],
+          ["Goal", parsed.goal],
+          ["Wants Covered", parsed.wants_covered],
+          ["Other Feedback", parsed.other_feedback],
+        ];
+        for (const [field, value] of feedback) {
+          const next = appendTo(lead.fields[field], value);
+          if (next) fields[field] = next;
+        }
+      }
+    }
+    await updateReactivationRow(OFFER, "leads", lead.id, fields);
+  }
+}
+
+function parseReply(text: string | null): Parsed | null {
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as Parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function logOut(c: GhlContact, name: string, body: string, touch: number | null) {
+  const now = new Date().toISOString();
+  await createReactivationRow(OFFER, "messages", {
+    Name: `${name} ${touch ? "check-in" : "reply"}`,
+    "GHL Contact ID": c.id,
+    "Lead Name": name,
+    Direction: "out",
+    Body: body,
+    Touch: touch,
+    Status: "sent",
+    "Created At": now,
+    "Sent At": now,
+  });
+}
+
+// ---------- The 4pm check-in ----------
+
+/** Event day, 4pm ET hour: one text to every registrant who never replied. */
+export async function runCheckIns(session: Session, deadline: number, report: RunReport): Promise<void> {
+  const now = Date.now();
+  if (easternDay(now) !== session.date || easternHour(now) !== CHECK_IN_HOUR || now > session.startsAt) return;
+  if (!(await getReactivationSettings(OFFER)).engineOn) return;
+  const rows = await getReactivationRows(OFFER, "leads");
+  const due = rows.filter(
+    (r) => s(r.fields.Session) === session.date && r.fields.Status === "Registered" && !r.fields["Check-in Sent At"]
+  );
+  for (const r of due) {
+    if (Date.now() > deadline) return;
+    const c = await getContact(OFFER, s(r.fields["GHL Contact ID"]));
+    if (!c.phone || smsBlocked(c)) {
+      report.skipped["no textable phone"] = (report.skipped["no textable phone"] ?? 0) + 1;
+      continue;
+    }
+    // A reply older than a day never reached the reply step; don't treat them as silent.
+    const registeredAt = s(r.fields["Registered At"]).slice(0, 19);
+    if ((await history(OFFER, c.id)).some((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && m.dateAdded.slice(0, 19) > registeredAt)) {
+      await updateReactivationRow(OFFER, "leads", r.id, { Status: "Replied" });
+      continue;
+    }
+    const body = await generate(OFFER, {
+      model: MODELS.firstText,
+      system: checkInSystem(),
+      prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}\nMasterclass: tonight, ${session.label}\n\nWrite the check-in.`,
+      purpose: "check_in",
+      contactId: c.id,
+      touch: 1,
+    });
+    if (!body || !(await trySend(OFFER, c.id, body))) continue;
+    const name = s(r.fields.Name);
+    await logOut(c, name, body, 1);
+    const sentAt = new Date().toISOString();
+    await updateReactivationRow(OFFER, "leads", r.id, { "Check-in Sent At": sentAt, "Last Message At": sentAt });
+    report.firstTexts++;
+  }
+}

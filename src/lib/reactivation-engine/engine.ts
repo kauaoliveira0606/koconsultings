@@ -8,6 +8,7 @@ import {
   type ReactivationOffer,
 } from "@/lib/airtable/reactivation";
 import {
+  deferReply,
   flagBooked,
   getContact,
   history,
@@ -34,7 +35,7 @@ import { VOICES } from "./voice";
 const DAY = 86_400_000;
 const STOP = /^\s*(stop|unsubscribe|remove me|wrong number|cancel|quit|end)\b/i;
 /** BUILD.md: sonnet writes first texts, opus handles replies. */
-const MODELS = { firstText: "claude-sonnet-5-5", reply: "claude-opus-5-5" } as const;
+export const MODELS = { firstText: "claude-sonnet-5-5", reply: "claude-opus-5-5" } as const;
 /** Per million tokens; cache writes cost 1.25x input. */
 const PRICES: Record<string, { in: number; out: number; cacheRead: number }> = {
   "claude-sonnet-5-5": { in: 2, out: 10, cacheRead: 0.2 },
@@ -46,9 +47,9 @@ const PRICES: Record<string, { in: number; out: number; cacheRead: number }> = {
 // Made on first use: the SDK throws at construction when ANTHROPIC_API_KEY is missing.
 let client: Anthropic | null = null;
 
-type Purpose = "first_text" | "follow_up" | "reply";
+type Purpose = "first_text" | "follow_up" | "reply" | "check_in";
 
-async function generate(offer: ReactivationOffer, opts: {
+export async function generate(offer: ReactivationOffer, opts: {
   model: string;
   system: string;
   prompt: string;
@@ -195,6 +196,14 @@ const SEND_RULES: Record<
     // User, 2026-10-28: never shut Bronson off by itself.
     autoOff: false,
   },
+  // Show-rate engine: only replies to registrants and sends the 4pm check-in (show-rate.ts).
+  bronsonMasterclass: {
+    blockedCountries: /^$/,
+    usEastern: false,
+    usHours: [9, 21],
+    hours: [9, 21],
+    autoOff: false,
+  },
 };
 
 type SendWindow = { timeZone: string; from: number; to: number };
@@ -216,7 +225,7 @@ export function inWindow(w: SendWindow, now = new Date()): boolean {
   return hour >= w.from && hour < w.to;
 }
 
-function localTime(timeZone: string): string {
+export function localTime(timeZone: string): string {
   return new Date().toLocaleString("en-US", { timeZone, weekday: "long", hour: "numeric", minute: "2-digit" });
 }
 
@@ -264,7 +273,7 @@ const easternDay = (iso: string | Date) => new Date(iso).toLocaleDateString("en-
 /** The single-contact endpoint has no contactName, so build it from first + last. */
 const fullName = (c: GhlContact) =>
   c.contactName || [c.firstName, c.lastName].filter(Boolean).join(" ").trim() || c.phone || c.id;
-const firstNameOf = (c: GhlContact) => {
+export const firstNameOf = (c: GhlContact) => {
   const n = c.firstName?.trim().split(/\s+/)[0] ?? "";
   return /^[a-z][a-z'-]+$/i.test(n) && !/^(ok|affiliate|test)$/i.test(n) ? n : null;
 };
@@ -286,7 +295,7 @@ async function logSent(offer: ReactivationOffer, lead: Row | null, c: GhlContact
 }
 
 /** Sends, and returns false (instead of throwing) so failures can trip the safety switch. */
-async function trySend(offer: ReactivationOffer, contactId: string, body: string): Promise<boolean> {
+export async function trySend(offer: ReactivationOffer, contactId: string, body: string): Promise<boolean> {
   try {
     await sendSms(offer, contactId, body);
     return true;
@@ -532,7 +541,7 @@ export async function runReplies(offer: ReactivationOffer, report: RunReport): P
     }
     if (lead.fields.Status === "Texted") fields.Status = "Replied";
 
-    if (settings.engineOn) {
+    if (settings.engineOn && !(await deferReply(offer, conv.contactId))) {
       const c = await getContact(offer, conv.contactId);
       const timeZone = sendWindow(offer, c)?.timeZone ?? c.timezone ?? "America/New_York";
       const out = await generate(offer, {
@@ -569,7 +578,7 @@ Answer their latest text.`,
   }
 }
 
-function thread(msgs: GhlMessage[]): string {
+export function thread(msgs: GhlMessage[]): string {
   return msgs
     .filter((m) => m.messageType === "TYPE_SMS" && m.body)
     .map((m) => `${m.direction === "inbound" ? "Lead" : "Us"} (${m.dateAdded.slice(0, 16)}Z): ${m.body}`)

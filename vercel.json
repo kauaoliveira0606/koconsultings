@@ -2,6 +2,7 @@
   "crons": [
     { "path": "/api/cron/warm", "schedule": "*/5 * * * *" },
     { "path": "/api/cron/reactivation", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/reactivation-bronson", "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/reactivation-bronson", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/show-rate-bronson", "schedule": "*/5 * * * *" }
   ]
 }

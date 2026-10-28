@@ -20,7 +20,14 @@ const SECTIONS: SidebarSection[] = [
     ],
   },
   { label: "Reactivation", items: [{ href: "/bronson/reactivation", label: "Reactivation" }] },
-  { label: "Webinars", items: [{ href: "/bronson/webinars", label: "Webinars" }] },
+  {
+    label: "Webinars",
+    items: [
+      { href: "/bronson/webinars", label: "Webinars" },
+      { href: "/bronson/show-rate", label: "Show Rate" },
+      { href: "/bronson/no-shows", label: "No-Shows" },
+    ],
+  },
 ];
 
 export function BronsonSidebar() {

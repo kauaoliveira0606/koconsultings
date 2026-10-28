@@ -16,6 +16,8 @@ type GhlOffer = {
   blockedStages: Set<string>;
   /** A contact with any opportunity in these pipelines is never texted. */
   blockedPipelines: Set<string>;
+  /** Another engine answers contacts in these stages, so this one stays quiet on their replies. */
+  deferStages: Set<string>;
   /** Stages texted / booked leads move to in `pipeline`; null leaves the stage alone. */
   textedStage: string | null;
   readyStage: string | null;
@@ -26,6 +28,13 @@ type GhlOffer = {
   /** Extra line on the Discord alert so the team knows what the lead is for. */
   bookedContext: string | null;
 };
+
+export const MASTERCLASS_PIPELINE = "uxzG8oq8bMtG6hCWVFyl";
+/** Registered for the upcoming session; n8n moves them on after it (bVSWLTEH1cHOsNDH). */
+export const MASTERCLASS_OPT_IN_STAGE = "79e030e6-c91f-473e-8add-4cabbe852109";
+/** Bought the $27 upgrade at signup: still a registrant for the upcoming session. */
+export const MASTERCLASS_VIP_STAGE = "e7de3f9c-93bd-4be7-a194-4e091450173a";
+export const MASTERCLASS_NO_SHOW_STAGE = "d6087cb2-e9c3-479f-8151-8f6ed8cbd274";
 
 export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
   aval: {
@@ -40,6 +49,7 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
       "a007b9d8-c3b9-485d-a48d-29db6559a937", // Booked call
     ]),
     blockedPipelines: new Set(),
+    deferStages: new Set(),
     // Added 2026-10-28 right after "Base44 Opt in", named "Reactivation Attempt".
     textedStage: "f6897d1a-12aa-4d78-a350-6e7b8299afab",
     // Added 2026-10-28 right after "Reactivation Attempt": the lead gave us a call time.
@@ -64,9 +74,13 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
       "8de41b99-da24-4b0f-9f78-f6e512569a34", // Dead Lead
       // BUILD.md "not a buyer": high ticket closes from the masterclass too.
       "cf87fbab-3d9e-41a7-8609-94d377439a70", // Masterclass: HIGH TICKET CLOSED
+      // Registered for the upcoming masterclass: the show-rate engine has them.
+      MASTERCLASS_OPT_IN_STAGE,
+      MASTERCLASS_VIP_STAGE,
     ]),
     // Paying clients being onboarded and checked in on.
     blockedPipelines: new Set(["uzqhkJTeAUvgDg4Rh5Br"]), // Fulfillment
+    deferStages: new Set([MASTERCLASS_OPT_IN_STAGE, MASTERCLASS_VIP_STAGE]),
     textedStage: null,
     readyStage: null,
     // User, 2026-10-28: a number we can't text goes to the dead pile. Trash is blocked above.
@@ -74,6 +88,19 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
     bookedWebhookEnv: "DISCORD_BRONSON_REACTIVATION_WEBHOOK",
     // User, 2026-10-28: the team stopped selling Base44 a while back, so say it on every alert.
     bookedContext: "⚠️ **Base44 lead.** Old Base44 free course opt-in: give them free course access and get them started on the AI tools.",
+  },
+  // Show-rate engine: answers masterclass registrants, never books or moves stages.
+  bronsonMasterclass: {
+    envPrefix: "GHL_BRONSON",
+    pipeline: MASTERCLASS_PIPELINE,
+    blockedStages: new Set(),
+    blockedPipelines: new Set(),
+    deferStages: new Set(),
+    textedStage: null,
+    readyStage: null,
+    failedStage: null,
+    bookedWebhookEnv: "",
+    bookedContext: null,
   },
 };
 
@@ -147,6 +174,37 @@ export async function* pipelineLeads(offer: ReactivationOffer): AsyncGenerator<{
 
 export async function getContact(offer: ReactivationOffer, contactId: string): Promise<GhlContact> {
   return (await ghl<{ contact: GhlContact }>(offer, `/contacts/${contactId}`)).contact;
+}
+
+export type GhlOpportunity = {
+  id: string;
+  contactId: string;
+  pipelineStageId: string;
+  createdAt: string;
+  lastStageChangeAt?: string;
+  contact?: { name?: string; email?: string; phone?: string; tags?: string[] };
+};
+
+/** Every opportunity in the offer's pipeline, newest first. */
+export async function* pipelineOpportunities(offer: ReactivationOffer): AsyncGenerator<GhlOpportunity> {
+  const { locationId } = env(offer);
+  let path: string | undefined = `/opportunities/search?location_id=${locationId}&pipeline_id=${GHL_OFFERS[offer].pipeline}&limit=100`;
+  while (path) {
+    const page: { opportunities: GhlOpportunity[]; meta: { nextPageUrl?: string } } = await ghl(offer, path);
+    yield* page.opportunities;
+    path = page.opportunities.length ? page.meta.nextPageUrl?.replace(GHL_API, "") : undefined;
+  }
+}
+
+/** True when another engine owns this contact's replies (see deferStages). */
+export async function deferReply(offer: ReactivationOffer, contactId: string): Promise<boolean> {
+  const stages = GHL_OFFERS[offer].deferStages;
+  if (!stages.size) return false;
+  const { opportunities } = await ghl<{ opportunities: { pipelineStageId: string }[] }>(
+    offer,
+    `/opportunities/search?location_id=${env(offer).locationId}&contact_id=${contactId}`
+  );
+  return opportunities.some((o) => stages.has(o.pipelineStageId));
 }
 
 /** True when any of this contact's opportunities sits in a blocked stage or pipeline. */
