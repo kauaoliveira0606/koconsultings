@@ -1,7 +1,6 @@
 import {
   createReactivationRow,
   getReactivationRows,
-  getReactivationSettings,
   updateReactivationRow,
 } from "@/lib/airtable/reactivation";
 import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
@@ -40,6 +39,24 @@ const s = (v: unknown) => (typeof v === "string" ? v : "");
 const easternDay = (t: number | string | Date) => new Date(t).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 const easternHour = (t: number) =>
   Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }).format(t));
+
+// ---------- On / off ----------
+
+/**
+ * ON means engine_on is "1" and today (Eastern) is on or after the optional
+ * on_from date in Show Rate Settings (user, 2026-10-28: "turn this on starting
+ * tomorrow"). Returns the start of that day so earlier texts are never answered.
+ */
+async function liveSince(): Promise<number | null> {
+  const rows = await getReactivationRows(OFFER, "settings");
+  const value = (key: string) => s(rows.find((r) => r.fields.Key === key)?.fields.Value).trim();
+  if (value("engine_on") !== "1") return null;
+  const from = value("on_from");
+  if (!from) return 0;
+  if (easternDay(Date.now()) < from) return null;
+  const [y, mo, d] = from.split("-").map(Number);
+  return easternToUtc(y, mo - 1, d, 0, 0);
+}
 
 // ---------- The session ----------
 
@@ -232,12 +249,12 @@ const appendTo = (old: unknown, add: string) => {
 
 /** Every 5 minutes: log new texts from registrants and answer them as Bronson. */
 export async function runShowRateReplies(session: Session, report: RunReport): Promise<void> {
-  const settings = await getReactivationSettings(OFFER);
+  const since = await liveSince();
   const rows = await getReactivationRows(OFFER, "leads");
   // Registrants of the upcoming session, plus last session's for a day after it.
-  const since = easternDay(Date.now() - 2 * DAY);
+  const fromSession = easternDay(Date.now() - 2 * DAY);
   const byContact = new Map<string, Row>();
-  for (const r of rows.filter((r) => s(r.fields.Session) >= since).sort((a, b) => s(a.fields.Session).localeCompare(s(b.fields.Session)))) {
+  for (const r of rows.filter((r) => s(r.fields.Session) >= fromSession).sort((a, b) => s(a.fields.Session).localeCompare(s(b.fields.Session)))) {
     byContact.set(s(r.fields["GHL Contact ID"]), r);
   }
   const cutoff = Date.now() - DAY;
@@ -276,7 +293,7 @@ export async function runShowRateReplies(session: Session, report: RunReport): P
     }
     if (lead.fields.Status === "Registered") fields.Status = "Replied";
 
-    if (settings.engineOn) {
+    if (since !== null && Date.parse(fresh[fresh.length - 1].dateAdded) >= since) {
       const c = await getContact(OFFER, conv.contactId);
       const timeZone = c.timezone || "America/New_York";
       const out = await generate(OFFER, {
@@ -366,7 +383,7 @@ async function logOut(c: GhlContact, name: string, body: string, touch: number |
 export async function runCheckIns(session: Session, deadline: number, report: RunReport): Promise<void> {
   const now = Date.now();
   if (easternDay(now) !== session.date || easternHour(now) !== CHECK_IN_HOUR || now > session.startsAt) return;
-  if (!(await getReactivationSettings(OFFER)).engineOn) return;
+  if ((await liveSince()) === null) return;
   const rows = await getReactivationRows(OFFER, "leads");
   const out = new Set(["Opted out", "Can't make it"]);
   const due = rows.filter((r) => s(r.fields.Session) === session.date && !out.has(s(r.fields.Status)) && !r.fields["Check-in Sent At"]);
