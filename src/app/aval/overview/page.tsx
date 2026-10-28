@@ -837,11 +837,6 @@ export default function OverviewPage() {
         </div>
       </DashboardSection>
 
-      <DashboardSection title="Webinar Show Rate">
-        <div className="rounded-lg border border-dashed border-[var(--panel-border)] bg-[var(--panel-bg)] px-5 py-8 text-center text-sm text-[var(--text-muted)]">
-          Not built yet.
-        </div>
-      </DashboardSection>
     </div>
   );
 }

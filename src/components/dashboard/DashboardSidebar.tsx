@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export type SidebarItem = { href: string; label: string };
+/** A separate dashboard with its own menu, picked from the switcher at the top. */
+export type SidebarSection = { label: string; items: SidebarItem[] };
 
 /** Line icons keyed by the tab's last path segment. */
 const ICONS: Record<string, ReactNode> = {
@@ -21,6 +24,7 @@ const ICONS: Record<string, ReactNode> = {
   "ads-analysis": <path d="M3.5 16.5V9M8.5 16.5V4M13.5 16.5v-5M17 16.5H2.5" />,
   "admin-team": <path d="M10 2.5l6 2.5v4.5c0 4-2.6 6.8-6 8-3.4-1.2-6-4-6-8V5l6-2.5z" />,
   commissions: <path d="M10 2.5v15M13.5 5.5H8.25a2.25 2.25 0 000 4.5h3.5a2.25 2.25 0 010 4.5H6" />,
+  reactivation: <path d="M3.5 10a6.5 6.5 0 0111.3-4.4M16.5 10a6.5 6.5 0 01-11.3 4.4M15 2.5v3.5h-3.5M5 17.5V14h3.5" />,
 };
 
 function NavIcon({ href }: { href: string }) {
@@ -43,16 +47,54 @@ function NavIcon({ href }: { href: string }) {
   );
 }
 
-function Brand({ initials, name }: { initials: string; name: string }) {
+type BrandProps = { initials: string; name: string; logo?: string; subtitle?: string };
+
+function Brand({ initials, name, logo, subtitle = "Dashboard" }: BrandProps) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-300 to-indigo-500 text-sm font-bold text-[#06122b] shadow-[0_6px_20px_-6px_rgba(99,102,241,0.8)]">
-        {initials}
+      {logo ? (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-black ring-1 ring-white/10">
+          <Image src={logo} alt="" width={44} height={44} className="h-11 w-11 object-contain" />
+        </div>
+      ) : (
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-300 to-indigo-500 text-sm font-bold text-[#06122b] shadow-[0_6px_20px_-6px_rgba(99,102,241,0.8)]">
+          {initials}
+        </div>
+      )}
+      <div className="min-w-0">
+        <div className="text-[15px] font-semibold leading-tight text-white">{name}</div>
+        <div className="text-xs text-[var(--text-muted)]">{subtitle}</div>
       </div>
-      <div>
-        <div className="text-[15px] font-semibold text-white">{name}</div>
-        <div className="text-xs text-[var(--text-muted)]">Dashboard</div>
-      </div>
+    </div>
+  );
+}
+
+/** The section the current page belongs to; the first one when none matches. */
+function activeSection(sections: SidebarSection[], pathname: string | null): SidebarSection {
+  return sections.find((sec) => sec.items.some((i) => pathname?.startsWith(i.href))) ?? sections[0];
+}
+
+function SectionSwitcher({ sections, onNavigate }: { sections: SidebarSection[]; onNavigate?: () => void }) {
+  const current = activeSection(sections, usePathname());
+  return (
+    <div role="tablist" className="flex gap-0.5 rounded-xl border border-[var(--panel-border)] bg-white/[0.03] p-1">
+      {sections.map((sec) => {
+        const active = sec === current;
+        return (
+          <Link
+            key={sec.label}
+            href={sec.items[0].href}
+            onClick={onNavigate}
+            role="tab"
+            aria-selected={active}
+            className={`flex-auto whitespace-nowrap rounded-lg px-1.5 py-1.5 text-center text-[11px] font-semibold transition-colors ${
+              active ? "bg-sky-400/20 text-white ring-1 ring-inset ring-sky-300/30" : "text-[var(--text-muted)] hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            {sec.label}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -94,18 +136,27 @@ const SIDEBAR_BG = "bg-[#070d20]/80 backdrop-blur-xl";
 export function DashboardSidebar({
   initials,
   name,
+  logo,
   items,
+  sections,
 }: {
   initials: string;
   name: string;
-  items: SidebarItem[];
+  logo?: string;
+  /** A single menu, or `sections` for separate dashboards with a switcher. */
+  items?: SidebarItem[];
+  sections?: SidebarSection[];
 }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const section = sections ? activeSection(sections, pathname) : null;
+  const menu = section?.items ?? items ?? [];
+  const brand = { initials, name, logo, subtitle: section?.label };
 
   return (
     <>
       <div className={`sticky top-0 z-40 flex items-center justify-between border-b border-[var(--panel-border)] p-4 lg:hidden ${SIDEBAR_BG}`}>
-        <Brand initials={initials} name={name} />
+        <Brand {...brand} />
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -123,7 +174,7 @@ export function DashboardSidebar({
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)} />
           <aside className="absolute left-0 top-0 flex h-full w-72 flex-col gap-8 overflow-y-auto border-r border-[var(--panel-border)] bg-[#070d20] p-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <Brand initials={initials} name={name} />
+              <Brand {...brand} />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -135,19 +186,25 @@ export function DashboardSidebar({
                 </svg>
               </button>
             </div>
-            <NavLinks items={items} onNavigate={() => setOpen(false)} />
+            {sections ? <SectionSwitcher sections={sections} onNavigate={() => setOpen(false)} /> : null}
+            <NavLinks items={menu} onNavigate={() => setOpen(false)} />
           </aside>
         </div>
       ) : null}
 
       <aside className={`sticky top-0 hidden h-screen w-64 shrink-0 self-start flex-col overflow-y-auto border-r border-[var(--panel-border)] px-4 py-6 lg:flex ${SIDEBAR_BG}`}>
-        <div className="mb-8 px-1">
-          <Brand initials={initials} name={name} />
+        <div className="mb-6 px-1">
+          <Brand {...brand} />
         </div>
+        {sections ? (
+          <div className="mb-6">
+            <SectionSwitcher sections={sections} />
+          </div>
+        ) : null}
         <div className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] opacity-70">
           Menu
         </div>
-        <NavLinks items={items} />
+        <NavLinks items={menu} />
         <div className="mt-auto px-3 pt-8 text-xs text-[var(--text-muted)] opacity-60">KO Consultings</div>
       </aside>
     </>
