@@ -391,7 +391,7 @@ ${mine.map((m) => `- ${s(m.fields.Body)}`).join("\n")}`,
   }
 
   // 3. New first texts, newest cold leads first.
-  if (firstToday >= settings.dailyCap) return;
+  if (!scanNew || firstToday >= settings.dailyCap) return;
   for await (const c of coldLeads(offer, new Set(leadById.keys()), report, () => !report.off && firstToday < settings.dailyCap && Date.now() <= deadline)) {
     const body = await writeFirstText(offer, c);
     if (body && (await send(c, body, 1))) {
