@@ -19,7 +19,9 @@ export async function runReactivationCron(offer: ReactivationOffer, request: Req
   const steps = [
     () => runReplies(offer, report),
     () => checkOptOuts(offer, report),
-    () => runSends(offer, new Date().getUTCMinutes() < 5, started + 240_000, report),
+    // Aval looks for new leads every run (user, 2026-10-28: "we can handle a lot
+    // more than 20"); other offers once an hour.
+    () => runSends(offer, offer === "aval" || new Date().getUTCMinutes() < 5, started + 240_000, report),
   ];
   for (const step of steps) {
     try {
