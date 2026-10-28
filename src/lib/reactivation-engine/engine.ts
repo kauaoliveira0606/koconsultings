@@ -148,13 +148,9 @@ const REPLY_SCHEMA = {
 const COUNTRY_TZ: [string, string][] = [
   ["+44", "Europe/London"],
   ["+353", "Europe/Dublin"],
-  ["+91", "Asia/Kolkata"],
-  ["+92", "Asia/Karachi"],
   ["+63", "Asia/Manila"],
   ["+65", "Asia/Singapore"],
   ["+60", "Asia/Kuala_Lumpur"],
-  ["+971", "Asia/Dubai"],
-  ["+966", "Asia/Riyadh"],
   ["+49", "Europe/Berlin"],
   ["+33", "Europe/Paris"],
   ["+34", "Europe/Madrid"],
@@ -163,8 +159,12 @@ const COUNTRY_TZ: [string, string][] = [
   ["+64", "Pacific/Auckland"],
 ];
 
-/** User, 2026-10-28: never text African numbers (+20, +21x to +26x, +27, +290, +291). */
-const AFRICA = /^\+(20|2[1-6]\d|27|29[01])/;
+/**
+ * User, 2026-10-28: never text African, Indian, Pakistani or Middle Eastern numbers.
+ * Africa +20 +21x-26x +27 +290 +291; South Asia +91 +92 +93 +94 +880 +977;
+ * Middle East +90 +961-968 +970-974 +98.
+ */
+const BLOCKED_COUNTRIES = /^\+(20|2[1-6]\d|27|29[01]|9[1-4]|880|977|90|96[1-8]|97[0-4]|98)/;
 
 type SendWindow = { timeZone: string; from: number; to: number };
 
@@ -172,7 +172,7 @@ type SendWindow = { timeZone: string; from: number; to: number };
 export function sendWindow(c: Pick<GhlContact, "timezone" | "phone">): SendWindow | null {
   const phone = c.phone ?? "";
   if (phone.startsWith("+1")) return { timeZone: "America/New_York", from: 9, to: 22 };
-  if (AFRICA.test(phone)) return null;
+  if (BLOCKED_COUNTRIES.test(phone)) return null;
   const timeZone = c.timezone || COUNTRY_TZ.find(([code]) => phone.startsWith(code))?.[1];
   return timeZone ? { timeZone, from: 9, to: 21 } : null;
 }
@@ -198,7 +198,7 @@ function textable(phone: string | undefined): boolean {
 /** BUILD.md "who to text", plus the user's blocked Base44 stages. The daily cap is counted by the caller. */
 async function skipReason(c: GhlContact): Promise<string | null> {
   if (!textable(c.phone)) return "no valid phone";
-  if (AFRICA.test(c.phone!)) return "African number";
+  if (BLOCKED_COUNTRIES.test(c.phone!)) return "blocked country";
   if (c.dnd) return "DND";
   // Cold means the reps have had their week with them.
   if (Date.now() - Date.parse(c.dateAdded) < 7 * DAY) return "signed up under 7 days ago";
@@ -217,7 +217,7 @@ async function skipReason(c: GhlContact): Promise<string | null> {
   return recentRep ? "rep text or call in the last 7 days" : null;
 }
 
-const PERMANENT_SKIPS = new Set(["no valid phone", "African number", "blocked stage", "said STOP"]);
+const PERMANENT_SKIPS = new Set(["no valid phone", "blocked country", "blocked stage", "said STOP"]);
 
 // ---------- Airtable rows ----------
 
