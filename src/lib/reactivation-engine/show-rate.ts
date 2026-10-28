@@ -21,8 +21,8 @@ import { VOICES } from "./voice";
 /**
  * Bronson's show-rate engine (kit: ~/Desktop/reactivation-bronson-masterclass).
  * Texts as Bronson to masterclass registrants: answers every reply to the
- * WebinarJam sequence and sends one check-in at 4pm ET on event day to anyone
- * who never replied. Saves their feedback (goal, what they want covered,
+ * WebinarJam sequence and sends one check-in at 4pm ET on event day that
+ * teases one nugget and quotes their stated goal back (commitment stacking). Saves their feedback (goal, what they want covered,
  * preferred time) for the /bronson/show-rate tab. Never touches GHL stages.
  */
 
@@ -125,6 +125,8 @@ Goal: they show up to the live masterclass. A clear "yes, I'll be there" is the 
 - STOP / remove me / unsubscribe: reply "", action "opt_out". "Wrong number" is NOT an opt-out.
 - Time words must match the session: say "tonight" only on the event day before it starts.
 - The thread includes our automated reminder texts. Don't repeat them.
+- Never pitch, never mention the offer, never push a call. Build anticipation and accountability.
+- If they shared a goal, you can tie one short tease from the nugget bank to it. People protect commitments they've stated out loud.
 </show-up-playbook>`;
 
 export const replySystem = () => `You are Bronson, answering a masterclass registrant's texts. Follow these files exactly.
@@ -158,11 +160,11 @@ export const REPLY_SCHEMA = {
 
 type Parsed = { reply: string; action: string; preferred_time: string; goal: string; wants_covered: string; other_feedback: string };
 
-const checkInSystem = () => `You are Bronson, texting a masterclass registrant who never replied, a few hours before it starts. Follow these files exactly.
+export const checkInSystem = () => `You are Bronson, texting a masterclass registrant a few hours before it starts. Follow these files exactly.
 
 ${rules()}
 
-Write the 4pm check-in, like the approved example. Reply with only the text message. No quotes, no notes.`;
+Write the 4pm check-in. It teases exactly ONE nugget from the nugget bank ("Tonight I'm breaking down the exact math on X"), never teaches it, and asks if they're still good for tonight. If they told you their goal or what they want covered, quote it back and pick the nugget that fits it best (commitment stacking). If they already committed, hold them to it. Never pitch, never mention the offer. Max about 300 characters. Reply with only the text message. No quotes, no notes.`;
 
 // ---------- Registrants ----------
 
@@ -281,7 +283,7 @@ export async function runShowRateReplies(session: Session, report: RunReport): P
         model: MODELS.reply,
         system: replySystem(),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-Masterclass: ${session.label}${Date.now() > session.startsAt ? " (it has already started)" : ""}
+${statedSoFar(lead)}Masterclass: ${session.label}${Date.now() > session.startsAt ? " (it has already started)" : ""}
 Now in Eastern time: ${localTime("America/New_York")}
 Their local time now: ${localTime(timeZone)}
 
@@ -321,6 +323,16 @@ Answer their latest text.`,
   }
 }
 
+/** What they've told us so far, for commitment stacking. */
+function statedSoFar(r: Row): string {
+  const lines = [
+    ["Their stated goal", s(r.fields.Goal)],
+    ["What they want covered", s(r.fields["Wants Covered"])],
+    ["Committed to showing up live", r.fields.Status === "Committed" ? "yes" : ""],
+  ].filter(([, v]) => v);
+  return lines.length ? lines.map(([k, v]) => `${k}: ${v}`).join("\n") + "\n" : "";
+}
+
 function parseReply(text: string | null): Parsed | null {
   if (!text) return null;
   try {
@@ -347,15 +359,17 @@ async function logOut(c: GhlContact, name: string, body: string, touch: number |
 
 // ---------- The 4pm check-in ----------
 
-/** Event day, 4pm ET hour: one text to every registrant who never replied. */
+/**
+ * Event day, 4pm ET hour: one check-in to every registrant still in (not
+ * opted out, not "can't make it"), with a nugget and their goal quoted back.
+ */
 export async function runCheckIns(session: Session, deadline: number, report: RunReport): Promise<void> {
   const now = Date.now();
   if (easternDay(now) !== session.date || easternHour(now) !== CHECK_IN_HOUR || now > session.startsAt) return;
   if (!(await getReactivationSettings(OFFER)).engineOn) return;
   const rows = await getReactivationRows(OFFER, "leads");
-  const due = rows.filter(
-    (r) => s(r.fields.Session) === session.date && r.fields.Status === "Registered" && !r.fields["Check-in Sent At"]
-  );
+  const out = new Set(["Opted out", "Can't make it"]);
+  const due = rows.filter((r) => s(r.fields.Session) === session.date && !out.has(s(r.fields.Status)) && !r.fields["Check-in Sent At"]);
   for (const r of due) {
     if (Date.now() > deadline) return;
     const c = await getContact(OFFER, s(r.fields["GHL Contact ID"]));
@@ -363,16 +377,17 @@ export async function runCheckIns(session: Session, deadline: number, report: Ru
       report.skipped["no textable phone"] = (report.skipped["no textable phone"] ?? 0) + 1;
       continue;
     }
-    // A reply older than a day never reached the reply step; don't treat them as silent.
-    const registeredAt = s(r.fields["Registered At"]).slice(0, 19);
-    if ((await history(OFFER, c.id)).some((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && m.dateAdded.slice(0, 19) > registeredAt)) {
-      await updateReactivationRow(OFFER, "leads", r.id, { Status: "Replied" });
-      continue;
-    }
+    const msgs = await history(OFFER, c.id);
     const body = await generate(OFFER, {
       model: MODELS.firstText,
       system: checkInSystem(),
-      prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}\nMasterclass: tonight, ${session.label}\n\nWrite the check-in.`,
+      prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
+${statedSoFar(r)}Masterclass: tonight, ${session.label}
+
+Text thread so far, oldest first:
+${thread(msgs) || "(none)"}
+
+Write the check-in.`,
       purpose: "check_in",
       contactId: c.id,
       touch: 1,
