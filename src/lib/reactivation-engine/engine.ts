@@ -131,6 +131,8 @@ ${rules(offer)}
 ${VOICES[offer].replyPlaybook}
 </reply-playbook.md>
 
+A flat no beats every rule above, including "not right now" in my-voice.md (user, 2026-10-28): when they clearly turn it down ("no thank you", "not interested", "I don't want to pay", "I'll pass"), it is a dead lead. Never push the call, never argue, never restate the offer. Send nothing: "reply" is "" and "action" is "not_now". "Not right now" / "busy" / "later" are not a no; keep booking those.
+
 Return JSON:
 - "reply": the text to send, or "" when the playbook says to say nothing.
 - "action": "booked" when they locked a call time (or said call me now), "not_now" when they want to be left alone for now, "opt_out" for STOP / remove me / wrong number, otherwise "none".
