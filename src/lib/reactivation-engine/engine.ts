@@ -394,6 +394,8 @@ export async function runSends(
     const c = await getContact(offer, id);
     const w = sendWindow(offer, c);
     if (smsBlocked(c) || !w || !inWindow(w)) continue;
+    // User, 2026-10-28: registered for the masterclass means no Base44 texts, follow-ups included.
+    if (await deferReply(offer, id)) continue;
     const body = await generate(offer, {
       model: MODELS.firstText,
       system: firstTextSystem(offer),
