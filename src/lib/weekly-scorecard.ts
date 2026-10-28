@@ -311,6 +311,16 @@ const wConnRate =
     );
   };
 
+// Close rate by source: tagged sales ÷ tagged pickups, tracked days only.
+const dTagCloseRate =
+  (sales: (c: DayCtx) => number | null, pickups: (c: DayCtx) => number | null) => (c: DayCtx) =>
+    pickups(c) === null ? null : safeDivide(sales(c), pickups(c) || null);
+const wTagCloseRate =
+  (sales: (c: DayCtx) => number | null, pickups: (c: DayCtx) => number | null) => (days: DayCtx[]) => {
+    const tracked = days.filter((c) => pickups(c) !== null);
+    if (tracked.length === 0) return null;
+    return safeDivide(sum(tracked.map(sales)), sum(tracked.map(pickups)) || null);
+  };
 const wSum = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => sum(days.map(pick));
 const wAvg = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => average(days.map(pick));
 
@@ -648,6 +658,27 @@ function buildSpecs(
           // 2026-10-23).
           day: (c) => safeDivide(dEodClosed(c), dPickups(c) || null),
           week: (days) => safeDivide(sum(days.map(dEodClosed)), sum(days.map(dPickups)) || null),
+        },
+        {
+          // Affiliate sales by source ÷ pickups (1+ min calls) on leads with
+          // the same GHL paid / organic tag (user, 2026-10-28). Blank before
+          // tag tracking started.
+          key: "closeRateLtPaid",
+          label: "↳ Close Rate – Affiliate (Paid)",
+          format: "percent",
+          goal: goals.closeRateLowTicket?.min ?? null,
+          goalDirection: "higher",
+          day: dTagCloseRate(dSalesLTPaid, (c) => c.connectedPaid),
+          week: wTagCloseRate(dSalesLTPaid, (c) => c.connectedPaid),
+        },
+        {
+          key: "closeRateLtOrganic",
+          label: "↳ Close Rate – Affiliate (Organic)",
+          format: "percent",
+          goal: goals.closeRateLowTicket?.min ?? null,
+          goalDirection: "higher",
+          day: dTagCloseRate(dSalesLTOrg, (c) => c.connectedOrganic),
+          week: wTagCloseRate(dSalesLTOrg, (c) => c.connectedOrganic),
         },
         {
           key: "aovLowTicket",
@@ -1482,6 +1513,8 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "salesLtPaid",
       "salesLtOrganic",
       "closeRateLowTicket",
+      "closeRateLtPaid",
+      "closeRateLtOrganic",
       "aovLowTicket",
       "leadToCloseRate",
       "funnelConvPaid",
