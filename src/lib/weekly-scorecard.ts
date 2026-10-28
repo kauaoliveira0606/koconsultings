@@ -1401,8 +1401,17 @@ const TYPED_RATE_KEYS = new Set([
  * section on top for the numbers checked first. Metric definitions live in
  * buildSpecs; this only decides where each one shows up.
  */
-/** `labels` renames a row in this layout only (same data, offer-specific wording). */
-export type ScorecardLayout = { emoji: string; title: string; keys: string[]; labels?: Record<string, string> }[];
+/**
+ * `labels` renames a row in this layout only (same data, offer-specific wording).
+ * `showFrom` hides a row until that Eastern date.
+ */
+export type ScorecardLayout = {
+  emoji: string;
+  title: string;
+  keys: string[];
+  labels?: Record<string, string>;
+  showFrom?: Record<string, string>;
+}[];
 
 const SCORECARD_LAYOUT: ScorecardLayout = [
   {
@@ -1706,6 +1715,16 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "collectedPerBookedCallHTPaid",
       "collectedPerBookedCallHTOrganic",
     ],
+    // Booking-source rows only see masterclass Calendly bookings, a fraction of
+    // HT calls; held back until next month (user, 2026-10-28).
+    showFrom: {
+      callsPaidBooked: "2026-11-01",
+      bookedConnRatePaid: "2026-11-01",
+      callsOrganicBooked: "2026-11-01",
+      bookedConnRateOrganic: "2026-11-01",
+      collectedPerBookedCallHTPaid: "2026-11-01",
+      collectedPerBookedCallHTOrganic: "2026-11-01",
+    },
     labels: {
       callsPaidBooked: "↳ Calls Booked (Paid, Masterclass Calendly)",
       bookedConnRatePaid: "↳ Booked Call Connection Rate (Paid)",
@@ -1966,6 +1985,7 @@ export async function buildWeeklyScorecard(
       })
       // Offers without an affiliate portal feed have nothing to show here.
       .filter((spec) => spec.key !== "attributionRate" || !!extras.attribution)
+      .filter((spec) => !g.showFrom?.[spec.key] || todayE >= g.showFrom[spec.key])
       .map((spec) => {
         const days: ScorecardCell[] = dayCtxs.map((ctx) => {
           const value = ctx.date >= todayE ? null : spec.day(ctx);
