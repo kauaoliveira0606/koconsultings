@@ -277,7 +277,7 @@ function ControlsPanel({ offer }: { offer: ReactivationOffer }) {
                     type="button"
                     disabled={busy}
                     onClick={() => send({ action: "approve", id: d.id })}
-                    className="rounded-md bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-300/40 disabled:opacity-50"
+                    className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                   >
                     Approve
                   </button>
@@ -285,9 +285,9 @@ function ControlsPanel({ offer }: { offer: ReactivationOffer }) {
                     type="button"
                     disabled={busy}
                     onClick={() => send({ action: "reject", id: d.id })}
-                    className="rounded-md bg-rose-400/15 px-3 py-1 text-xs font-semibold text-rose-100 ring-1 ring-rose-300/40 disabled:opacity-50"
+                    className="rounded-md bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
                   >
-                    Reject
+                    Deny
                   </button>
                 </div>
               </li>

@@ -21,6 +21,8 @@ type GhlOffer = {
   readyStage: string | null;
   /** Discord webhook env var for booked leads. */
   bookedWebhookEnv: string;
+  /** Extra line on the Discord alert so the team knows what the lead is for. */
+  bookedContext: string | null;
 };
 
 export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
@@ -41,6 +43,7 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
     // Added 2026-10-28 right after "Reactivation Attempt": the lead gave us a call time.
     readyStage: "75477154-b0bc-4166-83d2-1a1df8738288",
     bookedWebhookEnv: "DISCORD_AVAL_REACTIVATION_WEBHOOK",
+    bookedContext: null,
   },
   bronson: {
     envPrefix: "GHL_BRONSON",
@@ -64,6 +67,8 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
     textedStage: null,
     readyStage: null,
     bookedWebhookEnv: "DISCORD_BRONSON_REACTIVATION_WEBHOOK",
+    // User, 2026-10-28: the team stopped selling Base44 a while back, so say it on every alert.
+    bookedContext: "⚠️ **Base44 lead.** Old Base44 free course opt-in: give them free course access and get them started on the AI tools.",
   },
 };
 
@@ -201,13 +206,14 @@ export async function flagBooked(offer: ReactivationOffer, c: GhlContact, booked
     method: "POST",
     body: { body: `Reactivation engine booked a call by text: ${bookedFor}. Call them at that time.` },
   });
-  const webhook = process.env[GHL_OFFERS[offer].bookedWebhookEnv];
+  const { bookedWebhookEnv, bookedContext } = GHL_OFFERS[offer];
+  const webhook = process.env[bookedWebhookEnv];
   if (!webhook) return;
   const res = await fetch(webhook, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      content: `📞 **Reactivation booked a call**\n**${c.contactName || c.firstName || "Lead"}** ${c.phone ?? ""}\nCall them: **${bookedFor}**\nhttps://app.gohighlevel.com/v2/location/${env(offer).locationId}/contacts/detail/${c.id}`,
+      content: `📞 **Reactivation booked a call**\n${bookedContext ? `${bookedContext}\n` : ""}**${c.contactName || c.firstName || "Lead"}** ${c.phone ?? ""}\nCall them: **${bookedFor}**\nhttps://app.gohighlevel.com/v2/location/${env(offer).locationId}/contacts/detail/${c.id}`,
     }),
   });
   if (!res.ok) console.error("reactivation Discord alert failed", res.status, await res.text());
