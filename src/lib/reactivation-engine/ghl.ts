@@ -8,6 +8,8 @@ const GHL_API = "https://services.leadconnectorhq.com";
 export const BASE44_PIPELINE = "1YUUtFeSnGtc3u94exjP";
 /** Added 2026-10-28 right after "Base44 Opt in": where texted leads sit. */
 export const REACTIVATION_STAGE = "f6897d1a-12aa-4d78-a350-6e7b8299afab";
+/** Added 2026-10-28 right after "Reactivation": the lead gave us a call time. */
+export const REACTIVATION_READY_STAGE = "75477154-b0bc-4166-83d2-1a1df8738288";
 /** User, 2026-10-28: the only Base44 stages the engine may not text. */
 export const BLOCKED_STAGES = new Set([
   "1831ed07-0869-4316-9ede-050df354194c", // Base44 Purchase
@@ -121,16 +123,21 @@ export async function sendSms(contactId: string, message: string): Promise<void>
  */
 export async function markTexted(contactId: string): Promise<void> {
   await ghl(`/contacts/${contactId}/tags`, { method: "POST", body: { tags: ["reactivation"] } });
+  await moveBase44(contactId, REACTIVATION_STAGE);
+}
+
+async function moveBase44(contactId: string, stageId: string): Promise<void> {
   const { opportunities } = await ghl<{ opportunities: { id: string; pipelineId: string }[] }>(
     `/opportunities/search?location_id=${env().locationId}&contact_id=${contactId}&pipeline_id=${BASE44_PIPELINE}`
   );
   for (const o of opportunities.filter((o) => o.pipelineId === BASE44_PIPELINE)) {
-    await ghl(`/opportunities/${o.id}`, { method: "PUT", body: { pipelineId: BASE44_PIPELINE, pipelineStageId: REACTIVATION_STAGE } });
+    await ghl(`/opportunities/${o.id}`, { method: "PUT", body: { pipelineId: BASE44_PIPELINE, pipelineStageId: stageId } });
   }
 }
 
-/** How a booked lead reaches the team inside GHL. */
+/** How a booked lead reaches the team inside GHL: Reactivation Ready stage, tag and a note. */
 export async function flagBooked(contactId: string, bookedFor: string): Promise<void> {
+  await moveBase44(contactId, REACTIVATION_READY_STAGE);
   await ghl(`/contacts/${contactId}/tags`, { method: "POST", body: { tags: ["reactivation booked"] } });
   await ghl(`/contacts/${contactId}/notes`, {
     method: "POST",
