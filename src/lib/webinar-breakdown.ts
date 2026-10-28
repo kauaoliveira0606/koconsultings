@@ -1,7 +1,6 @@
 import type { MarketingDailyMetricRow } from "@/lib/airtable/tables";
-import { addDaysToDateString } from "@/lib/date-range";
 import { average, safeDivide, sum, webinarCallsBooked, webinarMoney } from "@/lib/metrics";
-import { DEFAULT_PROMO_DAYS, type WebinarRun } from "@/lib/webinar-schedule";
+import { chainPromos, type WebinarRun } from "@/lib/webinar-schedule";
 
 /**
  * One row per webinar actually run (or planned), from the offer's schedule in
@@ -97,8 +96,8 @@ function allRuns(rows: MarketingDailyMetricRow[], schedule: WebinarRun[]): Webin
   const scheduled = new Set(schedule.map((r) => r.date));
   const extra = rows
     .filter((r) => r.date && hasCard(r) && !scheduled.has(r.date))
-    .map((r) => ({ promoStart: addDaysToDateString(r.date as string, -(DEFAULT_PROMO_DAYS - 1)), date: r.date as string }));
-  return [...schedule, ...extra].sort((a, b) => a.date.localeCompare(b.date));
+    .map((r) => ({ date: r.date as string }));
+  return chainPromos([...schedule, ...extra]);
 }
 
 /** First promo day of the first webinar. */
