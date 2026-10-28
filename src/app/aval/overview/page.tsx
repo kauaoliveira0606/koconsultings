@@ -16,6 +16,7 @@ import { RateColumns } from "@/components/dashboard/RateColumns";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
+import type { ReactivationOverview } from "@/lib/reactivation";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue, type StatFormat } from "@/lib/format";
 import { cellStatus, type GoalDirection } from "@/lib/weekly-scorecard";
@@ -176,6 +177,7 @@ export default function OverviewPage() {
     range
   );
   const { data: goals } = useSectionData<GoalsConfig>("/api/aval/goals", range);
+  const { data: reactivation } = useSectionData<ReactivationOverview>("/api/aval/overview/reactivation-results", range);
 
   const adsActive = metrics?.adsActive ?? false;
   // Paid ROAS counts ALL paid cash: affiliate, high ticket and webinar VIP, as split on the form.
@@ -806,6 +808,33 @@ export default function OverviewPage() {
             : ""}
           From the Refunds table in Airtable.
         </p>
+      </DashboardSection>
+
+      <DashboardSection
+        title="Reactivation"
+        action={
+          <a href="/aval/reactivation" className="text-sm font-semibold text-sky-300 underline">
+            Open Reactivation tab
+          </a>
+        }
+      >
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <StatCard label="Leads Texted" value={reactivation?.leadsTexted} format="number" subtext="Cold leads the engine texted." />
+          <StatCard
+            label="Calls Taken"
+            value={reactivation?.callsTaken}
+            format="number"
+            subtext="Affiliate + High Ticket Post Call Notes after the first text, matched by email or phone."
+          />
+          <StatCard label="Affiliate Closes" value={reactivation?.affiliateCloses} format="number" subtext="From Affiliate Post Call Notes." />
+          <StatCard
+            label="High Ticket Closes"
+            value={reactivation?.highTicketCloses}
+            format="number"
+            subtext="Post Call Notes marked Closed, Deposit or Payment Plan."
+          />
+          <StatCard label="Cash Collected" value={reactivation?.cashCollected} format="currency" subtext="Affiliate CPA + High Ticket cash." />
+        </div>
       </DashboardSection>
 
       <DashboardSection title="Webinar Show Rate">

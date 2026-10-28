@@ -113,6 +113,11 @@ export async function sendSms(contactId: string, message: string): Promise<void>
   await ghl("/conversations/messages", { method: "POST", body: { type: "SMS", contactId, message } });
 }
 
+/** Every texted lead gets "reactivation", so the team can follow them in GHL. */
+export async function tagTexted(contactId: string): Promise<void> {
+  await ghl(`/contacts/${contactId}/tags`, { method: "POST", body: { tags: ["reactivation"] } });
+}
+
 /** How a booked lead reaches the team inside GHL. */
 export async function flagBooked(contactId: string, bookedFor: string): Promise<void> {
   await ghl(`/contacts/${contactId}/tags`, { method: "POST", body: { tags: ["reactivation booked"] } });

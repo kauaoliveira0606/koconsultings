@@ -128,6 +128,8 @@ export type AvalPostCallNoteRow = {
   cashCollected: number | null;
   totalRevenue: number | null;
   fathomLink: string | null;
+  /** When the note was filed: orders a same-day call against a reactivation text. */
+  createdTime: string;
 };
 
 export async function getAvalPostCallNotes(): Promise<AvalPostCallNoteRow[]> {
@@ -150,6 +152,7 @@ export async function getAvalPostCallNotes(): Promise<AvalPostCallNoteRow[]> {
       cashCollected: parseNumericText(f["Cash Collected"]),
       totalRevenue: parseNumericText(f["Total Revenue"]),
       fathomLink: typeof f["Fathom Link"] === "string" ? f["Fathom Link"].trim() || null : null,
+      createdTime: r.createdTime,
     };
   });
 }

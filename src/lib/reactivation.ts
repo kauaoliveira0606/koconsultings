@@ -1,4 +1,4 @@
-import type { AvalAffiliatePcnRow } from "@/lib/airtable/tables-aval";
+import type { AvalAffiliatePcnRow, AvalPostCallNoteRow } from "@/lib/airtable/tables-aval";
 import type { ReactivationAiCall, ReactivationLead, ReactivationMessage } from "@/lib/airtable/reactivation";
 import {
   addDaysToDateString,
@@ -63,12 +63,17 @@ type Close = {
   touch: number;
 };
 
-/** Every Affiliate PCN row that counts as a reactivation close, any date. */
-export function matchCloses(
+type Note = { date: string | null; email: string | null; phone: string | null; createdTime: string };
+
+/**
+ * Which texted lead each note belongs to (null when none), only if the call
+ * came AFTER that lead's first text. Matched by email or phone.
+ */
+function matchToTexts(
   leads: ReactivationLead[],
   messages: ReactivationMessage[],
-  pcn: AvalAffiliatePcnRow[]
-): Close[] {
+  notes: Note[]
+): ({ contactId: string; touch: number } | null)[] {
   const sentByLead = new Map<string, ReactivationMessage[]>();
   for (const m of messages) {
     if (m.direction !== "out" || m.status !== "sent" || !m.sentAt) continue;
@@ -78,7 +83,7 @@ export function matchCloses(
   }
   for (const list of sentByLead.values()) list.sort((a, b) => a.sentAt!.localeCompare(b.sentAt!));
 
-  // Only leads that actually got a text can close. If two leads share an
+  // Only leads that actually got a text can match. If two leads share an
   // email or phone, the one texted first keeps it.
   const texted = leads
     .filter((l) => sentByLead.has(l.contactId))
@@ -92,34 +97,91 @@ export function matchCloses(
     if (p && !byPhone.has(p)) byPhone.set(p, l.contactId);
   }
 
-  const closes: Close[] = [];
-  for (const row of pcn) {
-    if (!row.date) continue;
-    const e = normEmail(row.leadEmail);
-    const p = normPhone(row.leadPhone);
+  return notes.map((row) => {
+    if (!row.date) return null;
+    const e = normEmail(row.email);
+    const p = normPhone(row.phone);
     const contactId = (e && byEmail.get(e)) || (p && byPhone.get(p));
-    if (!contactId) continue;
+    if (!contactId) return null;
 
     const sent = sentByLead.get(contactId)!;
     const firstDay = toEasternDateOnly(sent[0].sentAt)!;
-    if (row.date < firstDay) continue;
-    // When the note was filed on the sale day, that time orders it against
-    // texts (on the first-text day the sale must come after the text).
-    // Backfilled notes fall back to the end of the sale day.
-    const saleAt =
+    if (row.date < firstDay) return null;
+    // When the note was filed on the call day, that time orders it against
+    // texts (on the first-text day the call must come after the text).
+    // Backfilled notes fall back to the end of the call day.
+    const at =
       toEasternDateOnly(row.createdTime) === row.date
         ? row.createdTime
         : row.date === firstDay
           ? null
           : `${addDaysToDateString(row.date, 1)}T04:00:00.000Z`;
-    if (!saleAt) continue;
-    if (saleAt <= sent[0].sentAt!) continue;
+    if (!at || at <= sent[0].sentAt!) return null;
 
-    const before = sent.filter((m) => m.sentAt! <= saleAt);
-    const touch = Math.max(1, ...before.map((m) => m.touch ?? 1));
-    closes.push({ contactId, date: row.date, cash: row.cpaCash && row.cpaCash > 0 ? row.cpaCash : null, touch });
-  }
-  return closes;
+    const before = sent.filter((m) => m.sentAt! <= at);
+    return { contactId, touch: Math.max(1, ...before.map((m) => m.touch ?? 1)) };
+  });
+}
+
+/** Every Affiliate PCN row that counts as a reactivation close, any date. */
+export function matchCloses(
+  leads: ReactivationLead[],
+  messages: ReactivationMessage[],
+  pcn: AvalAffiliatePcnRow[]
+): Close[] {
+  const hits = matchToTexts(
+    leads,
+    messages,
+    pcn.map((r) => ({ date: r.date, email: r.leadEmail, phone: r.leadPhone, createdTime: r.createdTime }))
+  );
+  return pcn.flatMap((row, i) => {
+    const hit = hits[i];
+    return hit ? [{ ...hit, date: row.date!, cash: row.cpaCash && row.cpaCash > 0 ? row.cpaCash : null }] : [];
+  });
+}
+
+const HT_CLOSED = /closed|deposit|payment plan/i;
+
+export type ReactivationOverview = {
+  leadsTexted: number;
+  callsTaken: number;
+  affiliateCloses: number;
+  highTicketCloses: number;
+  cashCollected: number;
+};
+
+/**
+ * High-level reactivation results for /aval/overview: texted leads followed
+ * through every Post Call Note (Affiliate and High Ticket) dated in the range.
+ */
+export function buildReactivationOverview(
+  leads: ReactivationLead[],
+  messages: ReactivationMessage[],
+  affiliatePcn: AvalAffiliatePcnRow[],
+  htPcn: AvalPostCallNoteRow[],
+  range: ResolvedRange
+): ReactivationOverview {
+  const aff = matchCloses(leads, messages, affiliatePcn).filter((c) => isDateInRange(c.date, range));
+  const htHits = matchToTexts(
+    leads,
+    messages,
+    htPcn.map((r) => ({ date: r.date, email: r.leadEmail, phone: null, createdTime: r.createdTime }))
+  );
+  const ht = htPcn.filter((r, i) => htHits[i] && isDateInRange(r.date, range));
+  const htClosed = ht.filter((r) => HT_CLOSED.test(r.callOutcome ?? ""));
+  const texted = new Set(
+    messages
+      .filter((m) => m.direction === "out" && m.status === "sent" && isDateInRange(toEasternDateOnly(m.sentAt), range))
+      .map((m) => m.contactId)
+  );
+  return {
+    leadsTexted: texted.size,
+    callsTaken: aff.length + ht.length,
+    affiliateCloses: aff.length,
+    highTicketCloses: htClosed.length,
+    cashCollected:
+      aff.reduce((sum, c) => sum + (c.cash ?? 0), 0) + htClosed.reduce((sum, r) => sum + (r.cashCollected ?? 0), 0),
+  };
 }
 
 function daysBetween(start: string, end: string): string[] {

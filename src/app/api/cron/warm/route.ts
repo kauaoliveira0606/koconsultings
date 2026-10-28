@@ -41,6 +41,7 @@ const ONLY = {
     "overview/connection-rate?preset=this_month",
     "overview/lead-sources?preset=this_month",
     "overview/plan-split?preset=this_month",
+    "overview/reactivation-results?preset=this_month",
   ],
   bronson: ["overview/pnl?preset=this_month"],
 };
