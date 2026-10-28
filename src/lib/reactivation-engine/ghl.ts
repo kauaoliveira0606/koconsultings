@@ -19,6 +19,8 @@ type GhlOffer = {
   /** Stages texted / booked leads move to in `pipeline`; null leaves the stage alone. */
   textedStage: string | null;
   readyStage: string | null;
+  /** Where a lead goes in `pipeline` when a text to them fails; null leaves the stage alone. */
+  failedStage: string | null;
   /** Discord webhook env var for booked leads. */
   bookedWebhookEnv: string;
   /** Extra line on the Discord alert so the team knows what the lead is for. */
@@ -42,6 +44,7 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
     textedStage: "f6897d1a-12aa-4d78-a350-6e7b8299afab",
     // Added 2026-10-28 right after "Reactivation Attempt": the lead gave us a call time.
     readyStage: "75477154-b0bc-4166-83d2-1a1df8738288",
+    failedStage: null,
     bookedWebhookEnv: "DISCORD_AVAL_REACTIVATION_WEBHOOK",
     bookedContext: null,
   },
@@ -66,6 +69,8 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
     blockedPipelines: new Set(["uzqhkJTeAUvgDg4Rh5Br"]), // Fulfillment
     textedStage: null,
     readyStage: null,
+    // User, 2026-10-28: a number we can't text goes to the dead pile. Trash is blocked above.
+    failedStage: "c755a89e-03b2-4ebb-83cc-2b712545314f", // Trash
     bookedWebhookEnv: "DISCORD_BRONSON_REACTIVATION_WEBHOOK",
     // User, 2026-10-28: the team stopped selling Base44 a while back, so say it on every alert.
     bookedContext: "⚠️ **Base44 lead.** Old Base44 free course opt-in: give them free course access and get them started on the AI tools.",
@@ -189,6 +194,14 @@ export async function markTexted(offer: ReactivationOffer, contactId: string): P
   await ghl(offer, `/contacts/${contactId}/tags`, { method: "POST", body: { tags: ["reactivation"] } });
   const stage = GHL_OFFERS[offer].textedStage;
   if (stage) await moveInPipeline(offer, contactId, stage);
+}
+
+/** A text to this lead failed: move them to the offer's failed stage, if it has one. */
+export async function markFailed(offer: ReactivationOffer, contactId: string): Promise<boolean> {
+  const stage = GHL_OFFERS[offer].failedStage;
+  if (!stage) return false;
+  await moveInPipeline(offer, contactId, stage);
+  return true;
 }
 
 async function moveInPipeline(offer: ReactivationOffer, contactId: string, stageId: string): Promise<void> {

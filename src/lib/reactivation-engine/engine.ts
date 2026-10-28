@@ -12,6 +12,7 @@ import {
   getContact,
   history,
   inBlockedStage,
+  markFailed,
   smsBlocked,
   markTexted,
   pipelineLeads,
@@ -323,6 +324,10 @@ export async function runSends(
     if (draftId) await updateReactivationRow(offer, "messages", draftId, ok ? { Status: "sent", "Sent At": now } : { Status: "failed" });
     else if (ok) await logSent(offer, lead, c, body, touch);
     if (!ok) {
+      if (await markFailed(offer, c.id).catch((e) => (console.error("reactivation move to failed stage failed", c.id, e), false))) {
+        if (lead) await updateReactivationRow(offer, "leads", lead.id, { Status: "Skipped" });
+        else await createReactivationRow(offer, "leads", { Name: c.contactName || c.phone || c.id, "GHL Contact ID": c.id, Phone: c.phone ?? null, Status: "Skipped" });
+      }
       if (++failsInARow >= 3) {
         report.off = "3 texts in a row failed to send";
         await turnOff(offer, report.off);
