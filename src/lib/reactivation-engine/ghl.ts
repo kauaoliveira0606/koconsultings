@@ -112,8 +112,13 @@ export type GhlContact = {
   phone?: string;
   timezone?: string;
   dnd?: boolean;
+  /** Per-channel DND. GHL turns SMS on by itself after carrier errors (dead number, landline). */
+  dndSettings?: { SMS?: { status?: string } };
   dateAdded: string;
 };
+
+/** Full DND or SMS-only DND: GHL refuses to text either. */
+export const smsBlocked = (c: GhlContact) => Boolean(c.dnd) || c.dndSettings?.SMS?.status === "active";
 
 export type GhlMessage = {
   id: string;

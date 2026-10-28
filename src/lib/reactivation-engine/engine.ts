@@ -12,6 +12,7 @@ import {
   getContact,
   history,
   inBlockedStage,
+  smsBlocked,
   markTexted,
   pipelineLeads,
   recentConversations,
@@ -230,7 +231,7 @@ function textable(phone: string | undefined): boolean {
 async function skipReason(offer: ReactivationOffer, c: GhlContact, ignoreHours = false): Promise<string | null> {
   if (!textable(c.phone)) return "no valid phone";
   if (SEND_RULES[offer].blockedCountries.test(c.phone!)) return "blocked country";
-  if (c.dnd) return "DND";
+  if (smsBlocked(c)) return "DND";
   // Cold means the reps have had their week with them.
   if (Date.now() - Date.parse(c.dateAdded) < 7 * DAY) return "signed up under 7 days ago";
   const w = sendWindow(offer, c);
@@ -374,7 +375,7 @@ export async function runSends(
     if (!last || touch > 3 || Date.now() - Date.parse(s(last.fields["Sent At"])) < 3 * DAY) continue;
     const c = await getContact(offer, id);
     const w = sendWindow(offer, c);
-    if (c.dnd || !w || !inWindow(w)) continue;
+    if (smsBlocked(c) || !w || !inWindow(w)) continue;
     const body = await generate(offer, {
       model: MODELS.firstText,
       system: firstTextSystem(offer),
