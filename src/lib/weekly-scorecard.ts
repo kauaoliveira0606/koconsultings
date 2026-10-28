@@ -258,6 +258,11 @@ const dCashPaid = (c: DayCtx) => {
   const parts = [dCashLTPaid(c), dCashHTPaid(c), dVipCashPaid(c), dAiCashPaid(c)];
   return parts.every((v) => v === null) ? null : parts.reduce((t: number, v) => t + (v ?? 0), 0);
 };
+/** All organic cash that day, the same four parts. */
+const dCashOrg = (c: DayCtx) => {
+  const parts = [dCashLTOrg(c), dCashHTOrg(c), dVipCashOrg(c), dAiCashOrg(c)];
+  return parts.every((v) => v === null) ? null : parts.reduce((t: number, v) => t + (v ?? 0), 0);
+};
 
 // --- high-ticket: form first, then EOD Closer, then Affiliate EOD (same
 // order as the Overview cards) ---
@@ -273,6 +278,7 @@ const dHtClosed = (c: DayCtx) =>
 const dNewHtBooked = (c: DayCtx) => (c.eod ? num(c.eod.newHtBooked) : null);
 const dRevenueHT = (c: DayCtx) => (c.m ? num(c.m.revenueHighTicket) : null);
 const dHtClosedPaid = (c: DayCtx) => (c.m ? num(c.m.highTicketDealsClosedPaid) : null);
+const dHtClosedOrg = (c: DayCtx) => (c.m ? num(c.m.highTicketDealsClosedOrganic) : null);
 // --- webinar funnel (Marketing Daily Metrics form only) ---
 const addBoth = (a: number | null, b: number | null) =>
   a === null && b === null ? null : (a ?? 0) + (b ?? 0);
@@ -321,6 +327,13 @@ const wTagCloseRate =
     if (tracked.length === 0) return null;
     return safeDivide(sum(tracked.map(sales)), sum(tracked.map(pickups)) || null);
   };
+// Cash ÷ Calendly bookings of one source, tracked days only.
+const dCashPerBooking = (cash: (c: DayCtx) => number | null, src: BookingSource) => (c: DayCtx) =>
+  c.bk ? safeDivide(cash(c), c.bk[src].booked || null) : null;
+const wCashPerBooking = (cash: (c: DayCtx) => number | null, src: BookingSource) => (days: DayCtx[]) => {
+  const t = days.filter((c) => c.bk);
+  return t.length ? safeDivide(sum(t.map(cash)), sum(t.map((c) => c.bk![src].booked)) || null) : null;
+};
 const wSum = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => sum(days.map(pick));
 const wAvg = (pick: (c: DayCtx) => number | null) => (days: DayCtx[]) => average(days.map(pick));
 
@@ -519,6 +532,25 @@ function buildSpecs(
           week: (days) => safeDivide(sum(days.map(dCashHT)), sum(days.map(dHtBooked)) || null),
         },
         {
+          // HT cash by source ÷ Calendly bookings with that source (user, 2026-10-28).
+          key: "collectedPerBookedCallHTPaid",
+          label: "↳ Collected $ / Booked Call (HT, Paid)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: dCashPerBooking(dCashHTPaid, "Paid"),
+          week: wCashPerBooking(dCashHTPaid, "Paid"),
+        },
+        {
+          key: "collectedPerBookedCallHTOrganic",
+          label: "↳ Collected $ / Booked Call (HT, Organic)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: dCashPerBooking(dCashHTOrg, "Organic"),
+          week: wCashPerBooking(dCashHTOrg, "Organic"),
+        },
+        {
           key: "totalCashCollected",
           label: "Total Cash Collected",
           format: "currency",
@@ -526,6 +558,25 @@ function buildSpecs(
           goalDirection: goals.totalCashCollected === null ? null : "higher",
           day: dTotalCash,
           week: wSum(dTotalCash),
+        },
+        {
+          // Affiliate + high ticket + VIP + Bronson AI cash by source (user, 2026-10-28).
+          key: "totalCashPaid",
+          label: "↳ Total Cash Collected (Paid)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: dCashPaid,
+          week: wSum(dCashPaid),
+        },
+        {
+          key: "totalCashOrganic",
+          label: "↳ Total Cash Collected (Organic)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: dCashOrg,
+          week: wSum(dCashOrg),
         },
       ],
     },
@@ -690,6 +741,24 @@ function buildSpecs(
           week: (days) => safeDivide(sum(days.map(dCashLT)), sum(days.map(dSalesLT)) || null),
         },
         {
+          key: "aovLtPaid",
+          label: "↳ AOV – Affiliate (Paid)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: (c) => safeDivide(dCashLTPaid(c), dSalesLTPaid(c) || null),
+          week: (days) => safeDivide(sum(days.map(dCashLTPaid)), sum(days.map(dSalesLTPaid)) || null),
+        },
+        {
+          key: "aovLtOrganic",
+          label: "↳ AOV – Affiliate (Organic)",
+          format: "currency",
+          goal: null,
+          goalDirection: null,
+          day: (c) => safeDivide(dCashLTOrg(c), dSalesLTOrg(c) || null),
+          week: (days) => safeDivide(sum(days.map(dCashLTOrg)), sum(days.map(dSalesLTOrg)) || null),
+        },
+        {
           key: "leadToCloseRate",
           label: "Lead-to-Close Rate",
           format: "percent",
@@ -772,6 +841,24 @@ function buildSpecs(
           goalDirection: null,
           day: dHtClosed,
           week: wSum(dHtClosed),
+        },
+        {
+          key: "htClosedPaid",
+          label: "↳ High Ticket Deals Closed (Paid)",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: dHtClosedPaid,
+          week: wSum(dHtClosedPaid),
+        },
+        {
+          key: "htClosedOrganic",
+          label: "↳ High Ticket Deals Closed (Organic)",
+          format: "number",
+          goal: null,
+          goalDirection: null,
+          day: dHtClosedOrg,
+          week: wSum(dHtClosedOrg),
         },
         {
           key: "htCloseRate",
@@ -1314,7 +1401,8 @@ const TYPED_RATE_KEYS = new Set([
  * section on top for the numbers checked first. Metric definitions live in
  * buildSpecs; this only decides where each one shows up.
  */
-export type ScorecardLayout = { emoji: string; title: string; keys: string[] }[];
+/** `labels` renames a row in this layout only (same data, offer-specific wording). */
+export type ScorecardLayout = { emoji: string; title: string; keys: string[]; labels?: Record<string, string> }[];
 
 const SCORECARD_LAYOUT: ScorecardLayout = [
   {
@@ -1505,6 +1593,8 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
     title: "General",
     keys: [
       "totalCashCollected",
+      "totalCashPaid",
+      "totalCashOrganic",
       "adSpendMeta",
       "roasTotal",
       "costPerLeadMeta",
@@ -1535,6 +1625,8 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "closeRateLtPaid",
       "closeRateLtOrganic",
       "aovLowTicket",
+      "aovLtPaid",
+      "aovLtOrganic",
       "leadToCloseRate",
       "leadToCloseRatePaid",
       "leadToCloseRateOrganic",
@@ -1558,10 +1650,14 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "webinarOptInsOrganic",
       "webinarOptInRate",
       "webinarShowRate",
+      "webinarShowRatePaid",
+      "webinarShowRateOrganic",
       "liveAttendees",
       "liveAttendeesAtPitch",
       "retentionRateUntilPitch",
       "webinarBookingRate",
+      "bookingRatePaid",
+      "bookingRateOrganic",
       "vipPurchases",
       "vipCash",
       "vipTakeRatePaid",
@@ -1573,6 +1669,12 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "cpm",
       "adFrequency",
     ],
+    labels: {
+      webinarShowRatePaid: "↳ Webinar Show Rate (Paid)",
+      webinarShowRateOrganic: "↳ Webinar Show Rate (Organic)",
+      bookingRatePaid: "↳ Webinar Booking Rate (Paid)",
+      bookingRateOrganic: "↳ Webinar Booking Rate (Organic)",
+    },
   },
   {
     emoji: "🎯",
@@ -1583,9 +1685,15 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "htVslPlayRate",
       "htVslEngagementRate",
       "htCallsBooked",
+      "callsPaidBooked",
+      "bookedConnRatePaid",
+      "callsOrganicBooked",
+      "bookedConnRateOrganic",
       "htCallsShowed",
       "htShowRate",
       "htDealsClosed",
+      "htClosedPaid",
+      "htClosedOrganic",
       "htCloseRate",
       "aovHighTicket",
       "revenueHighTicket",
@@ -1595,7 +1703,15 @@ export const AVAL_SCORECARD_LAYOUT: ScorecardLayout = [
       "cacHighTicketPaid",
       "costPerCallHT",
       "collectedPerBookedCallHT",
+      "collectedPerBookedCallHTPaid",
+      "collectedPerBookedCallHTOrganic",
     ],
+    labels: {
+      callsPaidBooked: "↳ Calls Booked (Paid, Masterclass Calendly)",
+      bookedConnRatePaid: "↳ Booked Call Connection Rate (Paid)",
+      callsOrganicBooked: "↳ Calls Booked (Organic, Masterclass Calendly)",
+      bookedConnRateOrganic: "↳ Booked Call Connection Rate (Organic)",
+    },
   },
 ];
 
@@ -1862,7 +1978,7 @@ export async function buildWeeklyScorecard(
         const weekValue = spec.week(scoredDays);
         return {
           key: spec.key,
-          label: spec.label,
+          label: g.labels?.[spec.key] ?? spec.label,
           format: spec.format,
           goal: spec.goal,
           goalDirection: spec.goalDirection,

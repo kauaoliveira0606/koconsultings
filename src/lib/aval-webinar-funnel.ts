@@ -1,4 +1,4 @@
-import type { BookingRow, MasterclassRegistrantRow } from "@/lib/airtable/tables";
+import type { BookingRow, ConnectedCallRow, MasterclassRegistrantRow } from "@/lib/airtable/tables";
 import { getAvalConnectedCalls, getAvalMarketingDailyMetrics, getAvalPostCallNotes } from "@/lib/airtable/tables-aval";
 import { getBookingsMade } from "@/lib/calendly";
 import { calendlyFor } from "@/lib/calendly-offers";
@@ -89,6 +89,20 @@ export async function avalBookings(today: string): Promise<BookingRow[]> {
   return (await avalInputs(today)).bookings;
 }
 
+/** A person can be two GHL contacts: point each booking at the one that has calls. */
+export function matchCalledContact(bookings: BookingRow[], calls: ConnectedCallRow[]): BookingRow[] {
+  const called = new Set(calls.flatMap((c) => (c.contactId ? [c.contactId] : [])));
+  return bookings.map((b) => {
+    const all = (b.contactId ?? "").split(",").filter(Boolean);
+    return { ...b, contactId: all.find((id) => called.has(id)) ?? all[0] ?? null };
+  });
+}
+
+/** Registrants and bookings (with source) for the Aval scorecard. */
+export async function avalScorecardInputs(today: string): Promise<AvalInputs> {
+  return avalInputs(today);
+}
+
 /** Newest webinar first, paid vs organic, for Aval. */
 export async function avalWebinarSourceRows(today: string): Promise<WebinarSourceRow[]> {
   const [{ registrants, bookings }, marketing, calls, notes] = await Promise.all([
@@ -97,11 +111,6 @@ export async function avalWebinarSourceRows(today: string): Promise<WebinarSourc
     getAvalConnectedCalls(),
     getAvalPostCallNotes(),
   ]);
-  // A person can be two GHL contacts: point each booking at the one that has calls.
-  const called = new Set(calls.flatMap((c) => (c.contactId ? [c.contactId] : [])));
-  const matched = bookings.map((b) => {
-    const all = (b.contactId ?? "").split(",").filter(Boolean);
-    return { ...b, contactId: all.find((id) => called.has(id)) ?? all[0] ?? null };
-  });
+  const matched = matchCalledContact(bookings, calls);
   return webinarSourceRows(WEBINAR_SCHEDULE.aval, marketing, registrants, matched, calls, notes, today);
 }

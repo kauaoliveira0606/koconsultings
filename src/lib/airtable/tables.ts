@@ -90,6 +90,7 @@ export type MarketingDailyMetricRow = {
   // refund/chargeback fields below. No Organic counterpart field exists —
   // it's not needed since High Ticket Deals Closed (total) already covers it.
   highTicketDealsClosedPaid: number | null;
+  highTicketDealsClosedOrganic: number | null;
   // Added 2026-09 on every offer's Marketing Daily Metrics table so refund/
   // chargeback rate can finally be tracked instead of just noted as missing.
   refundCount: number | null;
@@ -560,6 +561,7 @@ export function createAirtableTables(
       // "High Ticket Closed (Paid)", Ecom Simulation "High ticket closes (Paid)".
       highTicketDealsClosed: addNullable(htClosedOrganic, htClosedPaid),
       highTicketDealsClosedPaid: htClosedPaid,
+      highTicketDealsClosedOrganic: htClosedOrganic,
       refundCount: parseNumericText(f["Refund count"]),
       refundDollars: parseNumericText(f["Refund dollars"]),
       chargebackCount: parseNumericText(f["Chargebacks"]),
