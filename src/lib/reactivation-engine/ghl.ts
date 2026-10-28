@@ -6,9 +6,9 @@
 const GHL_API = "https://services.leadconnectorhq.com";
 
 export const BASE44_PIPELINE = "1YUUtFeSnGtc3u94exjP";
-/** Added 2026-10-28 right after "Base44 Opt in": where texted leads sit. */
+/** Added 2026-10-28 right after "Base44 Opt in", named "Reactivation Attempt": where texted leads sit. */
 export const REACTIVATION_STAGE = "f6897d1a-12aa-4d78-a350-6e7b8299afab";
-/** Added 2026-10-28 right after "Reactivation": the lead gave us a call time. */
+/** Added 2026-10-28 right after "Reactivation Attempt": the lead gave us a call time. */
 export const REACTIVATION_READY_STAGE = "75477154-b0bc-4166-83d2-1a1df8738288";
 /** User, 2026-10-28: the only Base44 stages the engine may not text. */
 export const BLOCKED_STAGES = new Set([
