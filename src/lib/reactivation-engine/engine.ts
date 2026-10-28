@@ -590,7 +590,11 @@ async function turnOff(offer: ReactivationOffer, reason: string) {
   await setReactivationSetting(offer, "off_reason", reason);
 }
 
-/** BUILD.md safety switch: opt-outs over 3% of today's texts turn the engine OFF. */
+/**
+ * BUILD.md safety switch: opt-outs over 3% of today's texts turn the engine OFF,
+ * judged once the day has 100+ texts (user, 2026-10-28: one STOP in the first
+ * 28 texts shut Aval down).
+ */
 export async function checkOptOuts(offer: ReactivationOffer, report: RunReport): Promise<void> {
   if (!SEND_RULES[offer].autoOff) return;
   if (!(await getReactivationSettings(offer)).engineOn) return;
@@ -598,7 +602,7 @@ export async function checkOptOuts(offer: ReactivationOffer, report: RunReport):
   const messages = await getReactivationRows(offer, "messages");
   const texts = messages.filter((m) => m.fields.Direction === "out" && m.fields.Status === "sent" && easternDay(s(m.fields["Sent At"])) === today).length;
   const optOuts = messages.filter((m) => m.fields["Opt Out"] === true && easternDay(s(m.fields["Created At"])) === today).length;
-  if (texts > 0 && optOuts / texts > 0.03) {
+  if (texts >= 100 && optOuts / texts > 0.03) {
     report.off = `Opt-outs hit ${optOuts} of ${texts} texts today (over 3%)`;
     await turnOff(offer, report.off);
   }
