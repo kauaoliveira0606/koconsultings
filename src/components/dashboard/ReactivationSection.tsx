@@ -6,6 +6,7 @@ import { MetricGroups } from "@/components/dashboard/MetricGroups";
 import type { RangeState } from "@/components/dashboard/RangeFilterBar";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue } from "@/lib/format";
+import type { ReactivationOffer } from "@/lib/airtable/reactivation";
 import type { ConversationStatus, ReactivationResponse } from "@/lib/reactivation";
 
 const SERIES = [
@@ -136,9 +137,9 @@ function DailyChart({ data }: { data: ReactivationResponse["daily"] }) {
   );
 }
 
-function Thread({ contactId }: { contactId: string }) {
+function Thread({ offer, contactId }: { offer: ReactivationOffer; contactId: string }) {
   const { data } = useSWR<{ messages: { id: string; direction: "in" | "out"; body: string; at: string; touch: number | null }[] }>(
-    `/api/aval/overview/reactivation/thread?contact=${encodeURIComponent(contactId)}`,
+    `/api/${offer}/overview/reactivation/thread?contact=${encodeURIComponent(contactId)}`,
     (url: string) => fetch(url).then((r) => r.json())
   );
   if (!data) return <p className="px-5 py-3 text-sm text-[var(--text-muted)]">Loading thread…</p>;
@@ -170,8 +171,8 @@ type Controls = {
   drafts: { id: string; leadName: string | null; body: string; touch: number | null }[];
 };
 
-function ControlsPanel() {
-  const { data, error, mutate } = useSWR<Controls>("/api/aval/overview/reactivation/controls", async (url: string) => {
+function ControlsPanel({ offer }: { offer: ReactivationOffer }) {
+  const { data, error, mutate } = useSWR<Controls>(`/api/${offer}/overview/reactivation/controls`, async (url: string) => {
     const res = await fetch(url);
     if (res.status === 401) throw new Error("locked");
     if (!res.ok) throw new Error("failed");
@@ -182,7 +183,7 @@ function ControlsPanel() {
 
   async function send(body: Record<string, unknown>) {
     setBusy(true);
-    await fetch("/api/aval/overview/reactivation/controls", {
+    await fetch(`/api/${offer}/overview/reactivation/controls`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -197,7 +198,7 @@ function ControlsPanel() {
       <div className={panel}>
         <p className="text-sm text-[var(--text-muted)]">
           Controls are behind the admin password.{" "}
-          <a className="font-semibold text-sky-200 underline" href="/aval/admin-team/unlock?next=/aval/reactivation">
+          <a className="font-semibold text-sky-200 underline" href={`/${offer}/admin-team/unlock?next=/${offer}/reactivation`}>
             Unlock
           </a>
         </p>
@@ -298,8 +299,8 @@ function ControlsPanel() {
   );
 }
 
-export function ReactivationSection({ range }: { range: RangeState }) {
-  const { data } = useSectionData<ReactivationResponse>("/api/aval/overview/reactivation", range);
+export function ReactivationSection({ offer, range }: { offer: ReactivationOffer; range: RangeState }) {
+  const { data } = useSectionData<ReactivationResponse>(`/api/${offer}/overview/reactivation`, range);
   const [open, setOpen] = useState<string | null>(null);
   const v = <T,>(value: T) => (data ? value : undefined);
 
@@ -401,13 +402,13 @@ export function ReactivationSection({ range }: { range: RangeState }) {
                 </div>
                 <span className="shrink-0 text-[11px] text-[var(--text-muted)]">{timeFmt.format(new Date(c.lastAt))}</span>
               </button>
-              {open === c.contactId ? <Thread contactId={c.contactId} /> : null}
+              {open === c.contactId ? <Thread offer={offer} contactId={c.contactId} /> : null}
             </li>
           ))}
         </ul>
       </div>
 
-      <ControlsPanel />
+      <ControlsPanel offer={offer} />
     </div>
   );
 }

@@ -920,6 +920,8 @@ export type BronsonAffiliatePcnRow = {
   software: string | null;
   plan: string | null;
   cpaCash: number | null;
+  /** When the note was filed: orders a same-day close against a reactivation text. */
+  createdTime: string;
 };
 
 export async function getBronsonAffiliatePcn(): Promise<BronsonAffiliatePcnRow[]> {
@@ -939,6 +941,7 @@ export async function getBronsonAffiliatePcn(): Promise<BronsonAffiliatePcnRow[]
       software: (f["Which software"] as string) ?? null,
       plan: (f["Plan?"] as string) ?? null,
       cpaCash: parseNumericText(f["CPA (Payout / Cash Collected)"]),
+      createdTime: r.createdTime,
     };
   });
 }

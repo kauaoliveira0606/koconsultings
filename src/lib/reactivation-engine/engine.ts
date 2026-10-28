@@ -5,27 +5,28 @@ import {
   getReactivationSettings,
   setReactivationSetting,
   updateReactivationRow,
+  type ReactivationOffer,
 } from "@/lib/airtable/reactivation";
 import {
-  base44Leads,
-  BLOCKED_STAGES,
-  contactStages,
   flagBooked,
   getContact,
   history,
+  inBlockedStage,
+  markTexted,
+  pipelineLeads,
   recentConversations,
   sendSms,
-  markTexted,
   type GhlContact,
   type GhlMessage,
 } from "./ghl";
-import { MY_VOICE, OFFER, REPLY_PLAYBOOK, VOICE } from "./voice";
+import { VOICES } from "./voice";
 
 /**
- * The Aval reactivation engine (kit: ~/Downloads/reactivation-engine-kit,
- * BUILD.md phase 3). Texts cold Base44 leads from GHL, answers their replies,
- * marks bookings. Every Claude call is logged with its cost, and the
- * Reactivation section on /aval/overview reads the same tables.
+ * The reactivation engine (BUILD.md phase 3 of each offer's kit). Texts cold
+ * leads from the offer's GHL pipeline, answers their replies, marks bookings.
+ * Every Claude call is logged with its cost, and the offer's Reactivation tab
+ * reads the same tables. Aval and Bronson each have their own voice, tables,
+ * pipeline and settings.
  */
 
 const DAY = 86_400_000;
@@ -45,7 +46,7 @@ let client: Anthropic | null = null;
 
 type Purpose = "first_text" | "follow_up" | "reply";
 
-async function generate(opts: {
+async function generate(offer: ReactivationOffer, opts: {
   model: string;
   system: string;
   prompt: string;
@@ -75,7 +76,7 @@ async function generate(opts: {
       (u.cache_read_input_tokens ?? 0) * p.cacheRead +
       (u.cache_creation_input_tokens ?? 0) * p.in * 1.25) /
     1_000_000;
-  await createReactivationRow("aiCalls", {
+  await createReactivationRow(offer, "aiCalls", {
     Name: `${opts.purpose} ${opts.contactId}`,
     "GHL Contact ID": opts.contactId,
     Touch: opts.touch,
@@ -98,33 +99,36 @@ async function generate(opts: {
   return text ? text.replace(/\s*—\s*/g, ", ") : null;
 }
 
-const RULES = `{TEAM} = Aval Trade's team. {OWNER} = Aval. {OFFER} = the free trading course and AI tools.
+function rules(offer: ReactivationOffer): string {
+  const v = VOICES[offer];
+  return `${v.names}
 Where my-voice.md disagrees with voice.md or the reply playbook, my-voice.md wins.
 
 <voice.md>
-${VOICE}
+${v.voice}
 </voice.md>
 
 <my-voice.md>
-${MY_VOICE}
+${v.myVoice}
 </my-voice.md>
 
 <offer.md>
-${OFFER}
+${v.offer}
 </offer.md>`;
+}
 
-const FIRST_TEXT_SYSTEM = `You write texts to leads who signed up a while back and went cold. Follow these files exactly.
+const firstTextSystem = (offer: ReactivationOffer) => `You write texts to leads who signed up a while back and went cold. Follow these files exactly.
 
-${RULES}
+${rules(offer)}
 
 Reply with only the text message. No quotes, no notes.`;
 
-const REPLY_SYSTEM = `You answer a lead's texts. The goal is a booked call time. Follow these files exactly.
+const replySystem = (offer: ReactivationOffer) => `You answer a lead's texts. The goal is a booked call time. Follow these files exactly.
 
-${RULES}
+${rules(offer)}
 
 <reply-playbook.md>
-${REPLY_PLAYBOOK}
+${VOICES[offer].replyPlaybook}
 </reply-playbook.md>
 
 Return JSON:
@@ -160,22 +164,43 @@ const COUNTRY_TZ: [string, string][] = [
   ["+64", "Pacific/Auckland"],
 ];
 
-/**
- * User, 2026-10-28: never text African, Indian, Pakistani or Middle Eastern numbers.
- * Africa +20 +21x-26x +27 +290 +291; South Asia +91 +92 +93 +94 +880 +977;
- * Middle East +90 +961-968 +970-974 +98.
- */
-const BLOCKED_COUNTRIES = /^\+(20|2[1-6]\d|27|29[01]|9[1-4]|880|977|90|96[1-8]|97[0-4]|98)/;
+/** Africa +20 +21x-26x +27 +290 +291; Middle East +90 +961-968 +970-974 +98. */
+const AFRICA_MIDDLE_EAST = "20|2[1-6]\\d|27|29[01]|90|96[1-8]|97[0-4]|98";
+
+const SEND_RULES: Record<
+  ReactivationOffer,
+  { blockedCountries: RegExp; usEastern: boolean; usHours: [number, number]; hours: [number, number] }
+> = {
+  // User, 2026-10-28: never text African, Indian, Pakistani/South Asian or Middle Eastern numbers.
+  // US (+1) numbers 9am to 10pm Eastern; everyone else 9am to 9pm their own time.
+  aval: {
+    blockedCountries: new RegExp(`^\\+(${AFRICA_MIDDLE_EAST}|9[1-4]|880|977)`),
+    usEastern: true,
+    usHours: [9, 22],
+    hours: [9, 21],
+  },
+  // User, 2026-10-28: never text Middle Eastern or African numbers.
+  // BUILD.md default: 9am to 8pm in the lead's own time zone.
+  bronson: {
+    blockedCountries: new RegExp(`^\\+(${AFRICA_MIDDLE_EAST})`),
+    usEastern: false,
+    usHours: [9, 20],
+    hours: [9, 20],
+  },
+};
 
 type SendWindow = { timeZone: string; from: number; to: number };
 
-/** User, 2026-10-28: US (+1) numbers 9am to 10pm Eastern; everyone else 9am to 9pm their own time. */
-export function sendWindow(c: Pick<GhlContact, "timezone" | "phone">): SendWindow | null {
+export function sendWindow(offer: ReactivationOffer, c: Pick<GhlContact, "timezone" | "phone">): SendWindow | null {
+  const r = SEND_RULES[offer];
   const phone = c.phone ?? "";
-  if (phone.startsWith("+1")) return { timeZone: "America/New_York", from: 9, to: 22 };
-  if (BLOCKED_COUNTRIES.test(phone)) return null;
+  if (phone.startsWith("+1")) {
+    const timeZone = (r.usEastern ? null : c.timezone) || "America/New_York";
+    return { timeZone, from: r.usHours[0], to: r.usHours[1] };
+  }
+  if (r.blockedCountries.test(phone)) return null;
   const timeZone = c.timezone || COUNTRY_TZ.find(([code]) => phone.startsWith(code))?.[1];
-  return timeZone ? { timeZone, from: 9, to: 21 } : null;
+  return timeZone ? { timeZone, from: r.hours[0], to: r.hours[1] } : null;
 }
 
 export function inWindow(w: SendWindow, now = new Date()): boolean {
@@ -196,18 +221,21 @@ function textable(phone: string | undefined): boolean {
   return /^\+\d{8,15}$/.test(phone);
 }
 
-/** BUILD.md "who to text", plus the user's blocked Base44 stages. The daily cap is counted by the caller. */
-async function skipReason(c: GhlContact): Promise<string | null> {
+/**
+ * BUILD.md "who to text", plus the user's blocked stages. The daily cap is
+ * counted by the caller. Drafts skip the send-hours check: they go out later.
+ */
+async function skipReason(offer: ReactivationOffer, c: GhlContact, ignoreHours = false): Promise<string | null> {
   if (!textable(c.phone)) return "no valid phone";
-  if (BLOCKED_COUNTRIES.test(c.phone!)) return "blocked country";
+  if (SEND_RULES[offer].blockedCountries.test(c.phone!)) return "blocked country";
   if (c.dnd) return "DND";
   // Cold means the reps have had their week with them.
   if (Date.now() - Date.parse(c.dateAdded) < 7 * DAY) return "signed up under 7 days ago";
-  const w = sendWindow(c);
+  const w = sendWindow(offer, c);
   if (!w) return "unknown time zone";
-  if (!inWindow(w)) return "outside send hours";
-  if ((await contactStages(c.id)).some((s) => BLOCKED_STAGES.has(s))) return "blocked stage";
-  const msgs = await history(c.id);
+  if (!ignoreHours && !inWindow(w)) return "outside send hours";
+  if (await inBlockedStage(offer, c.id)) return "blocked stage";
+  const msgs = await history(offer, c.id);
   if (msgs.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) return "said STOP";
   const recentRep = msgs.some(
     (m) =>
@@ -225,15 +253,18 @@ const PERMANENT_SKIPS = new Set(["no valid phone", "blocked country", "blocked s
 type Row = { id: string; fields: Record<string, unknown> };
 const s = (v: unknown) => (typeof v === "string" ? v : "");
 const easternDay = (iso: string | Date) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+/** The single-contact endpoint has no contactName, so build it from first + last. */
+const fullName = (c: GhlContact) =>
+  c.contactName || [c.firstName, c.lastName].filter(Boolean).join(" ").trim() || c.phone || c.id;
 const firstNameOf = (c: GhlContact) => {
   const n = c.firstName?.trim().split(/\s+/)[0] ?? "";
   return /^[a-z][a-z'-]+$/i.test(n) && !/^(ok|affiliate|test)$/i.test(n) ? n : null;
 };
 
-async function logSent(lead: Row | null, c: GhlContact, body: string, touch: number | null) {
+async function logSent(offer: ReactivationOffer, lead: Row | null, c: GhlContact, body: string, touch: number | null) {
   const now = new Date().toISOString();
-  const name = s(lead?.fields.Name) || c.contactName || c.phone || c.id;
-  await createReactivationRow("messages", {
+  const name = s(lead?.fields.Name) || fullName(c);
+  await createReactivationRow(offer, "messages", {
     Name: `${name} ${touch ? `#${touch}` : "reply"}`,
     "GHL Contact ID": c.id,
     "Lead Name": name,
@@ -247,9 +278,9 @@ async function logSent(lead: Row | null, c: GhlContact, body: string, touch: num
 }
 
 /** Sends, and returns false (instead of throwing) so failures can trip the safety switch. */
-async function trySend(contactId: string, body: string): Promise<boolean> {
+async function trySend(offer: ReactivationOffer, contactId: string, body: string): Promise<boolean> {
   try {
-    await sendSms(contactId, body);
+    await sendSms(offer, contactId, body);
     return true;
   } catch (e) {
     console.error("reactivation send failed", contactId, e);
@@ -263,15 +294,19 @@ export type RunReport = { firstTexts: number; followUps: number; replies: number
 
 /**
  * Texts: approved drafts, then due follow-ups, then new first texts up to the
- * daily cap (first texts only). `scanNew` is false on the 5-minute runs so GHL
- * is only searched for new leads once an hour. Stops at `deadline` so the run
+ * daily cap (first texts only). Stops at `deadline` so the run
  * ends inside Vercel's time limit; the next run picks up where it left off.
  */
-export async function runSends(scanNew: boolean, deadline: number, report: RunReport): Promise<void> {
-  const settings = await getReactivationSettings();
+export async function runSends(
+  offer: ReactivationOffer,
+  scanNew: boolean,
+  deadline: number,
+  report: RunReport
+): Promise<void> {
+  const settings = await getReactivationSettings(offer);
   if (!settings.engineOn) return;
-  const leads = await getReactivationRows("leads");
-  const messages = await getReactivationRows("messages");
+  const leads = await getReactivationRows(offer, "leads");
+  const messages = await getReactivationRows(offer, "messages");
   const leadById = new Map(leads.map((l) => [s(l.fields["GHL Contact ID"]), l]));
   const today = easternDay(new Date());
   const sentOut = messages.filter((m) => m.fields.Direction === "out" && m.fields.Status === "sent");
@@ -279,15 +314,15 @@ export async function runSends(scanNew: boolean, deadline: number, report: RunRe
   let failsInARow = 0;
 
   async function send(c: GhlContact, body: string, touch: number, draftId?: string): Promise<boolean> {
-    const ok = await trySend(c.id, body);
+    const ok = await trySend(offer, c.id, body);
     const lead = leadById.get(c.id) ?? null;
     const now = new Date().toISOString();
-    if (draftId) await updateReactivationRow("messages", draftId, ok ? { Status: "sent", "Sent At": now } : { Status: "failed" });
-    else if (ok) await logSent(lead, c, body, touch);
+    if (draftId) await updateReactivationRow(offer, "messages", draftId, ok ? { Status: "sent", "Sent At": now } : { Status: "failed" });
+    else if (ok) await logSent(offer, lead, c, body, touch);
     if (!ok) {
       if (++failsInARow >= 3) {
         report.off = "3 texts in a row failed to send";
-        await turnOff(report.off);
+        await turnOff(offer, report.off);
       }
       return false;
     }
@@ -295,16 +330,16 @@ export async function runSends(scanNew: boolean, deadline: number, report: RunRe
     const fields: Record<string, unknown> = { "Last Message At": now };
     if (touch === 1) {
       Object.assign(fields, { Status: "Texted", "First Texted At": now });
-      await markTexted(c.id).catch((e) => console.error("reactivation GHL tag/stage failed", c.id, e));
+      await markTexted(offer, c.id).catch((e) => console.error("reactivation GHL tag/stage failed", c.id, e));
     }
-    if (lead) await updateReactivationRow("leads", lead.id, fields);
+    if (lead) await updateReactivationRow(offer, "leads", lead.id, fields);
     else
-      await createReactivationRow("leads", {
-        Name: c.contactName || c.phone || c.id,
+      await createReactivationRow(offer, "leads", {
+        Name: fullName(c),
         "GHL Contact ID": c.id,
         Email: c.email ?? null,
         Phone: c.phone ?? null,
-        Timezone: sendWindow(c)?.timeZone ?? null,
+        Timezone: sendWindow(offer, c)?.timeZone ?? null,
         DND: false,
         Buyer: false,
         ...fields,
@@ -315,8 +350,8 @@ export async function runSends(scanNew: boolean, deadline: number, report: RunRe
   // 1. Drafts approved in chat or on the dashboard.
   for (const d of messages.filter((m) => m.fields.Status === "approved" && m.fields.Direction === "out")) {
     if (report.off || firstToday >= settings.dailyCap || Date.now() > deadline) break;
-    const c = await getContact(s(d.fields["GHL Contact ID"]));
-    const why = await skipReason(c);
+    const c = await getContact(offer, s(d.fields["GHL Contact ID"]));
+    const why = await skipReason(offer, c);
     if (why) {
       report.skipped[`draft: ${why}`] = (report.skipped[`draft: ${why}`] ?? 0) + 1;
       continue;
@@ -335,12 +370,12 @@ export async function runSends(scanNew: boolean, deadline: number, report: RunRe
     const last = mine[mine.length - 1];
     const touch = Math.max(...mine.map((m) => Number(m.fields.Touch) || 1)) + 1;
     if (!last || touch > 3 || Date.now() - Date.parse(s(last.fields["Sent At"])) < 3 * DAY) continue;
-    const c = await getContact(id);
-    const w = sendWindow(c);
+    const c = await getContact(offer, id);
+    const w = sendWindow(offer, c);
     if (c.dnd || !w || !inWindow(w)) continue;
-    const body = await generate({
+    const body = await generate(offer, {
       model: MODELS.firstText,
-      system: FIRST_TEXT_SYSTEM,
+      system: firstTextSystem(offer),
       prompt: `Write follow-up #${touch} of 3${touch === 3 ? " (the last one)" : ""} to a lead who never replied. Use a different angle from the earlier texts.
 Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
 Earlier texts we sent:
@@ -352,33 +387,10 @@ ${mine.map((m) => `- ${s(m.fields.Body)}`).join("\n")}`,
     if (body && (await send(c, body, touch))) report.followUps++;
   }
 
-  // 3. New first texts, newest cold Base44 leads first.
-  if (!scanNew || firstToday >= settings.dailyCap) return;
-  const seen = new Set(leadById.keys());
-  for await (const { contactId, createdAt } of base44Leads()) {
-    if (report.off || firstToday >= settings.dailyCap || Date.now() > deadline) return;
-    if (seen.has(contactId)) continue;
-    seen.add(contactId);
-    if (Date.now() - Date.parse(createdAt) < 7 * DAY) continue;
-    const c = await getContact(contactId);
-    const why = await skipReason(c);
-    if (why) {
-      report.skipped[why] = (report.skipped[why] ?? 0) + 1;
-      // Saved so the hourly scan doesn't pay for them again.
-      if (PERMANENT_SKIPS.has(why)) {
-        await createReactivationRow("leads", { Name: c.contactName || c.phone || c.id, "GHL Contact ID": c.id, Phone: c.phone ?? null, Status: "Skipped" });
-      }
-      continue;
-    }
-    const daysAgo = Math.floor((Date.now() - Date.parse(c.dateAdded)) / DAY);
-    const body = await generate({
-      model: MODELS.firstText,
-      system: FIRST_TEXT_SYSTEM,
-      prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}\nSigned up: ${daysAgo} days ago\n\nWrite the first text.`,
-      purpose: "first_text",
-      contactId,
-      touch: 1,
-    });
+  // 3. New first texts, newest cold leads first.
+  if (firstToday >= settings.dailyCap) return;
+  for await (const c of coldLeads(offer, new Set(leadById.keys()), report, () => !report.off && firstToday < settings.dailyCap && Date.now() <= deadline)) {
+    const body = await writeFirstText(offer, c);
     if (body && (await send(c, body, 1))) {
       firstToday++;
       report.firstTexts++;
@@ -386,14 +398,94 @@ ${mine.map((m) => `- ${s(m.fields.Body)}`).join("\n")}`,
   }
 }
 
+/**
+ * Cold pipeline leads the engine may text, newest first, while `more()` holds.
+ * Permanent skips are saved so later scans don't pay for them again.
+ */
+async function* coldLeads(
+  offer: ReactivationOffer,
+  seen: Set<string>,
+  report: RunReport,
+  more: () => boolean,
+  ignoreHours = false
+): AsyncGenerator<GhlContact> {
+  for await (const { contactId, createdAt } of pipelineLeads(offer)) {
+    if (!more()) return;
+    if (seen.has(contactId)) continue;
+    seen.add(contactId);
+    if (Date.now() - Date.parse(createdAt) < 7 * DAY) continue;
+    const c = await getContact(offer, contactId);
+    const why = await skipReason(offer, c, ignoreHours);
+    if (why) {
+      report.skipped[why] = (report.skipped[why] ?? 0) + 1;
+      if (PERMANENT_SKIPS.has(why)) {
+        await createReactivationRow(offer, "leads", { Name: fullName(c), "GHL Contact ID": c.id, Phone: c.phone ?? null, Status: "Skipped" });
+      }
+      continue;
+    }
+    yield c;
+  }
+}
+
+function writeFirstText(offer: ReactivationOffer, c: GhlContact): Promise<string | null> {
+  const daysAgo = Math.floor((Date.now() - Date.parse(c.dateAdded)) / DAY);
+  return generate(offer, {
+    model: MODELS.firstText,
+    system: firstTextSystem(offer),
+    prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}\nSigned up: ${daysAgo} days ago\n\nWrite the first text.`,
+    purpose: "first_text",
+    contactId: c.id,
+    touch: 1,
+  });
+}
+
+/**
+ * BUILD.md "show 20 real drafts": writes first texts for the newest cold
+ * leads as drafts. Sends nothing; approved drafts go out on the next run
+ * while the engine is ON.
+ */
+export async function makeDrafts(offer: ReactivationOffer, want: number): Promise<{ drafts: { name: string; body: string }[]; skipped: Record<string, number> }> {
+  const leads = await getReactivationRows(offer, "leads");
+  const report: RunReport = { firstTexts: 0, followUps: 0, replies: 0, skipped: {} };
+  const drafts: { name: string; body: string }[] = [];
+  const seen = new Set(leads.map((l) => s(l.fields["GHL Contact ID"])));
+  for await (const c of coldLeads(offer, seen, report, () => drafts.length < want, true)) {
+    const body = await writeFirstText(offer, c);
+    if (!body) continue;
+    const name = c.contactName || firstNameOf(c) || c.phone || c.id;
+    await createReactivationRow(offer, "leads", {
+      Name: name,
+      "GHL Contact ID": c.id,
+      Email: c.email ?? null,
+      Phone: c.phone ?? null,
+      Timezone: sendWindow(offer, c)?.timeZone ?? null,
+      Status: "Queued",
+      DND: false,
+      Buyer: false,
+    });
+    await createReactivationRow(offer, "messages", {
+      Name: `${name} #1`,
+      "GHL Contact ID": c.id,
+      "Lead Name": name,
+      Direction: "out",
+      Body: body,
+      Touch: 1,
+      Status: "draft",
+      "Created At": new Date().toISOString(),
+    });
+    drafts.push({ name, body });
+  }
+  return { drafts, skipped: report.skipped };
+}
+
 /** Every 5 minutes: log new inbound texts from texted leads and answer them. */
-export async function runReplies(report: RunReport): Promise<void> {
-  const settings = await getReactivationSettings();
-  const leads = await getReactivationRows("leads", "{First Texted At}");
+export async function runReplies(offer: ReactivationOffer, report: RunReport): Promise<void> {
+  const settings = await getReactivationSettings(offer);
+  const leads = await getReactivationRows(offer, "leads", "{First Texted At}");
   const leadById = new Map(leads.map((l) => [s(l.fields["GHL Contact ID"]), l]));
   const cutoff = Date.now() - DAY;
 
-  for (const conv of await recentConversations()) {
+  for (const conv of await recentConversations(offer)) {
     if (conv.lastMessageDate < cutoff) break;
     const lead = leadById.get(conv.contactId);
     if (!lead || lead.fields.Status === "Opted out" || conv.lastMessageDirection !== "inbound") continue;
@@ -401,7 +493,7 @@ export async function runReplies(report: RunReport): Promise<void> {
     const handledUpTo = s(lead.fields["Last Message At"]).slice(0, 19);
     if (new Date(conv.lastMessageDate).toISOString().slice(0, 19) <= handledUpTo) continue;
 
-    const msgs = await history(conv.contactId);
+    const msgs = await history(offer, conv.contactId);
     const fresh = msgs.filter((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && m.dateAdded.slice(0, 19) > handledUpTo);
     if (!fresh.length) continue;
     const name = s(lead.fields.Name);
@@ -410,7 +502,7 @@ export async function runReplies(report: RunReport): Promise<void> {
     for (const m of fresh) {
       const isStop = STOP.test(m.body ?? "");
       optOut ||= isStop;
-      await createReactivationRow("messages", {
+      await createReactivationRow(offer, "messages", {
         Name: `${name} in`,
         "GHL Contact ID": conv.contactId,
         "Lead Name": name,
@@ -423,17 +515,17 @@ export async function runReplies(report: RunReport): Promise<void> {
     }
     if (optOut) {
       // Stop forever, never reply again.
-      await updateReactivationRow("leads", lead.id, { ...fields, Status: "Opted out", "Opted Out At": new Date().toISOString() });
+      await updateReactivationRow(offer, "leads", lead.id, { ...fields, Status: "Opted out", "Opted Out At": new Date().toISOString() });
       continue;
     }
     if (lead.fields.Status === "Texted") fields.Status = "Replied";
 
     if (settings.engineOn) {
-      const c = await getContact(conv.contactId);
-      const timeZone = sendWindow(c)?.timeZone ?? c.timezone ?? "America/New_York";
-      const out = await generate({
+      const c = await getContact(offer, conv.contactId);
+      const timeZone = sendWindow(offer, c)?.timeZone ?? c.timezone ?? "America/New_York";
+      const out = await generate(offer, {
         model: MODELS.reply,
-        system: REPLY_SYSTEM,
+        system: replySystem(offer),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
 Their local time now: ${localTime(timeZone)}
 
@@ -450,18 +542,18 @@ Answer their latest text.`,
       if (parsed?.action === "opt_out") {
         Object.assign(fields, { Status: "Opted out", "Opted Out At": new Date().toISOString() });
       } else if (parsed) {
-        if (parsed.reply && (await trySend(c.id, parsed.reply))) {
-          await logSent(lead, c, parsed.reply, null);
+        if (parsed.reply && (await trySend(offer, c.id, parsed.reply))) {
+          await logSent(offer, lead, c, parsed.reply, null);
           fields["Last Message At"] = new Date().toISOString();
           report.replies++;
         }
         if (parsed.action === "booked") {
           Object.assign(fields, { Status: "Booked", "Booked At": new Date().toISOString(), "Booked For": parsed.booked_for });
-          await flagBooked(c.id, parsed.booked_for);
+          await flagBooked(offer, c, parsed.booked_for);
         } else if (parsed.action === "not_now") fields.Status = "Not now";
       }
     }
-    await updateReactivationRow("leads", lead.id, fields);
+    await updateReactivationRow(offer, "leads", lead.id, fields);
   }
 }
 
@@ -481,20 +573,20 @@ function parseReply(text: string | null): { reply: string; action: string; booke
   }
 }
 
-async function turnOff(reason: string) {
-  await setReactivationSetting("engine_on", "0");
-  await setReactivationSetting("off_reason", reason);
+async function turnOff(offer: ReactivationOffer, reason: string) {
+  await setReactivationSetting(offer, "engine_on", "0");
+  await setReactivationSetting(offer, "off_reason", reason);
 }
 
 /** BUILD.md safety switch: opt-outs over 3% of today's texts turn the engine OFF. */
-export async function checkOptOuts(report: RunReport): Promise<void> {
-  if (!(await getReactivationSettings()).engineOn) return;
+export async function checkOptOuts(offer: ReactivationOffer, report: RunReport): Promise<void> {
+  if (!(await getReactivationSettings(offer)).engineOn) return;
   const today = easternDay(new Date());
-  const messages = await getReactivationRows("messages");
+  const messages = await getReactivationRows(offer, "messages");
   const texts = messages.filter((m) => m.fields.Direction === "out" && m.fields.Status === "sent" && easternDay(s(m.fields["Sent At"])) === today).length;
   const optOuts = messages.filter((m) => m.fields["Opt Out"] === true && easternDay(s(m.fields["Created At"])) === today).length;
   if (texts > 0 && optOuts / texts > 0.03) {
     report.off = `Opt-outs hit ${optOuts} of ${texts} texts today (over 3%)`;
-    await turnOff(report.off);
+    await turnOff(offer, report.off);
   }
 }

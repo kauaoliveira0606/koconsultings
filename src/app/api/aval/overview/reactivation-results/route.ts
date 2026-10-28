@@ -10,8 +10,8 @@ export const revalidate = 60;
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
   const [leads, messages, affiliatePcn, htPcn] = await Promise.all([
-    getReactivationLeads(),
-    getReactivationMessages(),
+    getReactivationLeads("aval"),
+    getReactivationMessages("aval"),
     getAvalAffiliatePcn(),
     getAvalPostCallNotes(),
   ]);

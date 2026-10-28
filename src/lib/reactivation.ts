@@ -9,7 +9,7 @@ import {
 } from "@/lib/date-range";
 
 /**
- * Reactivation engine numbers for /aval/overview (spec: the kit's DASHBOARD.md).
+ * Reactivation engine numbers for each offer's Reactivation tab (spec: the kit's DASHBOARD.md).
  *
  * A close is an Affiliate PCN row whose Lead Email or Phone number matches a
  * texted lead, and only if the sale came AFTER that lead's first text. The
@@ -123,16 +123,21 @@ function matchToTexts(
   });
 }
 
+/** What close matching needs from an offer's Affiliate PCN row. Bronson's form has no phone. */
+export type AffiliateCloseRow = Pick<AvalAffiliatePcnRow, "date" | "leadEmail" | "cpaCash" | "createdTime"> & {
+  leadPhone?: string | null;
+};
+
 /** Every Affiliate PCN row that counts as a reactivation close, any date. */
 export function matchCloses(
   leads: ReactivationLead[],
   messages: ReactivationMessage[],
-  pcn: AvalAffiliatePcnRow[]
+  pcn: AffiliateCloseRow[]
 ): Close[] {
   const hits = matchToTexts(
     leads,
     messages,
-    pcn.map((r) => ({ date: r.date, email: r.leadEmail, phone: r.leadPhone, createdTime: r.createdTime }))
+    pcn.map((r) => ({ date: r.date, email: r.leadEmail, phone: r.leadPhone ?? null, createdTime: r.createdTime }))
   );
   return pcn.flatMap((row, i) => {
     const hit = hits[i];
@@ -194,7 +199,7 @@ export function buildReactivation(
   leads: ReactivationLead[],
   messages: ReactivationMessage[],
   aiCalls: ReactivationAiCall[],
-  pcn: AvalAffiliatePcnRow[],
+  pcn: AffiliateCloseRow[],
   range: ResolvedRange
 ): ReactivationResponse {
   const day = (iso: string | null) => toEasternDateOnly(iso);

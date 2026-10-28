@@ -13,7 +13,7 @@ export default function ReactivationPage() {
         <h1 className="text-2xl font-bold text-[var(--text-strong)]">Reactivation</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
-      <ReactivationSection range={range} />
+      <ReactivationSection offer="aval" range={range} />
     </div>
   );
 }

@@ -34,5 +34,6 @@ export const config = {
     "/api/aval/overview/recent-changes/:path*",
     "/api/bronson/overview/recent-changes/:path*",
     "/api/aval/overview/reactivation/controls/:path*",
+    "/api/bronson/overview/reactivation/controls/:path*",
   ],
 };

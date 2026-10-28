@@ -1,37 +1,86 @@
+import type { ReactivationOffer } from "@/lib/airtable/reactivation";
+
 /**
- * Aval's GoHighLevel for the reactivation engine: Base44 pipeline leads,
- * their message history, and sending texts from the location's number.
+ * Each offer's GoHighLevel for the reactivation engine: the pipeline its
+ * leads come from, their message history, and sending texts from the
+ * location's number.
  */
 
 const GHL_API = "https://services.leadconnectorhq.com";
 
-export const BASE44_PIPELINE = "1YUUtFeSnGtc3u94exjP";
-/** Added 2026-10-28 right after "Base44 Opt in", named "Reactivation Attempt": where texted leads sit. */
-export const REACTIVATION_STAGE = "f6897d1a-12aa-4d78-a350-6e7b8299afab";
-/** Added 2026-10-28 right after "Reactivation Attempt": the lead gave us a call time. */
-export const REACTIVATION_READY_STAGE = "75477154-b0bc-4166-83d2-1a1df8738288";
-/** User, 2026-10-28: the only Base44 stages the engine may not text. */
-export const BLOCKED_STAGES = new Set([
-  "1831ed07-0869-4316-9ede-050df354194c", // Base44 Purchase
-  "eb1b63a2-90ad-4de3-a85b-b97132c57b05", // Base44 -> Booked
-  "202b456f-fc28-4101-9374-45d0a511919b", // High Ticket Applicant
-  "54616683-f220-4ed6-9eef-1380230c8868", // Closed High Ticket
-  "a007b9d8-c3b9-485d-a48d-29db6559a937", // Booked call
-]);
+type GhlOffer = {
+  envPrefix: string;
+  /** Where cold leads come from. */
+  pipeline: string;
+  /** A contact in any of these stages, in any pipeline, is never texted. */
+  blockedStages: Set<string>;
+  /** A contact with any opportunity in these pipelines is never texted. */
+  blockedPipelines: Set<string>;
+  /** Stages texted / booked leads move to in `pipeline`; null leaves the stage alone. */
+  textedStage: string | null;
+  readyStage: string | null;
+  /** Discord webhook env var for booked leads. */
+  bookedWebhookEnv: string;
+};
 
-function env() {
-  const pat = process.env.GHL_AVAL_PIT;
-  const locationId = process.env.GHL_AVAL_LOCATION_ID;
-  if (!pat || !locationId) throw new Error("Missing GHL_AVAL_PIT or GHL_AVAL_LOCATION_ID");
+export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
+  aval: {
+    envPrefix: "GHL_AVAL",
+    pipeline: "1YUUtFeSnGtc3u94exjP", // Base44
+    // User, 2026-10-28: the only Base44 stages the engine may not text.
+    blockedStages: new Set([
+      "1831ed07-0869-4316-9ede-050df354194c", // Base44 Purchase
+      "eb1b63a2-90ad-4de3-a85b-b97132c57b05", // Base44 -> Booked
+      "202b456f-fc28-4101-9374-45d0a511919b", // High Ticket Applicant
+      "54616683-f220-4ed6-9eef-1380230c8868", // Closed High Ticket
+      "a007b9d8-c3b9-485d-a48d-29db6559a937", // Booked call
+    ]),
+    blockedPipelines: new Set(),
+    // Added 2026-10-28 right after "Base44 Opt in", named "Reactivation Attempt".
+    textedStage: "f6897d1a-12aa-4d78-a350-6e7b8299afab",
+    // Added 2026-10-28 right after "Reactivation Attempt": the lead gave us a call time.
+    readyStage: "75477154-b0bc-4166-83d2-1a1df8738288",
+    bookedWebhookEnv: "DISCORD_AVAL_REACTIVATION_WEBHOOK",
+  },
+  bronson: {
+    envPrefix: "GHL_BRONSON",
+    pipeline: "fV02CzJidh5FBHJ4HFoM", // Affiliate (the old Base44 free course opt-ins)
+    // User, 2026-10-28: Affiliate stages that don't need reactivating.
+    blockedStages: new Set([
+      "0ad0cb36-eb34-4a14-b119-bf95d15b6016", // Affiliate Closed
+      "deb3ae52-df38-459d-9f50-970e8d69d772", // Applied for HT
+      "2ffa8859-78b2-4db2-a2a3-6fc7fcf91797", // Booked High Ticket
+      "12328bd9-d806-4e7f-b363-09fff85047e7", // No show High Ticket
+      "8ac6e9c1-ed97-4621-9f6f-c70e04ab47c7", // Cancelled
+      "10ecabaa-b220-4f21-bd23-f87db83ef25e", // No Close High Ticket
+      "0e518f40-87ad-4d71-8e2a-31105082bccb", // Closed High Ticket
+      "c755a89e-03b2-4ebb-83cc-2b712545314f", // Trash
+      "8de41b99-da24-4b0f-9f78-f6e512569a34", // Dead Lead
+      // BUILD.md "not a buyer": high ticket closes from the masterclass too.
+      "cf87fbab-3d9e-41a7-8609-94d377439a70", // Masterclass: HIGH TICKET CLOSED
+    ]),
+    // Paying clients being onboarded and checked in on.
+    blockedPipelines: new Set(["uzqhkJTeAUvgDg4Rh5Br"]), // Fulfillment
+    textedStage: null,
+    readyStage: null,
+    bookedWebhookEnv: "DISCORD_BRONSON_REACTIVATION_WEBHOOK",
+  },
+};
+
+function env(offer: ReactivationOffer) {
+  const prefix = GHL_OFFERS[offer].envPrefix;
+  const pat = process.env[`${prefix}_PIT`];
+  const locationId = process.env[`${prefix}_LOCATION_ID`];
+  if (!pat || !locationId) throw new Error(`Missing ${prefix}_PIT or ${prefix}_LOCATION_ID`);
   return { pat, locationId };
 }
 
-async function ghl<T>(path: string, init?: { method: string; body: unknown }): Promise<T> {
+async function ghl<T>(offer: ReactivationOffer, path: string, init?: { method: string; body: unknown }): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`${GHL_API}${path}`, {
       method: init?.method ?? "GET",
       headers: {
-        Authorization: `Bearer ${env().pat}`,
+        Authorization: `Bearer ${env(offer).pat}`,
         Version: "2021-07-28",
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -52,6 +101,7 @@ async function ghl<T>(path: string, init?: { method: string; body: unknown }): P
 export type GhlContact = {
   id: string;
   firstName?: string;
+  lastName?: string;
   contactName?: string;
   email?: string;
   phone?: string;
@@ -68,79 +118,97 @@ export type GhlMessage = {
   body?: string;
 };
 
-/** Base44 pipeline leads, newest opportunity first. */
-export async function* base44Leads(): AsyncGenerator<{ contactId: string; createdAt: string }> {
-  const { locationId } = env();
-  let path: string | undefined = `/opportunities/search?location_id=${locationId}&pipeline_id=${BASE44_PIPELINE}&limit=100`;
+/** The offer's pipeline leads, newest opportunity first. */
+export async function* pipelineLeads(offer: ReactivationOffer): AsyncGenerator<{ contactId: string; createdAt: string }> {
+  const { locationId } = env(offer);
+  let path: string | undefined = `/opportunities/search?location_id=${locationId}&pipeline_id=${GHL_OFFERS[offer].pipeline}&limit=100`;
   while (path) {
     const page: { opportunities: { contactId: string; createdAt: string }[]; meta: { nextPageUrl?: string } } =
-      await ghl(path);
+      await ghl(offer, path);
     yield* page.opportunities;
     path = page.meta.nextPageUrl?.replace(GHL_API, "");
   }
 }
 
-export async function getContact(contactId: string): Promise<GhlContact> {
-  return (await ghl<{ contact: GhlContact }>(`/contacts/${contactId}`)).contact;
+export async function getContact(offer: ReactivationOffer, contactId: string): Promise<GhlContact> {
+  return (await ghl<{ contact: GhlContact }>(offer, `/contacts/${contactId}`)).contact;
 }
 
-/** Every pipeline stage this contact sits in. */
-export async function contactStages(contactId: string): Promise<string[]> {
-  const { opportunities } = await ghl<{ opportunities: { pipelineStageId: string }[] }>(
-    `/opportunities/search?location_id=${env().locationId}&contact_id=${contactId}`
+/** True when any of this contact's opportunities sits in a blocked stage or pipeline. */
+export async function inBlockedStage(offer: ReactivationOffer, contactId: string): Promise<boolean> {
+  const { opportunities } = await ghl<{ opportunities: { pipelineId: string; pipelineStageId: string }[] }>(
+    offer,
+    `/opportunities/search?location_id=${env(offer).locationId}&contact_id=${contactId}`
   );
-  return opportunities.map((o) => o.pipelineStageId);
+  const o = GHL_OFFERS[offer];
+  return opportunities.some((x) => o.blockedStages.has(x.pipelineStageId) || o.blockedPipelines.has(x.pipelineId));
 }
 
 /** Every message in every conversation this contact has, oldest first. */
-export async function history(contactId: string): Promise<GhlMessage[]> {
+export async function history(offer: ReactivationOffer, contactId: string): Promise<GhlMessage[]> {
   const { conversations } = await ghl<{ conversations: { id: string }[] }>(
-    `/conversations/search?locationId=${env().locationId}&contactId=${contactId}`
+    offer,
+    `/conversations/search?locationId=${env(offer).locationId}&contactId=${contactId}`
   );
   const all: GhlMessage[] = [];
   for (const c of conversations) {
-    const { messages } = await ghl<{ messages: { messages: GhlMessage[] } }>(`/conversations/${c.id}/messages?limit=100`);
+    const { messages } = await ghl<{ messages: { messages: GhlMessage[] } }>(offer, `/conversations/${c.id}/messages?limit=100`);
     all.push(...messages.messages);
   }
   return all.sort((a, b) => a.dateAdded.localeCompare(b.dateAdded));
 }
 
 /** Conversations with the newest activity first, to spot replies. */
-export async function recentConversations(): Promise<{ contactId: string; lastMessageDate: number; lastMessageDirection?: string }[]> {
+export async function recentConversations(offer: ReactivationOffer): Promise<{ contactId: string; lastMessageDate: number; lastMessageDirection?: string }[]> {
   const { conversations } = await ghl<{
     conversations: { contactId: string; lastMessageDate: number; lastMessageDirection?: string }[];
-  }>(`/conversations/search?locationId=${env().locationId}&sortBy=last_message_date&sort=desc&limit=100`);
+  }>(offer, `/conversations/search?locationId=${env(offer).locationId}&sortBy=last_message_date&sort=desc&limit=100`);
   return conversations;
 }
 
-export async function sendSms(contactId: string, message: string): Promise<void> {
-  await ghl("/conversations/messages", { method: "POST", body: { type: "SMS", contactId, message } });
+export async function sendSms(offer: ReactivationOffer, contactId: string, message: string): Promise<void> {
+  await ghl(offer, "/conversations/messages", { method: "POST", body: { type: "SMS", contactId, message } });
 }
 
 /**
- * Every texted lead gets the "reactivation" tag and its Base44 opportunity
- * moves to the Reactivation stage, so the team can follow them in GHL.
+ * Every texted lead gets the "reactivation" tag (and, where the offer has
+ * one, its opportunity moves to the texted stage) so the team can follow
+ * them in GHL.
  */
-export async function markTexted(contactId: string): Promise<void> {
-  await ghl(`/contacts/${contactId}/tags`, { method: "POST", body: { tags: ["reactivation"] } });
-  await moveBase44(contactId, REACTIVATION_STAGE);
+export async function markTexted(offer: ReactivationOffer, contactId: string): Promise<void> {
+  await ghl(offer, `/contacts/${contactId}/tags`, { method: "POST", body: { tags: ["reactivation"] } });
+  const stage = GHL_OFFERS[offer].textedStage;
+  if (stage) await moveInPipeline(offer, contactId, stage);
 }
 
-async function moveBase44(contactId: string, stageId: string): Promise<void> {
+async function moveInPipeline(offer: ReactivationOffer, contactId: string, stageId: string): Promise<void> {
+  const pipeline = GHL_OFFERS[offer].pipeline;
   const { opportunities } = await ghl<{ opportunities: { id: string; pipelineId: string }[] }>(
-    `/opportunities/search?location_id=${env().locationId}&contact_id=${contactId}&pipeline_id=${BASE44_PIPELINE}`
+    offer,
+    `/opportunities/search?location_id=${env(offer).locationId}&contact_id=${contactId}&pipeline_id=${pipeline}`
   );
-  for (const o of opportunities.filter((o) => o.pipelineId === BASE44_PIPELINE)) {
-    await ghl(`/opportunities/${o.id}`, { method: "PUT", body: { pipelineId: BASE44_PIPELINE, pipelineStageId: stageId } });
+  for (const o of opportunities.filter((o) => o.pipelineId === pipeline)) {
+    await ghl(offer, `/opportunities/${o.id}`, { method: "PUT", body: { pipelineId: pipeline, pipelineStageId: stageId } });
   }
 }
 
-/** How a booked lead reaches the team inside GHL: Reactivation Ready stage, tag and a note. */
-export async function flagBooked(contactId: string, bookedFor: string): Promise<void> {
-  await moveBase44(contactId, REACTIVATION_READY_STAGE);
-  await ghl(`/contacts/${contactId}/tags`, { method: "POST", body: { tags: ["reactivation booked"] } });
-  await ghl(`/contacts/${contactId}/notes`, {
+/** How a booked lead reaches the team: ready stage (if any), tag, a note and a Discord post. */
+export async function flagBooked(offer: ReactivationOffer, c: GhlContact, bookedFor: string): Promise<void> {
+  const stage = GHL_OFFERS[offer].readyStage;
+  if (stage) await moveInPipeline(offer, c.id, stage);
+  await ghl(offer, `/contacts/${c.id}/tags`, { method: "POST", body: { tags: ["reactivation booked"] } });
+  await ghl(offer, `/contacts/${c.id}/notes`, {
     method: "POST",
     body: { body: `Reactivation engine booked a call by text: ${bookedFor}. Call them at that time.` },
   });
+  const webhook = process.env[GHL_OFFERS[offer].bookedWebhookEnv];
+  if (!webhook) return;
+  const res = await fetch(webhook, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content: `📞 **Reactivation booked a call**\n**${c.contactName || c.firstName || "Lead"}** ${c.phone ?? ""}\nCall them: **${bookedFor}**\nhttps://app.gohighlevel.com/v2/location/${env(offer).locationId}/contacts/detail/${c.id}`,
+    }),
+  });
+  if (!res.ok) console.error("reactivation Discord alert failed", res.status, await res.text());
 }

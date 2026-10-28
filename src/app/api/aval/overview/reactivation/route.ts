@@ -13,9 +13,9 @@ export const revalidate = 60;
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
   const [leads, messages, aiCalls, pcn] = await Promise.all([
-    getReactivationLeads(),
-    getReactivationMessages(),
-    getReactivationAiCalls(),
+    getReactivationLeads("aval"),
+    getReactivationMessages("aval"),
+    getReactivationAiCalls("aval"),
     getAvalAffiliatePcn(),
   ]);
   return Response.json(buildReactivation(leads, messages, aiCalls, pcn, range));
