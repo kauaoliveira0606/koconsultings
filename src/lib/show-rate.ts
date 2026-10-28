@@ -46,6 +46,8 @@ export type ShowRateResponse = {
     preferredTime: string;
     other: string;
   }[];
+  /** Real questions the bot had no approved answer for, to train it on (user, 2026-10-28). */
+  questions: { contactId: string; name: string; session: string; note: string }[];
   conversations: {
     contactId: string;
     name: string;
@@ -109,6 +111,21 @@ export function buildShowRate(leads: Row[], messages: Row[], aiCalls: Row[], ran
     .filter((f) => f.goal || f.wantsCovered || f.preferredTime || f.other)
     .sort((a, b) => b.at.localeCompare(a.at));
 
+  const questions = inRange
+    .flatMap((l) =>
+      s(l.fields["Questions To Review"])
+        .split("\n")
+        .filter(Boolean)
+        .map((note) => ({
+          contactId: s(l.fields["GHL Contact ID"]),
+          name: s(l.fields.Name) || "Unknown",
+          session: s(l.fields.Session),
+          note,
+          at: s(l.fields["Last Message At"]),
+        }))
+    )
+    .sort((a, b) => b.at.localeCompare(a.at));
+
   // Conversations: registrants in range with any engine-logged message.
   const leadById = new Map(inRange.map((l) => [s(l.fields["GHL Contact ID"]), l]));
   const last = new Map<string, { body: string; at: string }>();
@@ -146,6 +163,7 @@ export function buildShowRate(leads: Row[], messages: Row[], aiCalls: Row[], ran
     aiCost,
     bySession,
     feedback,
+    questions,
     conversations,
   };
 }

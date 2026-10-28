@@ -15,7 +15,7 @@ import {
   smsBlocked,
   type GhlContact,
 } from "./ghl";
-import { VOICES } from "./voice";
+import { BRONSON_VOICE_SOP, VOICES } from "./voice";
 
 /**
  * Bronson's show-rate engine (kit: ~/Desktop/reactivation-bronson-masterclass).
@@ -31,6 +31,14 @@ const DAY = 86_400_000;
 const STOP = /^\s*(stop|unsubscribe|remove me|cancel|quit|end)\b/i;
 const SIGNUP_PAGE = "https://www.ad-ventur.com/masterclass";
 const CHECK_IN_HOUR = 16;
+/** User, 2026-10-28: never send a link outside the approved set. */
+const APPROVED_LINKS = ["https://event.webinarjam.com/8wgzn9/go/live/13q192tyipsxs4", "https://www.ad-ventur.com/masterclass"];
+
+/** False when a text carries any link that isn't approved; such a text is never sent. */
+function linksOk(text: string): boolean {
+  const links = text.match(/(https?:\/\/|www\.)\S+/gi) ?? [];
+  return links.every((l) => APPROVED_LINKS.some((ok) => l.replace(/[.,!?)]+$/, "") === ok || l.replace(/[.,!?)]+$/, "") === ok.replace("https://", "")));
+}
 
 const REGISTERED = new Set([MASTERCLASS_OPT_IN_STAGE, MASTERCLASS_VIP_STAGE]);
 
@@ -130,11 +138,25 @@ ${v.myVoice}
 
 <offer.md>
 ${v.offer}
-</offer.md>`;
+</offer.md>
+
+<bronson-voice-sop.md>
+${BRONSON_VOICE_SOP}
+</bronson-voice-sop.md>`;
 }
+
+/** The session after this one, for "can't make it": the usual weekly slot. */
+const nextDate = (session: Session) => toSession(session.startsAt + 7 * DAY).label;
 
 const PLAYBOOK = `<show-up-playbook>
 Goal: they show up to the live masterclass. A clear "yes, I'll be there" is the win.
+Rulebook, non-negotiable: never pitch, never mention price, never push a call, never send a link outside the approved set in offer.md, every text under two lines (about 160 characters), sounds like a text from a friend.
+Decision tree:
+- Can't make it: offer the next date (given below). Only if that doesn't work either, ask what day and time would be perfect for them.
+- "What's this about?": one line of value and the date.
+- Replied yes: confirm and hype.
+- They answered "what's your main goal / what made you sign up": acknowledge it like a human, short ("Love that, that's exactly who this is built for").
+- They said the one thing they want covered: confirm you'll cover it. That's an open loop you owe them.
 - Answer what they actually said, short, like the approved examples. Once they're engaged, no extra push.
 - They confirm they'll be there: action "committed".
 - They flatly can't make it: ask what day and time would be perfect for them, action "cant_make_it".
@@ -158,6 +180,7 @@ Return JSON:
 - "preferred_time": the day/time they say would work for them, in their words, or "".
 - "goal": what they want out of this (e.g. answering "what's your main goal"), in their words, or "".
 - "wants_covered": what they want covered in the masterclass, in their words, or "".
+- "question_to_review": if their newest text asks a real question that the approved examples in my-voice.md don't already answer, that question in their words, else "".
 - "other_feedback": a real detail about their situation or an objection (work schedule, kids, money worries, past attempts), short, or "". Not a summary of what they said.
 Only fill the feedback fields from their newest texts, never from earlier ones.`;
 
@@ -170,18 +193,27 @@ export const REPLY_SCHEMA = {
     goal: { type: "string" },
     wants_covered: { type: "string" },
     other_feedback: { type: "string" },
+    question_to_review: { type: "string" },
   },
-  required: ["reply", "action", "preferred_time", "goal", "wants_covered", "other_feedback"],
+  required: ["reply", "action", "preferred_time", "goal", "wants_covered", "other_feedback", "question_to_review"],
   additionalProperties: false,
 };
 
-type Parsed = { reply: string; action: string; preferred_time: string; goal: string; wants_covered: string; other_feedback: string };
+type Parsed = {
+  reply: string;
+  action: string;
+  preferred_time: string;
+  goal: string;
+  wants_covered: string;
+  other_feedback: string;
+  question_to_review: string;
+};
 
 export const checkInSystem = () => `You are Bronson, texting a masterclass registrant a few hours before it starts. Follow these files exactly.
 
 ${rules()}
 
-Write the 4pm check-in. It teases exactly ONE nugget from the nugget bank ("Tonight I'm breaking down the exact math on X"), never teaches it, and asks if they're still good for tonight. If they told you their goal or what they want covered, quote it back and pick the nugget that fits it best (commitment stacking). If they already committed, hold them to it. Never pitch, never mention the offer. Max about 300 characters. Reply with only the text message. No quotes, no notes.`;
+Write the 4pm check-in. It teases exactly ONE nugget from the nugget bank ("Tonight I'm breaking down the exact math on X"), never teaches it, and asks if they're still good for tonight. If they told you their goal or what they want covered, quote it back and pick the nugget that fits it best (commitment stacking). If they already committed, hold them to it. Never pitch, never mention the offer or price. Under two lines (about 160 characters), like a text from a friend. Reply with only the text message. No quotes, no notes.`;
 
 // ---------- Registrants ----------
 
@@ -301,6 +333,7 @@ export async function runShowRateReplies(session: Session, report: RunReport): P
         system: replySystem(),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
 ${statedSoFar(lead)}Masterclass: ${session.label}${Date.now() > session.startsAt ? " (it has already started)" : ""}
+Next date after that: ${nextDate(session)}
 Now in Eastern time: ${localTime("America/New_York")}
 Their local time now: ${localTime(timeZone)}
 
@@ -317,7 +350,15 @@ Answer their latest text.`,
       if (parsed?.action === "opt_out") {
         Object.assign(fields, { Status: "Opted out", "Opted Out At": new Date().toISOString() });
       } else if (parsed) {
-        if (parsed.reply && (await trySend(OFFER, c.id, parsed.reply))) {
+        const linkBlocked = Boolean(parsed.reply) && !linksOk(parsed.reply);
+        if (linkBlocked) report.skipped["reply held: unapproved link"] = (report.skipped["reply held: unapproved link"] ?? 0) + 1;
+        const question = parsed.question_to_review.trim() || (linkBlocked ? fresh[fresh.length - 1].body ?? "" : "");
+        if (question) {
+          const note = `Q: ${question} → ${linkBlocked ? "NOT SENT (unapproved link)" : `Sent: ${parsed.reply || "(no reply)"}`}`;
+          const next = appendTo(lead.fields["Questions To Review"], note);
+          if (next) fields["Questions To Review"] = next;
+        }
+        if (parsed.reply && !linkBlocked && (await trySend(OFFER, c.id, parsed.reply))) {
           await logOut(c, name, parsed.reply, null);
           fields["Last Message At"] = new Date().toISOString();
           report.replies++;
@@ -362,7 +403,7 @@ function parseReply(text: string | null): Parsed | null {
 async function logOut(c: GhlContact, name: string, body: string, touch: number | null) {
   const now = new Date().toISOString();
   await createReactivationRow(OFFER, "messages", {
-    Name: `${name} ${touch ? "check-in" : "reply"}`,
+    Name: `${name} ${touch === 1 ? "check-in" : touch === 2 ? "24h callback" : "reply"}`,
     "GHL Contact ID": c.id,
     "Lead Name": name,
     Direction: "out",
@@ -409,11 +450,61 @@ Write the check-in.`,
       contactId: c.id,
       touch: 1,
     });
-    if (!body || !(await trySend(OFFER, c.id, body))) continue;
+    if (!body || !linksOk(body) || !(await trySend(OFFER, c.id, body))) continue;
     const name = s(r.fields.Name);
     await logOut(c, name, body, 1);
     const sentAt = new Date().toISOString();
     await updateReactivationRow(OFFER, "leads", r.id, { "Check-in Sent At": sentAt, "Last Message At": sentAt });
     report.firstTexts++;
+  }
+}
+
+// ---------- The 24-hour callback ----------
+
+/** WebinarJam's 1-day-before text, word for word, for people who never told us their goal. */
+const WJ_24H = (first: string | null) =>
+  `Hey${first ? ` ${first}` : ""}, what is the one thing you want covered in tomorrow's masterclass? We'd love to hear your thoughts so we can best help you.`;
+
+export const callbackSystem = () => `You are Bronson, texting a masterclass registrant the day before it starts. Follow these files exactly.
+
+${rules()}
+
+They told you their goal. Write the 24-hour text: call their goal back in a few words ("You mentioned [their reason], that's a big part of what we're covering.") then ask the one thing they want covered tomorrow. People show up when they feel heard, not when they feel reminded. Under two lines. Never pitch. Reply with only the text message. No quotes, no notes.`;
+
+/**
+ * The 1-day-before text, sent by the engine so it can call back their goal
+ * (user, 2026-10-28: "that callback is the whole game"). Off until the
+ * send_24h setting is "1", which waits on the user removing WebinarJam's own
+ * 1-day-before reminder so nobody gets both.
+ */
+export async function runCallbacks(session: Session, deadline: number, report: RunReport): Promise<void> {
+  const now = Date.now();
+  if (now < session.startsAt - DAY || now >= session.startsAt - DAY + 3_600_000) return;
+  const settings = await getReactivationRows(OFFER, "settings");
+  if (s(settings.find((r) => r.fields.Key === "send_24h")?.fields.Value).trim() !== "1") return;
+  if ((await liveSince()) === null) return;
+  const rows = await getReactivationRows(OFFER, "leads");
+  const out = new Set(["Opted out", "Can't make it"]);
+  const due = rows.filter((r) => s(r.fields.Session) === session.date && !out.has(s(r.fields.Status)) && !r.fields["24h Sent At"]);
+  for (const r of due) {
+    if (Date.now() > deadline) return;
+    const c = await getContact(OFFER, s(r.fields["GHL Contact ID"]));
+    if (!c.phone || smsBlocked(c)) continue;
+    const goal = s(r.fields.Goal);
+    const body = goal
+      ? await generate(OFFER, {
+          model: MODELS.firstText,
+          system: callbackSystem(),
+          prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}\nTheir stated goal: ${goal}\nMasterclass: tomorrow, ${session.label}\n\nWrite the 24-hour text.`,
+          purpose: "check_in",
+          contactId: c.id,
+          touch: 2,
+        })
+      : WJ_24H(firstNameOf(c));
+    if (!body || !linksOk(body) || !(await trySend(OFFER, c.id, body))) continue;
+    await logOut(c, s(r.fields.Name), body, 2);
+    const sentAt = new Date().toISOString();
+    await updateReactivationRow(OFFER, "leads", r.id, { "24h Sent At": sentAt, "Last Message At": sentAt });
+    report.followUps++;
   }
 }

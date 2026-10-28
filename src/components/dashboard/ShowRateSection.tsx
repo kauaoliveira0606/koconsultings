@@ -250,6 +250,27 @@ export function ShowRateSection({ range }: { range: RangeState }) {
       </div>
 
       <div className={panel}>
+        <div className={panelTitle}>Questions to Review</div>
+        <p className="border-b border-[var(--panel-border)] px-5 py-2 text-xs text-[var(--text-muted)]">
+          Real questions the bot had no trained answer for. Approve or fix the answer and it gets added to the voice.
+        </p>
+        {data && data.questions.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-[var(--text-muted)]">Nothing to review yet.</p>
+        ) : null}
+        <ul className="max-h-[24rem] divide-y divide-[var(--panel-border)] overflow-y-auto">
+          {data?.questions.map((q, i) => (
+            <li key={`${q.contactId}-${i}`} className="px-5 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-[var(--text-strong)]">{q.name}</span>
+                <span className="text-[11px] text-[var(--text-muted)]">{sessionFmt(q.session)} session</span>
+              </div>
+              <p className="mt-1 text-sm text-[var(--text-strong)]">{q.note}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className={panel}>
         <div className={panelTitle}>Conversations</div>
         {data && data.conversations.length === 0 ? (
           <p className="px-5 py-4 text-sm text-[var(--text-muted)]">No conversations in this range yet.</p>

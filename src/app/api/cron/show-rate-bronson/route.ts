@@ -1,5 +1,5 @@
 import type { RunReport } from "@/lib/reactivation-engine/engine";
-import { nextSession, runCheckIns, runShowRateReplies, syncRegistrants } from "@/lib/reactivation-engine/show-rate";
+import { nextSession, runCallbacks, runCheckIns, runShowRateReplies, syncRegistrants } from "@/lib/reactivation-engine/show-rate";
 
 /**
  * Bronson show-rate engine, every 5 minutes (vercel.json): syncs masterclass
@@ -36,6 +36,7 @@ export async function GET(request: Request) {
       report.synced = await syncRegistrants(session);
     },
     () => runShowRateReplies(session, report),
+    () => runCallbacks(session, started + 240_000, report),
     () => runCheckIns(session, started + 240_000, report),
   ];
   for (const step of steps) {
