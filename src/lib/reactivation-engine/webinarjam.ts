@@ -1,5 +1,5 @@
 /**
- * Bronson's WebinarJam masterclass (API key in WEBINARJAM_API_KEY): the
+ * Bronson's WebinarJam masterclass (API key in the WEBINARJAM_API_KEY env var): the
  * scheduled sessions, and registering someone so the no-show engine can save
  * their seat for the next one. The n8n workflow bVSWLTEH1cHOsNDH picks new
  * registrants up into GHL within 5 minutes, same as a page signup.
@@ -7,11 +7,13 @@
 
 const API = "https://api.webinarjam.com/webinarjam";
 
+/** "Learn How to Build a Subscription Based E-commerce Brand 2", the webinar n8n polls too. */
+const WEBINAR_ID = "2";
+
 function env() {
   const apiKey = process.env.WEBINARJAM_API_KEY;
-  const webinarId = process.env.WEBINARJAM_WEBINAR_ID;
-  if (!apiKey || !webinarId) throw new Error("Missing WEBINARJAM_API_KEY or WEBINARJAM_WEBINAR_ID");
-  return { apiKey, webinarId };
+  if (!apiKey) throw new Error("Missing WEBINARJAM_API_KEY");
+  return { apiKey, webinarId: process.env.WEBINARJAM_WEBINAR_ID || WEBINAR_ID };
 }
 
 async function post<T>(path: string, params: Record<string, string>): Promise<T> {
