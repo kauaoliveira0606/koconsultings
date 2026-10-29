@@ -170,14 +170,22 @@ ${BRONSON_VOICE_SOP}
 </bronson-voice-sop.md>`;
 }
 
-/** The session after this one, for "can't make it": the usual weekly slot. */
-const nextDate = (session: Session) => toSession(session.startsAt + 7 * DAY).label;
+/** The session after this one, for "can't make it": the next one set up in WebinarJam, else the usual weekly slot. */
+async function nextDate(session: Session): Promise<string> {
+  try {
+    const after = (await schedules()).find((sc) => sc.startsAt > session.startsAt + 3_600_000);
+    if (after) return toSession(after.startsAt).label;
+  } catch (e) {
+    console.error("show-rate: couldn't read WebinarJam sessions", e);
+  }
+  return toSession(session.startsAt + 7 * DAY).label;
+}
 
 const PLAYBOOK = `<show-up-playbook>
 Goal: they show up to the live masterclass. A clear "yes, I'll be there" is the win.
 Rulebook, non-negotiable: never pitch, never mention price, never push a call, never send a link outside the approved set in offer.md, every text under two lines (about 160 characters), sounds like a text from a friend.
 Decision tree:
-- Can't make it: offer the next date (given below). Only if that doesn't work either, ask what day and time would be perfect for them.
+- Can't make it: offer the next date (given below, use it exactly, don't assume it's next week). Only if that doesn't work either, ask what day and time would be perfect for them.
 - "What's this about?": one line of value and the date.
 - Replied yes: confirm and hype.
 - They answered "what's your main goal / what made you sign up": acknowledge it like a human, short ("Love that, that's exactly who this is built for").
@@ -360,7 +368,7 @@ export async function runShowRateReplies(session: Session, report: RunReport): P
         system: replySystem(),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
 ${statedSoFar(lead)}Masterclass: ${session.label}${Date.now() > session.startsAt ? " (it has already started)" : ""}
-Next date after that: ${nextDate(session)}
+Next date after that: ${await nextDate(session)}
 Now in Eastern time: ${localTime("America/New_York")}
 Their local time now: ${localTime(timeZone)}
 

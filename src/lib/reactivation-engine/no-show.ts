@@ -65,7 +65,7 @@ export const touchSystem = () => `You are Bronson, texting someone who registere
 
 ${rules()}
 
-No guilt, no "you missed out". Reply with only the text message. No quotes, no notes.`;
+No guilt, no "you missed out". Dates: the approved examples say "next Wednesday at 7pm ET" only as a placeholder. Always use the exact next date given below. Say "next Wednesday" only if it really is 7 days away or less; otherwise name it ("Wednesday, November 11 at 7pm ET" style). Reply with only the text message. No quotes, no notes.`;
 
 export const noShowReplySystem = () => `You are Bronson, answering a masterclass no-show's texts. Follow these files exactly.
 
@@ -73,6 +73,7 @@ ${rules()}
 
 Goal: get them back on the next live masterclass. You save their seat for them.
 Rulebook: no guilt, never pitch, never mention price, never push a call, never send a link outside the approved set, under two lines unless it's a personal callback.
+Dates: the approved examples say "next Wednesday at 7pm ET" only as a placeholder. Always use the exact next date given below. Say "next Wednesday" only if it really is 7 days away or less; otherwise name it ("Wednesday, November 11 at 7pm ET" style).
 
 Return JSON:
 - "reply": the one text to send, or "" (plain ok / thanks / 👍, or STOP).
