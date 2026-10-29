@@ -70,7 +70,8 @@ export async function liveSince(switchKey: "engine_on" | "noshow_on" = "engine_o
   const rows = await getReactivationRows(OFFER, "settings");
   const value = (key: string) => s(rows.find((r) => r.fields.Key === key)?.fields.Value).trim();
   if (value(switchKey) !== "1") return null;
-  const from = value("on_from");
+  // on_from belongs to the show-rate switch; the no-show engine has noshow_on_from.
+  const from = value(switchKey === "engine_on" ? "on_from" : "noshow_on_from");
   if (!from) return 0;
   if (easternDay(Date.now()) < from) return null;
   const [y, mo, d] = from.split("-").map(Number);
