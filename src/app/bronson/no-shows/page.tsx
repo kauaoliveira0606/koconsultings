@@ -13,7 +13,7 @@ export default function NoShowsPage() {
         <h1 className="text-2xl font-bold text-[var(--text-strong)]">No-Shows</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
-      <NoShowSection range={range} />
+      <NoShowSection offer="bronson" range={range} />
     </div>
   );
 }

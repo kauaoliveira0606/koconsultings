@@ -13,7 +13,7 @@ export default function ShowRatePage() {
         <h1 className="text-2xl font-bold text-[var(--text-strong)]">Show Rate</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
-      <ShowRateSection range={range} />
+      <ShowRateSection offer="bronson" range={range} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
 
 /**
- * Numbers for /bronson/no-shows (the masterclass no-show engine). A no-show is
+ * Numbers for each offer's No-Shows tab (the masterclass no-show engine). A no-show is
  * a Show Rate Leads row with Outcome "No show", counted in its session; the
  * range picks sessions by date. Came back = a later row for the same person.
  */

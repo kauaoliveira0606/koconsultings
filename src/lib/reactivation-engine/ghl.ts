@@ -36,6 +36,15 @@ export const MASTERCLASS_OPT_IN_STAGE = "79e030e6-c91f-473e-8add-4cabbe852109";
 export const MASTERCLASS_VIP_STAGE = "e7de3f9c-93bd-4be7-a194-4e091450173a";
 export const MASTERCLASS_NO_SHOW_STAGE = "d6087cb2-e9c3-479f-8151-8f6ed8cbd274";
 
+/** Aval's masterclass lives in the GHL "Webinar Pipeline"; the team moves people on after each session. */
+export const AVAL_WEBINAR_PIPELINE = "DpGAY4D85Qs0Q45cyXGn";
+export const AVAL_MASTERCLASS_REGISTRANTS_STAGE = "8d81e5c6-f537-42aa-91d5-09ec6ea2815e";
+export const AVAL_MASTERCLASS_NO_SHOW_STAGE = "7be6deac-5345-4f15-addc-0b0f4db802a2";
+export const AVAL_MASTERCLASS_SHOWED_STAGES = [
+  "f378fba3-c690-4f5e-a913-e773d14cc087", // Masterclass attendees
+  "22894379-3daf-4026-ae8a-2d23d1e90f38", // Masterclass stayed until pitch
+];
+
 export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
   aval: {
     envPrefix: "GHL_AVAL",
@@ -47,9 +56,11 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
       "202b456f-fc28-4101-9374-45d0a511919b", // High Ticket Applicant
       "54616683-f220-4ed6-9eef-1380230c8868", // Closed High Ticket
       "a007b9d8-c3b9-485d-a48d-29db6559a937", // Booked call
+      // Registered for the upcoming masterclass: the show-rate engine has them (same as Bronson).
+      AVAL_MASTERCLASS_REGISTRANTS_STAGE,
     ]),
     blockedPipelines: new Set(),
-    deferStages: new Set(),
+    deferStages: new Set([AVAL_MASTERCLASS_REGISTRANTS_STAGE]),
     // Added 2026-10-28 right after "Base44 Opt in", named "Reactivation Attempt".
     textedStage: "f6897d1a-12aa-4d78-a350-6e7b8299afab",
     // Added 2026-10-28 right after "Reactivation Attempt": the lead gave us a call time.
@@ -93,6 +104,18 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
   bronsonMasterclass: {
     envPrefix: "GHL_BRONSON",
     pipeline: MASTERCLASS_PIPELINE,
+    blockedStages: new Set(),
+    blockedPipelines: new Set(),
+    deferStages: new Set(),
+    textedStage: null,
+    readyStage: null,
+    failedStage: null,
+    bookedWebhookEnv: "",
+    bookedContext: null,
+  },
+  avalMasterclass: {
+    envPrefix: "GHL_AVAL",
+    pipeline: AVAL_WEBINAR_PIPELINE,
     blockedStages: new Set(),
     blockedPipelines: new Set(),
     deferStages: new Set(),
@@ -161,12 +184,16 @@ export type GhlMessage = {
 };
 
 /** The offer's pipeline leads, newest opportunity first. */
-export async function* pipelineLeads(offer: ReactivationOffer): AsyncGenerator<{ contactId: string; createdAt: string }> {
+export async function* pipelineLeads(
+  offer: ReactivationOffer
+): AsyncGenerator<{ contactId: string; createdAt: string; contact?: { phone?: string } }> {
   const { locationId } = env(offer);
   let path: string | undefined = `/opportunities/search?location_id=${locationId}&pipeline_id=${GHL_OFFERS[offer].pipeline}&limit=100`;
   while (path) {
-    const page: { opportunities: { contactId: string; createdAt: string }[]; meta: { nextPageUrl?: string } } =
-      await ghl(offer, path);
+    const page: {
+      opportunities: { contactId: string; createdAt: string; contact?: { phone?: string } }[];
+      meta: { nextPageUrl?: string };
+    } = await ghl(offer, path);
     yield* page.opportunities;
     path = page.meta.nextPageUrl?.replace(GHL_API, "");
   }
@@ -185,10 +212,11 @@ export type GhlOpportunity = {
   contact?: { name?: string; email?: string; phone?: string; tags?: string[] };
 };
 
-/** Every opportunity in the offer's pipeline, newest first. */
-export async function* pipelineOpportunities(offer: ReactivationOffer): AsyncGenerator<GhlOpportunity> {
+/** Every opportunity in the offer's pipeline (or one stage of it), newest first. */
+export async function* pipelineOpportunities(offer: ReactivationOffer, stageId?: string): AsyncGenerator<GhlOpportunity> {
   const { locationId } = env(offer);
-  let path: string | undefined = `/opportunities/search?location_id=${locationId}&pipeline_id=${GHL_OFFERS[offer].pipeline}&limit=100`;
+  const stage = stageId ? `&pipeline_stage_id=${stageId}` : "";
+  let path: string | undefined = `/opportunities/search?location_id=${locationId}&pipeline_id=${GHL_OFFERS[offer].pipeline}${stage}&limit=100`;
   while (path) {
     const page: { opportunities: GhlOpportunity[]; meta: { nextPageUrl?: string } } = await ghl(offer, path);
     yield* page.opportunities;

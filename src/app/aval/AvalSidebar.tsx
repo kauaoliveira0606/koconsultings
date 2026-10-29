@@ -20,7 +20,14 @@ const SECTIONS: SidebarSection[] = [
     ],
   },
   { label: "Reactivation", items: [{ href: "/aval/reactivation", label: "Reactivation" }] },
-  { label: "Webinars", items: [{ href: "/aval/webinars", label: "Webinars" }] },
+  {
+    label: "Webinars",
+    items: [
+      { href: "/aval/webinars", label: "Webinars" },
+      { href: "/aval/show-rate", label: "Show Rate" },
+      { href: "/aval/no-shows", label: "No-Shows" },
+    ],
+  },
 ];
 
 export function AvalSidebar() {

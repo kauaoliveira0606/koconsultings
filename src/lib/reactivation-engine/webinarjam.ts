@@ -1,23 +1,30 @@
+import type { MasterclassOffer } from "./show-rate";
+
 /**
- * Bronson's WebinarJam masterclass (API key in the WEBINARJAM_API_KEY env var): the
- * scheduled sessions, and registering someone so the no-show engine can save
- * their seat for the next one. The n8n workflow bVSWLTEH1cHOsNDH picks new
- * registrants up into GHL within 5 minutes, same as a page signup.
+ * Each offer's WebinarJam masterclass (API key in an env var): the scheduled
+ * sessions, and registering someone so the no-show engine can save their seat
+ * for the next one. Bronson: n8n bVSWLTEH1cHOsNDH picks new registrants up
+ * into GHL within 5 minutes, same as a page signup.
  */
 
 const API = "https://api.webinarjam.com/webinarjam";
 
-/** "Learn How to Build a Subscription Based E-commerce Brand 2", the webinar n8n polls too. */
-const WEBINAR_ID = "2";
+const WEBINARS: Record<MasterclassOffer, { keyEnv: string; webinarId: string }> = {
+  // "Learn How to Build a Subscription Based E-commerce Brand 2", the webinar n8n polls too.
+  bronsonMasterclass: { keyEnv: "WEBINARJAM_API_KEY", webinarId: "2" },
+  // "The 3-Step System Traders Are Using To Get Consistent Payouts", on Aval's own WebinarJam account.
+  avalMasterclass: { keyEnv: "WEBINARJAM_AVAL_API_KEY", webinarId: "2" },
+};
 
-function env() {
-  const apiKey = process.env.WEBINARJAM_API_KEY;
-  if (!apiKey) throw new Error("Missing WEBINARJAM_API_KEY");
-  return { apiKey, webinarId: process.env.WEBINARJAM_WEBINAR_ID || WEBINAR_ID };
+function env(offer: MasterclassOffer) {
+  const { keyEnv, webinarId } = WEBINARS[offer];
+  const apiKey = process.env[keyEnv];
+  if (!apiKey) throw new Error(`Missing ${keyEnv}`);
+  return { apiKey, webinarId };
 }
 
-async function post<T>(path: string, params: Record<string, string>): Promise<T> {
-  const { apiKey, webinarId } = env();
+async function post<T>(offer: MasterclassOffer, path: string, params: Record<string, string>): Promise<T> {
+  const { apiKey, webinarId } = env(offer);
   const res = await fetch(`${API}/${path}`, {
     method: "POST",
     body: new URLSearchParams({ api_key: apiKey, webinar_id: webinarId, ...params }),
@@ -43,8 +50,8 @@ function easternToUtc(wall: string): number {
 export type WjSchedule = { id: string; startsAt: number };
 
 /** Every session set up in WebinarJam, oldest first. The webinar's time zone is New York. */
-export async function schedules(): Promise<WjSchedule[]> {
-  const { webinar } = await post<{ webinar: { schedules: { date: string; schedule: number }[] } }>("webinar", {});
+export async function schedules(offer: MasterclassOffer): Promise<WjSchedule[]> {
+  const { webinar } = await post<{ webinar: { schedules: { date: string; schedule: number }[] } }>(offer, "webinar", {});
   return webinar.schedules
     .map((sc) => ({ id: String(sc.schedule), startsAt: easternToUtc(sc.date) }))
     .sort((a, b) => a.startsAt - b.startsAt);
@@ -60,11 +67,12 @@ function splitPhone(e164: string): { code: string; number: string } {
 
 /** Registers them for one session. WebinarJam needs a phone and an email. */
 export async function register(
+  offer: MasterclassOffer,
   person: { firstName: string; lastName?: string; email: string; phone: string },
   scheduleId: string
 ): Promise<void> {
   const { code, number } = splitPhone(person.phone);
-  await post("register", {
+  await post(offer, "register", {
     first_name: person.firstName,
     last_name: person.lastName ?? "",
     email: person.email,

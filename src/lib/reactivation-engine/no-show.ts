@@ -9,19 +9,20 @@ import {
   linksOk,
   liveSince,
   logOut,
-  OFFER,
+  MASTERCLASS,
   s,
   statedSoFar,
   STOP,
   toSession,
+  type MasterclassOffer,
   type Row,
 } from "./show-rate";
-import { BRONSON_NOSHOW_MY_VOICE, BRONSON_NOSHOW_OFFER, BRONSON_VOICE_SOP, VOICES } from "./voice";
+import { NOSHOW_VOICES, VOICES } from "./voice";
 import { register, schedules, type WjSchedule } from "./webinarjam";
 
 /**
- * Bronson's no-show engine (kit: ~/Desktop/reactivation-bronson-noshow).
- * Texts masterclass no-shows as Bronson, no guilt: the night of the class
+ * The no-show engine, one per offer (kits: ~/Desktop/reactivation-bronson-noshow,
+ * ~/Desktop/reactivation-aval-noshow). Texts masterclass no-shows as the host, no guilt: the night of the class
  * (about 9:30 to 10:30pm ET), the next afternoon, and two days after, then
  * stops. When they say yes it saves their seat by registering them in
  * WebinarJam itself; if the next date isn't set up yet the request waits and
@@ -34,25 +35,28 @@ const STOPPED = new Set(["Replied", "Seat Saved", "Seat Pending", "Not intereste
 
 // ---------- Prompts ----------
 
-function rules(): string {
-  return `You ARE Bronson, texting in first person. Where my-voice.md disagrees with voice.md, my-voice.md wins. Ignore anything in voice.md about booking a call: there is no call here.
+function rules(offer: MasterclassOffer): string {
+  const m = MASTERCLASS[offer];
+  return `You ARE ${m.host}, texting in first person. Where my-voice.md disagrees with voice.md, my-voice.md wins. Ignore anything in voice.md about booking a call: there is no call here.
 
 <voice.md>
-${VOICES[OFFER].voice}
+${VOICES[offer].voice}
 </voice.md>
 
 <my-voice.md>
-${BRONSON_NOSHOW_MY_VOICE}
+${NOSHOW_VOICES[offer].myVoice}
 </my-voice.md>
 
 <offer.md>
-${BRONSON_NOSHOW_OFFER}
+${NOSHOW_VOICES[offer].offer}
 </offer.md>
 
-<bronson-voice-sop.md>
-${BRONSON_VOICE_SOP}
-</bronson-voice-sop.md>`;
+<${m.sopName}>
+${m.sop}
+</${m.sopName}>`;
 }
+
+const DATES = `Dates: the approved examples name a day ("next Wednesday at 7pm ET", "next Sunday at 7pm ET") only as a placeholder. Always use the exact next date given below. Say "next <day>" only if it really is 7 days away or less; otherwise name it ("Sunday, November 15 at 7pm ET" style).`;
 
 type Touch = "night" | "push1" | "push2";
 const TOUCH_BRIEF: Record<Touch, string> = {
@@ -61,19 +65,19 @@ const TOUCH_BRIEF: Record<Touch, string> = {
   push2: "push #2, the last one, two days after: like the approved push #2 example. After this I never text first again",
 };
 
-export const touchSystem = () => `You are Bronson, texting someone who registered for your masterclass and didn't show up. Follow these files exactly.
+export const touchSystem = (offer: MasterclassOffer) => `You are ${MASTERCLASS[offer].host}, texting someone who registered for your masterclass and didn't show up. Follow these files exactly.
 
-${rules()}
+${rules(offer)}
 
-No guilt, no "you missed out". Dates: the approved examples say "next Wednesday at 7pm ET" only as a placeholder. Always use the exact next date given below. Say "next Wednesday" only if it really is 7 days away or less; otherwise name it ("Wednesday, November 11 at 7pm ET" style). Reply with only the text message. No quotes, no notes.`;
+No guilt, no "you missed out". ${DATES} Reply with only the text message. No quotes, no notes.`;
 
-export const noShowReplySystem = () => `You are Bronson, answering a masterclass no-show's texts. Follow these files exactly.
+export const noShowReplySystem = (offer: MasterclassOffer) => `You are ${MASTERCLASS[offer].host}, answering a masterclass no-show's texts. Follow these files exactly.
 
-${rules()}
+${rules(offer)}
 
 Goal: get them back on the next live masterclass. You save their seat for them.
 Rulebook: no guilt, never pitch, never mention price, never push a call, never send a link outside the approved set, under two lines unless it's a personal callback.
-Dates: the approved examples say "next Wednesday at 7pm ET" only as a placeholder. Always use the exact next date given below. Say "next Wednesday" only if it really is 7 days away or less; otherwise name it ("Wednesday, November 11 at 7pm ET" style).
+${DATES}
 
 Return JSON:
 - "reply": the one text to send, or "" (plain ok / thanks / 👍, or STOP).
@@ -121,42 +125,42 @@ function sessionStart(r: Row, all: WjSchedule[]): number {
 /** The session to save seats in: the next one set up in WebinarJam, at least 30 minutes out. */
 const nextSchedule = (all: WjSchedule[]) => all.find((sc) => sc.startsAt > Date.now() + 30 * 60_000) ?? null;
 
-/** What the texts call the next one: the WebinarJam date, else the usual next Wednesday 7pm ET. */
-function nextLabel(all: WjSchedule[]): string {
+/** What the texts call the next one: the WebinarJam date, else the usual weekday at 7pm ET. */
+function nextLabel(offer: MasterclassOffer, all: WjSchedule[]): string {
   const sc = nextSchedule(all);
   if (sc) return toSession(sc.startsAt).label;
   for (let i = 1; i <= 8; i++) {
     const day = easternDay(Date.now() + i * DAY);
-    if (new Date(`${day}T12:00:00Z`).getUTCDay() === 3) {
+    if (new Date(`${day}T12:00:00Z`).getUTCDay() === MASTERCLASS[offer].usualWeekday) {
       const [y, mo, d] = day.split("-").map(Number);
       return toSession(easternToUtc(y, mo - 1, d, 19, 0)).label;
     }
   }
-  return "next Wednesday at 7pm ET";
+  return "the next one at 7pm ET";
 }
 
 // ---------- Seats ----------
 
 /** Registers them for the next session, or marks the request pending when there isn't one yet. */
-async function saveSeat(c: GhlContact, all: WjSchedule[]): Promise<Record<string, unknown>> {
+async function saveSeat(offer: MasterclassOffer, c: GhlContact, all: WjSchedule[]): Promise<Record<string, unknown>> {
   const sc = nextSchedule(all);
   if (!sc || !c.email || !c.phone) return { "No-show Status": "Seat Pending" };
-  await register({ firstName: c.firstName?.trim() || c.contactName?.trim() || "Friend", lastName: c.lastName, email: c.email, phone: c.phone }, sc.id);
+  await register(offer, { firstName: c.firstName?.trim() || c.contactName?.trim() || "Friend", lastName: c.lastName, email: c.email, phone: c.phone }, sc.id);
   return { "No-show Status": "Seat Saved", "Seat Session": easternDay(sc.startsAt) };
 }
 
 /** Every run: pending seat requests go through as soon as the next date exists in WebinarJam. */
-export async function runPendingSeats(report: RunReport): Promise<void> {
-  const rows = await getReactivationRows(OFFER, "leads", "{No-show Status}='Seat Pending'");
+export async function runPendingSeats(offer: MasterclassOffer, report: RunReport): Promise<void> {
+  const rows = await getReactivationRows(offer, "leads", "{No-show Status}='Seat Pending'");
   if (!rows.length) return;
-  const all = await schedules();
+  const all = await schedules(offer);
   if (!nextSchedule(all)) return;
   for (const r of rows) {
-    const c = await getContact(OFFER, s(r.fields["GHL Contact ID"]));
+    const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
     try {
-      const fields = await saveSeat(c, all);
+      const fields = await saveSeat(offer, c, all);
       if (fields["No-show Status"] === "Seat Saved") {
-        await updateReactivationRow(OFFER, "leads", r.id, fields);
+        await updateReactivationRow(offer, "leads", r.id, fields);
         report.skipped["seats saved from pending"] = (report.skipped["seats saved from pending"] ?? 0) + 1;
       }
     } catch (e) {
@@ -181,57 +185,57 @@ function dueTouch(r: Row, start: number, now = Date.now()): Touch | null {
 
 const TOUCH_FIELD: Record<Touch, string> = { night: "Night-of Sent At", push1: "Push 1 Sent At", push2: "Push 2 Sent At" };
 
-export async function runNoShowTouches(deadline: number, report: RunReport): Promise<void> {
-  if ((await liveSince("noshow_on")) === null) return;
-  const rows = await getReactivationRows(OFFER, "leads");
-  const all = await schedules();
+export async function runNoShowTouches(offer: MasterclassOffer, deadline: number, report: RunReport): Promise<void> {
+  if ((await liveSince(offer, "noshow_on")) === null) return;
+  const rows = await getReactivationRows(offer, "leads");
+  const all = await schedules(offer);
   for (const r of noShows(rows).values()) {
     if (Date.now() > deadline) return;
     const touch = dueTouch(r, sessionStart(r, all));
     if (!touch) continue;
-    const c = await getContact(OFFER, s(r.fields["GHL Contact ID"]));
+    const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
     if (!c.phone || smsBlocked(c)) {
       report.skipped["no-show: no textable phone"] = (report.skipped["no-show: no textable phone"] ?? 0) + 1;
       continue;
     }
-    const body = await generate(OFFER, {
+    const body = await generate(offer, {
       model: MODELS.firstText,
-      system: touchSystem(),
+      system: touchSystem(offer),
       prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-${statedSoFar(r)}Next masterclass: ${nextLabel(all)}
+${statedSoFar(r)}Next masterclass: ${nextLabel(offer, all)}
 
 Write ${TOUCH_BRIEF[touch]}.`,
       purpose: "no_show",
       contactId: c.id,
       touch: touch === "night" ? 1 : touch === "push1" ? 2 : 3,
     });
-    if (!body || !linksOk(body) || !(await trySend(OFFER, c.id, body))) continue;
-    await logOut(c, s(r.fields.Name), body, null, `no-show ${touch}`);
+    if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body))) continue;
+    await logOut(offer, c, s(r.fields.Name), body, null, `no-show ${touch}`);
     const sentAt = new Date().toISOString();
-    await updateReactivationRow(OFFER, "leads", r.id, { [TOUCH_FIELD[touch]]: sentAt, "Last Message At": sentAt, "No-show Status": "Texted" });
+    await updateReactivationRow(offer, "leads", r.id, { [TOUCH_FIELD[touch]]: sentAt, "Last Message At": sentAt, "No-show Status": "Texted" });
     report.followUps++;
   }
 }
 
 // ---------- Replies ----------
 
-/** Every 5 minutes: answer no-shows' texts as Bronson and save seats on a yes. */
-export async function runNoShowReplies(report: RunReport): Promise<void> {
-  const since = await liveSince("noshow_on");
-  const rows = await getReactivationRows(OFFER, "leads");
+/** Every 5 minutes: answer no-shows' texts as the host and save seats on a yes. */
+export async function runNoShowReplies(offer: MasterclassOffer, report: RunReport): Promise<void> {
+  const since = await liveSince(offer, "noshow_on");
+  const rows = await getReactivationRows(offer, "leads");
   const byContact = noShows(rows);
   if (!byContact.size) return;
   let all: WjSchedule[] | null = null;
   const cutoff = Date.now() - DAY;
 
-  for (const conv of await recentConversations(OFFER)) {
+  for (const conv of await recentConversations(offer)) {
     if (conv.lastMessageDate < cutoff) break;
     const lead = byContact.get(conv.contactId);
     if (!lead || conv.lastMessageDirection !== "inbound") continue;
     const handledUpTo = s(lead.fields["Last Message At"]).slice(0, 19);
     if (new Date(conv.lastMessageDate).toISOString().slice(0, 19) <= handledUpTo) continue;
 
-    const msgs = await history(OFFER, conv.contactId);
+    const msgs = await history(offer, conv.contactId);
     const fresh = msgs.filter((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && m.dateAdded.slice(0, 19) > handledUpTo);
     if (!fresh.length) continue;
     const name = s(lead.fields.Name);
@@ -240,7 +244,7 @@ export async function runNoShowReplies(report: RunReport): Promise<void> {
     for (const m of fresh) {
       const isStop = STOP.test(m.body ?? "");
       optOut ||= isStop;
-      await createReactivationRow(OFFER, "messages", {
+      await createReactivationRow(offer, "messages", {
         Name: `${name} in`,
         "GHL Contact ID": conv.contactId,
         "Lead Name": name,
@@ -252,19 +256,19 @@ export async function runNoShowReplies(report: RunReport): Promise<void> {
       });
     }
     if (optOut) {
-      await updateReactivationRow(OFFER, "leads", lead.id, { ...fields, Status: "Opted out", "No-show Status": "Opted out", "Opted Out At": new Date().toISOString() });
+      await updateReactivationRow(offer, "leads", lead.id, { ...fields, Status: "Opted out", "No-show Status": "Opted out", "Opted Out At": new Date().toISOString() });
       continue;
     }
     if (!STOPPED.has(s(lead.fields["No-show Status"]))) fields["No-show Status"] = "Replied";
 
     if (since !== null && Date.parse(fresh[fresh.length - 1].dateAdded) >= since) {
-      const c = await getContact(OFFER, conv.contactId);
-      all ??= await schedules();
-      const out = await generate(OFFER, {
+      const c = await getContact(offer, conv.contactId);
+      all ??= await schedules(offer);
+      const out = await generate(offer, {
         model: MODELS.reply,
-        system: noShowReplySystem(),
+        system: noShowReplySystem(offer),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-${statedSoFar(lead)}Next masterclass: ${nextLabel(all)}${nextSchedule(all) ? "" : " (not set up yet: if they say yes, their seat is saved and confirmed once it is)"}
+${statedSoFar(lead)}Next masterclass: ${nextLabel(offer, all)}${nextSchedule(all) ? "" : " (not set up yet: if they say yes, their seat is saved and confirmed once it is)"}
 Now in Eastern time: ${localTime("America/New_York")}
 
 Full text thread, oldest first:
@@ -282,13 +286,13 @@ Answer their latest text.`,
       } else if (parsed) {
         if (parsed.action === "save_seat") {
           try {
-            Object.assign(fields, await saveSeat(c, all));
+            Object.assign(fields, await saveSeat(offer, c, all));
           } catch (e) {
             console.error("no-show: saving seat failed", c.id, e);
             fields["No-show Status"] = "Seat Pending";
           }
         } else if (parsed.action === "not_interested") fields["No-show Status"] = "Not interested";
-        const linkBlocked = Boolean(parsed.reply) && !linksOk(parsed.reply);
+        const linkBlocked = Boolean(parsed.reply) && !linksOk(offer, parsed.reply);
         const question = parsed.question_to_review.trim() || (linkBlocked ? fresh[fresh.length - 1].body ?? "" : "");
         if (question) {
           const note = `Q (no-show): ${question} → ${linkBlocked ? "NOT SENT (unapproved link)" : `Sent: ${parsed.reply || "(no reply)"}`}`;
@@ -302,14 +306,14 @@ Answer their latest text.`,
           const next = appendTo(lead.fields[field], value);
           if (next) fields[field] = next;
         }
-        if (parsed.reply && !linkBlocked && (await trySend(OFFER, c.id, parsed.reply))) {
-          await logOut(c, name, parsed.reply, null, "no-show reply");
+        if (parsed.reply && !linkBlocked && (await trySend(offer, c.id, parsed.reply))) {
+          await logOut(offer, c, name, parsed.reply, null, "no-show reply");
           fields["Last Message At"] = new Date().toISOString();
           report.replies++;
         }
       }
     }
-    await updateReactivationRow(OFFER, "leads", lead.id, fields);
+    await updateReactivationRow(offer, "leads", lead.id, fields);
   }
 }
 

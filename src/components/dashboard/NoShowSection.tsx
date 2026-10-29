@@ -3,6 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
+import type { MasterclassDashboard } from "@/components/dashboard/ShowRateSection";
 import type { RangeState } from "@/components/dashboard/RangeFilterBar";
 import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue } from "@/lib/format";
@@ -38,9 +39,11 @@ function Pill({ className, children }: { className: string; children: React.Reac
   return <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${className}`}>{children}</span>;
 }
 
-function Thread({ contactId }: { contactId: string }) {
+const HOST: Record<MasterclassDashboard, string> = { bronson: "Bronson", aval: "Benicio" };
+
+function Thread({ offer, contactId }: { offer: MasterclassDashboard; contactId: string }) {
   const { data } = useSWR<{ messages: { id: string; direction: "in" | "out"; body: string; at: string; touch: number | null }[] }>(
-    `/api/bronson/show-rate/thread?contact=${encodeURIComponent(contactId)}`,
+    `/api/${offer}/show-rate/thread?contact=${encodeURIComponent(contactId)}`,
     (url: string) => fetch(url).then((r) => r.json())
   );
   if (!data) return <p className="px-5 py-3 text-sm text-[var(--text-muted)]">Loading thread…</p>;
@@ -65,8 +68,8 @@ function Thread({ contactId }: { contactId: string }) {
   );
 }
 
-function EngineSwitch() {
-  const { data, error, mutate } = useSWR<{ engineOn: boolean }>("/api/bronson/no-shows/controls", async (url: string) => {
+function EngineSwitch({ offer }: { offer: MasterclassDashboard }) {
+  const { data, error, mutate } = useSWR<{ engineOn: boolean }>(`/api/${offer}/no-shows/controls`, async (url: string) => {
     const res = await fetch(url);
     if (res.status === 401) throw new Error("locked");
     if (!res.ok) throw new Error("failed");
@@ -76,7 +79,7 @@ function EngineSwitch() {
 
   async function toggle(on: boolean) {
     setBusy(true);
-    await fetch("/api/bronson/no-shows/controls", {
+    await fetch(`/api/${offer}/no-shows/controls`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "toggle", on }),
@@ -91,7 +94,7 @@ function EngineSwitch() {
       <div className={box}>
         <p className="text-sm text-[var(--text-muted)]">
           The engine switch is behind the admin password.{" "}
-          <a className="font-semibold text-sky-700 underline" href="/bronson/admin-team/unlock?next=/bronson/no-shows">
+          <a className="font-semibold text-sky-700 underline" href={`/${offer}/admin-team/unlock?next=/${offer}/no-shows`}>
             Unlock
           </a>
         </p>
@@ -111,20 +114,20 @@ function EngineSwitch() {
         {data.engineOn ? "ON" : "OFF"}
       </button>
       <span className="text-xs text-[var(--text-muted)]">
-        ON: texts no-shows as Bronson the night of the class, the next afternoon and two days after, answers them, and saves seats on a yes.
+        ON: texts no-shows as {HOST[offer]} the night of the class, the next afternoon and two days after, answers them, and saves seats on a yes.
       </span>
     </div>
   );
 }
 
-export function NoShowSection({ range }: { range: RangeState }) {
-  const { data } = useSectionData<NoShowsResponse>("/api/bronson/no-shows", range);
+export function NoShowSection({ offer, range }: { offer: MasterclassDashboard; range: RangeState }) {
+  const { data } = useSectionData<NoShowsResponse>(`/api/${offer}/no-shows`, range);
   const [open, setOpen] = useState<string | null>(null);
   const v = <T,>(value: T) => (data ? value : undefined);
 
   return (
     <div className="flex flex-col gap-4">
-      <EngineSwitch />
+      <EngineSwitch offer={offer} />
 
       <MetricGroups
         groups={[
@@ -266,7 +269,7 @@ export function NoShowSection({ range }: { range: RangeState }) {
                 </div>
                 <span className="shrink-0 text-[11px] text-[var(--text-muted)]">{c.lastAt ? timeFmt.format(new Date(c.lastAt)) : ""}</span>
               </button>
-              {open === c.contactId ? <Thread contactId={c.contactId} /> : null}
+              {open === c.contactId ? <Thread offer={offer} contactId={c.contactId} /> : null}
             </li>
           ))}
         </ul>

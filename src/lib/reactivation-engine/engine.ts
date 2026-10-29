@@ -204,6 +204,13 @@ const SEND_RULES: Record<
     hours: [9, 21],
     autoOff: false,
   },
+  avalMasterclass: {
+    blockedCountries: /^$/,
+    usEastern: false,
+    usHours: [9, 21],
+    hours: [9, 21],
+    autoOff: false,
+  },
 };
 
 type SendWindow = { timeZone: string; from: number; to: number };
@@ -263,7 +270,23 @@ async function skipReason(offer: ReactivationOffer, c: GhlContact, ignoreHours =
   return recentRep ? "rep text or call in the last 7 days" : null;
 }
 
-const PERMANENT_SKIPS = new Set(["no valid phone", "blocked country", "blocked stage", "said STOP"]);
+// "DND" and "unknown time zone" too (2026-10-29): rechecking them every 5 minutes used up Aval's daily GHL API limit.
+const PERMANENT_SKIPS = new Set(["no valid phone", "blocked country", "blocked stage", "said STOP", "DND", "unknown time zone"]);
+
+/**
+ * Skips a lead from the pipeline row alone, before any GHL contact lookup:
+ * a blocked country, or a +1 number outside the Eastern send hours (the only
+ * window that doesn't depend on the contact's own time zone). Scans run every
+ * 5 minutes, so this keeps night runs from looking up every lead again.
+ */
+function quickSkip(offer: ReactivationOffer, phone: string | undefined, ignoreHours: boolean): string | null {
+  if (!phone) return null;
+  const r = SEND_RULES[offer];
+  if (r.blockedCountries.test(phone)) return "blocked country";
+  if (ignoreHours || !phone.startsWith("+1") || !r.usEastern) return null;
+  const w = sendWindow(offer, { phone, timezone: undefined });
+  return w && !inWindow(w) ? "outside send hours" : null;
+}
 
 // ---------- Airtable rows ----------
 
@@ -432,11 +455,16 @@ async function* coldLeads(
   more: () => boolean,
   ignoreHours = false
 ): AsyncGenerator<GhlContact> {
-  for await (const { contactId, createdAt } of pipelineLeads(offer)) {
+  for await (const { contactId, createdAt, contact } of pipelineLeads(offer)) {
     if (!more()) return;
     if (seen.has(contactId)) continue;
     seen.add(contactId);
     if (Date.now() - Date.parse(createdAt) < 7 * DAY) continue;
+    const quick = quickSkip(offer, contact?.phone, ignoreHours);
+    if (quick) {
+      report.skipped[quick] = (report.skipped[quick] ?? 0) + 1;
+      continue;
+    }
     const c = await getContact(offer, contactId);
     const why = await skipReason(offer, c, ignoreHours);
     if (why) {

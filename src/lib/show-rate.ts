@@ -1,7 +1,7 @@
 import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date-range";
 
 /**
- * Numbers for /bronson/show-rate (the masterclass show-rate engine). Every
+ * Numbers for each offer's Show Rate tab (the masterclass show-rate engine). Every
  * registrant is counted in the session they registered for; the range picks
  * sessions by date. Showed / No show come from the GHL Masterclass pipeline
  * after n8n moves people on, so a session reads "pending" until then.

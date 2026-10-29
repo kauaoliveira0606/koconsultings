@@ -4,8 +4,8 @@ import { AVAL_BASE_ID } from "@/lib/airtable/tables-aval";
 
 const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 
-/** "bronsonMasterclass" is the show-rate engine: replies to masterclass registrants, no cold texts. */
-export type ReactivationOffer = "aval" | "bronson" | "bronsonMasterclass";
+/** "...Masterclass" offers are the show-rate engines: replies to masterclass registrants, no cold texts. */
+export type ReactivationOffer = "aval" | "bronson" | "bronsonMasterclass" | "avalMasterclass";
 
 /**
  * The reactivation engine (texts cold leads, books calls) writes four tables
@@ -29,6 +29,11 @@ const REACTIVATION_BASES: Record<
   bronsonMasterclass: {
     baseId: BRONSON_BASE_ID,
     tables: { leads: "tbl0lDXqb2TDAzteD", messages: "tblf95GScpqTQimQB", aiCalls: "tblLtwnCUqi1nZ1nf", settings: "tblrUSx0jAoEK34Wo" },
+  },
+  // Created 2026-10-29, same "Show Rate ..." tables as Bronson's.
+  avalMasterclass: {
+    baseId: AVAL_BASE_ID,
+    tables: { leads: "tblTfRK0v7zZZwDk0", messages: "tbll28r7MUT134QyI", aiCalls: "tblJl3UAdtHdiJB0q", settings: "tblDkMNaYWSPowv0a" },
   },
 };
 
