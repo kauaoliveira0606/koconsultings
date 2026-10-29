@@ -52,7 +52,7 @@ const split = (label: string, format: StatFormat, pick: (f: SourceFunnel) => num
   ...extra,
 });
 
-function frontEnd(goals?: GoalsConfig): Group[] {
+function frontEnd(offer: "bronson" | "aval", goals?: GoalsConfig): Group[] {
   return [
     {
       title: "Ads (Promo Days)",
@@ -87,7 +87,7 @@ function frontEnd(goals?: GoalsConfig): Group[] {
         split("Registered", "number", (f) => f.registered),
         split("Attended Live", "number", (f) => f.attended),
         split("Webinar Show Rate", "percent", (f) => f.showRate),
-        split("Stayed Until Pitch", "number", (f) => f.stayed, { note: "Watched live 1 hour or more." }),
+        split("Stayed Until Pitch", "number", (f) => f.stayed, { note: offer === "bronson" ? "Watched live 50 minutes or more (the pitch)." : "Watched live 1 hour or more." }),
         { label: "Live Attendees at Pitch", format: "number", total: (w) => w.form.liveAttendeesAtPitch, note: "Manual, post-webinar card." },
         { label: "Retention Until Pitch", format: "percent", total: (w) => w.form.retentionRateUntilPitch, note: "Manual: room at the pitch minute ÷ peak room." },
       ],
@@ -381,7 +381,7 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
               {hero("Webinar Show Rate (Organic)", w.organic.showRate, "percent", `${w.organic.attended} of ${w.organic.registered} registered`)}
               {hero("Cost Per Booked Call (Paid)", w.paid.costPerBookedCall, "currency", "Ad spend ÷ paid calls booked")}
             </div>
-            <Table groups={frontEnd(goals)} w={w} />
+            <Table groups={frontEnd(offer, goals)} w={w} />
           </DashboardSection>
 
           <DashboardSection title="Back End">

@@ -11,7 +11,7 @@ import type { WebinarRun } from "@/lib/webinar-schedule";
 /**
  * One webinar's funnel split paid vs organic, all automatic (user,
  * 2026-10-19). Front end: WebinarJam registrants -> attended live -> stayed
- * until the pitch (watched 1 hour+) -> Calendly bookings. Back end, once the
+ * until the pitch (Bronson 50 min+, Aval 1 hour+) -> Calendly bookings. Back end, once the
  * call is on the calendar: a 1+ min GHL call before it (connected) -> the
  * lead's Post Call Note (showed, closed, cash). The source is the lead's
  * paid / organic tag (ad campaign UTM = paid).
