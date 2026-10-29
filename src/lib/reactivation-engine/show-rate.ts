@@ -16,6 +16,7 @@ import {
   type GhlContact,
 } from "./ghl";
 import { BRONSON_VOICE_SOP, VOICES } from "./voice";
+import { schedules } from "./webinarjam";
 
 /**
  * Bronson's show-rate engine (kit: ~/Desktop/reactivation-bronson-masterclass).
@@ -25,10 +26,10 @@ import { BRONSON_VOICE_SOP, VOICES } from "./voice";
  * preferred time) for the /bronson/show-rate tab. Never touches GHL stages.
  */
 
-const OFFER = "bronsonMasterclass" as const;
+export const OFFER = "bronsonMasterclass" as const;
 const DAY = 86_400_000;
 /** User, 2026-10-28: "wrong number" is not an opt-out here, we remind them what they signed up for. */
-const STOP = /^\s*(stop|unsubscribe|remove me|cancel|quit|end)\b/i;
+export const STOP = /^\s*(stop|unsubscribe|remove me|cancel|quit|end)\b/i;
 const SIGNUP_PAGE = "https://www.ad-ventur.com/masterclass";
 const CHECK_IN_HOUR = 16;
 /** User, 2026-10-28: never send a link outside the approved set. */
@@ -43,7 +44,7 @@ const APPROVED_LINKS = [
 const normLink = (l: string) => l.toLowerCase().replace(/[.,!?)]+$/, "").replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
 
 /** False when a text carries any link that isn't approved; such a text is never sent. */
-function linksOk(text: string): boolean {
+export function linksOk(text: string): boolean {
   // Bare domains count too ("evil.com/x"), not just https:// links.
   const links = text.match(/\b(?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/\S*)?/gi) ?? [];
   return links.every((l) => APPROVED_LINKS.some((ok) => normLink(l) === normLink(ok)));
@@ -51,23 +52,24 @@ function linksOk(text: string): boolean {
 
 const REGISTERED = new Set([MASTERCLASS_OPT_IN_STAGE, MASTERCLASS_VIP_STAGE]);
 
-type Row = { id: string; fields: Record<string, unknown> };
-const s = (v: unknown) => (typeof v === "string" ? v : "");
-const easternDay = (t: number | string | Date) => new Date(t).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-const easternHour = (t: number) =>
+export type Row = { id: string; fields: Record<string, unknown> };
+export const s = (v: unknown) => (typeof v === "string" ? v : "");
+export const easternDay = (t: number | string | Date) => new Date(t).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+export const easternHour = (t: number) =>
   Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }).format(t));
 
 // ---------- On / off ----------
 
 /**
- * ON means engine_on is "1" and today (Eastern) is on or after the optional
- * on_from date in Show Rate Settings (user, 2026-10-28: "turn this on starting
- * tomorrow"). Returns the start of that day so earlier texts are never answered.
+ * ON means the switch (engine_on, or noshow_on for the no-show engine) is "1"
+ * and today (Eastern) is on or after the optional on_from date in Show Rate
+ * Settings (user, 2026-10-28: "turn this on starting tomorrow"). Returns the
+ * start of that day so earlier texts are never answered.
  */
-async function liveSince(): Promise<number | null> {
+export async function liveSince(switchKey: "engine_on" | "noshow_on" = "engine_on"): Promise<number | null> {
   const rows = await getReactivationRows(OFFER, "settings");
   const value = (key: string) => s(rows.find((r) => r.fields.Key === key)?.fields.Value).trim();
-  if (value("engine_on") !== "1") return null;
+  if (value(switchKey) !== "1") return null;
   const from = value("on_from");
   if (!from) return 0;
   if (easternDay(Date.now()) < from) return null;
@@ -82,14 +84,26 @@ export type Session = { date: string; label: string; startsAt: number };
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
 /** Eastern wall time to a UTC timestamp, DST included. */
-function easternToUtc(y: number, mo: number, d: number, h: number, mi: number): number {
+export function easternToUtc(y: number, mo: number, d: number, h: number, mi: number): number {
   const guess = Date.UTC(y, mo, d, h, mi);
   const at = (timeZone: string) => new Date(new Date(guess).toLocaleString("en-US", { timeZone })).getTime();
   return guess + (at("UTC") - at("America/New_York"));
 }
 
-/** The next masterclass, read off the signup page (user: it always shows the current date and time). */
+/**
+ * The next masterclass: the next session set up in WebinarJam (where seats are
+ * actually saved), else the signup page (user: it shows the current date and
+ * time), else the usual Wednesday 7pm ET. A session stays "next" until 3 hours
+ * after it starts.
+ */
 export async function nextSession(): Promise<Session> {
+  const live = Date.now() - 3 * 3_600_000;
+  try {
+    const upcoming = (await schedules()).find((sc) => sc.startsAt > live);
+    if (upcoming) return toSession(upcoming.startsAt);
+  } catch (e) {
+    console.error("show-rate: couldn't read WebinarJam sessions", e);
+  }
   try {
     const html = await (await fetch(SIGNUP_PAGE, { cache: "no-store" })).text();
     const text = html.replace(/<[^>]+>/g, " ").replace(/&middot;/g, "·").replace(/\s+/g, " ");
@@ -102,7 +116,8 @@ export async function nextSession(): Promise<Session> {
       let year = Number(easternDay(Date.now()).slice(0, 4));
       // A January date read in December is next year.
       if (easternToUtc(year, month, Number(m[2]), hour, Number(m[4] ?? 0)) < Date.now() - 60 * DAY) year++;
-      return toSession(easternToUtc(year, month, Number(m[2]), hour, Number(m[4] ?? 0)));
+      const fromPage = easternToUtc(year, month, Number(m[2]), hour, Number(m[4] ?? 0));
+      if (fromPage > live) return toSession(fromPage);
     }
   } catch (e) {
     console.error("show-rate: couldn't read the masterclass date", e);
@@ -118,7 +133,7 @@ export async function nextSession(): Promise<Session> {
   return toSession(now);
 }
 
-function toSession(startsAt: number): Session {
+export function toSession(startsAt: number): Session {
   const label = new Date(startsAt).toLocaleString("en-US", {
     timeZone: "America/New_York",
     weekday: "long",
@@ -281,7 +296,7 @@ export async function syncRegistrants(session: Session): Promise<{ added: number
 
 // ---------- Replies ----------
 
-const appendTo = (old: unknown, add: string) => {
+export const appendTo = (old: unknown, add: string) => {
   const prev = s(old).trim();
   const next = add.trim();
   if (!next || prev.includes(next)) return undefined;
@@ -304,6 +319,8 @@ export async function runShowRateReplies(session: Session, report: RunReport): P
     if (conv.lastMessageDate < cutoff) break;
     const lead = byContact.get(conv.contactId);
     if (!lead || lead.fields.Status === "Opted out" || conv.lastMessageDirection !== "inbound") continue;
+    // No-shows belong to the no-show engine (no-show.ts) from the night of the class.
+    if (lead.fields.Outcome === "No show") continue;
     // Compared to the second: Airtable may drop milliseconds.
     const handledUpTo = s(lead.fields["Last Message At"]).slice(0, 19);
     if (new Date(conv.lastMessageDate).toISOString().slice(0, 19) <= handledUpTo) continue;
@@ -391,7 +408,7 @@ Answer their latest text.`,
 }
 
 /** What they've told us so far, for commitment stacking. */
-function statedSoFar(r: Row): string {
+export function statedSoFar(r: Row): string {
   const lines = [
     ["Their stated goal", s(r.fields.Goal)],
     ["What they want covered", s(r.fields["Wants Covered"])],
@@ -409,10 +426,10 @@ function parseReply(text: string | null): Parsed | null {
   }
 }
 
-async function logOut(c: GhlContact, name: string, body: string, touch: number | null) {
+export async function logOut(c: GhlContact, name: string, body: string, touch: number | null, label?: string) {
   const now = new Date().toISOString();
   await createReactivationRow(OFFER, "messages", {
-    Name: `${name} ${touch === 1 ? "check-in" : touch === 2 ? "24h callback" : "reply"}`,
+    Name: `${name} ${label ?? (touch === 1 ? "check-in" : touch === 2 ? "24h callback" : "reply")}`,
     "GHL Contact ID": c.id,
     "Lead Name": name,
     Direction: "out",

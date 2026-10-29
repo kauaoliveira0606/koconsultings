@@ -1,11 +1,13 @@
 import type { RunReport } from "@/lib/reactivation-engine/engine";
+import { runNoShowReplies, runNoShowTouches, runPendingSeats } from "@/lib/reactivation-engine/no-show";
 import { nextSession, runCallbacks, runCheckIns, runShowRateReplies, syncRegistrants } from "@/lib/reactivation-engine/show-rate";
 
 /**
  * Bronson show-rate engine, every 5 minutes (vercel.json): syncs masterclass
  * registrants from GHL, answers their texts as Bronson, and on event day at
- * 4pm ET checks in with anyone who never replied. Nothing is sent while the
- * engine is OFF on /bronson/show-rate.
+ * 4pm ET checks in with them. Also runs the no-show engine (texts after the
+ * class, saves seats for the next one). Nothing is sent while each engine's
+ * switch is OFF (/bronson/show-rate, /bronson/no-shows).
  */
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -36,8 +38,11 @@ export async function GET(request: Request) {
       report.synced = await syncRegistrants(session);
     },
     () => runShowRateReplies(session, report),
+    () => runNoShowReplies(report),
+    () => runPendingSeats(report),
     () => runCallbacks(session, started + 240_000, report),
     () => runCheckIns(session, started + 240_000, report),
+    () => runNoShowTouches(started + 240_000, report),
   ];
   for (const step of steps) {
     try {

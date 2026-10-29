@@ -36,5 +36,6 @@ export const config = {
     "/api/aval/overview/reactivation/controls/:path*",
     "/api/bronson/overview/reactivation/controls/:path*",
     "/api/bronson/show-rate/controls/:path*",
+    "/api/bronson/no-shows/controls/:path*",
   ],
 };

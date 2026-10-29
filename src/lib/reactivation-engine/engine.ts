@@ -47,7 +47,7 @@ const PRICES: Record<string, { in: number; out: number; cacheRead: number }> = {
 // Made on first use: the SDK throws at construction when ANTHROPIC_API_KEY is missing.
 let client: Anthropic | null = null;
 
-type Purpose = "first_text" | "follow_up" | "reply" | "check_in";
+type Purpose = "first_text" | "follow_up" | "reply" | "check_in" | "no_show";
 
 export async function generate(offer: ReactivationOffer, opts: {
   model: string;

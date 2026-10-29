@@ -164,7 +164,7 @@ async function patch(offer: ReactivationOffer, key: TableKey, records: { id: str
   if (!res.ok) throw new AirtableError(`Airtable update failed: ${await res.text()}`, res.status);
 }
 
-export async function setReactivationSetting(offer: ReactivationOffer, key: "engine_on" | "daily_cap" | "off_reason", value: string) {
+export async function setReactivationSetting(offer: ReactivationOffer, key: "engine_on" | "daily_cap" | "off_reason" | "noshow_on", value: string) {
   const records = await airtableListFresh(base(offer), table(offer, "settings"), {
     filterByFormula: `{Key}='${key}'`,
   });
