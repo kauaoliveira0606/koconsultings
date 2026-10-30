@@ -45,9 +45,10 @@ export function paymentPlansDueGet(offer: PaymentPlanOffer, dashboardUrl: string
   };
 }
 
-const isRealDate = (value: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-  new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+const isRealDate = (value: string) => {
+  const date = new Date(`${value}T00:00:00Z`);
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+};
 
 // A hand edit from the tab: a new balance, a status (Paid Off / Churned / Active), an extension, or a mix.
 export function paymentPlansPatch(offer: PaymentPlanOffer) {
