@@ -96,6 +96,7 @@ export function vslTotals(
   }
   return {
     vslViews: any ? views : null,
+    vslPlays: any ? plays : null,
     vslPlayRate: safeDivide(plays, playRateViews || null),
     vslEngagementRate: safeDivide(engagementWeighted, engagementPlays || null),
   };

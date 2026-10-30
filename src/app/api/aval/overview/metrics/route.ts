@@ -247,9 +247,9 @@ export async function GET(request: NextRequest) {
     }))
   );
   // Opt-in rate only counts paid leads from days that actually have VSL
-  // views, so days before a VSL existed can't inflate the rate.
+  // plays, so days before a VSL existed can't inflate the rate.
   const vslDays = new Set(
-    inRangeMarketing.filter((r) => (r.vslViews ?? 0) > 0).map((r) => r.date)
+    inRangeMarketing.filter((r) => (r.vslPlays ?? 0) > 0).map((r) => r.date)
   );
   const paidLeadsOnVslDays = inRangeLeads.filter(
     (l) => isPaidSource(l.source) && vslDays.has(toEasternDateOnly(l.createdAt))
@@ -286,10 +286,10 @@ export async function GET(request: NextRequest) {
     optInsOrganic,
     landingPageConnectRate: average(inRangeMarketing.map((r) => r.landingPageConnectRate)),
     // Form's typed opt-in rate first (client rule); otherwise paid leads /
-    // VSL views, calculated.
+    // unique VSL plays, calculated.
     optInRate:
       average(inRangeMarketing.map((r) => r.optInRate)) ??
-      safeDivide(paidLeadsOnVslDays, vsl.vslViews),
+      safeDivide(paidLeadsOnVslDays, vsl.vslPlays || null),
     // Form's typed CPL first; otherwise ad spend / paid opt-ins.
     costPerLeadPaid:
       average(inRangeMarketing.map((r) => r.costPerLeadMeta)) ??

@@ -184,6 +184,8 @@ export type ScorecardExtras = {
   /** Bronson: Calendly bookings with the lead's masterclass paid / organic tag. */
   bookings?: BookingRow[];
   registrants?: MasterclassRegistrantRow[];
+  /** Aval: Opt-In Rate (Paid) divides by unique VSL plays instead of VSL views. */
+  optInRateOnPlays?: boolean;
   attribution?: {
     portal: {
       date: string | null;
@@ -351,6 +353,7 @@ type MetricSpec = {
 function buildSpecs(
   goals: Awaited<ReturnType<typeof getGoals>>,
   weekAttribution: number | null,
+  optInRateOnPlays = false,
 ): {
   emoji: string;
   title: string;
@@ -358,6 +361,7 @@ function buildSpecs(
 }[] {
   const fromM = (pick: (r: MarketingDailyMetricRow) => number | null) => (c: DayCtx) =>
     c.m ? num(pick(c.m)) : null;
+  const optInBase = (r: MarketingDailyMetricRow) => (optInRateOnPlays ? r.vslPlays : r.vslViews);
 
   const groups: { emoji: string; title: string; metrics: MetricSpec[] }[] = [
     {
@@ -926,13 +930,13 @@ function buildSpecs(
           // source, so it's still the form value.
           day: (c) =>
             (c.m ? num(c.m.optInRate) : null) ??
-            safeDivide(dPaidLeads(c), (c.m ? num(c.m.vslViews) : null) || null),
-          // Only days with VSL views count, so pre-VSL days can't inflate it.
+            safeDivide(dPaidLeads(c), (c.m ? num(optInBase(c.m)) : null) || null),
+          // Only days with VSL views (or plays) count, so pre-VSL days can't inflate it.
           week: (days) => {
-            const vslDays = days.filter((c) => (c.m ? (num(c.m.vslViews) ?? 0) : 0) > 0);
+            const vslDays = days.filter((c) => (c.m ? (num(optInBase(c.m)) ?? 0) : 0) > 0);
             return safeDivide(
               vslDays.reduce((n, c) => n + (dPaidLeads(c) ?? 0), 0),
-              sum(vslDays.map(fromM((r) => r.vslViews))),
+              sum(vslDays.map(fromM(optInBase))),
             );
           },
         },
@@ -1971,7 +1975,7 @@ export async function buildWeeklyScorecard(
       : null;
 
   const specByKey = new Map(
-    buildSpecs(goals, weekAttribution)
+    buildSpecs(goals, weekAttribution, extras.optInRateOnPlays)
       .flatMap((g) => g.metrics)
       .map((spec) => [spec.key, spec])
   );

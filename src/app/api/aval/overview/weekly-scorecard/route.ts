@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
   ]);
   const payload = await buildWeeklyScorecard(marketing, leads, eod, closer, weekStart, new Date(), goals, {
     layout: AVAL_SCORECARD_LAYOUT,
+    optInRateOnPlays: true,
     pcn,
     connected,
     connectionTrackingStart: CONNECTION_TRACKING_START,
