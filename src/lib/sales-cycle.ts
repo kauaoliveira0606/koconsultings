@@ -132,6 +132,9 @@ export type SalesCycleResponse = {
   /** High ticket close cash from the in-range high ticket buyers, split by whether they also bought affiliate. */
   htCashWithAffiliate: number;
   htCashWithoutAffiliate: number;
+  /** In-range high ticket buyers with no email, so affiliate is unknown, and their close cash. */
+  htUnknownBuyers: number;
+  htCashUnknown: number;
   closes: number;
   matched: number;
   avgDays: number | null;
@@ -331,6 +334,7 @@ export function salesCycleGet(offer: SalesCycleOffer) {
       return { buyers: buyers.length, also, rate: buyers.length ? also / buyers.length : null, cashWith, cashWithout };
     };
     const htRanged = htCohort(true);
+    const htUnknown = rows.filter((r) => r.kind === "High Ticket" && !r.email);
     const htAllTime = htCohort(false);
     const days = (kind?: SalesCycleRow["kind"]) =>
       rows.filter((r) => !kind || r.kind === kind).map((r) => r.days);
@@ -353,6 +357,8 @@ export function salesCycleGet(offer: SalesCycleOffer) {
       htAlsoAffiliateAllTime: htAllTime.also,
       htCashWithAffiliate: htRanged.cashWith,
       htCashWithoutAffiliate: htRanged.cashWithout,
+      htUnknownBuyers: htUnknown.length,
+      htCashUnknown: htUnknown.reduce((sum, r) => sum + (r.cashCollected ?? 0), 0),
       closes: rows.length,
       matched: rows.filter((r) => r.days !== null).length,
       avgDays: average(days()),

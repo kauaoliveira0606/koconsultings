@@ -277,6 +277,14 @@ function AscensionCycle({ data, period }: { data: SalesCycleResponse; period: st
           period={period}
           sub={`High ticket cash from the ${data.htBuyers - data.htAlsoAffiliate} high ticket buyers in this range who never bought affiliate`}
         />
+        <HeroStat
+          size="md"
+          label="HT Cash: Unknown"
+          value={data.htCashUnknown}
+          format="currency"
+          period={period}
+          sub={`${data.htUnknownBuyers} high ticket buyers in this range with no email, so we can't tell if they bought affiliate`}
+        />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <HeroStat
