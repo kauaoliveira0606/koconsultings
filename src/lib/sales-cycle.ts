@@ -129,6 +129,9 @@ export type SalesCycleResponse = {
   htAffiliateRateAllTime: number | null;
   htBuyersAllTime: number;
   htAlsoAffiliateAllTime: number;
+  /** High ticket close cash from the in-range high ticket buyers, split by whether they also bought affiliate. */
+  htCashWithAffiliate: number;
+  htCashWithoutAffiliate: number;
   closes: number;
   matched: number;
   avgDays: number | null;
@@ -299,7 +302,12 @@ export function salesCycleGet(offer: SalesCycleOffer) {
     // Ascension rate by affiliate cohort: of the buyers whose first affiliate
     // sale is in the range, how many have since closed high ticket.
     const firstHighTicket = new Map<string, string>();
-    for (const r of all) if (r.kind === "High Ticket" && r.email) firstHighTicket.set(r.email, r.closeDate);
+    const htCash = new Map<string, number>();
+    for (const r of all) {
+      if (r.kind !== "High Ticket" || !r.email) continue;
+      firstHighTicket.set(r.email, r.closeDate);
+      htCash.set(r.email, r.cashCollected ?? 0);
+    }
     const cohort = (inRange: boolean) => {
       const buyers = [...firstAffiliate.values()].filter((a) => !inRange || isDateInRange(a.closeDate, range));
       const ascended = buyers.filter((a) => {
@@ -314,7 +322,13 @@ export function salesCycleGet(offer: SalesCycleOffer) {
     const htCohort = (inRange: boolean) => {
       const buyers = [...firstHighTicket.entries()].filter(([, d]) => !inRange || isDateInRange(d, range));
       const also = buyers.filter(([email]) => firstAffiliate.has(email)).length;
-      return { buyers: buyers.length, also, rate: buyers.length ? also / buyers.length : null };
+      let cashWith = 0;
+      let cashWithout = 0;
+      for (const [email] of buyers) {
+        if (firstAffiliate.has(email)) cashWith += htCash.get(email) ?? 0;
+        else cashWithout += htCash.get(email) ?? 0;
+      }
+      return { buyers: buyers.length, also, rate: buyers.length ? also / buyers.length : null, cashWith, cashWithout };
     };
     const htRanged = htCohort(true);
     const htAllTime = htCohort(false);
@@ -337,6 +351,8 @@ export function salesCycleGet(offer: SalesCycleOffer) {
       htAffiliateRateAllTime: htAllTime.rate,
       htBuyersAllTime: htAllTime.buyers,
       htAlsoAffiliateAllTime: htAllTime.also,
+      htCashWithAffiliate: htRanged.cashWith,
+      htCashWithoutAffiliate: htRanged.cashWithout,
       closes: rows.length,
       matched: rows.filter((r) => r.days !== null).length,
       avgDays: average(days()),
