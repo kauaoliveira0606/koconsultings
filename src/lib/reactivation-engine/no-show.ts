@@ -216,7 +216,8 @@ export async function runNoShowTouches(offer: MasterclassOffer, deadline: number
     const touch = recovery ? "late" : dueTouch(r, sessionStart(r, all));
     if (!touch) continue;
     const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
-    if (!c.phone || smsBlocked(c)) {
+    // User, 2026-10-30: DND doesn't stop the recovery text (the list already leaves out anyone who texted STOP).
+    if (!c.phone || (!recovery && smsBlocked(c))) {
       report.skipped["no-show: no textable phone"] = (report.skipped["no-show: no textable phone"] ?? 0) + 1;
       continue;
     }
