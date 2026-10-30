@@ -118,6 +118,17 @@ export type SalesCycleResponse = {
   ascensionRateAllTime: number | null;
   ascensionBuyersAllTime: number;
   ascensionAscendedAllTime: number;
+  /**
+   * High ticket buyers (first high ticket close in range) who have bought
+   * affiliate at any time, before or after, ÷ those buyers. Email match only.
+   */
+  htAffiliateRate: number | null;
+  htBuyers: number;
+  htAlsoAffiliate: number;
+  /** The same over every high ticket buyer ever. */
+  htAffiliateRateAllTime: number | null;
+  htBuyersAllTime: number;
+  htAlsoAffiliateAllTime: number;
   closes: number;
   matched: number;
   avgDays: number | null;
@@ -299,6 +310,14 @@ export function salesCycleGet(offer: SalesCycleOffer) {
     };
     const ranged = cohort(true);
     const allTime = cohort(false);
+    // The other way round: of the high ticket buyers, how many also bought affiliate (any order).
+    const htCohort = (inRange: boolean) => {
+      const buyers = [...firstHighTicket.entries()].filter(([, d]) => !inRange || isDateInRange(d, range));
+      const also = buyers.filter(([email]) => firstAffiliate.has(email)).length;
+      return { buyers: buyers.length, also, rate: buyers.length ? also / buyers.length : null };
+    };
+    const htRanged = htCohort(true);
+    const htAllTime = htCohort(false);
     const days = (kind?: SalesCycleRow["kind"]) =>
       rows.filter((r) => !kind || r.kind === kind).map((r) => r.days);
     return Response.json({
@@ -312,6 +331,12 @@ export function salesCycleGet(offer: SalesCycleOffer) {
       ascensionRateAllTime: allTime.rate,
       ascensionBuyersAllTime: allTime.buyers,
       ascensionAscendedAllTime: allTime.ascended,
+      htAffiliateRate: htRanged.rate,
+      htBuyers: htRanged.buyers,
+      htAlsoAffiliate: htRanged.also,
+      htAffiliateRateAllTime: htAllTime.rate,
+      htBuyersAllTime: htAllTime.buyers,
+      htAlsoAffiliateAllTime: htAllTime.also,
       closes: rows.length,
       matched: rows.filter((r) => r.days !== null).length,
       avgDays: average(days()),

@@ -249,6 +249,20 @@ function AscensionCycle({ data, period }: { data: SalesCycleResponse; period: st
           period="All Time"
           sub="Affiliate buyers ever ÷ the ones who closed high ticket"
         />
+        <HeroStat
+          label="HT Buyers Who Bought Affiliate"
+          value={data.htAffiliateRate}
+          format="percent"
+          period={period}
+          sub={`${data.htAlsoAffiliate} out of ${data.htBuyers} high ticket buyers in this range also bought affiliate`}
+        />
+        <HeroStat
+          label="HT Buyers Who Bought Affiliate (All Time)"
+          value={data.htAffiliateRateAllTime}
+          format="percent"
+          period="All Time"
+          sub={`${data.htAlsoAffiliateAllTime} out of ${data.htBuyersAllTime} high ticket buyers ever also bought affiliate`}
+        />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <HeroStat
