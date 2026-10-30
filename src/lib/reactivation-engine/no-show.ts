@@ -194,6 +194,16 @@ function dueTouch(r: Row, start: number, now = Date.now()): Touch | null {
   return null;
 }
 
+/**
+ * One-off resend to a marked list (user, 2026-10-30: the Oct 28 night-of text hit GHL's SMS limit, so these
+ * leads never saw the real message). Goes out on the "Recovery Due" date, 1 to 5pm ET.
+ */
+function recoveryDue(r: Row, now = Date.now()): boolean {
+  if (s(r.fields["Recovery Due"]) !== easternDay(now) || r.fields["Recovery Sent At"] || STOPPED.has(s(r.fields["No-show Status"]))) return false;
+  const hour = easternHour(now);
+  return hour >= 13 && hour < 17;
+}
+
 const TOUCH_FIELD: Record<Touch, string> = { night: "Night-of Sent At", late: "Night-of Sent At", push1: "Push 1 Sent At", push2: "Push 2 Sent At" };
 
 export async function runNoShowTouches(offer: MasterclassOffer, deadline: number, report: RunReport): Promise<void> {
@@ -202,13 +212,16 @@ export async function runNoShowTouches(offer: MasterclassOffer, deadline: number
   const all = await schedules(offer);
   for (const r of noShows(rows).values()) {
     if (Date.now() > deadline) return;
-    const touch = dueTouch(r, sessionStart(r, all));
+    const recovery = recoveryDue(r);
+    const touch = recovery ? "late" : dueTouch(r, sessionStart(r, all));
     if (!touch) continue;
     const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
     if (!c.phone || smsBlocked(c)) {
       report.skipped["no-show: no textable phone"] = (report.skipped["no-show: no textable phone"] ?? 0) + 1;
       continue;
     }
+    // Anyone who has texted since the class is a conversation now, not a recovery.
+    if (recovery && (await history(offer, c.id)).some((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && Date.parse(m.dateAdded) >= sessionStart(r, all))) continue;
     const body = await generate(offer, {
       model: MODELS.firstText,
       system: touchSystem(offer),
@@ -223,7 +236,7 @@ Write ${TOUCH_BRIEF[touch]}.`,
     if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body))) continue;
     await logOut(offer, c, s(r.fields.Name), body, null, `no-show ${touch}`);
     const sentAt = new Date().toISOString();
-    await updateReactivationRow(offer, "leads", r.id, { [TOUCH_FIELD[touch]]: sentAt, "Last Message At": sentAt, "No-show Status": "Texted" });
+    await updateReactivationRow(offer, "leads", r.id, { [recovery ? "Recovery Sent At" : TOUCH_FIELD[touch]]: sentAt, "Last Message At": sentAt, "No-show Status": "Texted" });
     report.followUps++;
   }
 }
