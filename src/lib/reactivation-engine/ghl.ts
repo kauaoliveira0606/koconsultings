@@ -267,8 +267,35 @@ export async function recentConversations(offer: ReactivationOffer): Promise<{ c
   return conversations;
 }
 
+/** GHL's daily SMS limit was hit: nothing goes out from this account until `until` (user, 2026-10-30: pause the engines). */
+export class SmsLimitError extends Error {
+  constructor(readonly until: number) {
+    super(`GHL SMS limit reached, paused until ${new Date(until).toISOString()}`);
+  }
+}
+
+/** When sending resumes, from GHL's "...sending limit of 750 for the day. You can start sending message after 2026-10-29 18:49 America/New_York." */
+export function smsLimitUntil(error: string | undefined, now = Date.now()): number | null {
+  if (!error || !/reached your SMS sending limit/i.test(error)) return null;
+  const m = error.match(/after (\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}) (\S+?)\.?\s*$/);
+  if (!m) return now + 86_400_000;
+  const guess = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  const at = (timeZone: string) => new Date(new Date(guess).toLocaleString("en-US", { timeZone })).getTime();
+  try {
+    return guess + (at("UTC") - at(m[6]));
+  } catch {
+    return now + 86_400_000;
+  }
+}
+
 export async function sendSms(offer: ReactivationOffer, contactId: string, message: string): Promise<void> {
-  await ghl(offer, "/conversations/messages", { method: "POST", body: { type: "SMS", contactId, message } });
+  const { messageId } = await ghl<{ messageId?: string }>(offer, "/conversations/messages", { method: "POST", body: { type: "SMS", contactId, message } });
+  if (!messageId) return;
+  // GHL accepts the send and fails it about a second later, so the POST alone says nothing about the limit.
+  await new Promise((r) => setTimeout(r, 2000));
+  const sent = await ghl<{ message?: { error?: string } }>(offer, `/conversations/messages/${messageId}`).catch(() => null);
+  const until = smsLimitUntil(sent?.message?.error);
+  if (until) throw new SmsLimitError(until);
 }
 
 /**

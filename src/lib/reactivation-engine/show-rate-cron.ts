@@ -1,4 +1,5 @@
-import type { RunReport } from "./engine";
+import { smsPausedUntil, type RunReport } from "./engine";
+import { SmsLimitError } from "./ghl";
 import { runNoShowReplies, runNoShowTouches, runPendingSeats } from "./no-show";
 import {
   nextSession,
@@ -36,22 +37,32 @@ export async function runShowRateCron(offer: MasterclassOffer, request: Request)
     skipped: {},
     errors: [],
   };
+  // GHL's daily SMS limit was hit: only the steps that send no texts run until it lifts.
+  const paused = await smsPausedUntil(offer);
+  if (paused) report.skipped[`SMS limit, paused until ${new Date(paused).toISOString()}`] = 1;
   // Each step on its own, so a failed sync never blocks the replies.
   const steps = [
     async () => {
       report.synced = await syncRegistrants(offer, session);
     },
-    () => runShowRateReplies(offer, session, report),
-    () => runNoShowReplies(offer, report),
+    ...(paused ? [] : [() => runShowRateReplies(offer, session, report), () => runNoShowReplies(offer, report)]),
     () => runPendingSeats(offer, report),
-    () => runCallbacks(offer, session, started + 240_000, report),
-    () => runCheckIns(offer, session, started + 240_000, report),
-    () => runNoShowTouches(offer, started + 240_000, report),
+    ...(paused
+      ? []
+      : [
+          () => runCallbacks(offer, session, started + 240_000, report),
+          () => runCheckIns(offer, session, started + 240_000, report),
+          () => runNoShowTouches(offer, started + 240_000, report),
+        ]),
   ];
   for (const step of steps) {
     try {
       await step();
     } catch (e) {
+      if (e instanceof SmsLimitError) {
+        report.skipped["SMS limit hit, paused"] = 1;
+        continue;
+      }
       console.error(`show-rate cron step failed (${offer})`, e);
       report.errors.push(e instanceof Error ? e.message : String(e));
     }

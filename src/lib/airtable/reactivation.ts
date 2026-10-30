@@ -141,7 +141,7 @@ export async function getReactivationAiCalls(offer: ReactivationOffer): Promise<
   });
 }
 
-export type ReactivationSettings = { engineOn: boolean; dailyCap: number; offReason: string };
+export type ReactivationSettings = { engineOn: boolean; dailyCap: number; offReason: string; smsPausedUntil: number };
 
 export async function getReactivationSettings(offer: ReactivationOffer): Promise<ReactivationSettings> {
   const records = await airtableListFresh(base(offer), table(offer, "settings"));
@@ -150,6 +150,7 @@ export async function getReactivationSettings(offer: ReactivationOffer): Promise
     engineOn: byKey.get("engine_on") === "1",
     dailyCap: Number(byKey.get("daily_cap")) || 20,
     offReason: byKey.get("off_reason") ?? "",
+    smsPausedUntil: Date.parse(byKey.get("sms_paused_until") ?? "") || 0,
   };
 }
 
@@ -169,7 +170,7 @@ async function patch(offer: ReactivationOffer, key: TableKey, records: { id: str
   if (!res.ok) throw new AirtableError(`Airtable update failed: ${await res.text()}`, res.status);
 }
 
-export async function setReactivationSetting(offer: ReactivationOffer, key: "engine_on" | "daily_cap" | "off_reason" | "noshow_on", value: string) {
+export async function setReactivationSetting(offer: ReactivationOffer, key: "engine_on" | "daily_cap" | "off_reason" | "noshow_on" | "sms_paused_until", value: string) {
   const records = await airtableListFresh(base(offer), table(offer, "settings"), {
     filterByFormula: `{Key}='${key}'`,
   });

@@ -397,7 +397,8 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
   for (const r of rows.filter((r) => s(r.fields.Session) >= fromSession).sort((a, b) => s(a.fields.Session).localeCompare(s(b.fields.Session)))) {
     byContact.set(s(r.fields["GHL Contact ID"]), r);
   }
-  const cutoff = Date.now() - DAY;
+  // Two days, so replies that came in during a 24-hour SMS limit pause still get answered.
+  const cutoff = Date.now() - 2 * DAY;
 
   for (const conv of await recentConversations(offer)) {
     if (conv.lastMessageDate < cutoff) break;

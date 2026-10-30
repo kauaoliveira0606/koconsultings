@@ -19,6 +19,7 @@ import {
   pipelineLeads,
   recentConversations,
   sendSms,
+  SmsLimitError,
   type GhlContact,
   type GhlMessage,
 } from "./ghl";
@@ -174,7 +175,7 @@ const AFRICA_MIDDLE_EAST = "20|2[1-6]\\d|27|29[01]|90|96[1-8]|97[0-4]|98";
 
 const SEND_RULES: Record<
   ReactivationOffer,
-  { blockedCountries: RegExp; usEastern: boolean; usHours: [number, number]; hours: [number, number]; autoOff: boolean }
+  { blockedCountries: RegExp; usEastern: boolean; usHours: [number, number]; hours: [number, number]; autoOff: boolean; capsFollowUps?: boolean }
 > = {
   // User, 2026-10-28: never text African, Indian, Pakistani/South Asian or Middle Eastern numbers.
   // US (+1) numbers 9am to 10pm Eastern; everyone else 9am to 9pm their own time.
@@ -189,6 +190,8 @@ const SEND_RULES: Record<
   // User, 2026-10-28: never text Middle Eastern or African numbers.
   // BUILD.md default: 9am to 8pm in the lead's own time zone.
   bronson: {
+    // User, 2026-10-30: the cap counts follow-ups too, so Base44 leaves room in GHL's daily SMS limit for the masterclass engines.
+    capsFollowUps: true,
     blockedCountries: new RegExp(`^\\+(${AFRICA_MIDDLE_EAST})`),
     usEastern: false,
     usHours: [9, 20],
@@ -317,12 +320,33 @@ async function logSent(offer: ReactivationOffer, lead: Row | null, c: GhlContact
   });
 }
 
-/** Sends, and returns false (instead of throwing) so failures can trip the safety switch. */
+/** The offers that text from the same GHL account share its limit, so one pause covers them all. */
+const SMS_ACCOUNT: Record<ReactivationOffer, ReactivationOffer> = { aval: "aval", avalMasterclass: "aval", bronson: "bronson", bronsonMasterclass: "bronson" };
+const pausedThisRun: Partial<Record<ReactivationOffer, number>> = {};
+
+/** When sending resumes if this offer's GHL account is paused on its daily SMS limit, else null. */
+export async function smsPausedUntil(offer: ReactivationOffer): Promise<number | null> {
+  const until = (await getReactivationSettings(SMS_ACCOUNT[offer])).smsPausedUntil;
+  return until > Date.now() ? until : null;
+}
+
+/**
+ * Sends, and returns false (instead of throwing) so failures can trip the safety switch.
+ * The daily SMS limit does throw: that's no fault of the lead's, so the step stops
+ * without marking anything and the text goes out once the pause ends.
+ */
 export async function trySend(offer: ReactivationOffer, contactId: string, body: string): Promise<boolean> {
+  const account = SMS_ACCOUNT[offer];
+  if ((pausedThisRun[account] ?? 0) > Date.now()) throw new SmsLimitError(pausedThisRun[account]!);
   try {
     await sendSms(offer, contactId, body);
     return true;
   } catch (e) {
+    if (e instanceof SmsLimitError) {
+      pausedThisRun[account] = e.until;
+      await setReactivationSetting(account, "sms_paused_until", new Date(e.until).toISOString());
+      throw e;
+    }
     console.error("reactivation send failed", contactId, e);
     return false;
   }
@@ -334,7 +358,7 @@ export type RunReport = { firstTexts: number; followUps: number; replies: number
 
 /**
  * Texts: approved drafts, then due follow-ups, then new first texts up to the
- * daily cap (first texts only). Stops at `deadline` so the run
+ * daily cap (first texts only, unless the offer's capsFollowUps is set). Stops at `deadline` so the run
  * ends inside Vercel's time limit; the next run picks up where it left off.
  */
 export async function runSends(
@@ -350,7 +374,8 @@ export async function runSends(
   const leadById = new Map(leads.map((l) => [s(l.fields["GHL Contact ID"]), l]));
   const today = easternDay(new Date());
   const sentOut = messages.filter((m) => m.fields.Direction === "out" && m.fields.Status === "sent");
-  let firstToday = sentOut.filter((m) => m.fields.Touch === 1 && easternDay(s(m.fields["Sent At"])) === today).length;
+  const capsFollowUps = SEND_RULES[offer].capsFollowUps ?? false;
+  let firstToday = sentOut.filter((m) => (capsFollowUps || m.fields.Touch === 1) && easternDay(s(m.fields["Sent At"])) === today).length;
   let failsInARow = 0;
 
   async function send(c: GhlContact, body: string, touch: number, draftId?: string): Promise<boolean> {
@@ -408,7 +433,7 @@ export async function runSends(
 
   // 2. Follow-ups: max 2 more, 3 days apart, only if they never replied.
   for (const lead of leads.filter((l) => l.fields.Status === "Texted")) {
-    if (report.off || Date.now() > deadline) return;
+    if (report.off || Date.now() > deadline || (capsFollowUps && firstToday >= settings.dailyCap)) return;
     const id = s(lead.fields["GHL Contact ID"]);
     const mine = sentOut.filter((m) => m.fields["GHL Contact ID"] === id).sort((a, b) => s(a.fields["Sent At"]).localeCompare(s(b.fields["Sent At"])));
     const last = mine[mine.length - 1];
@@ -430,7 +455,10 @@ ${mine.map((m) => `- ${s(m.fields.Body)}`).join("\n")}`,
       contactId: id,
       touch,
     });
-    if (body && (await send(c, body, touch))) report.followUps++;
+    if (body && (await send(c, body, touch))) {
+      if (capsFollowUps) firstToday++;
+      report.followUps++;
+    }
   }
 
   // 3. New first texts, newest cold leads first.
@@ -534,7 +562,8 @@ export async function runReplies(offer: ReactivationOffer, report: RunReport): P
   const settings = await getReactivationSettings(offer);
   const leads = await getReactivationRows(offer, "leads", "{First Texted At}");
   const leadById = new Map(leads.map((l) => [s(l.fields["GHL Contact ID"]), l]));
-  const cutoff = Date.now() - DAY;
+  // Two days, so replies that came in during a 24-hour SMS limit pause still get answered.
+  const cutoff = Date.now() - 2 * DAY;
 
   for (const conv of await recentConversations(offer)) {
     if (conv.lastMessageDate < cutoff) break;

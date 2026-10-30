@@ -1,5 +1,6 @@
 import type { ReactivationOffer } from "@/lib/airtable/reactivation";
-import { checkOptOuts, runReplies, runSends, type RunReport } from "./engine";
+import { checkOptOuts, runReplies, runSends, smsPausedUntil, type RunReport } from "./engine";
+import { SmsLimitError } from "./ghl";
 
 /** One cron run for one offer: replies, the opt-out check, then sends. */
 export async function runReactivationCron(offer: ReactivationOffer, request: Request): Promise<Response> {
@@ -15,6 +16,9 @@ export async function runReactivationCron(offer: ReactivationOffer, request: Req
 
   const started = Date.now();
   const report: RunReport & { errors: string[] } = { firstTexts: 0, followUps: 0, replies: 0, skipped: {}, errors: [] };
+  // GHL's daily SMS limit was hit: no texts, no Claude calls, until it lifts.
+  const paused = await smsPausedUntil(offer);
+  if (paused) return Response.json({ ...report, smsPausedUntil: new Date(paused).toISOString() });
   // Each step on its own, so a failed reply never blocks the sends.
   const steps = [
     () => runReplies(offer, report),
@@ -27,6 +31,10 @@ export async function runReactivationCron(offer: ReactivationOffer, request: Req
     try {
       await step();
     } catch (e) {
+      if (e instanceof SmsLimitError) {
+        report.skipped["SMS limit hit, paused"] = 1;
+        continue;
+      }
       console.error(`reactivation cron step failed (${offer})`, e);
       report.errors.push(e instanceof Error ? e.message : String(e));
     }

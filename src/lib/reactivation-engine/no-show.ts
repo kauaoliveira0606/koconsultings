@@ -58,9 +58,10 @@ ${m.sop}
 
 const DATES = `Dates: the approved examples name a day ("next Wednesday at 7pm ET", "next Sunday at 7pm ET") only as a placeholder. Always use the exact next date given below. Say "next <day>" only if it really is 7 days away or less; otherwise name it ("Sunday, November 15 at 7pm ET" style).`;
 
-type Touch = "night" | "push1" | "push2";
+type Touch = "night" | "late" | "push1" | "push2";
 const TOUCH_BRIEF: Record<Touch, string> = {
   night: "the night-of text, about an hour after the class ended: warm and casual, saw you couldn't make it, no worries at all, want me to save you a seat for the next one",
+  late: "the night-of text, going out late because it couldn't send last night: warm and casual, saw you couldn't make it, no worries at all, want me to save you a seat for the next one. Don't say tonight or last night",
   push1: "push #1, the next afternoon, they never replied: like the approved push #1 example",
   push2: "push #2, the last one, two days after: like the approved push #2 example. After this I never text first again",
 };
@@ -171,19 +172,29 @@ export async function runPendingSeats(offer: MasterclassOffer, report: RunReport
 
 // ---------- The three texts ----------
 
-/** Night of (2.5 to 3.5 hours after the start), next afternoon, two days after. Each needs the one before it. */
+/**
+ * Night of (2.5 to 3.5 hours after the start), next afternoon, two days after. Each needs the one before it.
+ * When the night-of text couldn't go out (SMS limit pause), it goes in the next window instead of the push, so nobody's first text is a bare "still a priority?".
+ */
 function dueTouch(r: Row, start: number, now = Date.now()): Touch | null {
   const status = s(r.fields["No-show Status"]);
   if (STOPPED.has(status)) return null;
   const today = easternDay(now);
   const hour = easternHour(now);
-  if (!r.fields["Night-of Sent At"]) return now >= start + 2.5 * HOUR && now < start + 3.5 * HOUR ? "night" : null;
-  if (!r.fields["Push 1 Sent At"]) return today === easternDay(start + DAY) && hour >= 13 && hour < 17 ? "push1" : null;
-  if (!r.fields["Push 2 Sent At"]) return today === easternDay(start + 2 * DAY) && hour >= 11 && hour < 15 ? "push2" : null;
+  const push1Window = today === easternDay(start + DAY) && hour >= 13 && hour < 17;
+  const push2Window = today === easternDay(start + 2 * DAY) && hour >= 11 && hour < 15;
+  if (!r.fields["Night-of Sent At"]) {
+    if (now >= start + 2.5 * HOUR && now < start + 3.5 * HOUR) return "night";
+    return push1Window || push2Window ? "late" : null;
+  }
+  // A late night-of text never gets a push on its heels.
+  if (now - Date.parse(s(r.fields["Last Message At"])) < 12 * HOUR) return null;
+  if (!r.fields["Push 1 Sent At"]) return push1Window ? "push1" : null;
+  if (!r.fields["Push 2 Sent At"]) return push2Window ? "push2" : null;
   return null;
 }
 
-const TOUCH_FIELD: Record<Touch, string> = { night: "Night-of Sent At", push1: "Push 1 Sent At", push2: "Push 2 Sent At" };
+const TOUCH_FIELD: Record<Touch, string> = { night: "Night-of Sent At", late: "Night-of Sent At", push1: "Push 1 Sent At", push2: "Push 2 Sent At" };
 
 export async function runNoShowTouches(offer: MasterclassOffer, deadline: number, report: RunReport): Promise<void> {
   if ((await liveSince(offer, "noshow_on")) === null) return;
@@ -207,7 +218,7 @@ ${statedSoFar(r)}Next masterclass: ${nextLabel(offer, all)}
 Write ${TOUCH_BRIEF[touch]}.`,
       purpose: "no_show",
       contactId: c.id,
-      touch: touch === "night" ? 1 : touch === "push1" ? 2 : 3,
+      touch: touch === "night" || touch === "late" ? 1 : touch === "push1" ? 2 : 3,
     });
     if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body))) continue;
     await logOut(offer, c, s(r.fields.Name), body, null, `no-show ${touch}`);
@@ -226,7 +237,8 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
   const byContact = noShows(rows);
   if (!byContact.size) return;
   let all: WjSchedule[] | null = null;
-  const cutoff = Date.now() - DAY;
+  // Two days, so replies that came in during a 24-hour SMS limit pause still get answered.
+  const cutoff = Date.now() - 2 * DAY;
 
   for (const conv of await recentConversations(offer)) {
     if (conv.lastMessageDate < cutoff) break;
