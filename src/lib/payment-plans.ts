@@ -21,7 +21,8 @@
  * table (one row per plan, keyed by the Post Call Note the plan started
  * from): the balance can be typed in when a payment went through without a
  * form entry, and a plan can be marked Paid Off or Churned, which takes it
- * off the active list.
+ * off the active list. The next payment can also be pushed back to a later
+ * day (an extension), which is what the overdue status and reminders then use.
  */
 import { AirtableError, airtableListAll } from "@/lib/airtable/client";
 import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
@@ -142,6 +143,8 @@ export type PaymentPlan = {
   nextDue: string | null;
   /** True when nextDue is the date the closer logged, false when it is the monthly assumption. */
   nextDueLogged: boolean;
+  /** True when nextDue is an extension set by hand on the tab. */
+  nextDueExtended: boolean;
   status: PaymentPlanStatus;
   /** Post call notes logged for this same plan (more than 1 = entered twice). */
   timesLogged: number;
@@ -215,6 +218,8 @@ type PlanUpdate = {
   date: string | null;
   /** Day the status was last changed. */
   statusDate: string | null;
+  /** Next payment pushed back to this day by hand. */
+  extendedTo: string | null;
 };
 
 function authHeaders() {
@@ -223,9 +228,20 @@ function authHeaders() {
   return { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" };
 }
 
+// Airtable answers 429 for up to 30 seconds once a base goes over its rate
+// limit, so these waits add up to just past that.
+const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 16000];
+const isRetryable = (status: number) => status === 429 || status >= 500;
+
 async function airtable<T>(url: string, init: RequestInit = {}): Promise<T> {
   // Never cached: an edit made on the tab must show up right after it's saved.
-  const res = await fetch(url, { ...init, headers: authHeaders(), cache: "no-store" });
+  const send = () => fetch(url, { ...init, headers: authHeaders(), cache: "no-store" });
+  let res = await send();
+  for (const delay of RETRY_DELAYS_MS) {
+    if (!isRetryable(res.status)) break;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    res = await send();
+  }
   if (!res.ok) {
     throw new AirtableError(`Airtable request failed for ${url} (${res.status})`, res.status);
   }
@@ -253,6 +269,7 @@ async function listPlanUpdates(offer: PaymentPlanOffer): Promise<Map<string, Pla
         status: MANUAL_STATUSES.find((s) => s === f.Status) ?? null,
         date: parseDateOnly(f.Updated),
         statusDate: parseDateOnly(f["Status Updated"]),
+        extendedTo: parseDateOnly(f["Extended To"]),
       });
     }
     offset = body.offset;
@@ -267,7 +284,14 @@ async function listPlanUpdates(offer: PaymentPlanOffer): Promise<Map<string, Pla
  */
 export async function savePlanUpdate(
   offer: PaymentPlanOffer,
-  input: { planId: string; lead: string; amountOwed?: number; status?: ManualStatus }
+  input: {
+    planId: string;
+    lead: string;
+    amountOwed?: number;
+    status?: ManualStatus;
+    /** Null removes the extension. */
+    extendedTo?: string | null;
+  }
 ) {
   await airtable(updatesUrl(offer), {
     method: "PATCH",
@@ -284,6 +308,7 @@ export async function savePlanUpdate(
             ...(input.status !== undefined
               ? { Status: input.status, "Status Updated": easternDateString() }
               : {}),
+            ...(input.extendedTo !== undefined ? { "Extended To": input.extendedTo } : {}),
           },
         },
       ],
@@ -366,6 +391,7 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
         collections: [],
         nextDue: null,
         nextDueLogged: false,
+        nextDueExtended: false,
         status: "onTrack",
         timesLogged: 1,
       },
@@ -450,6 +476,13 @@ export async function getPaymentPlans(offer: PaymentPlanOffer): Promise<PaymentP
       plan.nextDue =
         byPayments && byUpdate ? (byUpdate > byPayments ? byUpdate : byPayments) : (byUpdate ?? byPayments);
       if (plan.nextDue !== byPayments) plan.nextDueLogged = false;
+      // An extension only ever pushes the date back: once a payment moves the
+      // next one past it, it stops mattering.
+      if (update?.extendedTo && (plan.nextDue === null || update.extendedTo > plan.nextDue)) {
+        plan.nextDue = update.extendedTo;
+        plan.nextDueLogged = true;
+        plan.nextDueExtended = true;
+      }
       plan.status = plan.nextDue !== null && plan.nextDue < today ? "overdue" : "onTrack";
     }
     return plan;

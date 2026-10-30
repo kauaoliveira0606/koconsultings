@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import useSWR from "swr";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { addDaysToDateString } from "@/lib/date-range";
 import { formatStatValue } from "@/lib/format";
 import type { PaymentPlan, PaymentPlanStatus, PaymentPlansResponse } from "@/lib/payment-plans";
 
@@ -42,12 +43,16 @@ const matches = (plan: PaymentPlan, filter: Filter) =>
       ? isActive(plan) && plan.kind === "deposit"
       : plan.status === filter;
 
-type PlanEdit = { amountOwed?: number; status?: "Active" | "Paid Off" | "Churned" };
+type PlanEdit = {
+  amountOwed?: number;
+  status?: "Active" | "Paid Off" | "Churned";
+  extendedTo?: string | null;
+};
 
 const ACTION_BUTTON =
   "rounded-md border border-[var(--panel-border)] px-3 py-1.5 text-sm font-medium disabled:opacity-40";
 
-/** Hand edits for one plan: retype the balance, or take it off the list (paid in full / churned). */
+/** Hand edits for one plan: retype the balance, extend the next payment, or take it off the list (paid in full / churned). */
 function PlanActions({
   plan,
   onSave,
@@ -56,6 +61,7 @@ function PlanActions({
   onSave: (plan: PaymentPlan, edit: PlanEdit) => Promise<boolean>;
 }) {
   const [owed, setOwed] = useState("");
+  const [extendTo, setExtendTo] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const owedNumber = Number.parseFloat(owed.replace(/[^0-9.]/g, ""));
@@ -68,7 +74,10 @@ function PlanActions({
     const ok = await onSave(plan, edit);
     setBusy(false);
     setError(!ok);
-    if (ok) setOwed("");
+    if (ok) {
+      setOwed("");
+      setExtendTo("");
+    }
   }
 
   if (removed) {
@@ -138,6 +147,45 @@ function PlanActions({
           Churned
         </button>
       </form>
+      {plan.nextDue ? (
+        <form
+          className="mt-2 flex flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (extendTo) save({ extendedTo: extendTo });
+          }}
+        >
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => save({ extendedTo: addDaysToDateString(plan.nextDue as string, 1) })}
+            className={`text-[var(--text-strong)] ${ACTION_BUTTON}`}
+          >
+            {busy ? "..." : "Extend 1 Day"}
+          </button>
+          <input
+            type="date"
+            value={extendTo}
+            min={addDaysToDateString(plan.nextDue, 1)}
+            onChange={(e) => setExtendTo(e.target.value)}
+            aria-label={`New next payment date for ${name}`}
+            className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-1.5 text-sm text-[var(--text-strong)]"
+          />
+          <button type="submit" disabled={busy || !extendTo} className={`text-[var(--text-strong)] ${ACTION_BUTTON}`}>
+            Extend To Date
+          </button>
+          {plan.nextDueExtended ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => save({ extendedTo: null })}
+              className={`text-[var(--text-muted)] ${ACTION_BUTTON}`}
+            >
+              Remove Extension
+            </button>
+          ) : null}
+        </form>
+      ) : null}
       {plan.owedUpdatedOn ? (
         <div className="mt-1">Balance last set by hand on {day(plan.owedUpdatedOn)}.</div>
       ) : null}
@@ -213,7 +261,9 @@ function PlanRows({
         </td>
         <td className="px-4 py-3 whitespace-nowrap">
           <div>{day(plan.nextDue)}</div>
-          {plan.nextDue && !plan.nextDueLogged ? (
+          {plan.nextDueExtended ? (
+            <div className="text-xs text-amber-300">Extended</div>
+          ) : plan.nextDue && !plan.nextDueLogged ? (
             <div className="text-xs text-[var(--text-muted)]">Assumed</div>
           ) : null}
         </td>
@@ -265,8 +315,8 @@ function PlanRows({
  * Every deal closed on a payment plan (Post Call Note with Call Outcome =
  * Payment Plan) and where it stands: split pays, what has come in, what is
  * still owed and when the next payment should land. Opening a row lets the
- * balance be retyped, or the plan be taken off the list as paid in full or
- * churned.
+ * balance be retyped, the next payment be extended, or the plan be taken off
+ * the list as paid in full or churned.
  */
 export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
   const { data, error, mutate } = useSWR<PaymentPlansResponse>(apiPath, fetcher, {
@@ -284,11 +334,12 @@ export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
         body: JSON.stringify({ planId: plan.id, lead: plan.leadName ?? "", ...edit }),
       });
       if (!res.ok) throw new Error(String(res.status));
-      await mutate();
-      return true;
     } catch {
       return false;
     }
+    // Saved. A failed refresh here isn't a failed save: the 60s refresh catches up.
+    await mutate().catch(() => undefined);
+    return true;
   }
 
   return (
@@ -296,7 +347,7 @@ export function PaymentPlansBoard({ apiPath }: { apiPath: string }) {
       <p className="-mt-4 mb-6 max-w-3xl text-sm text-[var(--text-muted)]">
         Every post call note with Call Outcome set to Payment Plan or Deposit. Later payments count
         once they are logged on the Follow Up Payment form. Next payment is the date the closer put
-        on the form; when there is none it is assumed one month out. Click a plan to update what they owe, or to take them off the list
+        on the form; when there is none it is assumed one month out. Click a plan to update what they owe, extend their next payment, or take them off the list
         as paid in full or churned.
       </p>
 

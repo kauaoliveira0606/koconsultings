@@ -45,7 +45,11 @@ export function paymentPlansDueGet(offer: PaymentPlanOffer, dashboardUrl: string
   };
 }
 
-// A hand edit from the tab: a new balance, a status (Paid Off / Churned / Active), or both.
+const isRealDate = (value: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+  new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+
+// A hand edit from the tab: a new balance, a status (Paid Off / Churned / Active), an extension, or a mix.
 export function paymentPlansPatch(offer: PaymentPlanOffer) {
   return async (request: Request) => {
     const body = (await request.json().catch(() => null)) as {
@@ -53,26 +57,37 @@ export function paymentPlansPatch(offer: PaymentPlanOffer) {
       lead?: unknown;
       amountOwed?: unknown;
       status?: unknown;
+      extendedTo?: unknown;
     } | null;
     const planId = typeof body?.planId === "string" ? body.planId : "";
     const lead = typeof body?.lead === "string" ? body.lead.trim() : "";
     const amountOwed = body?.amountOwed;
     const status = MANUAL_STATUSES.find((s) => s === body?.status) as ManualStatus | undefined;
+    const extendedTo = body?.extendedTo;
+    const extensionOk =
+      extendedTo === undefined || extendedTo === null || (typeof extendedTo === "string" && isRealDate(extendedTo));
     const amountOk =
       amountOwed === undefined ||
       (typeof amountOwed === "number" && Number.isFinite(amountOwed) && amountOwed >= 0);
     if (
       !/^rec[A-Za-z0-9]{14}$/.test(planId) ||
       !amountOk ||
+      !extensionOk ||
       (body?.status !== undefined && !status) ||
-      (amountOwed === undefined && !status)
+      (amountOwed === undefined && !status && extendedTo === undefined)
     ) {
       return Response.json(
-        { error: "Expected { planId, lead?, amountOwed?: number >= 0, status?: Active | Paid Off | Churned }" },
+        { error: "Expected { planId, lead?, amountOwed?: number >= 0, status?: Active | Paid Off | Churned, extendedTo?: YYYY-MM-DD | null }" },
         { status: 400 }
       );
     }
-    await savePlanUpdate(offer, { planId, lead, amountOwed: amountOwed as number | undefined, status });
+    await savePlanUpdate(offer, {
+      planId,
+      lead,
+      amountOwed: amountOwed as number | undefined,
+      status,
+      extendedTo: extendedTo as string | null | undefined,
+    });
     return Response.json({ ok: true });
   };
 }
