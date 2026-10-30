@@ -1,6 +1,6 @@
 import { createReactivationRow, getReactivationRows, updateReactivationRow } from "@/lib/airtable/reactivation";
 import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
-import { getContact, history, recentConversations, smsBlocked, type GhlContact } from "./ghl";
+import { clearSmsDnd, getContact, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
 import {
   appendTo,
   easternDay,
@@ -216,8 +216,9 @@ export async function runNoShowTouches(offer: MasterclassOffer, deadline: number
     const touch = recovery ? "late" : dueTouch(r, sessionStart(r, all));
     if (!touch) continue;
     const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
-    // User, 2026-10-30: DND doesn't stop the recovery text (the list already leaves out anyone who texted STOP).
-    if (!c.phone || (!recovery && smsBlocked(c))) {
+    // User, 2026-10-30: GHL's DND flag doesn't stop no-show texts. Dead numbers and anyone who texted STOP still do.
+    const dnd = smsBlocked(c);
+    if (!c.phone || smsCarrierBlocked(c) || (dnd && (await history(offer, c.id)).some((m) => m.direction === "inbound" && STOP.test(m.body ?? "")))) {
       report.skipped["no-show: no textable phone"] = (report.skipped["no-show: no textable phone"] ?? 0) + 1;
       continue;
     }
@@ -234,7 +235,9 @@ Write ${TOUCH_BRIEF[touch]}.`,
       contactId: c.id,
       touch: touch === "night" || touch === "late" ? 1 : touch === "push1" ? 2 : 3,
     });
-    if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body))) continue;
+    if (!body || !linksOk(offer, body)) continue;
+    if (dnd) await clearSmsDnd(offer, c.id);
+    if (!(await trySend(offer, c.id, body))) continue;
     await logOut(offer, c, s(r.fields.Name), body, null, `no-show ${touch}`);
     const sentAt = new Date().toISOString();
     await updateReactivationRow(offer, "leads", r.id, { [recovery ? "Recovery Sent At" : TOUCH_FIELD[touch]]: sentAt, "Last Message At": sentAt, "No-show Status": "Texted" });

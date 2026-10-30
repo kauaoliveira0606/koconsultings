@@ -175,6 +175,14 @@ export type GhlContact = {
 /** Full DND or SMS-only DND: GHL refuses to text either. */
 export const smsBlocked = (c: GhlContact) => Boolean(c.dnd) || c.dndSettings?.SMS?.status === "active";
 
+/** Why GHL set SMS DND, when it was a carrier error (landline, dead number). Those numbers can't get texts at all. */
+export const smsCarrierBlocked = (c: GhlContact) => /TWILIO_ERROR_CODE/.test(c.dndSettings?.SMS?.message ?? "");
+
+/** Clears the contact's SMS DND so GHL will send. */
+export async function clearSmsDnd(offer: ReactivationOffer, contactId: string): Promise<void> {
+  await ghl(offer, `/contacts/${contactId}`, { method: "PUT", body: { dnd: false, dndSettings: { SMS: { status: "inactive", message: "", code: "" } } } });
+}
+
 export type GhlMessage = {
   id: string;
   dateAdded: string;
