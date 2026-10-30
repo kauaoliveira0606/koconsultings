@@ -668,7 +668,7 @@ export default function OverviewPage() {
                   label: "Opt-In Rate (Paid)",
                   value: metrics?.optInRate,
                   format: "percent",
-                  subtext: "Paid leads ÷ unique VSL plays (the form's value when typed).",
+                  subtext: "Paid leads ÷ VSL views (the form's value when typed).",
                   status: kpiStatus(metrics?.optInRate, goals?.optInRate?.min, "higher", goals?.optInRate?.redBelow ?? null),
                   goal: [kpiLabel(goals?.optInRate?.min, "higher", "percent"), goals?.optInRate?.redBelow != null ? `under ${formatStatValue(goals.optInRate.redBelow, "percent")} is bad` : null].filter(Boolean).join(", ") || null,
                 },
