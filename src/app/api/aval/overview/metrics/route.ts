@@ -85,6 +85,19 @@ export async function GET(request: NextRequest) {
   const optInsPaid = inRangeLeads.filter((l) => isPaidSource(l.source)).length || null;
   const optInsOrganic =
     inRangeLeads.length - (inRangeLeads.filter((l) => isPaidSource(l.source)).length || 0);
+  // Days in the selected range, ending no later than today. All Time starts at
+  // the first lead.
+  const todayEastern = easternDateString();
+  const firstLeadDate = inRangeLeads
+    .map((l) => toEasternDateOnly(l.createdAt))
+    .filter((d): d is string => !!d)
+    .sort()[0];
+  const optInDaysFrom = range.start ?? firstLeadDate ?? null;
+  const optInDaysTo = range.end && range.end < todayEastern ? range.end : todayEastern;
+  const optInDays =
+    optInDaysFrom && optInDaysFrom <= optInDaysTo
+      ? Math.round((Date.parse(`${optInDaysTo}T00:00:00Z`) - Date.parse(`${optInDaysFrom}T00:00:00Z`)) / 86_400_000) + 1
+      : null;
   const cashLowTicketPaid = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketPaid));
   const cashLowTicketOrganic = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketOrganic));
 
@@ -284,6 +297,7 @@ export async function GET(request: NextRequest) {
     // Tier 3 — Acquisition
     optInsPaid,
     optInsOrganic,
+    optInDays,
     landingPageConnectRate: average(inRangeMarketing.map((r) => r.landingPageConnectRate)),
     // Form's typed opt-in rate first (client rule); otherwise paid leads /
     // VSL views, calculated.

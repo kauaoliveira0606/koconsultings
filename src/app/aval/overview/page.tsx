@@ -47,6 +47,7 @@ type MetricsResponse = {
 
   optInsPaid: number | null;
   optInsOrganic: number | null;
+  optInDays: number | null;
   landingPageConnectRate: number | null;
   optInRate: number | null;
   costPerLeadPaid: number | null;
@@ -177,6 +178,7 @@ export default function OverviewPage() {
     range
   );
   const { data: goals } = useSectionData<GoalsConfig>("/api/aval/goals", range);
+  const totalOptIns = metrics ? (metrics.optInsPaid ?? 0) + (metrics.optInsOrganic ?? 0) : null;
   const { data: reactivation } = useSectionData<ReactivationOverview>("/api/aval/overview/reactivation-results", range);
 
   const adsActive = metrics?.adsActive ?? false;
@@ -564,6 +566,20 @@ export default function OverviewPage() {
                   subtext: "Leads table, source = Organic.",
                   status: kpiStatus(metrics?.optInsOrganic, goals?.optInsOrganic, "higher"),
                   goal: kpiLabel(goals?.optInsOrganic, "higher", "number"),
+                },
+                {
+                  label: "Total Leads",
+                  value: totalOptIns,
+                  format: "number",
+                  subtext: "Paid + organic opt-ins.",
+                },
+                {
+                  label: "Average Daily Leads",
+                  value: totalOptIns != null && metrics?.optInDays ? totalOptIns / metrics.optInDays : null,
+                  format: "number",
+                  subtext: metrics?.optInDays
+                    ? `Total leads ÷ ${metrics.optInDays} ${metrics.optInDays === 1 ? "day" : "days"} in the selected dates.`
+                    : "Total leads ÷ days in the selected dates.",
                 },
               ],
             },
