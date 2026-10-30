@@ -168,7 +168,7 @@ export type GhlContact = {
   timezone?: string;
   dnd?: boolean;
   /** Per-channel DND. GHL turns SMS on by itself after carrier errors (dead number, landline). */
-  dndSettings?: { SMS?: { status?: string } };
+  dndSettings?: { SMS?: { status?: string; message?: string } };
   dateAdded: string;
 };
 
