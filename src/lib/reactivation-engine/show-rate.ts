@@ -5,6 +5,7 @@ import {
 } from "@/lib/airtable/reactivation";
 import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
 import {
+  deadNumber,
   AVAL_MASTERCLASS_NO_SHOW_STAGE,
   AVAL_MASTERCLASS_REGISTRANTS_STAGE,
   AVAL_MASTERCLASS_SHOWED_STAGES,
@@ -547,6 +548,7 @@ export async function runCheckIns(offer: MasterclassOffer, session: Session, dea
       continue;
     }
     const msgs = await history(offer, c.id);
+    if (deadNumber(msgs) || msgs.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) continue;
     const body = await generate(offer, {
       model: MODELS.firstText,
       system: checkInSystem(offer),

@@ -8,6 +8,7 @@ import {
   type ReactivationOffer,
 } from "@/lib/airtable/reactivation";
 import {
+  deadNumber,
   deferReply,
   flagBooked,
   getContact,
@@ -264,6 +265,7 @@ async function skipReason(offer: ReactivationOffer, c: GhlContact, ignoreHours =
   if (await inBlockedStage(offer, c.id)) return "blocked stage";
   const msgs = await history(offer, c.id);
   if (msgs.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) return "said STOP";
+  if (deadNumber(msgs)) return "dead number";
   const recentRep = msgs.some(
     (m) =>
       m.direction === "outbound" &&
@@ -274,7 +276,7 @@ async function skipReason(offer: ReactivationOffer, c: GhlContact, ignoreHours =
 }
 
 // "DND" and "unknown time zone" too (2026-10-29): rechecking them every 5 minutes used up Aval's daily GHL API limit.
-const PERMANENT_SKIPS = new Set(["no valid phone", "blocked country", "blocked stage", "said STOP", "DND", "unknown time zone"]);
+const PERMANENT_SKIPS = new Set(["no valid phone", "blocked country", "blocked stage", "said STOP", "dead number", "DND", "unknown time zone"]);
 
 /**
  * Skips a lead from the pipeline row alone, before any GHL contact lookup:
@@ -444,6 +446,12 @@ export async function runSends(
     if (smsBlocked(c) || !w || !inWindow(w)) continue;
     // User, 2026-10-28: registered for the masterclass means no Base44 texts, follow-ups included.
     if (await deferReply(offer, id)) continue;
+    const msgs = await history(offer, id);
+    if (deadNumber(msgs) || msgs.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) {
+      // Skipped, so later runs don't look them up again.
+      await updateReactivationRow(offer, "leads", lead.id, { Status: "Skipped" });
+      continue;
+    }
     const body = await generate(offer, {
       model: MODELS.firstText,
       system: firstTextSystem(offer),

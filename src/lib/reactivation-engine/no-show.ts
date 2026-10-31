@@ -1,6 +1,6 @@
 import { createReactivationRow, getReactivationRows, updateReactivationRow } from "@/lib/airtable/reactivation";
 import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
-import { clearSmsDnd, getContact, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
+import { clearSmsDnd, deadNumber, getContact, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
 import {
   appendTo,
   easternDay,
@@ -218,12 +218,13 @@ export async function runNoShowTouches(offer: MasterclassOffer, deadline: number
     const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
     // User, 2026-10-30: GHL's DND flag doesn't stop no-show texts. Dead numbers and anyone who texted STOP still do.
     const dnd = smsBlocked(c);
-    if (!c.phone || smsCarrierBlocked(c) || (dnd && (await history(offer, c.id)).some((m) => m.direction === "inbound" && STOP.test(m.body ?? "")))) {
+    const sofar = await history(offer, c.id);
+    if (!c.phone || smsCarrierBlocked(c) || deadNumber(sofar) || sofar.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) {
       report.skipped["no-show: no textable phone"] = (report.skipped["no-show: no textable phone"] ?? 0) + 1;
       continue;
     }
     // Anyone who has texted since the class is a conversation now, not a recovery.
-    if (recovery && (await history(offer, c.id)).some((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && Date.parse(m.dateAdded) >= sessionStart(r, all))) continue;
+    if (recovery && sofar.some((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && Date.parse(m.dateAdded) >= sessionStart(r, all))) continue;
     const body = await generate(offer, {
       model: MODELS.firstText,
       system: touchSystem(offer),

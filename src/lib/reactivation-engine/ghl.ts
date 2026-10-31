@@ -189,7 +189,14 @@ export type GhlMessage = {
   messageType: string;
   direction: "inbound" | "outbound";
   body?: string;
+  error?: string;
 };
+
+/**
+ * A carrier said this number can never get texts: invalid, not mobile (landline), or doesn't exist.
+ * User, 2026-10-30: never text those again. 30003 (unreachable) isn't here because a phone that's off gets it too.
+ */
+export const deadNumber = (msgs: GhlMessage[]) => msgs.some((m) => /^Error (21211|21614|30005|30006)\b/.test(m.error ?? ""));
 
 /** The offer's pipeline leads, newest opportunity first. */
 export async function* pipelineLeads(
