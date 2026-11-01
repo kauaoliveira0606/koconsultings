@@ -174,6 +174,12 @@ const COUNTRY_TZ: [string, string][] = [
 /** Africa +20 +21x-26x +27 +290 +291; Middle East +90 +961-968 +970-974 +98. */
 const AFRICA_MIDDLE_EAST = "20|2[1-6]\\d|27|29[01]|90|96[1-8]|97[0-4]|98";
 
+/**
+ * Anything but a US or Canadian number (user, 2026-11-01: Bronson texts nobody else).
+ * +1 also covers the Caribbean, so those area codes are out; US territories stay in.
+ */
+const OUTSIDE_US_CANADA = /^(?!\+1(?!242|246|264|268|284|345|441|473|649|658|664|721|758|767|784|809|829|849|868|869|876)\d{10}$)/;
+
 const SEND_RULES: Record<
   ReactivationOffer,
   { blockedCountries: RegExp; usEastern: boolean; usHours: [number, number]; hours: [number, number]; autoOff: boolean; capsFollowUps?: boolean }
@@ -188,12 +194,11 @@ const SEND_RULES: Record<
     // User, 2026-10-28: never shut Aval off by itself either.
     autoOff: false,
   },
-  // User, 2026-10-28: never text Middle Eastern or African numbers.
   // BUILD.md default: 9am to 8pm in the lead's own time zone.
   bronson: {
     // User, 2026-10-30: the cap counts follow-ups too, so Base44 leaves room in GHL's daily SMS limit for the masterclass engines.
     capsFollowUps: true,
-    blockedCountries: new RegExp(`^\\+(${AFRICA_MIDDLE_EAST})`),
+    blockedCountries: OUTSIDE_US_CANADA,
     usEastern: false,
     usHours: [9, 20],
     hours: [9, 20],
@@ -202,7 +207,7 @@ const SEND_RULES: Record<
   },
   // Show-rate engine: only replies to registrants and sends the 4pm check-in (show-rate.ts).
   bronsonMasterclass: {
-    blockedCountries: /^$/,
+    blockedCountries: OUTSIDE_US_CANADA,
     usEastern: false,
     usHours: [9, 21],
     hours: [9, 21],
@@ -217,16 +222,20 @@ const SEND_RULES: Record<
   },
 };
 
+/** Bronson's US + Canada rule, for the sends that don't go through a send window. */
+export const outsideUsCanada = (offer: ReactivationOffer, phone: string | undefined) =>
+  SEND_RULES[offer].blockedCountries === OUTSIDE_US_CANADA && OUTSIDE_US_CANADA.test(phone ?? "");
+
 type SendWindow = { timeZone: string; from: number; to: number };
 
 export function sendWindow(offer: ReactivationOffer, c: Pick<GhlContact, "timezone" | "phone">): SendWindow | null {
   const r = SEND_RULES[offer];
   const phone = c.phone ?? "";
+  if (r.blockedCountries.test(phone)) return null;
   if (phone.startsWith("+1")) {
     const timeZone = (r.usEastern ? null : c.timezone) || "America/New_York";
     return { timeZone, from: r.usHours[0], to: r.usHours[1] };
   }
-  if (r.blockedCountries.test(phone)) return null;
   const timeZone = c.timezone || COUNTRY_TZ.find(([code]) => phone.startsWith(code))?.[1];
   return timeZone ? { timeZone, from: r.hours[0], to: r.hours[1] } : null;
 }
@@ -340,6 +349,8 @@ export async function smsPausedUntil(offer: ReactivationOffer): Promise<number |
 export async function trySend(offer: ReactivationOffer, contactId: string, body: string): Promise<boolean> {
   const account = SMS_ACCOUNT[offer];
   if ((pausedThisRun[account] ?? 0) > Date.now()) throw new SmsLimitError(pausedThisRun[account]!);
+  // The one place every text passes through, replies included.
+  if (SEND_RULES[offer].blockedCountries === OUTSIDE_US_CANADA && outsideUsCanada(offer, (await getContact(offer, contactId)).phone)) return false;
   try {
     await sendSms(offer, contactId, body);
     return true;
@@ -442,6 +453,11 @@ export async function runSends(
     const touch = Math.max(...mine.map((m) => Number(m.fields.Touch) || 1)) + 1;
     if (!last || touch > 3 || Date.now() - Date.parse(s(last.fields["Sent At"])) < 3 * DAY) continue;
     const c = await getContact(offer, id);
+    if (outsideUsCanada(offer, c.phone)) {
+      // Skipped, so later runs don't look them up again.
+      await updateReactivationRow(offer, "leads", lead.id, { Status: "Skipped" });
+      continue;
+    }
     const w = sendWindow(offer, c);
     if (smsBlocked(c) || !w || !inWindow(w)) continue;
     // User, 2026-10-28: registered for the masterclass means no Base44 texts, follow-ups included.

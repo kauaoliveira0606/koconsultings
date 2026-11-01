@@ -3,7 +3,7 @@ import {
   getReactivationRows,
   updateReactivationRow,
 } from "@/lib/airtable/reactivation";
-import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
+import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, trySend, type RunReport } from "./engine";
 import {
   deadNumber,
   AVAL_MASTERCLASS_NO_SHOW_STAGE,
@@ -543,7 +543,7 @@ export async function runCheckIns(offer: MasterclassOffer, session: Session, dea
   for (const r of due) {
     if (Date.now() > deadline) return;
     const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
-    if (!c.phone || smsBlocked(c)) {
+    if (!c.phone || outsideUsCanada(offer, c.phone) || smsBlocked(c)) {
       report.skipped["no textable phone"] = (report.skipped["no textable phone"] ?? 0) + 1;
       continue;
     }

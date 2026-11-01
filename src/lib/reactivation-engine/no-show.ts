@@ -1,5 +1,5 @@
 import { createReactivationRow, getReactivationRows, updateReactivationRow } from "@/lib/airtable/reactivation";
-import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
+import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, trySend, type RunReport } from "./engine";
 import { clearSmsDnd, deadNumber, getContact, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
 import {
   appendTo,
@@ -219,7 +219,7 @@ export async function runNoShowTouches(offer: MasterclassOffer, deadline: number
     // User, 2026-10-30: GHL's DND flag doesn't stop no-show texts. Dead numbers and anyone who texted STOP still do.
     const dnd = smsBlocked(c);
     const sofar = await history(offer, c.id);
-    if (!c.phone || smsCarrierBlocked(c) || deadNumber(sofar) || sofar.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) {
+    if (!c.phone || outsideUsCanada(offer, c.phone) || smsCarrierBlocked(c) || deadNumber(sofar) || sofar.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) {
       report.skipped["no-show: no textable phone"] = (report.skipped["no-show: no textable phone"] ?? 0) + 1;
       continue;
     }
