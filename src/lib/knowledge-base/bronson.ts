@@ -94,7 +94,6 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
           title: "$1.5K",
           meta: "Program length: 3 months",
           bullets: [
-            "1:1 onboarding call (Getting inside program, giving personalized gameplan)",
             "14 day launch execution plan (Broken down into daily step-by-steps of exactly what to do, what to watch, and where to go)",
             "Scaling roadmap (90 days) - to 1k a day",
             "3 Coaching calls a week with Bronson (weekly breakdown of his own brand, Q&A, and brand breakdowns)",
