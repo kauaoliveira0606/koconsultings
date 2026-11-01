@@ -104,6 +104,24 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
       ],
     },
     {
+      title: "Downsell",
+      description: "Same exact thing as the $1.5K package, billed monthly. Cancel anytime.",
+      layout: "pricing",
+      items: [
+        {
+          title: "$500/mo",
+          meta: "Monthly recurring, cancel anytime",
+          bullets: [
+            "14 day launch execution plan (Broken down into daily step-by-steps of exactly what to do, what to watch, and where to go)",
+            "Scaling roadmap (90 days) - to 1k a day",
+            "1 Coaching call a week with Bronson (Q&A)",
+            "Community",
+            "Exit strategy (with a 10% profit split)",
+          ],
+        },
+      ],
+    },
+    {
       title: "Also Inside The Program",
       layout: "stack",
       items: [
