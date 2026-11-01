@@ -173,10 +173,10 @@ export type GhlContact = {
 };
 
 /** Full DND or SMS-only DND: GHL refuses to text either. */
-export const smsBlocked = (c: GhlContact) => Boolean(c.dnd) || c.dndSettings?.SMS?.status === "active";
+export const smsBlocked = (c: GhlContact) => Boolean(c.dnd) || c.dndSettings?.SMS?.status === "active" || c.dndSettings?.SMS?.status === "permanent";
 
-/** Why GHL set SMS DND, when it was a carrier error (landline, dead number). Those numbers can't get texts at all. */
-export const smsCarrierBlocked = (c: GhlContact) => /TWILIO_ERROR_CODE/.test(c.dndSettings?.SMS?.message ?? "");
+/** GHL set SMS DND for a carrier error (landline, dead number) or a STOP. Those are never cleared or texted. */
+export const smsCarrierBlocked = (c: GhlContact) => /TWILIO_ERROR_CODE|STOP_KEYWORD/.test(c.dndSettings?.SMS?.message ?? "");
 
 /** Clears the contact's SMS DND so GHL will send. */
 export async function clearSmsDnd(offer: ReactivationOffer, contactId: string): Promise<void> {
@@ -196,7 +196,7 @@ export type GhlMessage = {
  * A carrier said this number can never get texts: invalid, not mobile (landline), or doesn't exist.
  * User, 2026-10-30: never text those again. 30003 (unreachable) isn't here because a phone that's off gets it too.
  */
-export const deadNumber = (msgs: GhlMessage[]) => msgs.some((m) => /^Error (21211|21614|30005|30006)\b/.test(m.error ?? ""));
+export const deadNumber = (msgs: GhlMessage[]) => msgs.some((m) => /^Error (21211|21614|21635|30005|30006)\b/.test(m.error ?? ""));
 
 /** The offer's pipeline leads, newest opportunity first. */
 export async function* pipelineLeads(
