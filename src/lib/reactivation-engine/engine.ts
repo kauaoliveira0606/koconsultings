@@ -171,11 +171,8 @@ const COUNTRY_TZ: [string, string][] = [
   ["+64", "Pacific/Auckland"],
 ];
 
-/** Africa +20 +21x-26x +27 +290 +291; Middle East +90 +961-968 +970-974 +98. */
-const AFRICA_MIDDLE_EAST = "20|2[1-6]\\d|27|29[01]|90|96[1-8]|97[0-4]|98";
-
 /**
- * Anything but a US or Canadian number (user, 2026-11-01: Bronson texts nobody else).
+ * Anything but a US or Canadian number (user, 2026-11-01: Bronson and Aval text nobody else).
  * +1 also covers the Caribbean, so those area codes are out; US territories stay in.
  */
 const OUTSIDE_US_CANADA = /^(?!\+1(?!242|246|264|268|284|345|441|473|649|658|664|721|758|767|784|809|829|849|868|869|876)\d{10}$)/;
@@ -184,10 +181,9 @@ const SEND_RULES: Record<
   ReactivationOffer,
   { blockedCountries: RegExp; usEastern: boolean; usHours: [number, number]; hours: [number, number]; autoOff: boolean; capsFollowUps?: boolean }
 > = {
-  // User, 2026-10-28: never text African, Indian, Pakistani/South Asian or Middle Eastern numbers.
-  // US (+1) numbers 9am to 10pm Eastern; everyone else 9am to 9pm their own time.
+  // US (+1) numbers 9am to 10pm Eastern.
   aval: {
-    blockedCountries: new RegExp(`^\\+(${AFRICA_MIDDLE_EAST}|9[1-4]|880|977)`),
+    blockedCountries: OUTSIDE_US_CANADA,
     usEastern: true,
     usHours: [9, 22],
     hours: [9, 21],
@@ -214,7 +210,7 @@ const SEND_RULES: Record<
     autoOff: false,
   },
   avalMasterclass: {
-    blockedCountries: /^$/,
+    blockedCountries: OUTSIDE_US_CANADA,
     usEastern: false,
     usHours: [9, 21],
     hours: [9, 21],
@@ -222,7 +218,7 @@ const SEND_RULES: Record<
   },
 };
 
-/** Bronson's US + Canada rule, for the sends that don't go through a send window. */
+/** The US + Canada rule, for the sends that don't go through a send window. */
 export const outsideUsCanada = (offer: ReactivationOffer, phone: string | undefined) =>
   SEND_RULES[offer].blockedCountries === OUTSIDE_US_CANADA && OUTSIDE_US_CANADA.test(phone ?? "");
 
