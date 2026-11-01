@@ -96,7 +96,7 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
           bullets: [
             "14 day launch execution plan (Broken down into daily step-by-steps of exactly what to do, what to watch, and where to go)",
             "Scaling roadmap (90 days) - to 1k a day",
-            "3 Coaching calls a week with Bronson (weekly breakdown of his own brand, Q&A, and brand breakdowns)",
+            "1 Coaching call a week with Bronson (weekly breakdown of his own brand, Q&A, and brand breakdowns)",
             "Community",
             "Exit strategy (with a 10% profit split)",
           ],
