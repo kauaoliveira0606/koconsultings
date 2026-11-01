@@ -134,13 +134,11 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
             "$3.5K totals: $4,000 split in 2 · $4,500 split in 3 · $4,025 financed",
             "$1.5K totals: $2,000 split in 2 · $2,500 split in 3 · $1,725 financed",
           ],
-          note: "Never coach a lead on what income to put on a financing application. Don't push a buyer with no real capital into debt.",
         },
         {
           title: "Guarantee",
           meta: "Current wording since Oct 13, 2026",
           copy: "Make your investment back within 180 days. If you don't, we work with you for free until you double your investment.",
-          note: "Some pages still show the older \"$1K revenue day within 90 days\" wording. Don't promise a money-back refund on the mentorship.",
         },
       ],
     },
