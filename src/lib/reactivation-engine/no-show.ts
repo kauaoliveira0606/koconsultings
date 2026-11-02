@@ -32,7 +32,8 @@ import { register, schedules, type WjSchedule } from "./webinarjam";
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
 // User, 2026-11-02: only a seat (they signed up again) or an opt-out stops the no-show texts; replying or saying no doesn't.
-const STOPPED = new Set(["Seat Saved", "Seat Pending", "Opted out"]);
+// A wrong number counts as a dead number: it isn't our lead.
+const STOPPED = new Set(["Seat Saved", "Seat Pending", "Opted out", "Wrong number"]);
 
 // ---------- Prompts ----------
 
@@ -83,7 +84,7 @@ ${DATES}
 
 Return JSON:
 - "reply": the one text to send, or "" (plain ok / thanks / 👍, or STOP).
-- "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "not_interested", "opt_out" (STOP / remove me / unsubscribe), or "none".
+- "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "not_interested", "wrong_number" (they say this isn't the person who signed up), "opt_out" (STOP / remove me / unsubscribe), or "none".
 - "preferred_time": the day/time they say would work, in their words, or "".
 - "reason": why they missed it or why they're not interested, in their words, or "".
 - "question_to_review": if their newest text asks a real question the approved examples don't answer, that question in their words, else "".`;
@@ -92,7 +93,7 @@ export const NO_SHOW_SCHEMA = {
   type: "object",
   properties: {
     reply: { type: "string" },
-    action: { type: "string", enum: ["none", "save_seat", "not_interested", "opt_out"] },
+    action: { type: "string", enum: ["none", "save_seat", "not_interested", "wrong_number", "opt_out"] },
     preferred_time: { type: "string" },
     reason: { type: "string" },
     question_to_review: { type: "string" },
@@ -326,6 +327,7 @@ Answer their latest text.`,
             fields["No-show Status"] = "Seat Pending";
           }
         } else if (parsed.action === "not_interested") fields["No-show Status"] = "Not interested";
+        else if (parsed.action === "wrong_number") fields["No-show Status"] = "Wrong number";
         const linkBlocked = Boolean(parsed.reply) && !linksOk(offer, parsed.reply);
         const question = parsed.question_to_review.trim() || (linkBlocked ? fresh[fresh.length - 1].body ?? "" : "");
         if (question) {
