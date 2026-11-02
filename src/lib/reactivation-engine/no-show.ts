@@ -31,7 +31,8 @@ import { register, schedules, type WjSchedule } from "./webinarjam";
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
-const STOPPED = new Set(["Replied", "Seat Saved", "Seat Pending", "Not interested", "Opted out"]);
+// User, 2026-11-02: only a seat (they signed up again) or an opt-out stops the no-show texts; replying or saying no doesn't.
+const STOPPED = new Set(["Seat Saved", "Seat Pending", "Opted out"]);
 
 // ---------- Prompts ----------
 
@@ -173,24 +174,27 @@ export async function runPendingSeats(offer: MasterclassOffer, report: RunReport
 // ---------- The three texts ----------
 
 /**
- * Night of (2.5 to 3.5 hours after the start), next afternoon, two days after. Each needs the one before it.
- * When the night-of text couldn't go out (SMS limit pause), it goes in the next window instead of the push, so nobody's first text is a bare "still a priority?".
+ * Night of (2.5 to 3.5 hours after the start), then a push the next afternoon and one the day after. Each needs the one before it.
+ * User, 2026-11-02: every no-show who hasn't signed up again gets these, even when GHL marks them late or a pause holds a text:
+ * a missed night-of text goes out late in the next 1-5pm ET window, and each push waits for the day after the text before it.
+ * The only people never texted are STOP, dead numbers and numbers outside the US and Canada (checked at send time).
  */
 function dueTouch(r: Row, start: number, now = Date.now()): Touch | null {
-  const status = s(r.fields["No-show Status"]);
-  if (STOPPED.has(status)) return null;
+  if (STOPPED.has(s(r.fields["No-show Status"]))) return null;
   const today = easternDay(now);
   const hour = easternHour(now);
-  const push1Window = today === easternDay(start + DAY) && hour >= 13 && hour < 17;
-  const push2Window = today === easternDay(start + 2 * DAY) && hour >= 11 && hour < 15;
-  if (!r.fields["Night-of Sent At"]) {
+  const afternoon = hour >= 13 && hour < 17;
+  const dayAfter = (field: string) => today > easternDay(Date.parse(s(r.fields[field])));
+  // A recovery text counts as the night-of text.
+  const first = r.fields["Night-of Sent At"] ? "Night-of Sent At" : r.fields["Recovery Sent At"] ? "Recovery Sent At" : null;
+  if (!first) {
     if (now >= start + 2.5 * HOUR && now < start + 3.5 * HOUR) return "night";
-    return push1Window || push2Window ? "late" : null;
+    return now >= start + 3.5 * HOUR && afternoon ? "late" : null;
   }
   // A late night-of text never gets a push on its heels.
   if (now - Date.parse(s(r.fields["Last Message At"])) < 12 * HOUR) return null;
-  if (!r.fields["Push 1 Sent At"]) return push1Window ? "push1" : null;
-  if (!r.fields["Push 2 Sent At"]) return push2Window ? "push2" : null;
+  if (!r.fields["Push 1 Sent At"]) return dayAfter(first) && afternoon ? "push1" : null;
+  if (!r.fields["Push 2 Sent At"]) return dayAfter("Push 1 Sent At") && hour >= 11 && hour < 15 ? "push2" : null;
   return null;
 }
 
