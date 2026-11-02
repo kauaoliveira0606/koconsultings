@@ -1,5 +1,6 @@
 import type { BookingRow, ConnectedCallRow, MasterclassRegistrantRow } from "@/lib/airtable/tables";
-import { getAvalConnectedCalls, getAvalMarketingDailyMetrics, getAvalPostCallNotes } from "@/lib/airtable/tables-aval";
+import { airtableListAll } from "@/lib/airtable/client";
+import { AVAL_BASE_ID, getAvalConnectedCalls, getAvalMarketingDailyMetrics, getAvalPostCallNotes } from "@/lib/airtable/tables-aval";
 import { getBookingsMade } from "@/lib/calendly";
 import { calendlyFor } from "@/lib/calendly-offers";
 import { avalContacts } from "@/lib/ghl-aval";
@@ -10,6 +11,12 @@ import { staleWhileRevalidate } from "@/lib/swr-cache";
 
 /** Aval's masterclass webinar in WebinarJam ("One Shift" system). */
 const AVAL_WEBINAR_ID = "2";
+/**
+ * "Masterclass Form UTMs": one row per opt-in on the site's own masterclass
+ * form (live 2026-11-02). That form registers through the WebinarJam API,
+ * which drops UTMs, so its paid/organic Source is kept here instead.
+ */
+const AVAL_FORM_UTMS_TABLE = "tblxChDGveurva9td";
 /**
  * The Calendly event masterclass leads book, "Mind Over Market Gameplan Call
  * (Masterclass)" (user, 2026-10-19). Matched by its event type, not its name:
@@ -33,8 +40,14 @@ type AvalInputs = { registrants: MasterclassRegistrantRow[]; bookings: BookingRo
 async function loadAvalInputs(today: string): Promise<AvalInputs> {
   const apiKey = process.env.WEBINARJAM_AVAL_API_KEY;
   if (!apiKey) throw new Error("Missing WEBINARJAM_AVAL_API_KEY");
-  const people = await getWebinarJamRegistrants(apiKey, AVAL_WEBINAR_ID, today);
+  const [people, formRows] = await Promise.all([
+    getWebinarJamRegistrants(apiKey, AVAL_WEBINAR_ID, today),
+    airtableListAll<{ Email?: string; Source?: string }>(AVAL_BASE_ID, AVAL_FORM_UTMS_TABLE, { fields: ["Email", "Source"] }),
+  ]);
   const paid = new Set(people.filter((p) => p.paidSignup).map((p) => p.email));
+  for (const r of formRows) {
+    if (r.fields.Source === "paid" && r.fields.Email) paid.add(r.fields.Email.trim().toLowerCase());
+  }
   const registered = new Set(people.map((p) => p.email));
   const sourceOf = (email: string) => (paid.has(email) ? "Paid" : registered.has(email) ? "Organic" : "Unknown");
 
