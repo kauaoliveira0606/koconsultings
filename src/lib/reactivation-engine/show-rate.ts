@@ -22,6 +22,7 @@ import {
 } from "./ghl";
 import { AVAL_VOICE_SOP, BRONSON_VOICE_SOP, VOICES } from "./voice";
 import { schedules } from "./webinarjam";
+import { airtableListFresh } from "@/lib/airtable/client";
 
 /**
  * The show-rate engine, one per offer (kits: ~/Desktop/reactivation-bronson-masterclass,
@@ -207,6 +208,26 @@ export function toSession(startsAt: number): Session {
   return { date: easternDay(startsAt), label: `${label} ET`, startsAt };
 }
 
+// ---------- Booked sales calls ----------
+
+const BRONSON_BASE = "appiMw8gpaLv2WITA";
+const BRONSON_BOOKINGS = "tblLZwboT5tfhq3H5"; // Calendly gameplan bookings (n8n 27mSFVcr9fHHm5uC)
+
+/**
+ * User, 2026-11-03: anyone who booked a sales call in the last 30 days belongs to the
+ * setters and closers, so the masterclass engines never text them ("just let them be").
+ * Canceled bookings count too: rebooking them is the setters' job. Contact IDs and emails,
+ * since a booking can land on a duplicate contact. Aval has no Bookings table yet.
+ */
+export async function bookedCall(offer: MasterclassOffer): Promise<(r: Row) => boolean> {
+  if (offer !== "bronsonMasterclass") return () => false;
+  const since = Date.now() - 30 * DAY;
+  const rows = (await airtableListFresh(BRONSON_BASE, BRONSON_BOOKINGS)).filter((b) => Date.parse(s(b.fields["Booked At"])) >= since);
+  const ids = new Set(rows.map((b) => s(b.fields["Contact ID"])).filter(Boolean));
+  const emails = new Set(rows.map((b) => s(b.fields.Email).trim().toLowerCase()).filter(Boolean));
+  return (r) => ids.has(s(r.fields["GHL Contact ID"])) || emails.has(s(r.fields.Email).trim().toLowerCase());
+}
+
 // ---------- Prompts ----------
 
 function rules(offer: MasterclassOffer): string {
@@ -250,7 +271,12 @@ Decision tree:
 - Can't make it: offer the next date (given below, use it exactly, don't assume it's next week). Only if that doesn't work either, ask what day and time would be perfect for them.
 - "What's this about?": one line of value and the date.
 - Replied yes: confirm and hype.
-- They answered "what's your main goal / what made you sign up": respect it, connect it to your own life, and promise to show them in the masterclass. Example, for "I'm trying to get out of car sales and be more present with my family": "I respect that a lot. Family is one of my personal core values, and I'm very glad I've been able to be more present myself because of e-com. Planning on showing you the same in the masterclass". Only use personal details that are true for you (the example above, or the voice and offer files); if nothing true connects, skip the personal line. This one may run to three lines.
+- They answered "what's your main goal / what made you sign up": text like a real 20-something, not a copywriter. React to what they actually said, then (above all when it's short or vague) ask one curious follow-up so they open up more. Never a tagline or a polished line: no "Love that, that's exactly who this is built for", nothing like "monthly income that stacks is what changed it for me". Bronson's own examples:
+  "Get rich" -> "So am I haha. Is that the only goal you have, or what are you envisioning for yourself with this?"
+  "Time and financial freedom leading to generational wealth" -> "I respect that a lot. That was a big thing for me too, since I was working with construction when I first started. For your first goals since they are time and financial freedom, out of curiosity what does that look like for you specifically?"
+  "I'm trying to get out of car sales and be more present with my family" -> "I respect that a lot. Family is one of my personal core values, and I'm very glad I've been able to be more present myself because of e-com. Planning on showing you the same in the masterclass"
+  Only use personal details that are true for you (these examples, or the voice and offer files); if nothing true connects, skip the personal part. These may run to three lines.
+- They answered your follow-up about their goal: short, real reaction, and tie it to the masterclass. No new question.
 - They said the one thing they want covered: confirm you'll cover it. That's an open loop you owe them.
 - Answer what they actually said, short, like the approved examples. Once they're engaged, no extra push.
 - They confirm they'll be there: action "committed".
@@ -406,10 +432,12 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
   // Two days, so replies that came in during a 24-hour SMS limit pause still get answered.
   const cutoff = Date.now() - 2 * DAY;
 
+  const booked = await bookedCall(offer);
+
   for (const conv of await recentConversations(offer)) {
     if (conv.lastMessageDate < cutoff) break;
     const lead = byContact.get(conv.contactId);
-    if (!lead || lead.fields.Status === "Opted out" || conv.lastMessageDirection !== "inbound") continue;
+    if (!lead || lead.fields.Status === "Opted out" || conv.lastMessageDirection !== "inbound" || booked(lead)) continue;
     // No-shows belong to the no-show engine (no-show.ts) from the night of the class.
     if (lead.fields.Outcome === "No show") continue;
     // Compared to the second: Airtable may drop milliseconds.
@@ -547,7 +575,8 @@ export async function runCheckIns(offer: MasterclassOffer, session: Session, dea
   if ((await liveSince(offer)) === null) return;
   const rows = await getReactivationRows(offer, "leads");
   const out = new Set(["Opted out", "Can't make it"]);
-  const due = rows.filter((r) => s(r.fields.Session) === session.date && !out.has(s(r.fields.Status)) && !r.fields["Check-in Sent At"]);
+  const booked = await bookedCall(offer);
+  const due = rows.filter((r) => s(r.fields.Session) === session.date && !out.has(s(r.fields.Status)) && !booked(r) && !r.fields["Check-in Sent At"]);
   for (const r of due) {
     if (Date.now() > deadline) return;
     const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
@@ -606,7 +635,8 @@ export async function runCallbacks(offer: MasterclassOffer, session: Session, de
   if ((await liveSince(offer)) === null) return;
   const rows = await getReactivationRows(offer, "leads");
   const out = new Set(["Opted out", "Can't make it"]);
-  const due = rows.filter((r) => s(r.fields.Session) === session.date && !out.has(s(r.fields.Status)) && !r.fields["24h Sent At"]);
+  const booked = await bookedCall(offer);
+  const due = rows.filter((r) => s(r.fields.Session) === session.date && !out.has(s(r.fields.Status)) && !booked(r) && !r.fields["24h Sent At"]);
   for (const r of due) {
     if (Date.now() > deadline) return;
     const c = await getContact(offer, s(r.fields["GHL Contact ID"]));

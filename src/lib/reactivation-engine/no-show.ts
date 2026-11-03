@@ -3,6 +3,7 @@ import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, tryS
 import { clearSmsDnd, deadNumber, flagSalesCall, getContact, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
 import {
   appendTo,
+  bookedCall,
   easternDay,
   easternHour,
   easternToUtc,
@@ -217,8 +218,10 @@ export async function runNoShowTouches(offer: MasterclassOffer, deadline: number
   if ((await liveSince(offer, "noshow_on")) === null) return;
   const rows = await getReactivationRows(offer, "leads");
   const all = await schedules(offer);
+  const booked = await bookedCall(offer);
   for (const r of noShows(rows).values()) {
     if (Date.now() > deadline) return;
+    if (booked(r)) continue;
     const recovery = recoveryDue(r);
     const touch = recovery ? "late" : dueTouch(r, sessionStart(r, all));
     if (!touch) continue;
@@ -260,6 +263,7 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
   const since = await liveSince(offer, "noshow_on");
   const rows = await getReactivationRows(offer, "leads");
   const byContact = noShows(rows);
+  const booked = await bookedCall(offer);
   if (!byContact.size) return;
   let all: WjSchedule[] | null = null;
   // Two days, so replies that came in during a 24-hour SMS limit pause still get answered.
@@ -268,7 +272,7 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
   for (const conv of await recentConversations(offer)) {
     if (conv.lastMessageDate < cutoff) break;
     const lead = byContact.get(conv.contactId);
-    if (!lead || conv.lastMessageDirection !== "inbound") continue;
+    if (!lead || conv.lastMessageDirection !== "inbound" || booked(lead)) continue;
     const handledUpTo = s(lead.fields["Last Message At"]).slice(0, 19);
     if (new Date(conv.lastMessageDate).toISOString().slice(0, 19) <= handledUpTo) continue;
 
