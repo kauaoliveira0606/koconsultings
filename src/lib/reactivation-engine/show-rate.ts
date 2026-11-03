@@ -6,6 +6,7 @@ import {
 import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, trySend, type RunReport } from "./engine";
 import {
   deadNumber,
+  flagSalesCall,
   AVAL_MASTERCLASS_NO_SHOW_STAGE,
   AVAL_MASTERCLASS_REGISTRANTS_STAGE,
   AVAL_MASTERCLASS_SHOWED_STAGES,
@@ -249,13 +250,14 @@ Decision tree:
 - Can't make it: offer the next date (given below, use it exactly, don't assume it's next week). Only if that doesn't work either, ask what day and time would be perfect for them.
 - "What's this about?": one line of value and the date.
 - Replied yes: confirm and hype.
-- They answered "what's your main goal / what made you sign up": acknowledge it like a human, short ("Love that, that's exactly who this is built for").
+- They answered "what's your main goal / what made you sign up": respect it, connect it to your own life, and promise to show them in the masterclass. Example, for "I'm trying to get out of car sales and be more present with my family": "I respect that a lot. Family is one of my personal core values, and I'm very glad I've been able to be more present myself because of e-com. Planning on showing you the same in the masterclass". Only use personal details that are true for you (the example above, or the voice and offer files); if nothing true connects, skip the personal line. This one may run to three lines.
 - They said the one thing they want covered: confirm you'll cover it. That's an open loop you owe them.
 - Answer what they actually said, short, like the approved examples. Once they're engaged, no extra push.
 - They confirm they'll be there: action "committed".
 - They flatly can't make it: ask what day and time would be perfect for them, action "cant_make_it".
 - Plain "ok", "thanks", a thumbs up: reply "".
 - STOP / remove me / unsubscribe: reply "", action "opt_out". "Wrong number" is NOT an opt-out.
+- Anything about a 1-on-1 or sales call (booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, "call me"), or a reply to someone from my team (a setter like Ewan or Kendyl) about a call: reply "", action "sales_call", and say what they want in "call_request". A setter picks it up.
 - Time words must match the session: say "tonight" only on the event day before it starts.
 - The thread includes our automated reminder texts. Don't repeat them.
 - Never pitch, never mention the offer, never push a call. Build anticipation and accountability.
@@ -270,7 +272,8 @@ ${PLAYBOOK}
 
 Return JSON:
 - "reply": the one text to send, or "".
-- "action": "committed", "cant_make_it", "opt_out" or "none".
+- "action": "committed", "cant_make_it", "opt_out", "sales_call" or "none".
+- "call_request": with "sales_call", what they want about the call, short (e.g. "wants to reschedule tomorrow's call earlier"), else "".
 - "preferred_time": the day/time they say would work for them, in their words, or "".
 - "goal": what they want out of this (e.g. answering "what's your main goal"), in their words, or "".
 - "wants_covered": what they want covered in the masterclass, in their words, or "".
@@ -282,20 +285,22 @@ export const REPLY_SCHEMA = {
   type: "object",
   properties: {
     reply: { type: "string" },
-    action: { type: "string", enum: ["none", "committed", "cant_make_it", "opt_out"] },
+    action: { type: "string", enum: ["none", "committed", "cant_make_it", "opt_out", "sales_call"] },
+    call_request: { type: "string" },
     preferred_time: { type: "string" },
     goal: { type: "string" },
     wants_covered: { type: "string" },
     other_feedback: { type: "string" },
     question_to_review: { type: "string" },
   },
-  required: ["reply", "action", "preferred_time", "goal", "wants_covered", "other_feedback", "question_to_review"],
+  required: ["reply", "action", "call_request", "preferred_time", "goal", "wants_covered", "other_feedback", "question_to_review"],
   additionalProperties: false,
 };
 
 type Parsed = {
   reply: string;
   action: string;
+  call_request: string;
   preferred_time: string;
   goal: string;
   wants_covered: string;
@@ -461,6 +466,9 @@ Answer their latest text.`,
       const parsed = parseReply(out);
       if (parsed?.action === "opt_out") {
         Object.assign(fields, { Status: "Opted out", "Opted Out At": new Date().toISOString() });
+      } else if (parsed?.action === "sales_call") {
+        await flagSalesCall(offer, c, parsed.call_request, fresh.map((m) => m.body ?? "").join(" / "));
+        report.skipped["sales call: sent to setter"] = (report.skipped["sales call: sent to setter"] ?? 0) + 1;
       } else if (parsed) {
         const linkBlocked = Boolean(parsed.reply) && !linksOk(offer, parsed.reply);
         if (linkBlocked) report.skipped["reply held: unapproved link"] = (report.skipped["reply held: unapproved link"] ?? 0) + 1;

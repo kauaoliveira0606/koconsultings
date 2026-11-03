@@ -27,6 +27,9 @@ type GhlOffer = {
   bookedWebhookEnv: string;
   /** Extra line on the Discord alert so the team knows what the lead is for. */
   bookedContext: string | null;
+  /** Masterclass engines: Discord webhook env var and role to tag when a lead wants a sales call. */
+  setterWebhookEnv?: string;
+  setterRole?: string;
 };
 
 export const MASTERCLASS_PIPELINE = "uxzG8oq8bMtG6hCWVFyl";
@@ -112,6 +115,8 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
     failedStage: null,
     bookedWebhookEnv: "",
     bookedContext: null,
+    setterWebhookEnv: "DISCORD_BRONSON_SETTER_WEBHOOK", // #sales-chat
+    setterRole: "1504565214249746643", // Setter
   },
   avalMasterclass: {
     envPrefix: "GHL_AVAL",
@@ -363,4 +368,28 @@ export async function flagBooked(offer: ReactivationOffer, c: GhlContact, booked
     }),
   });
   if (!res.ok) console.error("reactivation Discord alert failed", res.status, await res.text());
+}
+
+/** User, 2026-11-03: a lead asking about a 1-on-1 or sales call goes to a setter (tag, note, Discord ping); the engine doesn't answer it. */
+export async function flagSalesCall(offer: ReactivationOffer, c: GhlContact, ask: string, text: string): Promise<void> {
+  await ghl(offer, `/contacts/${c.id}/tags`, { method: "POST", body: { tags: ["sales call request"] } });
+  await ghl(offer, `/contacts/${c.id}/notes`, {
+    method: "POST",
+    body: { body: `Masterclass engine: wants a sales call, setter to follow up. ${ask}\nTheir text: "${text}"` },
+  });
+  const { setterWebhookEnv, setterRole } = GHL_OFFERS[offer];
+  const webhook = setterWebhookEnv ? process.env[setterWebhookEnv] : undefined;
+  if (!webhook) {
+    console.error("sales call request: no setter webhook set", offer, c.id);
+    return;
+  }
+  const res = await fetch(webhook, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content: `${setterRole ? `<@&${setterRole}> ` : ""}📞 **Wants a sales call** (texted the masterclass line, engine didn't answer)\n**${c.contactName || c.firstName || "Lead"}** ${c.phone ?? ""}\n${ask ? `${ask}\n` : ""}> ${text.replace(/\n/g, " ")}\nhttps://app.gohighlevel.com/v2/location/${env(offer).locationId}/contacts/detail/${c.id}`,
+      allowed_mentions: { roles: setterRole ? [setterRole] : [] },
+    }),
+  });
+  if (!res.ok) console.error("sales call Discord alert failed", res.status, await res.text());
 }

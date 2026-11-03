@@ -1,6 +1,6 @@
 import { createReactivationRow, getReactivationRows, updateReactivationRow } from "@/lib/airtable/reactivation";
 import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, trySend, type RunReport } from "./engine";
-import { clearSmsDnd, deadNumber, getContact, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
+import { clearSmsDnd, deadNumber, flagSalesCall, getContact, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
 import {
   appendTo,
   easternDay,
@@ -84,7 +84,8 @@ ${DATES}
 
 Return JSON:
 - "reply": the one text to send, or "" (plain ok / thanks / 👍, or STOP).
-- "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "not_interested", "wrong_number" (they say this isn't the person who signed up), "opt_out" (STOP / remove me / unsubscribe), or "none".
+- "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "not_interested", "wrong_number" (they say this isn't the person who signed up), "opt_out" (STOP / remove me / unsubscribe), "sales_call" (anything about a 1-on-1 or sales call: booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, or a reply to a setter like Ewan or Kendyl about a call; reply "" and a setter picks it up), or "none".
+- "call_request": with "sales_call", what they want about the call, short, else "".
 - "preferred_time": the day/time they say would work, in their words, or "".
 - "reason": why they missed it or why they're not interested, in their words, or "".
 - "question_to_review": if their newest text asks a real question the approved examples don't answer, that question in their words, else "".`;
@@ -93,16 +94,17 @@ export const NO_SHOW_SCHEMA = {
   type: "object",
   properties: {
     reply: { type: "string" },
-    action: { type: "string", enum: ["none", "save_seat", "not_interested", "wrong_number", "opt_out"] },
+    action: { type: "string", enum: ["none", "save_seat", "not_interested", "wrong_number", "opt_out", "sales_call"] },
+    call_request: { type: "string" },
     preferred_time: { type: "string" },
     reason: { type: "string" },
     question_to_review: { type: "string" },
   },
-  required: ["reply", "action", "preferred_time", "reason", "question_to_review"],
+  required: ["reply", "action", "call_request", "preferred_time", "reason", "question_to_review"],
   additionalProperties: false,
 };
 
-type Parsed = { reply: string; action: string; preferred_time: string; reason: string; question_to_review: string };
+type Parsed = { reply: string; action: string; call_request: string; preferred_time: string; reason: string; question_to_review: string };
 
 // ---------- Who's a no-show ----------
 
@@ -318,6 +320,9 @@ Answer their latest text.`,
       const parsed = parse(out);
       if (parsed?.action === "opt_out") {
         Object.assign(fields, { Status: "Opted out", "No-show Status": "Opted out", "Opted Out At": new Date().toISOString() });
+      } else if (parsed?.action === "sales_call") {
+        await flagSalesCall(offer, c, parsed.call_request, fresh.map((m) => m.body ?? "").join(" / "));
+        report.skipped["sales call: sent to setter"] = (report.skipped["sales call: sent to setter"] ?? 0) + 1;
       } else if (parsed) {
         if (parsed.action === "save_seat") {
           try {
