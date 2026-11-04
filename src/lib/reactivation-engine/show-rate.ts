@@ -7,6 +7,8 @@ import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, tryS
 import {
   deadNumber,
   flagSalesCall,
+  replyLine,
+  ROEZAN_SMS,
   AVAL_MASTERCLASS_NO_SHOW_STAGE,
   AVAL_MASTERCLASS_REGISTRANTS_STAGE,
   AVAL_MASTERCLASS_SHOWED_STAGES,
@@ -206,6 +208,12 @@ export function toSession(startsAt: number): Session {
     minute: "2-digit",
   });
   return { date: easternDay(startsAt), label: `${label} ET`, startsAt };
+}
+
+/** User, 2026-11-04: answer Roezan replies through Roezan. Off until the setting roezan_replies is "1" (tested first). */
+export async function roezanRepliesOn(offer: MasterclassOffer): Promise<boolean> {
+  const settings = await getReactivationRows(offer, "settings");
+  return s(settings.find((r) => r.fields.Key === "roezan_replies")?.fields.Value).trim() === "1";
 }
 
 // ---------- Booked sales calls ----------
@@ -435,6 +443,7 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
   const cutoff = Date.now() - 2 * DAY;
 
   const booked = await bookedCall(offer);
+  const roezanOn = await roezanRepliesOn(offer);
 
   for (const conv of await recentConversations(offer)) {
     if (conv.lastMessageDate < cutoff) break;
@@ -447,8 +456,10 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
     if (new Date(conv.lastMessageDate).toISOString().slice(0, 19) <= handledUpTo) continue;
 
     const msgs = await history(offer, conv.contactId);
-    const fresh = msgs.filter((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && m.dateAdded.slice(0, 19) > handledUpTo);
+    const fresh = msgs.filter((m) => m.direction === "inbound" && (m.messageType === "TYPE_SMS" || m.messageType === ROEZAN_SMS) && m.dateAdded.slice(0, 19) > handledUpTo);
     if (!fresh.length) continue;
+    const line = replyLine(offer, fresh);
+    if (!line || (line === "roezan" && !roezanOn)) continue;
     const name = s(lead.fields.Name);
     const fields: Record<string, unknown> = { "Last Message At": fresh[fresh.length - 1].dateAdded };
     let optOut = false;
@@ -508,7 +519,7 @@ Answer their latest text.`,
           const next = appendTo(lead.fields["Questions To Review"], note);
           if (next) fields["Questions To Review"] = next;
         }
-        if (parsed.reply && !linkBlocked && (await trySend(offer, c.id, parsed.reply))) {
+        if (parsed.reply && !linkBlocked && (await trySend(offer, c.id, parsed.reply, line))) {
           await logOut(offer, c, name, parsed.reply, null);
           fields["Last Message At"] = new Date().toISOString();
           report.replies++;

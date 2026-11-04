@@ -1,9 +1,10 @@
 import { createReactivationRow, getReactivationRows, updateReactivationRow } from "@/lib/airtable/reactivation";
 import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, trySend, type RunReport } from "./engine";
-import { clearSmsDnd, deadNumber, flagSalesCall, getContact, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
+import { clearSmsDnd, deadNumber, flagSalesCall, getContact, replyLine, ROEZAN_SMS, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
 import {
   appendTo,
   bookedCall,
+  roezanRepliesOn,
   easternDay,
   easternHour,
   easternToUtc,
@@ -264,6 +265,7 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
   const rows = await getReactivationRows(offer, "leads");
   const byContact = noShows(rows);
   const booked = await bookedCall(offer);
+  const roezanOn = await roezanRepliesOn(offer);
   if (!byContact.size) return;
   let all: WjSchedule[] | null = null;
   // Two days, so replies that came in during a 24-hour SMS limit pause still get answered.
@@ -277,8 +279,10 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
     if (new Date(conv.lastMessageDate).toISOString().slice(0, 19) <= handledUpTo) continue;
 
     const msgs = await history(offer, conv.contactId);
-    const fresh = msgs.filter((m) => m.direction === "inbound" && m.messageType === "TYPE_SMS" && m.dateAdded.slice(0, 19) > handledUpTo);
+    const fresh = msgs.filter((m) => m.direction === "inbound" && (m.messageType === "TYPE_SMS" || m.messageType === ROEZAN_SMS) && m.dateAdded.slice(0, 19) > handledUpTo);
     if (!fresh.length) continue;
+    const line = replyLine(offer, fresh);
+    if (!line || (line === "roezan" && !roezanOn)) continue;
     const name = s(lead.fields.Name);
     const fields: Record<string, unknown> = { "Last Message At": fresh[fresh.length - 1].dateAdded };
     let optOut = false;
@@ -351,7 +355,7 @@ Answer their latest text.`,
           const next = appendTo(lead.fields[field], value);
           if (next) fields[field] = next;
         }
-        if (parsed.reply && !linkBlocked && (await trySend(offer, c.id, parsed.reply))) {
+        if (parsed.reply && !linkBlocked && (await trySend(offer, c.id, parsed.reply, line))) {
           await logOut(offer, c, name, parsed.reply, null, "no-show reply");
           fields["Last Message At"] = new Date().toISOString();
           report.replies++;

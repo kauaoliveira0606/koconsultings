@@ -30,6 +30,8 @@ type GhlOffer = {
   /** Masterclass engines: Discord webhook env var and role to tag when a lead wants a sales call. */
   setterWebhookEnv?: string;
   setterRole?: string;
+  /** GHL conversation provider id of Roezan, the texting app the WebinarJam sequence goes out through. */
+  roezanProvider?: string;
 };
 
 export const MASTERCLASS_PIPELINE = "uxzG8oq8bMtG6hCWVFyl";
@@ -117,6 +119,7 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
     bookedContext: null,
     setterWebhookEnv: "DISCORD_BRONSON_SETTER_WEBHOOK", // #sales-chat
     setterRole: "1504565214249746643", // Setter
+    roezanProvider: "67b650b3b164ecabc4a8c8bf",
   },
   avalMasterclass: {
     envPrefix: "GHL_AVAL",
@@ -308,7 +311,25 @@ export function smsLimitUntil(error: string | undefined, now = Date.now()): numb
   }
 }
 
-export async function sendSms(offer: ReactivationOffer, contactId: string, message: string): Promise<void> {
+/** How Roezan's texts show up in GHL threads, both ways. */
+export const ROEZAN_SMS = "TYPE_CUSTOM_PROVIDER_SMS";
+
+/** Which number a text goes out from: the GHL phone number, or Roezan's (the line the lead texted). */
+export type Line = "ghl" | "roezan";
+
+/** The line to answer on: the one their newest text came in on (user, 2026-11-04: answer Roezan replies through Roezan). */
+export function replyLine(offer: ReactivationOffer, fresh: GhlMessage[]): Line | null {
+  if (fresh[fresh.length - 1]?.messageType !== ROEZAN_SMS) return "ghl";
+  return GHL_OFFERS[offer].roezanProvider ? "roezan" : null;
+}
+
+export async function sendSms(offer: ReactivationOffer, contactId: string, message: string, line: Line = "ghl"): Promise<void> {
+  const conversationProviderId = GHL_OFFERS[offer].roezanProvider;
+  if (line === "roezan") {
+    if (!conversationProviderId) throw new Error(`${offer} has no Roezan line`);
+    await ghl(offer, "/conversations/messages", { method: "POST", body: { type: "Custom", contactId, message, conversationProviderId } });
+    return;
+  }
   const { messageId } = await ghl<{ messageId?: string }>(offer, "/conversations/messages", { method: "POST", body: { type: "SMS", contactId, message } });
   if (!messageId) return;
   // GHL accepts the send and fails it about a second later, so the POST alone says nothing about the limit.

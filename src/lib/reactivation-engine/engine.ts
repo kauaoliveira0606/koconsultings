@@ -20,6 +20,8 @@ import {
   pipelineLeads,
   recentConversations,
   sendSms,
+  ROEZAN_SMS,
+  type Line,
   SmsLimitError,
   type GhlContact,
   type GhlMessage,
@@ -342,13 +344,13 @@ export async function smsPausedUntil(offer: ReactivationOffer): Promise<number |
  * The daily SMS limit does throw: that's no fault of the lead's, so the step stops
  * without marking anything and the text goes out once the pause ends.
  */
-export async function trySend(offer: ReactivationOffer, contactId: string, body: string): Promise<boolean> {
+export async function trySend(offer: ReactivationOffer, contactId: string, body: string, line: Line = "ghl"): Promise<boolean> {
   const account = SMS_ACCOUNT[offer];
   if ((pausedThisRun[account] ?? 0) > Date.now()) throw new SmsLimitError(pausedThisRun[account]!);
   // The one place every text passes through, replies included.
   if (SEND_RULES[offer].blockedCountries === OUTSIDE_US_CANADA && outsideUsCanada(offer, (await getContact(offer, contactId)).phone)) return false;
   try {
-    await sendSms(offer, contactId, body);
+    await sendSms(offer, contactId, body, line);
     return true;
   } catch (e) {
     if (e instanceof SmsLimitError) {
@@ -659,7 +661,7 @@ Answer their latest text.`,
 
 export function thread(msgs: GhlMessage[]): string {
   return msgs
-    .filter((m) => m.messageType === "TYPE_SMS" && m.body)
+    .filter((m) => (m.messageType === "TYPE_SMS" || m.messageType === ROEZAN_SMS) && m.body)
     .map((m) => `${m.direction === "inbound" ? "Lead" : "Us"} (${m.dateAdded.slice(0, 16)}Z): ${m.body}`)
     .join("\n");
 }
