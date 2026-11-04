@@ -283,7 +283,12 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
     const handledUpTo = s(lead.fields["Last Message At"]).slice(0, 19);
     if (new Date(conv.lastMessageDate).toISOString().slice(0, 19) <= handledUpTo) continue;
 
-    const msgs = await history(offer, conv.contactId);
+    // A catch-up walks every lead, deleted GHL contacts included: skip those.
+    const msgs = await history(offer, conv.contactId).catch((e) => {
+      if (catchUp) return null;
+      throw e;
+    });
+    if (!msgs) continue;
     const fresh = msgs.filter((m) => m.direction === "inbound" && (m.messageType === "TYPE_SMS" || m.messageType === ROEZAN_SMS) && m.dateAdded.slice(0, 19) > handledUpTo);
     if (!fresh.length) continue;
     if (catchUp && Date.parse(fresh[fresh.length - 1].dateAdded) < Date.now() - 3 * DAY) continue;
