@@ -6,7 +6,7 @@ import { calendlyFor } from "@/lib/calendly-offers";
 import { avalContacts } from "@/lib/ghl-aval";
 import { getWebinarJamRegistrants } from "@/lib/webinarjam";
 import { webinarSourceRows, type WebinarSourceRow } from "@/lib/webinar-source-funnel";
-import { WEBINAR_SCHEDULE } from "@/lib/webinar-schedule";
+import { PITCH_AT_SECONDS, WEBINAR_SCHEDULE } from "@/lib/webinar-schedule";
 import { staleWhileRevalidate } from "@/lib/swr-cache";
 
 /** Aval's masterclass webinar in WebinarJam ("One Shift" system). */
@@ -41,7 +41,7 @@ async function loadAvalInputs(today: string): Promise<AvalInputs> {
   const apiKey = process.env.WEBINARJAM_AVAL_API_KEY;
   if (!apiKey) throw new Error("Missing WEBINARJAM_AVAL_API_KEY");
   const [people, formRows] = await Promise.all([
-    getWebinarJamRegistrants(apiKey, AVAL_WEBINAR_ID, today),
+    getWebinarJamRegistrants(apiKey, AVAL_WEBINAR_ID, today, PITCH_AT_SECONDS.aval),
     airtableListAll<{ Email?: string; Source?: string }>(AVAL_BASE_ID, AVAL_FORM_UTMS_TABLE, { fields: ["Email", "Source"] }),
   ]);
   const paid = new Set(people.filter((p) => p.paidSignup).map((p) => p.email));
@@ -56,6 +56,8 @@ async function loadAvalInputs(today: string): Promise<AvalInputs> {
     sessionDate: p.sessionDate,
     source: sourceOf(p.email),
     stage: p.stage,
+    enteredAt: p.enteredAt,
+    leftAt: p.leftAt,
   }));
 
   const from = [...WEBINAR_SCHEDULE.aval].map((r) => r.promoStart).sort()[0];
@@ -94,7 +96,7 @@ async function loadAvalInputs(today: string): Promise<AvalInputs> {
 
 /** Re-read in the background once 15 minutes old, so no visitor waits on WebinarJam, Calendly and GHL. */
 function avalInputs(today: string): Promise<AvalInputs> {
-  return staleWhileRevalidate("aval-webinar-funnel-inputs:v2", () => loadAvalInputs(today), 900, 24 * 60 * 60);
+  return staleWhileRevalidate("aval-webinar-funnel-inputs:v3", () => loadAvalInputs(today), 900, 24 * 60 * 60);
 }
 
 /** Aval's masterclass Calendly bookings (reschedules counted once), with source. */
@@ -125,5 +127,5 @@ export async function avalWebinarSourceRows(today: string): Promise<WebinarSourc
     getAvalPostCallNotes(),
   ]);
   const matched = matchCalledContact(bookings, calls);
-  return webinarSourceRows(WEBINAR_SCHEDULE.aval, marketing, registrants, matched, calls, notes, today);
+  return webinarSourceRows(WEBINAR_SCHEDULE.aval, marketing, registrants, matched, calls, notes, today, PITCH_AT_SECONDS.aval);
 }

@@ -34,6 +34,12 @@ export type SourceFunnel = {
   showed: number;
   closed: number;
   cashCollected: number;
+  /** Most people in the live room at the same moment (WebinarJam live room). */
+  peakRoom: number | null;
+  /** People in the live room at the pitch minute. */
+  roomAtPitch: number | null;
+  /** Room at the pitch ÷ peak room. */
+  retentionUntilPitch: number | null;
   showRate: number | null;
   bookingRate: number | null;
   connectionRate: number | null;
@@ -112,9 +118,40 @@ const zero = (): Counts => ({
   cashCollected: 0,
 });
 
-function finish(c: Counts, adSpend: number | null): SourceFunnel {
+type Room = { peakRoom: number | null; roomAtPitch: number | null };
+const noRoom: Room = { peakRoom: null, roomAtPitch: null };
+
+/**
+ * Live room for one group of attendees: the most in the room together, and
+ * how many were there at the pitch minute (user, 2026-11-04). A person is in
+ * the room from enteredAt up to, not including, leftAt. Null when the rows
+ * carry no live room times (the Airtable fallback).
+ */
+function room(people: MasterclassRegistrantRow[], pitchAt: number | undefined): Room {
+  const spans = people.filter(
+    (p): p is MasterclassRegistrantRow & { enteredAt: number; leftAt: number } =>
+      typeof p.enteredAt === "number" && typeof p.leftAt === "number",
+  );
+  if (!spans.length || pitchAt === undefined) return noRoom;
+  // Leaves before joins at the same second, so a hand-off isn't counted twice.
+  const events = spans
+    .filter((p) => p.leftAt > p.enteredAt)
+    .flatMap((p) => [
+      [p.enteredAt, 1],
+      [p.leftAt, -1],
+    ])
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let now = 0;
+  let peak = 0;
+  for (const [, d] of events) peak = Math.max(peak, (now += d));
+  return { peakRoom: peak, roomAtPitch: spans.filter((p) => p.enteredAt <= pitchAt && p.leftAt > pitchAt).length };
+}
+
+function finish(c: Counts, adSpend: number | null, r: Room = noRoom): SourceFunnel {
   return {
     ...c,
+    ...r,
+    retentionUntilPitch: r.roomAtPitch === null ? null : safeDivide(r.roomAtPitch, r.peakRoom || null),
     showRate: safeDivide(c.attended, c.registered || null),
     bookingRate: safeDivide(c.booked, c.stayed || null),
     connectionRate: safeDivide(c.connected, c.connectable || null),
@@ -137,6 +174,8 @@ export function webinarSourceRows(
   calls: ConnectedCallRow[],
   notes: CallNote[],
   today: string,
+  /** Seconds into the session the pitch starts; needed for the live room numbers. */
+  pitchAtSeconds?: number,
 ): WebinarSourceRow[] {
   const now = Date.now();
   const dates = [...runs].map((r) => r.date).sort();
@@ -149,8 +188,15 @@ export function webinarSourceRows(
     return c;
   };
 
+  // Each session's live attendees, by source, for the room numbers.
+  const attendees = new Map<string, Record<BookingSource, MasterclassRegistrantRow[]>>();
   for (const r of registrants) {
     if (!r.sessionDate || (r.source !== "Paid" && r.source !== "Organic")) continue;
+    if (typeof r.enteredAt === "number") {
+      let a = attendees.get(r.sessionDate);
+      if (!a) attendees.set(r.sessionDate, (a = { Paid: [], Organic: [] }));
+      a[r.source].push(r);
+    }
     const c = at(r.sessionDate)[r.source];
     c.registered += 1;
     if (r.stage === "Attended" || r.stage === "Stayed Until Pitch") c.attended += 1;
@@ -228,15 +274,16 @@ export function webinarSourceRows(
       const status = run.date < today ? ("done" as const) : ("upcoming" as const);
       // Before the webinar runs, nobody could have shown up yet: blank, not 0%.
       const held = (f: SourceFunnel): SourceFunnel => (status === "upcoming" ? { ...f, showRate: null } : f);
+      const a = attendees.get(run.date) ?? { Paid: [], Organic: [] };
       return {
         number: i + 1,
         date: run.date,
         promoStart: run.promoStart,
         status,
         adSpend,
-        paid: held(finish(c.Paid, adSpend)),
-        organic: held(finish(c.Organic, null)),
-        total: held(finish(plus(c.Paid, c.Organic), null)),
+        paid: held(finish(c.Paid, adSpend, room(a.Paid, pitchAtSeconds))),
+        organic: held(finish(c.Organic, null, room(a.Organic, pitchAtSeconds))),
+        total: held(finish(plus(c.Paid, c.Organic), null, room([...a.Paid, ...a.Organic], pitchAtSeconds))),
         calls: (callLists.get(run.date) ?? []).sort((x, y) => (y.callTime ?? "").localeCompare(x.callTime ?? "")),
       };
     })

@@ -819,6 +819,9 @@ export type MasterclassRegistrantRow = {
   sessionDate: string | null;
   source: string | null;
   stage: string | null;
+  /** Live room, seconds into the session (WebinarJam reads only; null if they never came in). */
+  enteredAt?: number | null;
+  leftAt?: number | null;
 };
 
 export async function getMasterclassRegistrants(): Promise<MasterclassRegistrantRow[]> {

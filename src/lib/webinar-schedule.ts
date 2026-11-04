@@ -31,10 +31,29 @@ export const WEBINAR_SCHEDULE: Record<WebinarOffer, WebinarRun[]> = {
     { promoStart: "2026-10-11", date: "2026-10-18" },
     // "Not this Wednesday, the following one."
     { date: "2026-10-28" },
+    // Third session, set in WebinarJam (schedule 4).
+    { date: "2026-11-04" },
   ]),
   aval: chainPromos([
     { promoStart: "2026-10-14", date: "2026-10-18" },
     // Moved up from Sun Nov 15 to Sun Nov 8, 7 PM (user, 2026-11-02; WebinarJam updated).
     { date: "2026-11-08" },
   ]),
+};
+
+/**
+ * Seconds into the live session when the pitch starts. Retention until pitch
+ * and stayed until pitch are read off the live room at this moment.
+ * Bronson: pitch is around the 45 to 50 minute mark (user, 2026-11-04).
+ * Aval: real pitch time not known yet (user, 2026-11-04), 1 hour until then.
+ */
+export const PITCH_AT_SECONDS: Record<WebinarOffer, number> = {
+  bronson: 50 * 60,
+  aval: 60 * 60,
+};
+
+/** False while the offer's pitch time above is a placeholder; the tab shows a reminder. */
+export const PITCH_TIME_CONFIRMED: Record<WebinarOffer, boolean> = {
+  bronson: true,
+  aval: false,
 };

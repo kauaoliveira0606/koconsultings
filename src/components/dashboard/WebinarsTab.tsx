@@ -11,6 +11,7 @@ import type { GoalsConfig, MaxGoal, MinGoal } from "@/lib/goals";
 import { cellStatus } from "@/lib/weekly-scorecard";
 import type { WebinarReport } from "@/lib/webinar-report";
 import type { BookedCall, SourceFunnel } from "@/lib/webinar-source-funnel";
+import { PITCH_AT_SECONDS, PITCH_TIME_CONFIRMED } from "@/lib/webinar-schedule";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -53,6 +54,8 @@ const split = (label: string, format: StatFormat, pick: (f: SourceFunnel) => num
 });
 
 function frontEnd(offer: "bronson" | "aval", goals?: GoalsConfig): Group[] {
+  const pitchMin = Math.round(PITCH_AT_SECONDS[offer] / 60);
+  const pitchReminder = PITCH_TIME_CONFIRMED[offer] ? "" : " Pitch time not confirmed yet.";
   return [
     {
       title: "Ads (Promo Days)",
@@ -87,9 +90,11 @@ function frontEnd(offer: "bronson" | "aval", goals?: GoalsConfig): Group[] {
         split("Registered", "number", (f) => f.registered),
         split("Attended Live", "number", (f) => f.attended),
         split("Webinar Show Rate", "percent", (f) => f.showRate),
-        split("Stayed Until Pitch", "number", (f) => f.stayed, { note: offer === "bronson" ? "Watched live 50 minutes or more (the pitch)." : "Watched live 1 hour or more." }),
-        { label: "Live Attendees at Pitch", format: "number", total: (w) => w.form.liveAttendeesAtPitch, note: "Manual, post-webinar card." },
-        { label: "Retention Until Pitch", format: "percent", total: (w) => w.form.retentionRateUntilPitch, note: "Manual: room at the pitch minute ÷ peak room." },
+        split("Peak Live Room", "number", (f) => f.peakRoom, { note: "Most people in the live room at the same moment." }),
+        split("Stayed Until Pitch", "number", (f) => f.stayed, { note: `In the live room at the ${pitchMin} minute mark (the pitch).${pitchReminder}` }),
+        split("Retention Until Pitch", "percent", (f) => f.retentionUntilPitch, { note: `In the room at the pitch ÷ peak live room.${pitchReminder}` }),
+        { label: "Live Attendees at Pitch (Card)", format: "number", total: (w) => w.form.liveAttendeesAtPitch, note: "Manual, post-webinar card, for comparison." },
+        { label: "Retention Until Pitch (Card)", format: "percent", total: (w) => w.form.retentionRateUntilPitch, note: "Manual, post-webinar card, for comparison." },
       ],
     },
     {
@@ -380,7 +385,15 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
               {hero("Webinar Show Rate (Paid)", w.paid.showRate, "percent", `${w.paid.attended} of ${w.paid.registered} registered`)}
               {hero("Webinar Show Rate (Organic)", w.organic.showRate, "percent", `${w.organic.attended} of ${w.organic.registered} registered`)}
               {hero("Cost Per Booked Call (Paid)", w.paid.costPerBookedCall, "currency", "Ad spend ÷ paid calls booked")}
+              {hero("Retention Until Pitch (Paid)", w.paid.retentionUntilPitch, "percent", `${w.paid.roomAtPitch ?? "–"} at pitch of ${w.paid.peakRoom ?? "–"} peak`)}
+              {hero("Retention Until Pitch (Organic)", w.organic.retentionUntilPitch, "percent", `${w.organic.roomAtPitch ?? "–"} at pitch of ${w.organic.peakRoom ?? "–"} peak`)}
+              {hero("Retention Until Pitch (Total)", w.total.retentionUntilPitch, "percent", `${w.total.roomAtPitch ?? "–"} at pitch of ${w.total.peakRoom ?? "–"} peak`)}
             </div>
+            {!PITCH_TIME_CONFIRMED[offer] ? (
+              <p className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-semibold">
+                Reminder: the real pitch time for this webinar isn&apos;t confirmed yet. Stayed until pitch and retention use the {Math.round(PITCH_AT_SECONDS[offer] / 60)} minute mark until it is.
+              </p>
+            ) : null}
             <Table groups={frontEnd(offer, goals)} w={w} />
           </DashboardSection>
 
@@ -401,7 +414,7 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
           </DashboardSection>
 
           <p className="mt-3 text-xs text-[var(--text-muted)]">
-            Ads, opt-ins, VIP, live attendees at pitch and retention come from the daily form and post-webinar card. Registered, attended and stayed until pitch come from WebinarJam; bookings and cancels from Calendly; connected calls from GHL; showed, closed and cash from each booked lead&apos;s post call notes (matched by email). Paid = the lead signed up from an ad (campaign UTM). Every cost is ad spend over the paid count only.
+            Ads, opt-ins and VIP come from the daily form; the (Card) rows from the post-webinar card. Registered, attended, peak live room, stayed until pitch and retention come from WebinarJam, by session and live room behavior; bookings and cancels from Calendly; connected calls from GHL; showed, closed and cash from each booked lead&apos;s post call notes (matched by email). Paid = the lead signed up from an ad (campaign UTM). Every cost is ad spend over the paid count only.
           </p>
         </>
       )}
