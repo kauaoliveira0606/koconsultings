@@ -69,6 +69,8 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
       "https://www.ad-ventur.com/masterclass",
       "https://www.youtube.com/@Bronny.builds",
       "https://www.instagram.com/bronnybuilds/",
+      // The questionnaire (user, 2026-11-04).
+      "https://form.typeform.com/to/h5RJJ0d7",
     ],
     registered: new Set([MASTERCLASS_OPT_IN_STAGE, MASTERCLASS_VIP_STAGE]),
     noShowStage: MASTERCLASS_NO_SHOW_STAGE,
@@ -299,7 +301,7 @@ Decision tree:
 - Plain "ok", "thanks", a thumbs up: reply "".
 - STOP / remove me / unsubscribe: reply "", action "opt_out". "Wrong number" is NOT an opt-out.
 - Never promise to check on something or get back to them ("let me check", "I'll get back to you"): nobody follows up on those. If you can't answer it yourself, reply "" and put their question in "question_to_review".
-- Asking for the application or questionnaire, or anything about applying to work with us: treat it as "sales_call".
+- Asking for the questionnaire or application: send it, https://form.typeform.com/to/h5RJJ0d7 (e.g. "Here you go, here is the questionnaire: https://form.typeform.com/to/h5RJJ0d7"). This link is approved even if offer.md doesn't list it.
 - Anything about a 1-on-1 or sales call (booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, "call me"), or a reply to someone from my team (a setter like Ewan or Kendyl) about a call: reply "", action "sales_call", and say what they want in "call_request". A setter picks it up.
 - Time words must match the session: say "tonight" only on the event day before it starts.
 - The thread includes our automated reminder texts. Don't repeat them.
