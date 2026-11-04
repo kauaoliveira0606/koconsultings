@@ -293,6 +293,8 @@ Decision tree:
 - They flatly can't make it: ask what day and time would be perfect for them, action "cant_make_it".
 - Plain "ok", "thanks", a thumbs up: reply "".
 - STOP / remove me / unsubscribe: reply "", action "opt_out". "Wrong number" is NOT an opt-out.
+- Never promise to check on something or get back to them ("let me check", "I'll get back to you"): nobody follows up on those. If you can't answer it yourself, reply "" and put their question in "question_to_review".
+- Asking for the application or questionnaire, or anything about applying to work with us: treat it as "sales_call".
 - Anything about a 1-on-1 or sales call (booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, "call me"), or a reply to someone from my team (a setter like Ewan or Kendyl) about a call: reply "", action "sales_call", and say what they want in "call_request". A setter picks it up.
 - Time words must match the session: say "tonight" only on the event day before it starts.
 - The thread includes our automated reminder texts. Don't repeat them.

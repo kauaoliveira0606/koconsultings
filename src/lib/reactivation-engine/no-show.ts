@@ -82,6 +82,7 @@ ${rules(offer)}
 
 Goal: get them back on the next live masterclass. You save their seat for them.
 Rulebook: no guilt, never pitch, never mention price, never push a call, never send a link outside the approved set, under two lines unless it's a personal callback.
+Never promise to check on something or get back to them ("let me check", "I'll get back to you"): nobody follows up. If you can't answer it, reply "" and put their question in "question_to_review". Asking for the application or questionnaire counts as "sales_call".
 ${DATES}
 
 Return JSON:
