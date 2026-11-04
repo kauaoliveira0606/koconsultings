@@ -11,6 +11,8 @@ import type { GoalsConfig, MaxGoal, MinGoal } from "@/lib/goals";
 import { cellStatus } from "@/lib/weekly-scorecard";
 import type { WebinarReport } from "@/lib/webinar-report";
 import type { BookedCall, SourceFunnel } from "@/lib/webinar-source-funnel";
+import { WebinarDailyChart } from "@/components/dashboard/WebinarDailyChart";
+import type { WebinarDay } from "@/lib/webinar-source-funnel";
 import { PITCH_AT_SECONDS, PITCH_TIME_CONFIRMED } from "@/lib/webinar-schedule";
 
 const fetcher = async (url: string) => {
@@ -90,6 +92,7 @@ function frontEnd(offer: "bronson" | "aval", goals?: GoalsConfig): Group[] {
         split("Registered", "number", (f) => f.registered),
         split("Attended Live", "number", (f) => f.attended),
         split("Webinar Show Rate", "percent", (f) => f.showRate),
+        { label: "Cost Per Attendee", format: "currency", paid: (w) => w.paid.costPerAttendee, note: "Ad spend ÷ paid live attendees." },
         split("Peak Live Room", "number", (f) => f.peakRoom, { note: "Most people in the live room at the same moment." }),
         split("Stayed Until Pitch", "number", (f) => f.stayed, { note: `In the live room at the ${pitchMin} minute mark (the pitch).${pitchReminder}` }),
         split("Retention Until Pitch", "percent", (f) => f.retentionUntilPitch, { note: `In the room at the pitch ÷ peak live room.${pitchReminder}` }),
@@ -331,7 +334,7 @@ function BookedCallsList({ calls }: { calls: BookedCall[] }) {
  * call; Back End is everything after the call is on the calendar.
  */
 export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
-  const { data, error } = useSWR<{ webinars: WebinarReport[] }>(`/api/${offer}/webinars/report`, fetcher);
+  const { data, error } = useSWR<{ webinars: WebinarReport[]; daily?: WebinarDay[] }>(`/api/${offer}/webinars/report`, fetcher);
   const { data: goals } = useSWR<GoalsConfig>(`/api/${offer}/goals`, fetcher);
   const webinars = data?.webinars ?? [];
   const [picked, setPicked] = useState<string | null>(null);
@@ -380,6 +383,7 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
           <DashboardSection title="Front End">
             <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
               {hero("Cost Per Lead (Paid)", w.form.costPerLeadPaid, "currency", "Ad spend ÷ paid opt-ins", goals?.costPerLeadMeta)}
+              {hero("Cost Per Attendee (Paid)", w.paid.costPerAttendee, "currency", `Ad spend ÷ ${w.paid.attended} paid live attendees`)}
               {hero("Booking Rate (Paid)", w.paid.bookingRate, "percent", `${w.paid.booked} booked of ${w.paid.stayed} at pitch`)}
               {hero("Booking Rate (Organic)", w.organic.bookingRate, "percent", `${w.organic.booked} booked of ${w.organic.stayed} at pitch`)}
               {hero("Webinar Show Rate (Paid)", w.paid.showRate, "percent", `${w.paid.attended} of ${w.paid.registered} registered`)}
@@ -413,8 +417,12 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
             <BookedCallsList key={w.date} calls={w.calls ?? []} />
           </DashboardSection>
 
+          <DashboardSection title="Daily Spend vs Cash">
+            <WebinarDailyChart days={data?.daily ?? []} webinars={(data?.webinars ?? []).map((x) => ({ number: x.number, date: x.date }))} />
+          </DashboardSection>
+
           <p className="mt-3 text-xs text-[var(--text-muted)]">
-            Ads, opt-ins and VIP come from the daily form; the (Card) rows from the post-webinar card. Registered, attended, peak live room, stayed until pitch and retention come from WebinarJam, by session and live room behavior; bookings and cancels from Calendly; connected calls from GHL; showed, closed and cash from each booked lead&apos;s post call notes (matched by email). Paid = the lead signed up from an ad (campaign UTM). Every cost is ad spend over the paid count only.
+            Ads, opt-ins and VIP come from the daily form; the (Card) rows from the post-webinar card. Registered, attended, peak live room, stayed until pitch and retention come from WebinarJam, by session and live room behavior; bookings and cancels from Calendly; connected calls from GHL; showed, closed and cash from each booked lead&apos;s post call notes (matched by email). Paid = the lead signed up from an ad (campaign UTM). Every cost is ad spend over the paid count only. The daily chart&apos;s cash = VIP cash (form) + cash the webinar&apos;s booked leads logged in post call notes, by the note&apos;s date.
           </p>
         </>
       )}

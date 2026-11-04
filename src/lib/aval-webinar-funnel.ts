@@ -5,7 +5,7 @@ import { getBookingsMade } from "@/lib/calendly";
 import { calendlyFor } from "@/lib/calendly-offers";
 import { avalContacts } from "@/lib/ghl-aval";
 import { getWebinarJamRegistrants } from "@/lib/webinarjam";
-import { webinarSourceRows, type WebinarSourceRow } from "@/lib/webinar-source-funnel";
+import { webinarDaily, webinarSourceRows, type WebinarDay, type WebinarSourceRow } from "@/lib/webinar-source-funnel";
 import { PITCH_AT_SECONDS, WEBINAR_SCHEDULE } from "@/lib/webinar-schedule";
 import { staleWhileRevalidate } from "@/lib/swr-cache";
 
@@ -118,8 +118,8 @@ export async function avalScorecardInputs(today: string): Promise<AvalInputs> {
   return avalInputs(today);
 }
 
-/** Newest webinar first, paid vs organic, for Aval. */
-export async function avalWebinarSourceRows(today: string): Promise<WebinarSourceRow[]> {
+/** Newest webinar first, paid vs organic, for Aval, plus the daily spend vs cash chart. */
+export async function avalWebinarData(today: string): Promise<{ rows: WebinarSourceRow[]; daily: WebinarDay[] }> {
   const [{ registrants, bookings }, marketing, calls, notes] = await Promise.all([
     avalInputs(today),
     getAvalMarketingDailyMetrics(),
@@ -127,5 +127,8 @@ export async function avalWebinarSourceRows(today: string): Promise<WebinarSourc
     getAvalPostCallNotes(),
   ]);
   const matched = matchCalledContact(bookings, calls);
-  return webinarSourceRows(WEBINAR_SCHEDULE.aval, marketing, registrants, matched, calls, notes, today, PITCH_AT_SECONDS.aval);
+  return {
+    rows: webinarSourceRows(WEBINAR_SCHEDULE.aval, marketing, registrants, matched, calls, notes, today, PITCH_AT_SECONDS.aval),
+    daily: webinarDaily(WEBINAR_SCHEDULE.aval, marketing, matched, notes, today),
+  };
 }

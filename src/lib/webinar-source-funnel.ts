@@ -7,6 +7,7 @@ import type {
 import { safeDivide, sum } from "@/lib/metrics";
 import { connectedBookingIds, countedBookings, isConnectable, type BookingSource } from "@/lib/booking-source";
 import type { WebinarRun } from "@/lib/webinar-schedule";
+import { addDaysToDateString } from "@/lib/date-range";
 
 /**
  * One webinar's funnel split paid vs organic, all automatic (user,
@@ -47,6 +48,8 @@ export type SourceFunnel = {
   callShowRate: number | null;
   /** Closed ÷ calls that showed. */
   closeRate: number | null;
+  /** Paid only: the webinar's ad spend ÷ paid live attendees. */
+  costPerAttendee: number | null;
   /** Paid only: the webinar's ad spend ÷ paid bookings. */
   costPerBookedCall: number | null;
   /** Paid only: the webinar's ad spend ÷ paid calls that showed. */
@@ -157,6 +160,7 @@ function finish(c: Counts, adSpend: number | null, r: Room = noRoom): SourceFunn
     connectionRate: safeDivide(c.connected, c.connectable || null),
     callShowRate: safeDivide(c.showed, c.due || null),
     closeRate: safeDivide(c.closed, c.showed || null),
+    costPerAttendee: adSpend ? safeDivide(adSpend, c.attended || null) : null,
     costPerBookedCall: adSpend ? safeDivide(adSpend, c.booked || null) : null,
     costPerLiveCall: adSpend ? safeDivide(adSpend, c.showed || null) : null,
   };
@@ -305,4 +309,66 @@ export function paidCallsShowed(bookings: BookingRow[], notes: CallNote[], inRan
   const paid = countedBookings(bookings).filter((b) => b.source === "Paid" && !!b.bookedDate && inRange(b.bookedDate));
   const showed = paid.filter((b) => (b.email ? showedEmails.get(b.email.trim().toLowerCase()) ?? [] : []).some((d) => d >= b.bookedDate!));
   return { booked: paid.length, showed: showed.length };
+}
+
+/** One day on the Webinars tab's daily chart. */
+export type WebinarDay = {
+  date: string;
+  adSpend: number;
+  /** VIP cash (form) + cash the webinar's booked leads logged in post call notes that day. */
+  cashCollected: number;
+  vipCash: number;
+  callCash: number;
+};
+
+/**
+ * Daily ad spend vs cash collected from the first webinar's promo start
+ * through today (user, 2026-11-04). Call cash is dated by the post call note,
+ * counted once per note even if the lead booked twice. Today is left off
+ * until the form has a row for it, so a day that isn't logged yet doesn't
+ * read as $0.
+ */
+export function webinarDaily(
+  runs: WebinarRun[],
+  marketing: MarketingDailyMetricRow[],
+  bookings: BookingRow[],
+  notes: CallNote[],
+  today: string,
+): WebinarDay[] {
+  const start = [...runs].map((r) => r.promoStart).sort()[0];
+  if (!start) return [];
+  const dates = [...runs].map((r) => r.date).sort();
+  const days = new Map<string, WebinarDay>();
+  const day = (date: string) => {
+    let d = days.get(date);
+    if (!d) days.set(date, (d = { date, adSpend: 0, cashCollected: 0, vipCash: 0, callCash: 0 }));
+    return d;
+  };
+  for (const m of marketing) {
+    if (!m.date || m.date < start || m.date > today) continue;
+    const d = day(m.date);
+    d.adSpend += m.adSpendMeta ?? 0;
+    d.vipCash += (m.vipCashPaid ?? 0) + (m.vipCashOrganic ?? 0);
+  }
+  const notesByEmail = new Map<string, CallNote[]>();
+  for (const n of notes) {
+    const email = n.leadEmail?.trim().toLowerCase();
+    if (email && n.date) notesByEmail.set(email, [...(notesByEmail.get(email) ?? []), n]);
+  }
+  const counted = new Set<CallNote>();
+  for (const b of countedBookings(bookings)) {
+    if (!b.email || !dates.some((d) => d <= b.bookedDate!)) continue;
+    for (const n of notesByEmail.get(b.email.trim().toLowerCase()) ?? []) {
+      if (n.date! < b.bookedDate! || n.date! > today || counted.has(n) || !n.cashCollected) continue;
+      counted.add(n);
+      day(n.date!).callCash += n.cashCollected;
+    }
+  }
+  const out: WebinarDay[] = [];
+  const last = days.has(today) && marketing.some((m) => m.date === today) ? today : addDaysToDateString(today, -1);
+  for (let d = start; d <= last; d = addDaysToDateString(d, 1)) {
+    const row = days.get(d) ?? { date: d, adSpend: 0, cashCollected: 0, vipCash: 0, callCash: 0 };
+    out.push({ ...row, cashCollected: row.vipCash + row.callCash });
+  }
+  return out;
 }

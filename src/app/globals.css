@@ -46,6 +46,9 @@
   --cell-cash-text: #9a3412;
   --cell-current-bg: #e0f2fe;
   --cell-current-text: #075985;
+  /* Webinars daily chart series (validated for both themes). */
+  --chart-spend: #a87c12;
+  --chart-cash: #2f7fd6;
 }
 
 [data-theme="deepspace"] {
@@ -63,6 +66,8 @@
   --text: #eef2fb;
   --text-muted: #bccae6;
   --accent: #8ec5ff;
+  --chart-spend: #b8891a;
+  --chart-cash: #3a85d4;
   --btn-active-bg: #8ec5ff;
   --btn-active-fg: #06122b;
   --cell-green-bg: rgba(16, 185, 129, 0.32);
