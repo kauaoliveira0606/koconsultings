@@ -437,7 +437,7 @@ export const appendTo = (old: unknown, add: string) => {
 };
 
 /** Every 5 minutes: log new texts from registrants and answer them as the host. */
-export async function runShowRateReplies(offer: MasterclassOffer, session: Session, report: RunReport): Promise<void> {
+export async function runShowRateReplies(offer: MasterclassOffer, session: Session, report: RunReport, catchUp = false): Promise<void> {
   const since = await liveSince(offer);
   const rows = await getReactivationRows(offer, "leads");
   // Registrants of the upcoming session, plus last session's for a day after it.
@@ -452,7 +452,11 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
   const booked = await bookedCall(offer);
   const roezanOn = await roezanRepliesOn(offer);
 
-  for (const conv of await recentConversations(offer)) {
+  // Catch-up (run by hand): every lead, not just the 100 newest threads, whatever came last in the thread.
+  const convs = catchUp
+    ? [...byContact.keys()].map((contactId) => ({ contactId, lastMessageDate: Date.now(), lastMessageDirection: "inbound" }))
+    : await recentConversations(offer);
+  for (const conv of convs) {
     if (conv.lastMessageDate < cutoff) break;
     const lead = byContact.get(conv.contactId);
     if (!lead || lead.fields.Status === "Opted out" || conv.lastMessageDirection !== "inbound" || booked(lead)) continue;
@@ -465,6 +469,7 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
     const msgs = await history(offer, conv.contactId);
     const fresh = msgs.filter((m) => m.direction === "inbound" && (m.messageType === "TYPE_SMS" || m.messageType === ROEZAN_SMS) && m.dateAdded.slice(0, 19) > handledUpTo);
     if (!fresh.length) continue;
+    if (catchUp && Date.parse(fresh[fresh.length - 1].dateAdded) < Date.now() - 3 * DAY) continue;
     const line = replyLine(offer, fresh);
     if (!line || (line === "roezan" && !roezanOn)) continue;
     const name = s(lead.fields.Name);
