@@ -18,6 +18,8 @@ type GhlOffer = {
   blockedPipelines: Set<string>;
   /** Another engine answers contacts in these stages, so this one stays quiet on their replies. */
   deferStages: Set<string>;
+  /** Also block + defer on the Opt in stage of every Bronson date pipeline (see datePipelines). */
+  blockDateOptIns?: boolean;
   /** Stages texted / booked leads move to in `pipeline`; null leaves the stage alone. */
   textedStage: string | null;
   readyStage: string | null;
@@ -34,12 +36,10 @@ type GhlOffer = {
   roezanProvider?: string;
 };
 
+/** Main Masterclass pipeline: $27 Purchase onward only since 2026-11-04 (registrants live in datePipelines). */
 export const MASTERCLASS_PIPELINE = "uxzG8oq8bMtG6hCWVFyl";
-/** Registered for the upcoming session; n8n moves them on after it (bVSWLTEH1cHOsNDH). */
-export const MASTERCLASS_OPT_IN_STAGE = "79e030e6-c91f-473e-8add-4cabbe852109";
-/** Bought the $27 upgrade at signup: still a registrant for the upcoming session. */
+/** Bought the $27 upgrade. */
 export const MASTERCLASS_VIP_STAGE = "e7de3f9c-93bd-4be7-a194-4e091450173a";
-export const MASTERCLASS_NO_SHOW_STAGE = "d6087cb2-e9c3-479f-8151-8f6ed8cbd274";
 
 /** Aval's masterclass lives in the GHL "Webinar Pipeline"; the team moves people on after each session. */
 export const AVAL_WEBINAR_PIPELINE = "DpGAY4D85Qs0Q45cyXGn";
@@ -90,13 +90,14 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
       "8de41b99-da24-4b0f-9f78-f6e512569a34", // Dead Lead
       // BUILD.md "not a buyer": high ticket closes from the masterclass too.
       "cf87fbab-3d9e-41a7-8609-94d377439a70", // Masterclass: HIGH TICKET CLOSED
-      // Registered for the upcoming masterclass: the show-rate engine has them.
-      MASTERCLASS_OPT_IN_STAGE,
+      // $27 buyers. Registered for the upcoming masterclass (a date pipeline's Opt in,
+      // blockDateOptIns below): the show-rate engine has them.
       MASTERCLASS_VIP_STAGE,
     ]),
     // Paying clients being onboarded and checked in on.
     blockedPipelines: new Set(["uzqhkJTeAUvgDg4Rh5Br"]), // Fulfillment
-    deferStages: new Set([MASTERCLASS_OPT_IN_STAGE, MASTERCLASS_VIP_STAGE]),
+    deferStages: new Set([MASTERCLASS_VIP_STAGE]),
+    blockDateOptIns: true,
     textedStage: null,
     readyStage: null,
     // User, 2026-10-28: a number we can't text goes to the dead pile. Trash is blocked above.
@@ -235,11 +236,53 @@ export type GhlOpportunity = {
   contact?: { name?: string; email?: string; phone?: string; tags?: string[] };
 };
 
+/**
+ * Bronson's per-date masterclass pipelines, "Masterclass - Nov 4, 2026" (user, 2026-11-04).
+ * n8n bVSWLTEH1cHOsNDH creates one per session and keeps registrants' Opt in / No Show /
+ * Attended / Stayed Until Pitch there; the main Masterclass pipeline only holds $27 Purchase onward.
+ */
+export type DatePipeline = { id: string; date: string; optIn?: string; noShow?: string; attended?: string; stayed?: string };
+const DATE_PIPELINE = /^Masterclass - ([A-Za-z]{3}) (\d{1,2}), (\d{4})$/;
+const MON = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+let datePipelineCache: { at: number; list: DatePipeline[] } | null = null;
+
+export async function datePipelines(offer: ReactivationOffer): Promise<DatePipeline[]> {
+  if (datePipelineCache && Date.now() - datePipelineCache.at < 5 * 60_000) return datePipelineCache.list;
+  const { pipelines } = await ghl<{ pipelines: { id: string; name: string; stages: { id: string; name: string }[] }[] }>(
+    offer,
+    `/opportunities/pipelines?locationId=${env(offer).locationId}`
+  );
+  const list: DatePipeline[] = [];
+  for (const p of pipelines) {
+    const m = p.name.match(DATE_PIPELINE);
+    const mon = m ? MON.indexOf(m[1].toLowerCase()) : -1;
+    if (!m || mon < 0) continue;
+    const stage = (name: string) => p.stages.find((s) => s.name === name)?.id;
+    list.push({
+      id: p.id,
+      date: `${m[3]}-${String(mon + 1).padStart(2, "0")}-${m[2].padStart(2, "0")}`,
+      optIn: stage("Masterclass Opt in"),
+      noShow: stage("Masterclass No Show"),
+      attended: stage("Masterclass Attended"),
+      stayed: stage("Masterclass Stayed Until Pitch"),
+    });
+  }
+  list.sort((a, b) => a.date.localeCompare(b.date));
+  datePipelineCache = { at: Date.now(), list };
+  return list;
+}
+
+/** Opt in stage ids of every date pipeline, for offers with blockDateOptIns. */
+async function dateOptInStages(offer: ReactivationOffer): Promise<Set<string>> {
+  if (!GHL_OFFERS[offer].blockDateOptIns) return new Set();
+  return new Set((await datePipelines(offer)).map((p) => p.optIn).filter((x): x is string => !!x));
+}
+
 /** Every opportunity in the offer's pipeline (or one stage of it), newest first. */
-export async function* pipelineOpportunities(offer: ReactivationOffer, stageId?: string): AsyncGenerator<GhlOpportunity> {
+export async function* pipelineOpportunities(offer: ReactivationOffer, stageId?: string, pipelineId?: string): AsyncGenerator<GhlOpportunity> {
   const { locationId } = env(offer);
   const stage = stageId ? `&pipeline_stage_id=${stageId}` : "";
-  let path: string | undefined = `/opportunities/search?location_id=${locationId}&pipeline_id=${GHL_OFFERS[offer].pipeline}${stage}&limit=100`;
+  let path: string | undefined = `/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId ?? GHL_OFFERS[offer].pipeline}${stage}&limit=100`;
   while (path) {
     const page: { opportunities: GhlOpportunity[]; meta: { nextPageUrl?: string } } = await ghl(offer, path);
     yield* page.opportunities;
@@ -249,7 +292,7 @@ export async function* pipelineOpportunities(offer: ReactivationOffer, stageId?:
 
 /** True when another engine owns this contact's replies (see deferStages). */
 export async function deferReply(offer: ReactivationOffer, contactId: string): Promise<boolean> {
-  const stages = GHL_OFFERS[offer].deferStages;
+  const stages = new Set([...GHL_OFFERS[offer].deferStages, ...(await dateOptInStages(offer))]);
   if (!stages.size) return false;
   const { opportunities } = await ghl<{ opportunities: { pipelineStageId: string }[] }>(
     offer,
@@ -265,7 +308,10 @@ export async function inBlockedStage(offer: ReactivationOffer, contactId: string
     `/opportunities/search?location_id=${env(offer).locationId}&contact_id=${contactId}`
   );
   const o = GHL_OFFERS[offer];
-  return opportunities.some((x) => o.blockedStages.has(x.pipelineStageId) || o.blockedPipelines.has(x.pipelineId));
+  const dateOptIns = await dateOptInStages(offer);
+  return opportunities.some(
+    (x) => o.blockedStages.has(x.pipelineStageId) || dateOptIns.has(x.pipelineStageId) || o.blockedPipelines.has(x.pipelineId)
+  );
 }
 
 /** Every message in every conversation this contact has, oldest first. */
