@@ -7,8 +7,10 @@ import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, tryS
 import {
   deadNumber,
   flagSalesCall,
+  GHL_OFFERS,
   replyLine,
   ROEZAN_SMS,
+  type Line,
   AVAL_MASTERCLASS_NO_SHOW_STAGE,
   AVAL_MASTERCLASS_REGISTRANTS_STAGE,
   AVAL_MASTERCLASS_SHOWED_STAGES,
@@ -215,6 +217,9 @@ export async function roezanRepliesOn(offer: MasterclassOffer): Promise<boolean>
   const settings = await getReactivationRows(offer, "settings");
   return s(settings.find((r) => r.fields.Key === "roezan_replies")?.fields.Value).trim() === "1";
 }
+
+/** Texts the engine starts go out on Roezan where the offer has it: registrants have only ever heard from that number. */
+const startLine = (offer: MasterclassOffer): Line => (GHL_OFFERS[offer].roezanProvider ? "roezan" : "ghl");
 
 // ---------- Booked sales calls ----------
 
@@ -615,7 +620,7 @@ Write the check-in.`,
       contactId: c.id,
       touch: 1,
     });
-    if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body))) continue;
+    if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body, startLine(offer)))) continue;
     const name = s(r.fields.Name);
     await logOut(offer, c, name, body, 1);
     const sentAt = new Date().toISOString();
@@ -667,7 +672,7 @@ export async function runCallbacks(offer: MasterclassOffer, session: Session, de
           touch: 2,
         })
       : WJ_24H(firstNameOf(c));
-    if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body))) continue;
+    if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body, startLine(offer)))) continue;
     await logOut(offer, c, s(r.fields.Name), body, 2);
     const sentAt = new Date().toISOString();
     await updateReactivationRow(offer, "leads", r.id, { "24h Sent At": sentAt, "Last Message At": sentAt });
