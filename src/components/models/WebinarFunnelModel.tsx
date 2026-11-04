@@ -6,17 +6,20 @@ import { computeWebinarFunnel, type WebinarFunnelInputs } from "@/lib/models/web
 import { usePersistedState } from "@/lib/use-persisted-state";
 
 const DEFAULT_INPUTS: WebinarFunnelInputs = {
+  adSpend: 7000,
   cpm: 70,
   ctr: 0.02,
   optInRate: 0.25,
   cplOverride: null,
-  registrants: 500,
   showRate: 0.25,
   retentionRate: 0.8,
   bookingRate: 0.25,
   callShowRate: 0.8,
   closeRate: 0.25,
   aov: 5000,
+  vipEnabled: false,
+  vipPrice: 97,
+  vipTakeRate: 0.08,
 };
 
 /** Same deep gradient the Bronson hero numbers use; readable on any light card. */
@@ -42,6 +45,7 @@ export function WebinarFunnelModel() {
 
   const funnel: { stage: string; count: number; rate: string }[] = [
     { stage: "Registrants", count: r.registrants, rate: `${usd2(r.cpl)} CPL` },
+    ...(inputs.vipEnabled ? [{ stage: "VIP Buyers", count: r.vipBuyers, rate: pct(inputs.vipTakeRate) }] : []),
     { stage: "Attendees", count: r.attendees, rate: pct(inputs.showRate) },
     { stage: "Stayed to Pitch", count: r.stayedToPitch, rate: pct(inputs.retentionRate) },
     { stage: "Calls Booked", count: r.callsBooked, rate: pct(inputs.bookingRate) },
@@ -55,7 +59,7 @@ export function WebinarFunnelModel() {
         <div>
           <h2 className="text-lg font-bold text-[var(--text-strong)]">Webinar Funnel</h2>
           <p className="text-sm text-[var(--text-muted)]">
-            Ads → Registration → Live Webinar → Pitch → Booked Call → Close. Change any number and everything on the right updates.
+            Ad Spend → Ads → Registration → Live Webinar → Pitch → Booked Call → Close. Change any number and everything on the right updates.
           </p>
         </div>
         <button
@@ -70,6 +74,10 @@ export function WebinarFunnelModel() {
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Inputs */}
         <div className="flex flex-col gap-5">
+          <Card title="Ad Spend" tag="Budget">
+            <Field label="Monthly Ad Spend ($)" value={inputs.adSpend} onChange={(v) => set({ adSpend: v })} />
+          </Card>
+
           <Card title="Cold Traffic Ads" tag="Paid Acquisition">
             <div className="grid gap-3 sm:grid-cols-3">
               <Field label="CPM ($)" value={inputs.cpm} onChange={(v) => set({ cpm: v })} />
@@ -102,7 +110,14 @@ export function WebinarFunnelModel() {
           </Card>
 
           <Card title="Registrants">
-            <Field label="Estimated Registrants" value={inputs.registrants} onChange={(v) => set({ registrants: v })} />
+            <Field
+              label="Estimated Registrants"
+              value={Math.round(r.registrants)}
+              onChange={(v) => set({ adSpend: round(v * r.cpl, 2) })}
+            />
+            <p className="mt-2 text-xs text-[var(--text-muted)]">
+              Ad Spend ÷ CPL. Edit to set registrants directly and the ad spend updates to match.
+            </p>
           </Card>
 
           <Card title="Attendance & Engagement">
@@ -119,13 +134,44 @@ export function WebinarFunnelModel() {
           <Card title="Offer">
             <Field label="AOV ($)" value={inputs.aov} onChange={(v) => set({ aov: v })} />
           </Card>
+
+          <Card
+            title="VIP Package"
+            action={<Toggle on={inputs.vipEnabled} onChange={(on) => set({ vipEnabled: on })} />}
+          >
+            {inputs.vipEnabled ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="VIP Offer Price ($)" value={inputs.vipPrice} onChange={(v) => set({ vipPrice: v })} />
+                <Field
+                  label="VIP Take Rate (%)"
+                  value={round(inputs.vipTakeRate * 100, 2)}
+                  onChange={(v) => set({ vipTakeRate: Math.min(v, 100) / 100 })}
+                />
+                <p className="text-xs text-[var(--text-muted)] sm:col-span-2">
+                  Take rate = registrants who buy the VIP package. VIP revenue is added to Expected Revenue and ROAS.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--text-muted)]">Off. Turn on to add a VIP package to the model.</p>
+            )}
+          </Card>
         </div>
 
         {/* Outputs */}
         <div className="flex flex-col gap-5 lg:sticky lg:top-4 lg:self-start">
           <div className="grid grid-cols-2 gap-4">
-            <Stat label="Expected Revenue" value={usd0(r.revenue)} big />
-            <Stat label="Expected Buyers" value={count(r.buyers)} big />
+            <Stat
+              label="Expected Revenue"
+              value={usd0(r.revenue)}
+              sub={inputs.vipEnabled ? `${usd0(r.htRevenue)} high ticket + ${usd0(r.vipRevenue)} VIP` : undefined}
+              big
+            />
+            <Stat
+              label="Expected Buyers"
+              value={count(r.buyers)}
+              sub={inputs.vipEnabled ? `+ ${count(r.vipBuyers)} VIP buyers` : undefined}
+              big
+            />
             <Stat label="Revenue / Attendee" value={usd0(r.revenuePerAttendee)} />
             <Stat label="Revenue / Registrant" value={usd0(r.revenuePerRegistrant)} />
           </div>
@@ -133,11 +179,17 @@ export function WebinarFunnelModel() {
           <Card title="Ad Spend Snapshot">
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               <Mini label="CPL" value={usd2(r.cpl)} />
-              <Mini label="Estimated Ad Spend" value={usd0(r.adSpend)} />
+              <Mini label="Ad Spend" value={usd0(r.adSpend)} />
               <Mini label="CPA" value={usd0(r.cpa)} />
               <Mini label="ROAS" value={`${r.roas.toFixed(2)}x`} accent />
               <Mini label="Cost Per Booked Call" value={usd0(r.costPerCall)} />
               <Mini label="Revenue After Ad Spend" value={usd0(r.profit)} />
+              {inputs.vipEnabled ? (
+                <>
+                  <Mini label="VIP Revenue" value={usd0(r.vipRevenue)} />
+                  <Mini label="VIP Revenue / Ad Spend" value={`${r.vipRevenueToAdSpend.toFixed(2)}x`} />
+                </>
+              ) : null}
             </div>
           </Card>
 
@@ -167,7 +219,7 @@ export function WebinarFunnelModel() {
   );
 }
 
-function Card({ title, tag, children }: { title: string; tag?: string; children: ReactNode }) {
+function Card({ title, tag, action, children }: { title: string; tag?: string; action?: ReactNode; children: ReactNode }) {
   return (
     <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -175,13 +227,14 @@ function Card({ title, tag, children }: { title: string; tag?: string; children:
         {tag ? (
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--wf-accent)]">{tag}</span>
         ) : null}
+        {action}
       </div>
       {children}
     </div>
   );
 }
 
-function Stat({ label, value, big = false }: { label: string; value: string; big?: boolean }) {
+function Stat({ label, value, sub, big = false }: { label: string; value: string; sub?: string; big?: boolean }) {
   return (
     <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5">
       <div className="text-sm text-[var(--text-muted)]">{label}</div>
@@ -191,7 +244,32 @@ function Stat({ label, value, big = false }: { label: string; value: string; big
       >
         {value}
       </div>
+      {sub ? <div className="mt-1.5 text-xs text-[var(--text-muted)]">{sub}</div> : null}
     </div>
+  );
+}
+
+function Toggle({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]"
+      style={{ color: on ? "var(--wf-accent)" : "var(--text-muted)" }}
+    >
+      {on ? "On" : "Off"}
+      <span
+        className="relative inline-block h-6 w-11 rounded-full transition-colors"
+        style={{ background: on ? "var(--wf-accent)" : "var(--panel-border)" }}
+      >
+        <span
+          className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all"
+          style={{ left: on ? "1.375rem" : "0.125rem" }}
+        />
+      </span>
+    </button>
   );
 }
 
