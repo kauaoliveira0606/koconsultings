@@ -1,164 +1,267 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import {
-  applyWebinarDownside,
-  computeWebinarFunnel,
-  type WebinarFunnelInputs,
-} from "@/lib/models/webinar-funnel-model";
+import { computeWebinarFunnel, type WebinarFunnelInputs } from "@/lib/models/webinar-funnel-model";
 import { usePersistedState } from "@/lib/use-persisted-state";
-import { ModelTable, SectionRow, ToggleButtons, useModelRows } from "./model-table";
 
 const DEFAULT_INPUTS: WebinarFunnelInputs = {
-  revenueTarget: 100000,
-  htAov: 5000,
-  closeRate: 0.1,
-  showRate: 0.3,
-  costPerRegistration: 8,
-  vipPrice: 97,
-  vipTakeRate: 0.08,
-  callBased: true,
-  callsPerCloserPerDay: 6,
-  workingDaysPerMonth: 22,
-  webinarCloseRate: 0.25,
-  bookingRate: 0.15,
-  callShowRate: 0.7,
-  salesCommissionRate: 0.1,
-  vipDeliveryCost: 0,
-  closerBaseSalary: 0,
-  htDeliveryCost: 0,
-  platformCosts: 0,
-  fixedMonthlyExpenses: 0,
+  cpm: 70,
+  ctr: 0.02,
+  optInRate: 0.25,
+  cplOverride: null,
+  registrants: 500,
+  showRate: 0.25,
+  retentionRate: 0.8,
+  bookingRate: 0.25,
+  callShowRate: 0.8,
+  closeRate: 0.25,
+  aov: 5000,
 };
 
+/** Same deep gradient the Bronson hero numbers use; readable on any light card. */
+const NUMBER_GRADIENT = "linear-gradient(100deg, #0d9488 0%, #0284c7 45%, #4f46e5 100%)";
+
+const usd0 = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const usd2 = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const count = (n: number) => (Number.isInteger(Math.round(n * 10) / 10) ? Math.round(n) : Math.round(n * 10) / 10).toLocaleString("en-US");
+const pct = (f: number) => `${(f * 100).toFixed(1)}%`;
+const round = (n: number, places = 4) => Math.round(n * 10 ** places) / 10 ** places;
+
 export function WebinarFunnelModel() {
-  const [inputs, setInputs] = usePersistedState<WebinarFunnelInputs>(
-    `webinar-funnel-model-v1:${usePathname()}:inputs`,
+  const [stored, setInputs] = usePersistedState<WebinarFunnelInputs>(
+    `webinar-funnel-model-v2:${usePathname()}:inputs`,
     DEFAULT_INPUTS
   );
+  // Older or partial stored values fall back to the defaults field by field.
+  const inputs = { ...DEFAULT_INPUTS, ...stored };
+  const r = computeWebinarFunnel(inputs);
+  const set = (patch: Partial<WebinarFunnelInputs>) => setInputs((prev) => ({ ...DEFAULT_INPUTS, ...prev, ...patch }));
 
-  const d15 = useMemo(() => applyWebinarDownside(inputs, 0.85), [inputs]);
-  const d30 = useMemo(() => applyWebinarDownside(inputs, 0.7), [inputs]);
-  const results = useMemo(
-    () => ({
-      base: computeWebinarFunnel(inputs),
-      d15: computeWebinarFunnel(d15),
-      d30: computeWebinarFunnel(d30),
-    }),
-    [inputs, d15, d30]
-  );
-
-  const { input, row, check } = useModelRows({
-    inputs,
-    set: (patch) => setInputs((prev) => ({ ...prev, ...patch })),
-    d15,
-    d30,
-    results,
-  });
-  const rate = { percent: true, scenario: true };
+  const funnel: { stage: string; count: number; rate: string }[] = [
+    { stage: "Registrants", count: r.registrants, rate: `${usd2(r.cpl)} CPL` },
+    { stage: "Attendees", count: r.attendees, rate: pct(inputs.showRate) },
+    { stage: "Stayed to Pitch", count: r.stayedToPitch, rate: pct(inputs.retentionRate) },
+    { stage: "Calls Booked", count: r.callsBooked, rate: pct(inputs.bookingRate) },
+    { stage: "Calls Showed", count: r.callsShowed, rate: pct(inputs.callShowRate) },
+    { stage: "Buyers", count: r.buyers, rate: pct(inputs.closeRate) },
+  ];
 
   return (
-    <div>
-      <h2 className="mb-1 text-lg font-bold">Webinar Funnel with VIP Ticket Order Bump</h2>
-      <p className="mb-4 text-sm text-black/60">
-        Ad → Registration Page (with VIP order bump) → Confirmation → Webinar Show Up → Pitch →
-        Close. The VIP ticket is a paid order bump on the registration page that adds immediate
-        revenue and pre-qualifies buyers. All numbers per month. The -15% / -30% columns show what
-        happens if every conversion rate drops that much and Cost Per Registration rises by the
-        same amount.
-      </p>
+    <div className="text-[var(--text)]" style={{ ["--wf-accent" as string]: "#0369a1" }}>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--text-strong)]">Webinar Funnel</h2>
+          <p className="text-sm text-[var(--text-muted)]">
+            Ads → Registration → Live Webinar → Pitch → Booked Call → Close. Change any number and everything on the right updates.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setInputs(DEFAULT_INPUTS)}
+          className="rounded-md border border-[var(--panel-border)] px-3 py-1.5 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-strong)]"
+        >
+          Reset to defaults
+        </button>
+      </div>
 
-      <ToggleButtons
-        value={inputs.callBased ? "calls" : "direct"}
-        options={[
-          { id: "calls", label: "Webinar Books Calls" },
-          { id: "direct", label: "Direct-to-Checkout" },
-        ]}
-        onChange={(id) => setInputs((prev) => ({ ...prev, callBased: id === "calls" }))}
-      />
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* Inputs */}
+        <div className="flex flex-col gap-5">
+          <Card title="Cold Traffic Ads" tag="Paid Acquisition">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="CPM ($)" value={inputs.cpm} onChange={(v) => set({ cpm: v })} />
+              <Field label="CTR (%)" value={round(inputs.ctr * 100, 2)} onChange={(v) => set({ ctr: v / 100 })} />
+              <Field label="Opt-In Rate (%)" value={round(inputs.optInRate * 100, 2)} onChange={(v) => set({ optInRate: v / 100 })} />
+            </div>
+            <div className="mt-4 rounded-xl border border-[var(--wf-accent)]/30 bg-[var(--wf-accent)]/[0.06] p-4">
+              <Field
+                label="Cost Per Lead ($)"
+                value={round(r.cpl, 2)}
+                onChange={(v) => set({ cplOverride: v })}
+              />
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                <span>
+                  {inputs.cplOverride === null
+                    ? "Auto-calculated from CPM, CTR and Opt-In Rate. Edit to override."
+                    : `Manual override. Auto-calculated would be ${usd2(r.calculatedCpl)}.`}
+                </span>
+                {inputs.cplOverride !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => set({ cplOverride: null })}
+                    className="font-semibold text-[var(--wf-accent)] hover:underline"
+                  >
+                    Use auto CPL
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </Card>
 
-      <ModelTable>
-        <SectionRow title="Step 1: Revenue Target → Deals Required" />
-        {input("Revenue Target", "$", "revenueTarget", 0, 1000000, 1000)}
-        {input("High-Ticket AOV", "$", "htAov", 0, 50000, 100)}
-        {row("High-Ticket Deals Required", "#", "htDealsRequired", "number", true)}
+          <Card title="Registrants">
+            <Field label="Estimated Registrants" value={inputs.registrants} onChange={(v) => set({ registrants: v })} />
+          </Card>
 
-        <SectionRow title="Step 2: Deals Required → Attendees Required" />
-        {input("Close Rate (From Attendees)", "%", "closeRate", 0, 100, 1, rate)}
-        {row("Attendees Required", "#", "attendeesRequired", "number", true)}
+          <Card title="Attendance & Engagement">
+            <Slider label="Show Rate %" hint="Registrants who show up to the live webinar." value={inputs.showRate} onChange={(v) => set({ showRate: v })} />
+            <Slider label="Webinar Retention %" hint="Attendees who stay until the pitch." value={inputs.retentionRate} onChange={(v) => set({ retentionRate: v })} />
+          </Card>
 
-        <SectionRow title="Step 3: Attendees → Registrations Required" />
-        {input("Show Rate (Registrants Who Attend Live)", "%", "showRate", 0, 100, 1, rate)}
-        {row("Registrations Required", "#", "registrationsRequired", "number", true)}
+          <Card title="Calls & Close">
+            <Slider label="Booking Rate %" hint="People who stayed to the pitch and booked a call." value={inputs.bookingRate} onChange={(v) => set({ bookingRate: v })} />
+            <Slider label="Call Show Rate %" hint="Booked calls that show up." value={inputs.callShowRate} onChange={(v) => set({ callShowRate: v })} />
+            <Slider label="Call Close Rate %" hint="Showed calls that buy." value={inputs.closeRate} onChange={(v) => set({ closeRate: v })} />
+          </Card>
 
-        <SectionRow title="Step 4: Registrations → Ad Spend Required" />
-        {input("Cost Per Registration (CPR)", "$", "costPerRegistration", 0, 100, 0.5, { scenario: true })}
-        {row("Ad Spend Required", "$", "adSpendRequired", "currency", true)}
+          <Card title="Offer">
+            <Field label="AOV ($)" value={inputs.aov} onChange={(v) => set({ aov: v })} />
+          </Card>
+        </div>
 
-        <SectionRow title="Step 5: VIP Order Bump Revenue" />
-        {input("VIP Ticket Price", "$", "vipPrice", 0, 2000, 1)}
-        {input("VIP Take Rate (Registrants Who Add the VIP Ticket)", "%", "vipTakeRate", 0, 100, 0.5, rate)}
-        {row("VIP Buyers", "#", "vipBuyers", "number")}
-        {row("VIP Revenue", "$", "vipRevenue", "currency", true)}
+        {/* Outputs */}
+        <div className="flex flex-col gap-5 lg:sticky lg:top-4 lg:self-start">
+          <div className="grid grid-cols-2 gap-4">
+            <Stat label="Expected Revenue" value={usd0(r.revenue)} big />
+            <Stat label="Expected Buyers" value={count(r.buyers)} big />
+            <Stat label="Revenue / Attendee" value={usd0(r.revenuePerAttendee)} />
+            <Stat label="Revenue / Registrant" value={usd0(r.revenuePerRegistrant)} />
+          </div>
 
-        <SectionRow title="Step 6: Total Revenue" />
-        {row("High-Ticket Revenue", "$", "htRevenue", "currency")}
-        {row("Total Gross Revenue", "$", "totalGrossRevenue", "currency", true)}
-        {check("Revenue Check", "OK / SHORTFALL", "OK", "revenueCheck")}
+          <Card title="Ad Spend Snapshot">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              <Mini label="CPL" value={usd2(r.cpl)} />
+              <Mini label="Estimated Ad Spend" value={usd0(r.adSpend)} />
+              <Mini label="CPA" value={usd0(r.cpa)} />
+              <Mini label="ROAS" value={`${r.roas.toFixed(2)}x`} accent />
+              <Mini label="Cost Per Booked Call" value={usd0(r.costPerCall)} />
+              <Mini label="Revenue After Ad Spend" value={usd0(r.profit)} />
+            </div>
+          </Card>
 
-        <SectionRow
-          title={
-            inputs.callBased
-              ? "Step 7: Deals Required → Closers Required"
-              : "Step 7: Deals Required → Closers Required (Skipped: Direct-to-Checkout)"
-          }
-        />
-        {inputs.callBased ? (
-          <>
-            {input("Calls Per Closer Per Day", "#", "callsPerCloserPerDay", 0, 30, 1)}
-            {input("Working Days Per Month", "#", "workingDaysPerMonth", 1, 31, 1)}
-            {input("Webinar Close Rate (From Booked Calls)", "%", "webinarCloseRate", 0, 100, 1, rate)}
-            {input("Booking Rate (Attendees Who Book a Call)", "%", "bookingRate", 0, 100, 1, rate)}
-            {input("Call Show Rate", "%", "callShowRate", 0, 100, 1, rate)}
-            {row("Calls Per Webinar (Attendees × Booking Rate)", "#", "callsPerWebinar", "number")}
-            {row("Deals Per Closer Per Month", "#", "dealsPerCloserPerMonth", "number")}
-            {row("Closers Required (Exact)", "#", "closersRequiredExact", "number")}
-          </>
+          <Card title="Funnel Snapshot">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--panel-border)] text-[var(--text-muted)]">
+                  <th className="py-2.5 text-left font-medium">Stage</th>
+                  <th className="py-2.5 text-right font-medium">Count</th>
+                  <th className="py-2.5 text-right font-medium">Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {funnel.map((f) => (
+                  <tr key={f.stage} className="border-b border-[var(--panel-border)] last:border-0">
+                    <td className="py-3 font-medium text-[var(--text-strong)]">{f.stage}</td>
+                    <td className="py-3 text-right tabular-nums">{count(f.count)}</td>
+                    <td className="py-3 text-right tabular-nums">{f.rate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, tag, children }: { title: string; tag?: string; children: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-base font-semibold tracking-tight text-[var(--text-strong)]">{title}</h3>
+        {tag ? (
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--wf-accent)]">{tag}</span>
         ) : null}
-        {row("Closers Required (Rounded Up)", "#", "closersRequired", "number", true)}
+      </div>
+      {children}
+    </div>
+  );
+}
 
-        <SectionRow title="Step 8: Costs" />
-        {row("Ad Spend (from Step 4)", "$", "adSpend", "currency")}
-        {input("Sales Commission", "%", "salesCommissionRate", 0, 100, 0.5, { percent: true })}
-        {row("Sales Commission", "$", "salesCommission", "currency")}
-        {input("VIP Delivery Cost Per VIP Buyer", "$", "vipDeliveryCost", 0, 1000, 1)}
-        {row("Total VIP Delivery Cost", "$", "totalVipDeliveryCost", "currency")}
-        {input("Closer Base Salary (Per Closer Per Month)", "$", "closerBaseSalary", 0, 20000, 100)}
-        {row("Total Closer Base Salary", "$", "totalCloserBaseSalary", "currency")}
-        {input("Delivery Cost Per High-Ticket Sale", "$", "htDeliveryCost", 0, 10000, 25)}
-        {row("Total Delivery Cost", "$", "totalDeliveryCost", "currency")}
-        {input("Webinar Platform / Software Costs", "$", "platformCosts", 0, 20000, 50)}
-        {input("Fixed Monthly Expenses", "$", "fixedMonthlyExpenses", 0, 100000, 100)}
-        {row("Total Costs", "$", "totalCosts", "currency", true)}
+function Stat({ label, value, big = false }: { label: string; value: string; big?: boolean }) {
+  return (
+    <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5">
+      <div className="text-sm text-[var(--text-muted)]">{label}</div>
+      <div
+        className={`mt-2 font-extrabold leading-tight tracking-tight tabular-nums ${big ? "text-3xl sm:text-4xl" : "text-2xl text-[var(--text-strong)]"}`}
+        style={big ? { backgroundImage: NUMBER_GRADIENT, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" } : undefined}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
 
-        <SectionRow title="Step 9: Profit" />
-        {row("Net Profit", "$", "netProfit", "currency", true)}
-        {row("ROAS", "x", "roas", "ratio", true)}
-        {row("Profit Margin", "%", "profitMargin", "percent", true)}
-        {row("Cost Per Attendee", "$", "costPerAttendee", "currency")}
-        {row("Cost Per Registration (from Step 4)", "$", "costPerRegistration", "currency")}
-        {row("CPA (High-Ticket)", "$", "cpa", "currency")}
-        {row("VIP Revenue / Ad Spend Ratio", "x", "vipRevenueToAdSpend", "ratio")}
-        {check("Self-Liquidation Check", "YES / NO", "YES", "selfLiquidationCheck")}
+function Mini({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
+      <div
+        className="mt-1 text-xl font-bold tabular-nums text-[var(--text-strong)]"
+        style={accent ? { backgroundImage: NUMBER_GRADIENT, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" } : undefined}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
 
-        <SectionRow title="Step 10: Break-Even Sensitivity" />
-        {row("Max Tolerable CPR", "$", "maxTolerableCpr", "currency")}
-        {row("Minimum Show Rate", "%", "minimumShowRate", "percent")}
-        {row("Minimum Close Rate", "%", "minimumCloseRate", "percent")}
-        {row("Minimum VIP Take Rate", "%", "minimumVipTakeRate", "percent")}
-        {row("Minimum High-Ticket AOV", "$", "minimumHtAov", "currency")}
-      </ModelTable>
+/** Number box that keeps what's typed (so "0." or an empty box don't snap back) and reports parsed numbers. */
+function NumberBox({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  // Draft text only while the box is being edited; otherwise show the live value.
+  const [draft, setDraft] = useState<string | null>(null);
+  const text = draft ?? String(value);
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      value={text}
+      min={0}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value !== "" && Number.isFinite(n) && n >= 0) onChange(n);
+      }}
+      onBlur={() => setDraft(null)}
+      className="w-full rounded-lg border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-3 py-2.5 tabular-nums text-[var(--text-strong)] outline-none focus:border-[var(--wf-accent)]"
+    />
+  );
+}
+
+function Field({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm text-[var(--text-muted)]">{label}</span>
+      <NumberBox value={value} onChange={onChange} />
+    </label>
+  );
+}
+
+/** Slider + number box for a rate stored as a fraction 0-1, shown as a percent. */
+function Slider({ label, hint, value, onChange }: { label: string; hint: string; value: number; onChange: (v: number) => void }) {
+  const percent = round(value * 100, 2);
+  return (
+    <div className="mb-5 last:mb-0">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-sm font-medium text-[var(--text-strong)]" title={hint}>
+          {label} <span className="cursor-help text-[var(--text-muted)]">ⓘ</span>
+        </span>
+        <span className="text-sm font-semibold tabular-nums text-[var(--wf-accent)]">{percent.toFixed(1)}%</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={0.5}
+        value={Math.min(percent, 100)}
+        onChange={(e) => onChange(Number(e.target.value) / 100)}
+        className="mb-2 w-full"
+        style={{ accentColor: "var(--wf-accent)" }}
+      />
+      <NumberBox value={percent} onChange={(v) => onChange(Math.min(v, 100) / 100)} />
     </div>
   );
 }

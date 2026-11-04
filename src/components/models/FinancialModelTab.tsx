@@ -10,7 +10,7 @@ import { ToggleButtons } from "./model-table";
 const SUB_TABS = [
   { id: "ascension", label: "Affiliate → High-Ticket Ascension" },
   { id: "vsl", label: "High-Ticket VSL Call Funnel" },
-  { id: "webinar", label: "Webinar Funnel + VIP Ticket" },
+  { id: "webinar", label: "Webinar Funnel" },
 ] as const;
 
 type SubTab = (typeof SUB_TABS)[number]["id"];
