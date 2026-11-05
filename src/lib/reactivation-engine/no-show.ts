@@ -16,6 +16,8 @@ import {
   statedSoFar,
   STOP,
   toSession,
+  signupPageDate,
+  NO_DATE_YET,
   type MasterclassOffer,
   type Row,
 } from "./show-rate";
@@ -131,27 +133,24 @@ function sessionStart(r: Row, all: WjSchedule[]): number {
 }
 
 /** The session to save seats in: the next one set up in WebinarJam, at least 30 minutes out. */
-const nextSchedule = (all: WjSchedule[]) => all.find((sc) => sc.startsAt > Date.now() + 30 * 60_000) ?? null;
+const nextSchedule = (all: WjSchedule[], afterDay = "") =>
+  all.find((sc) => sc.startsAt > Date.now() + 30 * 60_000 && easternDay(sc.startsAt) > afterDay) ?? null;
 
 /** What the texts call the next one: the WebinarJam date, else the usual weekday at 7pm ET. */
-function nextLabel(offer: MasterclassOffer, all: WjSchedule[]): string {
+async function nextLabel(offer: MasterclassOffer, all: WjSchedule[]): Promise<string> {
   const sc = nextSchedule(all);
   if (sc) return toSession(sc.startsAt).label;
-  for (let i = 1; i <= 8; i++) {
-    const day = easternDay(Date.now() + i * DAY);
-    if (new Date(`${day}T12:00:00Z`).getUTCDay() === MASTERCLASS[offer].usualWeekday) {
-      const [y, mo, d] = day.split("-").map(Number);
-      return toSession(easternToUtc(y, mo - 1, d, 19, 0)).label;
-    }
-  }
-  return "the next one at 7pm ET";
+  // Never a guessed weekday (2026-11-05: a guess told people Nov 11 when the next one was Nov 18).
+  const fromPage = await signupPageDate(offer);
+  if (fromPage && fromPage > Date.now() + 30 * 60_000) return toSession(fromPage).label;
+  return NO_DATE_YET;
 }
 
 // ---------- Seats ----------
 
 /** Registers them for the next session, or marks the request pending when there isn't one yet. */
-async function saveSeat(offer: MasterclassOffer, c: GhlContact, all: WjSchedule[]): Promise<Record<string, unknown>> {
-  const sc = nextSchedule(all);
+async function saveSeat(offer: MasterclassOffer, c: GhlContact, all: WjSchedule[], afterDay = ""): Promise<Record<string, unknown>> {
+  const sc = nextSchedule(all, afterDay);
   if (!sc || !c.email || !c.phone) return { "No-show Status": "Seat Pending" };
   await register(offer, { firstName: c.firstName?.trim() || c.contactName?.trim() || "Friend", lastName: c.lastName, email: c.email, phone: c.phone }, sc.id);
   return { "No-show Status": "Seat Saved", "Seat Session": easternDay(sc.startsAt) };
@@ -162,11 +161,13 @@ export async function runPendingSeats(offer: MasterclassOffer, report: RunReport
   const rows = await getReactivationRows(offer, "leads", "{No-show Status}='Seat Pending'");
   if (!rows.length) return;
   const all = await schedules(offer);
-  if (!nextSchedule(all)) return;
   for (const r of rows) {
+    // Always a session after their own (a seat asked for before the class goes in the one after it).
+    const afterDay = s(r.fields.Session);
+    if (!nextSchedule(all, afterDay)) continue;
     const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
     try {
-      const fields = await saveSeat(offer, c, all);
+      const fields = await saveSeat(offer, c, all, afterDay);
       if (fields["No-show Status"] === "Seat Saved") {
         await updateReactivationRow(offer, "leads", r.id, fields);
         report.skipped["seats saved from pending"] = (report.skipped["seats saved from pending"] ?? 0) + 1;
@@ -241,7 +242,7 @@ export async function runNoShowTouches(offer: MasterclassOffer, deadline: number
       model: MODELS.firstText,
       system: touchSystem(offer),
       prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-${statedSoFar(r)}Next masterclass: ${nextLabel(offer, all)}
+${statedSoFar(r)}Next masterclass: ${await nextLabel(offer, all)}
 
 Write ${TOUCH_BRIEF[touch]}.`,
       purpose: "no_show",
@@ -324,7 +325,7 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
         model: MODELS.reply,
         system: noShowReplySystem(offer),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-${statedSoFar(lead)}Next masterclass: ${nextLabel(offer, all)}${nextSchedule(all) ? "" : " (not set up yet: if they say yes, their seat is saved and confirmed once it is)"}
+${statedSoFar(lead)}Next masterclass: ${await nextLabel(offer, all)}${nextSchedule(all) ? "" : " (not set up yet: if they say yes, their seat is saved and confirmed once it is)"}
 Now in Eastern time: ${localTime("America/New_York")}
 
 Full text thread, oldest first:

@@ -10,6 +10,7 @@ import {
   GHL_OFFERS,
   replyLine,
   ROEZAN_SMS,
+  SmsLimitError,
   type Line,
   AVAL_MASTERCLASS_NO_SHOW_STAGE,
   AVAL_MASTERCLASS_REGISTRANTS_STAGE,
@@ -176,24 +177,8 @@ export async function nextSession(offer: MasterclassOffer): Promise<Session> {
   } catch (e) {
     console.error("show-rate: couldn't read WebinarJam sessions", e);
   }
-  try {
-    const html = await (await fetch(MASTERCLASS[offer].signupPage, { cache: "no-store" })).text();
-    const text = html.replace(/<[^>]+>/g, " ").replace(/&middot;/g, "·").replace(/\s+/g, " ");
-    const m = text.match(
-      /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+([A-Za-z]+)\s+(\d{1,2})\s*·?\s*(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\s*E[SD]?T/i
-    );
-    const month = m ? MONTHS.indexOf(m[1].toLowerCase()) : -1;
-    if (m && month >= 0) {
-      const hour = (Number(m[3]) % 12) + (m[5].toUpperCase() === "PM" ? 12 : 0);
-      let year = Number(easternDay(Date.now()).slice(0, 4));
-      // A January date read in December is next year.
-      if (easternToUtc(year, month, Number(m[2]), hour, Number(m[4] ?? 0)) < Date.now() - 60 * DAY) year++;
-      const fromPage = easternToUtc(year, month, Number(m[2]), hour, Number(m[4] ?? 0));
-      if (fromPage > live) return toSession(fromPage);
-    }
-  } catch (e) {
-    console.error("show-rate: couldn't read the masterclass date", e);
-  }
+  const fromPage = await signupPageDate(offer);
+  if (fromPage && fromPage > live) return toSession(fromPage);
   // Fallback: the usual weekday at 7pm ET.
   const now = Date.now();
   for (let i = 0; i < 8; i++) {
@@ -203,6 +188,27 @@ export async function nextSession(offer: MasterclassOffer): Promise<Session> {
     if (new Date(`${day}T12:00:00Z`).getUTCDay() === MASTERCLASS[offer].usualWeekday && start > now - 2 * 3_600_000) return toSession(start);
   }
   return toSession(now);
+}
+
+/** The date on the masterclass signup page (user: it shows the current date and time), or null. */
+export async function signupPageDate(offer: MasterclassOffer): Promise<number | null> {
+  try {
+    const html = await (await fetch(MASTERCLASS[offer].signupPage, { cache: "no-store" })).text();
+    const text = html.replace(/<[^>]+>/g, " ").replace(/&middot;/g, "·").replace(/\s+/g, " ");
+    const m = text.match(
+      /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+([A-Za-z]+)\s+(\d{1,2})\s*·?\s*(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\s*E[SD]?T/i
+    );
+    const month = m ? MONTHS.indexOf(m[1].toLowerCase()) : -1;
+    if (!m || month < 0) return null;
+    const hour = (Number(m[3]) % 12) + (m[5].toUpperCase() === "PM" ? 12 : 0);
+    let year = Number(easternDay(Date.now()).slice(0, 4));
+    // A January date read in December is next year.
+    if (easternToUtc(year, month, Number(m[2]), hour, Number(m[4] ?? 0)) < Date.now() - 60 * DAY) year++;
+    return easternToUtc(year, month, Number(m[2]), hour, Number(m[4] ?? 0));
+  } catch (e) {
+    console.error("show-rate: couldn't read the masterclass date", e);
+    return null;
+  }
 }
 
 export function toSession(startsAt: number): Session {
@@ -271,7 +277,11 @@ ${m.sop}
 </${m.sopName}>`;
 }
 
-/** The session after this one, for "can't make it": the next one set up in WebinarJam, else the usual weekly slot. */
+/**
+ * The session after this one, for "can't make it": the next one set up in WebinarJam, else the signup page's date.
+ * Never a guess (2026-11-05: a "+7 days" guess told six people Nov 11 when the next one was Nov 18).
+ */
+export const NO_DATE_YET = "not set yet. Don't name a day or date: say you'll text them the date as soon as it's set, and ask if you can save them a seat";
 async function nextDate(offer: MasterclassOffer, session: Session): Promise<string> {
   try {
     const after = (await schedules(offer)).find((sc) => sc.startsAt > session.startsAt + 3_600_000);
@@ -279,7 +289,9 @@ async function nextDate(offer: MasterclassOffer, session: Session): Promise<stri
   } catch (e) {
     console.error("show-rate: couldn't read WebinarJam sessions", e);
   }
-  return toSession(session.startsAt + MASTERCLASS[offer].cadenceDays * DAY).label;
+  const fromPage = await signupPageDate(offer);
+  if (fromPage && fromPage > session.startsAt + 3_600_000) return toSession(fromPage).label;
+  return NO_DATE_YET;
 }
 
 const PLAYBOOK = `<show-up-playbook>
@@ -559,7 +571,10 @@ Answer their latest text.`,
           fields["Last Message At"] = new Date().toISOString();
           report.replies++;
         }
-        if (parsed.action === "committed") Object.assign(fields, { Status: "Committed", "Committed At": new Date().toISOString() });
+        // Said they can't make this one, then yes to the next date (2026-11-05: Tia, Selina): save that seat and keep
+        // them off the no-show texts, instead of marking them committed to the class they already said they'd miss.
+        if (parsed.action === "committed" && s(lead.fields.Status) === "Can't make it") fields["No-show Status"] = "Seat Pending";
+        else if (parsed.action === "committed") Object.assign(fields, { Status: "Committed", "Committed At": new Date().toISOString() });
         else if (parsed.action === "cant_make_it") fields.Status = "Can't make it";
         const feedback: [string, string][] = [
           ["Preferred Time", parsed.preferred_time],
@@ -619,21 +634,22 @@ export async function logOut(offer: MasterclassOffer, c: GhlContact, name: strin
  */
 export async function runCheckIns(offer: MasterclassOffer, session: Session, deadline: number, report: RunReport): Promise<void> {
   const now = Date.now();
-  if (easternDay(now) !== session.date || easternHour(now) !== CHECK_IN_HOUR || now > session.startsAt) return;
+  // From 4pm ET until an hour before the start (2026-11-04: a 4pm-only window reached 91 of ~300).
+  if (easternDay(now) !== session.date || easternHour(now) < CHECK_IN_HOUR || now > session.startsAt - 3_600_000) return;
   if ((await liveSince(offer)) === null) return;
   const rows = await getReactivationRows(offer, "leads");
   const out = new Set(["Opted out", "Can't make it"]);
   const booked = await bookedCall(offer);
   const due = rows.filter((r) => s(r.fields.Session) === session.date && !out.has(s(r.fields.Status)) && !booked(r) && !r.fields["Check-in Sent At"]);
-  for (const r of due) {
-    if (Date.now() > deadline) return;
+  // Four at a time, so the whole list fits before the class.
+  const one = async (r: Row) => {
     const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
     if (!c.phone || outsideUsCanada(offer, c.phone) || smsBlocked(c)) {
       report.skipped["no textable phone"] = (report.skipped["no textable phone"] ?? 0) + 1;
-      continue;
+      return;
     }
     const msgs = await history(offer, c.id);
-    if (deadNumber(msgs) || msgs.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) continue;
+    if (deadNumber(msgs) || msgs.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) return;
     const body = await generate(offer, {
       model: MODELS.firstText,
       system: checkInSystem(offer),
@@ -648,12 +664,25 @@ Write the check-in.`,
       contactId: c.id,
       touch: 1,
     });
-    if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body, startLine(offer)))) continue;
+    if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body, startLine(offer)))) return;
     const name = s(r.fields.Name);
     await logOut(offer, c, name, body, 1);
     const sentAt = new Date().toISOString();
     await updateReactivationRow(offer, "leads", r.id, { "Check-in Sent At": sentAt, "Last Message At": sentAt });
     report.firstTexts++;
+  };
+  for (let i = 0; i < due.length; i += 4) {
+    if (Date.now() > deadline) return;
+    let limit: unknown = null;
+    await Promise.all(
+      due.slice(i, i + 4).map((r) =>
+        one(r).catch((e) => {
+          if (e instanceof SmsLimitError) limit = e;
+          else console.error("check-in failed", r.id, e);
+        })
+      )
+    );
+    if (limit) throw limit;
   }
 }
 
