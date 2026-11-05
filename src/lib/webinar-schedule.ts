@@ -33,6 +33,8 @@ export const WEBINAR_SCHEDULE: Record<WebinarOffer, WebinarRun[]> = {
     { date: "2026-10-28" },
     // Third session, set in WebinarJam (schedule 4).
     { date: "2026-11-04" },
+    // Fourth session, set in WebinarJam (schedule 5). No Nov 11 session (user, 2026-11-04).
+    { date: "2026-11-18" },
   ]),
   aval: chainPromos([
     { promoStart: "2026-10-14", date: "2026-10-18" },
