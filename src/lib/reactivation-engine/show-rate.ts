@@ -58,6 +58,8 @@ type Masterclass = {
   usualWeekday: number;
   /** Days between sessions, for the next date when WebinarJam doesn't have it yet. */
   cadenceDays: number;
+  /** User, 2026-11-05: the free prep doc, offered with "i can send it here, right?" and sent only on a yes. */
+  prepDoc?: string;
   sopName: string;
   sop: string;
 };
@@ -73,6 +75,7 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
       "https://www.instagram.com/bronnybuilds/",
       // The questionnaire (user, 2026-11-04).
       "https://form.typeform.com/to/h5RJJ0d7",
+      "https://www.ad-ventur.com/masterclass-prep",
     ],
     // User, 2026-11-04: registrants live in per-date pipelines; the main Masterclass pipeline is $27 Purchase onward.
     stages: { kind: "datePipelines" },
@@ -80,6 +83,7 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
     organicTag: "masterclass organic",
     usualWeekday: 3,
     cadenceDays: 7,
+    prepDoc: "https://www.ad-ventur.com/masterclass-prep",
     sopName: "bronson-voice-sop.md",
     sop: BRONSON_VOICE_SOP,
   },
@@ -113,6 +117,23 @@ const DAY = 86_400_000;
 /** User, 2026-10-28: "wrong number" is not an opt-out here, we remind them what they signed up for. */
 export const STOP = /^\s*(stop|unsubscribe|remove me|cancel|quit|end)\b/i;
 const CHECK_IN_HOUR = 16;
+
+/** User, 2026-11-05: how every text is shaped, for the show-up and no-show engines. */
+export const TEXT_SHAPE = `<text-shape>
+- One idea per text. Texts don't have sections. If a reply needs a second idea (e.g. confirm their seat, then ask about the prep doc), put a blank line between them: each part goes out as its own text, in order. Never more than two.
+- Questions end in an easy yes: "right?", "yeah?", "want me to send it?". No open-ended questions early in the flow. The approved open questions stay (the goal follow-up, "what day and time would be perfect for you?").
+- Their name: only in the first text you ever send them and in a recovery ping (texting first after they've gone quiet: the 4pm check-in, a no-show night-of or push #1). Never in replies. A name in every text reads as mail-merge.
+</text-shape>`;
+
+/** User, 2026-11-05: one idea per text. A blank line in a reply means two texts, sent in order. */
+export const splitTexts = (reply: string) => reply.split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean).slice(0, 2);
+
+/** The prep doc rule, for offers that have one. */
+export function prepDocRule(offer: MasterclassOffer, when: string): string {
+  const doc = MASTERCLASS[offer].prepDoc;
+  if (!doc) return "";
+  return `- The free masterclass prep doc (user, 2026-11-05): ${when}, and nobody in the thread has offered it yet, ask if this is a good place to send it, always framed as "i can do this here, right?" (e.g. "i can send you the free masterclass prep doc here, right?"). Only when they say yes (or ask for it), send it: ${doc} (e.g. "here you go ${doc}"). Never send the link before they say yes. A yes to the prep doc is not a yes to showing up.`;
+}
 
 /** Protocol, "www.", trailing slash and trailing punctuation don't matter. */
 const normLink = (l: string) => l.toLowerCase().replace(/[.,!?)]+$/, "").replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
@@ -294,7 +315,7 @@ async function nextDate(offer: MasterclassOffer, session: Session): Promise<stri
   return NO_DATE_YET;
 }
 
-const PLAYBOOK = `<show-up-playbook>
+const playbook = (offer: MasterclassOffer) => `<show-up-playbook>
 Goal: they show up to the live masterclass. A clear "yes, I'll be there" is the win.
 Rulebook, non-negotiable: never pitch, never mention price, never push a call, never send a link outside the approved set in offer.md, every text under two lines (about 160 characters), sounds like a text from a friend.
 Decision tree:
@@ -322,16 +343,19 @@ Decision tree:
 - The thread includes our automated reminder texts. Don't repeat them.
 - Never pitch, never mention the offer, never push a call. Build anticipation and accountability.
 - If they shared a goal, you can tie one short tease from the nugget bank to it. People protect commitments they've stated out loud.
-</show-up-playbook>`;
+${prepDocRule(offer, "Before the masterclass starts, once you've answered their text (most often their first \"yes\" to the seat text)")}
+</show-up-playbook>
+
+${TEXT_SHAPE}`;
 
 export const replySystem = (offer: MasterclassOffer) => `You are ${MASTERCLASS[offer].host}, answering a masterclass registrant's texts. Follow these files exactly.
 
 ${rules(offer)}
 
-${PLAYBOOK}
+${playbook(offer)}
 
 Return JSON:
-- "reply": the one text to send, or "".
+- "reply": the text to send (two texts split by a blank line when there are two ideas), or "".
 - "action": "committed", "cant_make_it", "opt_out", "sales_call" or "none".
 - "call_request": with "sales_call", what they want about the call, short (e.g. "wants to reschedule tomorrow's call earlier"), else "".
 - "preferred_time": the day/time they say would work for them, in their words, or "".
@@ -371,6 +395,8 @@ type Parsed = {
 export const checkInSystem = (offer: MasterclassOffer) => `You are ${MASTERCLASS[offer].host}, texting a masterclass registrant a few hours before it starts. Follow these files exactly.
 
 ${rules(offer)}
+
+${TEXT_SHAPE}
 
 Write the 4pm check-in. It teases exactly ONE nugget from the nugget bank ("Tonight I'm breaking down the exact math on X"), never teaches it, and asks if they're still good for tonight. If they told you their goal or what they want covered, quote it back and pick the nugget that fits it best (commitment stacking). If they already committed, hold them to it. Never pitch, never mention the offer or price. Under two lines (about 160 characters), like a text from a friend. Reply with only the text message. No quotes, no notes.`;
 
@@ -566,10 +592,17 @@ Answer their latest text.`,
           const next = appendTo(lead.fields["Questions To Review"], note);
           if (next) fields["Questions To Review"] = next;
         }
-        if (parsed.reply && !linkBlocked && (await trySend(offer, c.id, parsed.reply, line))) {
-          await logOut(offer, c, name, parsed.reply, null);
-          fields["Last Message At"] = new Date().toISOString();
-          report.replies++;
+        if (parsed.reply && !linkBlocked) {
+          let sent = 0;
+          for (const part of splitTexts(parsed.reply)) {
+            if (!(await trySend(offer, c.id, part, line))) break;
+            await logOut(offer, c, name, part, null);
+            sent++;
+          }
+          if (sent) {
+            fields["Last Message At"] = new Date().toISOString();
+            report.replies++;
+          }
         }
         // Said they can't make this one, then yes to the next date (2026-11-05: Tia, Selina): save that seat and keep
         // them off the no-show texts, instead of marking them committed to the class they already said they'd miss.
