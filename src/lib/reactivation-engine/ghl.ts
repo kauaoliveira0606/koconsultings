@@ -133,8 +133,18 @@ export const GHL_OFFERS: Record<ReactivationOffer, GhlOffer> = {
     failedStage: null,
     bookedWebhookEnv: "",
     bookedContext: null,
+    // User, 2026-11-06: Aval setters' channel; no role to tag yet.
+    setterWebhookEnv: "DISCORD_AVAL_SETTER_WEBHOOK",
+    // Aval's own Roezan account (same GHL app id as Bronson's, separate account per location).
+    roezanProvider: "67b650b3b164ecabc4a8c8bf",
   },
 };
+
+/** The location's GHL team users (role "user": setters and closers, not admins), id -> first name. */
+export async function ghlTeam(offer: ReactivationOffer): Promise<Record<string, string>> {
+  const { users } = await ghl<{ users: { id: string; firstName?: string; roles?: { role?: string } }[] }>(offer, `/users/?locationId=${env(offer).locationId}`);
+  return Object.fromEntries(users.filter((u) => u.roles?.role === "user" && u.firstName).map((u) => [u.id, u.firstName!.trim()]));
+}
 
 function env(offer: ReactivationOffer) {
   const prefix = GHL_OFFERS[offer].envPrefix;
@@ -175,6 +185,8 @@ export type GhlContact = {
   email?: string;
   phone?: string;
   timezone?: string;
+  /** GHL user id of the lead's owner (their setter). */
+  assignedTo?: string;
   dnd?: boolean;
   /** Per-channel DND. GHL turns SMS on by itself after carrier errors (dead number, landline). */
   dndSettings?: { SMS?: { status?: string; message?: string } };

@@ -19,6 +19,7 @@ import {
   signupPageDate,
   NO_DATE_YET,
   prepDocRule,
+  teamLine,
   questionnaireRule,
   setterPhrase,
   splitTexts,
@@ -336,7 +337,7 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
         model: MODELS.reply,
         system: noShowReplySystem(offer),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-${statedSoFar(lead)}Next masterclass: ${await nextLabel(offer, all)}${nextSchedule(all) ? "" : " (not set up yet: if they say yes, their seat is saved and confirmed once it is)"}
+${await teamLine(offer, c)}${statedSoFar(lead)}Next masterclass: ${await nextLabel(offer, all)}${nextSchedule(all) ? "" : " (not set up yet: if they say yes, their seat is saved and confirmed once it is)"}
 Now in Eastern time: ${localTime("America/New_York")}
 
 Full text thread, oldest first:

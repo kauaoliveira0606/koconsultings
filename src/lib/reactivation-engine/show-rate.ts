@@ -6,6 +6,7 @@ import {
 import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
 import {
   flagSalesCall,
+  ghlTeam,
   GHL_OFFERS,
   replyLine,
   ROEZAN_SMS,
@@ -60,6 +61,8 @@ type Masterclass = {
   cadenceDays: number;
   /** Sent when someone asks for the questionnaire or application; must also be in approvedLinks. */
   questionnaire?: string;
+  /** What the team calls it ("questionnaire", "intake form"). */
+  questionnaireName?: string;
   /** Setters who text the same leads, so a reply to them goes to a setter, not the bot. */
   setterNames: string[];
   /** How the host reacts to a stated goal, in their own words (true details only). */
@@ -91,6 +94,7 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
     cadenceDays: 7,
     prepDoc: "https://www.ad-ventur.com/masterclass-prep",
     questionnaire: "https://form.typeform.com/to/h5RJJ0d7",
+    questionnaireName: "questionnaire",
     setterNames: ["Ewan", "Kendyl"],
     goalExamples: `Bronson's own examples:
   "Get rich" -> "So am I haha. Is that the only goal you have, or what are you envisioning for yourself with this?"
@@ -109,6 +113,9 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
       "https://www.mindovermarket.com/masterclass",
       "https://www.youtube.com/@AvalTrading",
       "https://www.instagram.com/avaltrades/",
+      // User, 2026-11-06: the intake form registrants fill out before the masterclass.
+      "https://mind-over-market.typeform.com/to/vDBXuzzK",
+      "https://www.mindovermarket.com/masterclass-prep",
     ],
     // The $27 stage is left out: buyers stay there after the session, so it can't mean "upcoming".
     stages: {
@@ -122,7 +129,11 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
     // Every other Sunday at 7pm ET; WebinarJam has the real dates.
     usualWeekday: 0,
     cadenceDays: 14,
-    // Not set yet (2026-11-06): Aval's application link and setter names.
+    questionnaire: "https://mind-over-market.typeform.com/to/vDBXuzzK",
+    questionnaireName: "intake form",
+    // User, 2026-11-06: the page goes up at this URL; send it either way.
+    prepDoc: "https://www.mindovermarket.com/masterclass-prep",
+    // Read live from GHL instead (teamLine): the location's users and the lead's assigned setter.
     setterNames: [],
     // No examples in Benicio's own words yet: react plainly, no borrowed stories.
     goalExamples: "",
@@ -152,15 +163,31 @@ function goalExamples(offer: MasterclassOffer): string {
 /** Who "my team" is when a lead replies to a setter. */
 export function setterPhrase(offer: MasterclassOffer): string {
   const names = MASTERCLASS[offer].setterNames;
-  return names.length ? `a setter like ${names.join(" or ")}` : "a setter, someone who isn't me";
+  return names.length ? `a setter like ${names.join(" or ")}` : "a setter or anyone else on my team, named in the lead details";
 }
 
 /** Sending the questionnaire, or handing the ask to a setter when there is none. */
 export function questionnaireRule(offer: MasterclassOffer): string {
-  const q = MASTERCLASS[offer].questionnaire;
+  const { questionnaire: q, questionnaireName: n = "questionnaire" } = MASTERCLASS[offer];
   return q
-    ? `- Asking for the questionnaire or application: send it, ${q} (e.g. "Here you go, here is the questionnaire: ${q}"). This link is approved even if offer.md doesn't list it.`
+    ? `- Asking for the ${n} (or a questionnaire, application or form to fill out before the class): send it, ${q} (e.g. "here you go, here's the ${n}: ${q}"). This link is approved even if offer.md doesn't list it.`
     : `- Asking for the questionnaire or application: reply "", action "sales_call", call_request "wants the application". A setter sends it.`;
+}
+
+/**
+ * For offers with no fixed setter list (Aval): the team names from GHL and the lead's assigned setter,
+ * so a reply meant for one of them goes to a setter instead of the bot. Cached for an hour.
+ */
+export async function teamLine(offer: MasterclassOffer, c: GhlContact): Promise<string> {
+  if (MASTERCLASS[offer].setterNames.length) return "";
+  try {
+    const team = await staleWhileRevalidate(`ghl-team:${offer}:v1`, () => ghlTeam(offer), 3600, 7 * 24 * 3600);
+    const assigned = c.assignedTo ? team[c.assignedTo] : undefined;
+    return `My team (setters who may text this lead): ${Object.values(team).join(", ") || "(none listed)"}${assigned ? `. Their assigned setter: ${assigned}` : ""}\n`;
+  } catch (e) {
+    console.error("show-rate: couldn't read the GHL team", e);
+    return "";
+  }
 }
 
 /** The prep doc rule, for offers that have one. */
@@ -603,7 +630,7 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
         model: MODELS.reply,
         system: replySystem(offer),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-${statedSoFar(lead)}Masterclass: ${session.label}${Date.now() > session.startsAt ? " (it has already started)" : ""}
+${statedSoFar(lead)}${await teamLine(offer, c)}Masterclass: ${session.label}${Date.now() > session.startsAt ? " (it has already started)" : ""}
 Next date after that: ${await nextDate(offer, session)}
 Now in Eastern time: ${localTime("America/New_York")}
 Their local time now: ${localTime(timeZone)}
