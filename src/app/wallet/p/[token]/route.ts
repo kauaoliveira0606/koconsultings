@@ -45,6 +45,7 @@ p{margin-top:14px;line-height:1.55}
 .add{display:inline-flex;align-items:center;gap:10px;margin-top:22px;padding:15px 26px;border-radius:999px;background:#000;color:#fff;text-decoration:none;font:700 1.02rem 'Plus Jakarta Sans',sans-serif}
 #qr{display:inline-block;margin-top:20px;padding:12px;border:1px solid #e2e8f0;border-radius:14px;background:#fff}
 .small{font-size:.85rem;color:#475569}
+.url{display:block;margin-top:4px;font-weight:600;color:var(--ink);overflow-wrap:anywhere;word-break:break-all}
 </style></head><body><div class="card">
 <span class="tag">${esc(ev.brand)}</span>
 <h1>Get a reminder on your lock screen before we start</h1>
@@ -55,7 +56,7 @@ ${
 <p class="small">Your pass shows up on your lock screen before the masterclass, with the join link one tap away.</p>`
     : `<p>Apple Wallet passes only add on an iPhone. Scan this with your iPhone camera:</p>
 <div id="qr"></div>
-<p class="small">Or open this page on your iPhone: ${esc(page.origin + page.pathname)}</p>
+<p class="small">Or open this page on your iPhone:<span class="url">${esc(page.origin + page.pathname)}</span></p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>new QRCode(document.getElementById('qr'),{text:${JSON.stringify(page.origin + page.pathname)},width:180,height:180,colorDark:'#0f172a'});</script>`
 }
