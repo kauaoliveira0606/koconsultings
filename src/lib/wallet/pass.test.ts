@@ -36,3 +36,11 @@ describe("pkpass", () => {
     writeFileSync(`${dir}/test.pkpass`, body);
   });
 });
+
+describe("last modified", () => {
+  it("is never in the future, even across a skipped week", async () => {
+    const { previousSessionEnd } = await import("./schedule");
+    const now = new Date("2026-11-05T22:00:00Z");
+    expect(previousSessionEnd(ev, now).getTime()).toBeLessThanOrEqual(now.getTime());
+  });
+});

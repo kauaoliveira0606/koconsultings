@@ -64,9 +64,16 @@ export function currentSession(ev: WalletEvent, now = new Date()): { start: Date
 /** The session before the current one (for knowing when the pass rolled). */
 export function previousSessionEnd(ev: WalletEvent, now = new Date()): Date {
   const { start } = currentSession(ev, now);
-  const prevStart = new Date(start.getTime() - 7 * 864e5);
+  let prevStart = new Date(start.getTime() - 7 * 864e5);
   // Local midnight after the previous session is when this one became current.
-  return dayEnd(prevStart, ev.timeZone);
+  // A pinned date can skip a week, which would put that moment in the future;
+  // step back whole weeks so it is always a stable time in the past.
+  let end = dayEnd(prevStart, ev.timeZone);
+  while (end > now) {
+    prevStart = new Date(prevStart.getTime() - 7 * 864e5);
+    end = dayEnd(prevStart, ev.timeZone);
+  }
+  return end;
 }
 
 /** "3 hours", "90 minutes", "1 hour": from the real lead time, never rounded. */
