@@ -4,7 +4,6 @@ import { runNoShowReplies, runNoShowTouches, runPendingSeats } from "./no-show";
 import {
   nextSession,
   runCallbacks,
-  runCheckIns,
   runShowRateReplies,
   syncRegistrants,
   type MasterclassOffer,
@@ -12,8 +11,8 @@ import {
 
 /**
  * One run of an offer's show-rate cron (every 5 minutes, vercel.json): syncs
- * masterclass registrants from GHL, answers their texts as the host, and on
- * event day at 4pm ET checks in with them. Also runs the no-show engine (texts
+ * masterclass registrants from GHL, answers their texts as the host,. (No 4pm
+ * event-day check-in: removed by the user 2026-11-06.) Also runs the no-show engine (texts
  * after the class, saves seats for the next one). Nothing is sent while each
  * engine's switch is OFF (the offer's Show Rate and No-Shows tabs).
  */
@@ -51,7 +50,6 @@ export async function runShowRateCron(offer: MasterclassOffer, request: Request)
       ? []
       : [
           () => runCallbacks(offer, session, started + 240_000, report),
-          () => runCheckIns(offer, session, started + 240_000, report),
           () => runNoShowTouches(offer, started + 240_000, report),
         ]),
   ];

@@ -3,14 +3,12 @@ import {
   getReactivationRows,
   updateReactivationRow,
 } from "@/lib/airtable/reactivation";
-import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, trySend, type RunReport } from "./engine";
+import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
 import {
-  deadNumber,
   flagSalesCall,
   GHL_OFFERS,
   replyLine,
   ROEZAN_SMS,
-  SmsLimitError,
   type Line,
   AVAL_MASTERCLASS_NO_SHOW_STAGE,
   AVAL_MASTERCLASS_REGISTRANTS_STAGE,
@@ -31,8 +29,7 @@ import { airtableListFresh } from "@/lib/airtable/client";
 /**
  * The show-rate engine, one per offer (kits: ~/Desktop/reactivation-bronson-masterclass,
  * ~/Desktop/reactivation-aval-masterclass). Texts as the host to masterclass registrants: answers every reply to the
- * WebinarJam sequence and sends one check-in at 4pm ET on event day that
- * teases one nugget and quotes their stated goal back (commitment stacking). Saves their feedback (goal, what they want covered,
+ * WebinarJam sequence (the 4pm event-day check-in was removed by the user on 2026-11-06). Saves their feedback (goal, what they want covered,
  * preferred time) for each offer's Show Rate tab. Never touches GHL stages.
  */
 
@@ -116,13 +113,12 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
 const DAY = 86_400_000;
 /** User, 2026-10-28: "wrong number" is not an opt-out here, we remind them what they signed up for. */
 export const STOP = /^\s*(stop|unsubscribe|remove me|cancel|quit|end)\b/i;
-const CHECK_IN_HOUR = 16;
 
 /** User, 2026-11-05: how every text is shaped, for the show-up and no-show engines. */
 export const TEXT_SHAPE = `<text-shape>
 - One idea per text. Texts don't have sections. If a reply needs a second idea (e.g. confirm their seat, then ask about the prep doc), put a blank line between them: each part goes out as its own text, in order. Never more than two.
 - Questions end in an easy yes: "right?", "yeah?", "want me to send it?". No open-ended questions early in the flow. The approved open questions stay (the goal follow-up, "what day and time would be perfect for you?").
-- Their name: only in the first text you ever send them and in a recovery ping (texting first after they've gone quiet: the 4pm check-in, a no-show night-of or push #1). Never in replies. A name in every text reads as mail-merge.
+- Their name: only in the first text you ever send them and in a recovery ping (texting first after they've gone quiet: a no-show night-of or push #1). Never in replies. A name in every text reads as mail-merge.
 </text-shape>`;
 
 /** User, 2026-11-05: one idea per text. A blank line in a reply means two texts, sent in order. */
@@ -392,14 +388,6 @@ type Parsed = {
   question_to_review: string;
 };
 
-export const checkInSystem = (offer: MasterclassOffer) => `You are ${MASTERCLASS[offer].host}, texting a masterclass registrant a few hours before it starts. Follow these files exactly.
-
-${rules(offer)}
-
-${TEXT_SHAPE}
-
-Write the 4pm check-in. It teases exactly ONE nugget from the nugget bank ("Tonight I'm breaking down the exact math on X"), never teaches it, and asks if they're still good for tonight. If they told you their goal or what they want covered, quote it back and pick the nugget that fits it best (commitment stacking). If they already committed, hold them to it. Never pitch, never mention the offer or price. Under two lines (about 160 characters), like a text from a friend. Reply with only the text message. No quotes, no notes.`;
-
 // ---------- Registrants ----------
 
 const registrantName = (o: { contact?: { name?: string } }, fallback: string) => o.contact?.name?.trim() || fallback;
@@ -657,66 +645,6 @@ export async function logOut(offer: MasterclassOffer, c: GhlContact, name: strin
     "Created At": now,
     "Sent At": now,
   });
-}
-
-// ---------- The 4pm check-in ----------
-
-/**
- * Event day, 4pm ET hour: one check-in to every registrant still in (not
- * opted out, not "can't make it"), with a nugget and their goal quoted back.
- */
-export async function runCheckIns(offer: MasterclassOffer, session: Session, deadline: number, report: RunReport): Promise<void> {
-  const now = Date.now();
-  // From 4pm ET until an hour before the start (2026-11-04: a 4pm-only window reached 91 of ~300).
-  if (easternDay(now) !== session.date || easternHour(now) < CHECK_IN_HOUR || now > session.startsAt - 3_600_000) return;
-  if ((await liveSince(offer)) === null) return;
-  const rows = await getReactivationRows(offer, "leads");
-  const out = new Set(["Opted out", "Can't make it"]);
-  const booked = await bookedCall(offer);
-  const due = rows.filter((r) => s(r.fields.Session) === session.date && !out.has(s(r.fields.Status)) && !booked(r) && !r.fields["Check-in Sent At"]);
-  // Four at a time, so the whole list fits before the class.
-  const one = async (r: Row) => {
-    const c = await getContact(offer, s(r.fields["GHL Contact ID"]));
-    if (!c.phone || outsideUsCanada(offer, c.phone) || smsBlocked(c)) {
-      report.skipped["no textable phone"] = (report.skipped["no textable phone"] ?? 0) + 1;
-      return;
-    }
-    const msgs = await history(offer, c.id);
-    if (deadNumber(msgs) || msgs.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) return;
-    const body = await generate(offer, {
-      model: MODELS.firstText,
-      system: checkInSystem(offer),
-      prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-${statedSoFar(r)}Masterclass: tonight, ${session.label}
-
-Text thread so far, oldest first:
-${thread(msgs) || "(none)"}
-
-Write the check-in.`,
-      purpose: "check_in",
-      contactId: c.id,
-      touch: 1,
-    });
-    if (!body || !linksOk(offer, body) || !(await trySend(offer, c.id, body, startLine(offer)))) return;
-    const name = s(r.fields.Name);
-    await logOut(offer, c, name, body, 1);
-    const sentAt = new Date().toISOString();
-    await updateReactivationRow(offer, "leads", r.id, { "Check-in Sent At": sentAt, "Last Message At": sentAt });
-    report.firstTexts++;
-  };
-  for (let i = 0; i < due.length; i += 4) {
-    if (Date.now() > deadline) return;
-    let limit: unknown = null;
-    await Promise.all(
-      due.slice(i, i + 4).map((r) =>
-        one(r).catch((e) => {
-          if (e instanceof SmsLimitError) limit = e;
-          else console.error("check-in failed", r.id, e);
-        })
-      )
-    );
-    if (limit) throw limit;
-  }
 }
 
 // ---------- The 24-hour callback ----------

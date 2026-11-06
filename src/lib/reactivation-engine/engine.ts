@@ -203,7 +203,7 @@ const SEND_RULES: Record<
     // User, 2026-10-28: never shut Bronson off by itself.
     autoOff: false,
   },
-  // Show-rate engine: only replies to registrants and sends the 4pm check-in (show-rate.ts).
+  // Show-rate engine: only replies to registrants (show-rate.ts); the 4pm check-in was removed 2026-11-06.
   bronsonMasterclass: {
     blockedCountries: OUTSIDE_US_CANADA,
     usEastern: false,

@@ -119,7 +119,7 @@ function EngineSwitch({ offer }: { offer: MasterclassDashboard }) {
         {data.engineOn ? "ON" : "OFF"}
       </button>
       <span className="text-xs text-[var(--text-muted)]">
-        ON: answers every registrant&apos;s text as {HOST[offer]} and sends the 4pm check-in on event day.
+        ON: answers every registrant&apos;s text as {HOST[offer]}.
       </span>
     </div>
   );
@@ -147,10 +147,10 @@ export function ShowRateSection({ offer, range }: { offer: MasterclassDashboard;
                 subtext: data ? `${data.replied} texted back ÷ registered.` : undefined,
               },
               {
-                label: "4pm Check-ins Sent",
-                value: v(data?.checkIns),
+                label: "Opted Out",
+                value: v(data?.optOuts),
                 format: "number",
-                subtext: data ? `To people who never replied · ${data.optOuts} opted out.` : undefined,
+                subtext: "Texted STOP. Never texted again.",
               },
             ],
           },
