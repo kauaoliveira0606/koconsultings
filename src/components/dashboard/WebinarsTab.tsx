@@ -55,7 +55,7 @@ const split = (label: string, format: StatFormat, pick: (f: SourceFunnel) => num
   ...extra,
 });
 
-function frontEnd(offer: "bronson" | "aval", goals?: GoalsConfig): Group[] {
+function frontEnd(offer: "bronson" | "aval", goals: GoalsConfig | undefined, concurrent: boolean): Group[] {
   const pitchMin = Math.round(PITCH_AT_SECONDS[offer] / 60);
   const pitchReminder = PITCH_TIME_CONFIRMED[offer] ? "" : " Pitch time not confirmed yet.";
   return [
@@ -90,10 +90,31 @@ function frontEnd(offer: "bronson" | "aval", goals?: GoalsConfig): Group[] {
       title: "Webinar",
       rows: [
         split("Registered", "number", (f) => f.registered),
-        split("Attended Live", "number", (f) => f.attended),
-        split("Webinar Show Rate", "percent", (f) => f.showRate),
-        { label: "Cost Per Attendee", format: "currency", paid: (w) => w.paid.costPerAttendee, note: "Ad spend ÷ paid live attendees." },
-        split("Peak Live Room", "number", (f) => f.peakRoom, { note: "Most people in the live room at the same moment." }),
+        ...(concurrent
+          ? [
+              split("Concurrent Attendees (Peak)", "number", (f) => f.peakRoom, {
+                note: "Most people in the live room at the same moment. Estimate: built from each person's first join time + total time watched.",
+              }),
+              split("Concurrent Show Rate", "percent", (f) => f.concurrentShowRate, { note: "Peak live room ÷ registered." }),
+              {
+                label: "Cost Per Concurrent Attendee",
+                format: "currency" as const,
+                paid: (w: WebinarReport) => w.paid.costPerConcurrentAttendee,
+                note: "Ad spend ÷ paid peak live room.",
+              },
+              {
+                label: "Live Attendees (Card)",
+                format: "number" as const,
+                total: (w: WebinarReport) => w.form.liveAttendees,
+                note: "Manual peak from the post-webinar card. Check it against the estimate above.",
+              },
+            ]
+          : [
+              split("Attended Live", "number", (f) => f.attended),
+              split("Webinar Show Rate", "percent", (f) => f.showRate),
+              { label: "Cost Per Attendee", format: "currency" as const, paid: (w: WebinarReport) => w.paid.costPerAttendee, note: "Ad spend ÷ paid live attendees." },
+              split("Peak Live Room", "number", (f) => f.peakRoom, { note: "Most people in the live room at the same moment." }),
+            ]),
         split("Stayed Until Pitch", "number", (f) => f.stayed, { note: `In the live room at the ${pitchMin} minute mark (the pitch).${pitchReminder}` }),
         split("Retention Until Pitch", "percent", (f) => f.retentionUntilPitch, { note: `In the room at the pitch ÷ peak live room.${pitchReminder}` }),
         { label: "Live Attendees at Pitch (Card)", format: "number", total: (w) => w.form.liveAttendeesAtPitch, note: "Manual, post-webinar card, for comparison." },
@@ -338,6 +359,8 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
   const { data: goals } = useSWR<GoalsConfig>(`/api/${offer}/goals`, fetcher);
   const webinars = data?.webinars ?? [];
   const [picked, setPicked] = useState<string | null>(null);
+  // Concurrent (peak) attendees instead of total attendees (user, 2026-11-06).
+  const [concurrent, setConcurrent] = useState(false);
   const w = webinars.find((x) => x.date === picked) ?? webinars.find((x) => x.status === "done") ?? webinars[0];
   const pill = w ? `Webinar #${w.number} · ${shortDate(w.date)}` : null;
   const hero = (label: string, value: number | null | undefined, format: StatFormat, sub: string, goal?: Goal) => (
@@ -347,7 +370,18 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-[var(--text-strong)]">Webinars</h1>
+        <div className="flex flex-wrap items-center gap-4">
+          <h1 className="text-2xl font-bold text-[var(--text-strong)]">Webinars</h1>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--panel-border)] px-3 py-1.5 text-sm font-semibold text-[var(--text-strong)]">
+            <input
+              type="checkbox"
+              checked={concurrent}
+              onChange={(e) => setConcurrent(e.target.checked)}
+              className="h-4 w-4 accent-sky-400"
+            />
+            Concurrent attendees
+          </label>
+        </div>
         <div className="flex flex-wrap gap-2">
           {webinars.map((x) => (
             <button
@@ -383,11 +417,22 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
           <DashboardSection title="Front End">
             <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
               {hero("Cost Per Lead (Paid)", w.form.costPerLeadPaid, "currency", "Ad spend ÷ paid opt-ins", goals?.costPerLeadMeta)}
-              {hero("Cost Per Attendee (Paid)", w.paid.costPerAttendee, "currency", `Ad spend ÷ ${w.paid.attended} paid live attendees`)}
+              {concurrent
+                ? hero("Cost Per Concurrent Attendee (Paid)", w.paid.costPerConcurrentAttendee, "currency", `Ad spend ÷ ${w.paid.peakRoom ?? "–"} paid peak live room`)
+                : hero("Cost Per Attendee (Paid)", w.paid.costPerAttendee, "currency", `Ad spend ÷ ${w.paid.attended} paid live attendees`)}
               {hero("Booking Rate (Paid)", w.paid.bookingRate, "percent", `${w.paid.booked} booked of ${w.paid.stayed} at pitch`)}
               {hero("Booking Rate (Organic)", w.organic.bookingRate, "percent", `${w.organic.booked} booked of ${w.organic.stayed} at pitch`)}
-              {hero("Webinar Show Rate (Paid)", w.paid.showRate, "percent", `${w.paid.attended} of ${w.paid.registered} registered`)}
-              {hero("Webinar Show Rate (Organic)", w.organic.showRate, "percent", `${w.organic.attended} of ${w.organic.registered} registered`)}
+              {concurrent ? (
+                <>
+                  {hero("Concurrent Show Rate (Paid)", w.paid.concurrentShowRate, "percent", `${w.paid.peakRoom ?? "–"} peak of ${w.paid.registered} registered`)}
+                  {hero("Concurrent Show Rate (Organic)", w.organic.concurrentShowRate, "percent", `${w.organic.peakRoom ?? "–"} peak of ${w.organic.registered} registered`)}
+                </>
+              ) : (
+                <>
+                  {hero("Webinar Show Rate (Paid)", w.paid.showRate, "percent", `${w.paid.attended} of ${w.paid.registered} registered`)}
+                  {hero("Webinar Show Rate (Organic)", w.organic.showRate, "percent", `${w.organic.attended} of ${w.organic.registered} registered`)}
+                </>
+              )}
               {hero("Cost Per Booked Call (Paid)", w.paid.costPerBookedCall, "currency", "Ad spend ÷ paid calls booked")}
               {hero("Retention Until Pitch (Paid)", w.paid.retentionUntilPitch, "percent", `${w.paid.roomAtPitch ?? "–"} at pitch of ${w.paid.peakRoom ?? "–"} peak`)}
               {hero("Retention Until Pitch (Organic)", w.organic.retentionUntilPitch, "percent", `${w.organic.roomAtPitch ?? "–"} at pitch of ${w.organic.peakRoom ?? "–"} peak`)}
@@ -398,7 +443,12 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
                 Reminder: the real pitch time for this webinar isn&apos;t confirmed yet. Stayed until pitch and retention use the {Math.round(PITCH_AT_SECONDS[offer] / 60)} minute mark until it is.
               </p>
             ) : null}
-            <Table groups={frontEnd(offer, goals)} w={w} />
+            {concurrent ? (
+              <p className="mb-4 rounded-lg border border-sky-400/40 bg-sky-400/10 px-4 py-3 text-sm font-semibold">
+                Concurrent numbers are an estimate. WebinarJam only gives each person&apos;s first join time and total time watched, not when they left and rejoined. Write down the live count every 15 minutes during the webinar, put your peak on the post-webinar card (Live Attendees), and compare it to the estimate webinar by webinar.
+              </p>
+            ) : null}
+            <Table groups={frontEnd(offer, goals, concurrent)} w={w} />
           </DashboardSection>
 
           <DashboardSection title="Back End">

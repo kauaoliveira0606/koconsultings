@@ -42,6 +42,12 @@ export type SourceFunnel = {
   /** Room at the pitch ÷ peak room. */
   retentionUntilPitch: number | null;
   showRate: number | null;
+  /**
+   * Concurrent show rate: peak live room ÷ registered (user, 2026-11-06). An
+   * estimate, since WebinarJam only gives the first join time + total time
+   * watched, not every leave and rejoin.
+   */
+  concurrentShowRate: number | null;
   bookingRate: number | null;
   connectionRate: number | null;
   /** Calls that showed ÷ calls due so far. */
@@ -50,6 +56,8 @@ export type SourceFunnel = {
   closeRate: number | null;
   /** Paid only: the webinar's ad spend ÷ paid live attendees. */
   costPerAttendee: number | null;
+  /** Paid only: the webinar's ad spend ÷ paid peak live room. */
+  costPerConcurrentAttendee: number | null;
   /** Paid only: the webinar's ad spend ÷ paid bookings. */
   costPerBookedCall: number | null;
   /** Paid only: the webinar's ad spend ÷ paid calls that showed. */
@@ -156,11 +164,13 @@ function finish(c: Counts, adSpend: number | null, r: Room = noRoom): SourceFunn
     ...r,
     retentionUntilPitch: r.roomAtPitch === null ? null : safeDivide(r.roomAtPitch, r.peakRoom || null),
     showRate: safeDivide(c.attended, c.registered || null),
+    concurrentShowRate: r.peakRoom === null ? null : safeDivide(r.peakRoom, c.registered || null),
     bookingRate: safeDivide(c.booked, c.stayed || null),
     connectionRate: safeDivide(c.connected, c.connectable || null),
     callShowRate: safeDivide(c.showed, c.due || null),
     closeRate: safeDivide(c.closed, c.showed || null),
     costPerAttendee: adSpend ? safeDivide(adSpend, c.attended || null) : null,
+    costPerConcurrentAttendee: adSpend && r.peakRoom ? safeDivide(adSpend, r.peakRoom) : null,
     costPerBookedCall: adSpend ? safeDivide(adSpend, c.booked || null) : null,
     costPerLiveCall: adSpend ? safeDivide(adSpend, c.showed || null) : null,
   };
@@ -277,7 +287,7 @@ export function webinarSourceRows(
       const c = counts.get(run.date) ?? { Paid: zero(), Organic: zero() };
       const status = run.date < today ? ("done" as const) : ("upcoming" as const);
       // Before the webinar runs, nobody could have shown up yet: blank, not 0%.
-      const held = (f: SourceFunnel): SourceFunnel => (status === "upcoming" ? { ...f, showRate: null } : f);
+      const held = (f: SourceFunnel): SourceFunnel => (status === "upcoming" ? { ...f, showRate: null, concurrentShowRate: null } : f);
       const a = attendees.get(run.date) ?? { Paid: [], Organic: [] };
       return {
         number: i + 1,
