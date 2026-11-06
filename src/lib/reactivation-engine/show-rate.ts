@@ -25,6 +25,9 @@ import {
 import { AVAL_VOICE_SOP, BRONSON_VOICE_SOP, VOICES } from "./voice";
 import { schedules } from "./webinarjam";
 import { airtableListFresh } from "@/lib/airtable/client";
+import { getBookingsMade } from "@/lib/calendly";
+import { calendlyFor } from "@/lib/calendly-offers";
+import { staleWhileRevalidate } from "@/lib/swr-cache";
 
 /**
  * The show-rate engine, one per offer (kits: ~/Desktop/reactivation-bronson-masterclass,
@@ -55,6 +58,12 @@ type Masterclass = {
   usualWeekday: number;
   /** Days between sessions, for the next date when WebinarJam doesn't have it yet. */
   cadenceDays: number;
+  /** Sent when someone asks for the questionnaire or application; must also be in approvedLinks. */
+  questionnaire?: string;
+  /** Setters who text the same leads, so a reply to them goes to a setter, not the bot. */
+  setterNames: string[];
+  /** How the host reacts to a stated goal, in their own words (true details only). */
+  goalExamples: string;
   /** User, 2026-11-05: the free prep doc, offered with "i can send it here, right?" and sent only on a yes. */
   prepDoc?: string;
   sopName: string;
@@ -81,6 +90,13 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
     usualWeekday: 3,
     cadenceDays: 7,
     prepDoc: "https://www.ad-ventur.com/masterclass-prep",
+    questionnaire: "https://form.typeform.com/to/h5RJJ0d7",
+    setterNames: ["Ewan", "Kendyl"],
+    goalExamples: `Bronson's own examples:
+  "Get rich" -> "So am I haha. Is that the only goal you have, or what are you envisioning for yourself with this?"
+  "Time and financial freedom leading to generational wealth" -> "I respect that a lot. That was a big thing for me too, since I was working with construction when I first started. For your first goals since they are time and financial freedom, out of curiosity what does that look like for you specifically?"
+  "I'm trying to get out of car sales and be more present with my family" -> "I respect that a lot. Family is one of my personal core values, and I'm very glad I've been able to be more present myself because of e-com. Planning on showing you the same in the masterclass"
+  "My main goal is to be able to gain enough flexibility to attend to my future family and kids" + "Also my goal is to continue to grow as a business women and give back to the community I choose to reside" -> "I respect that a lot. Family is one of my core values too, and e-com is what let me be more present myself. In what way would you want to give back?" (the follow-up asks about the thing they said, in plain words; never a question that twists it)`,
     sopName: "bronson-voice-sop.md",
     sop: BRONSON_VOICE_SOP,
   },
@@ -106,6 +122,10 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
     // Every other Sunday at 7pm ET; WebinarJam has the real dates.
     usualWeekday: 0,
     cadenceDays: 14,
+    // Not set yet (2026-11-06): Aval's application link and setter names.
+    setterNames: [],
+    // No examples in Benicio's own words yet: react plainly, no borrowed stories.
+    goalExamples: "",
     sopName: "benicio-voice-sop.md",
     sop: AVAL_VOICE_SOP,
   },
@@ -123,6 +143,25 @@ export const TEXT_SHAPE = `<text-shape>
 
 /** User, 2026-11-05: one idea per text. A blank line in a reply means two texts, sent in order. */
 export const splitTexts = (reply: string) => reply.split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean).slice(0, 2);
+
+/** The goal-reply examples, or plain guidance when the host has none yet. */
+function goalExamples(offer: MasterclassOffer): string {
+  return MASTERCLASS[offer].goalExamples || "  (No examples in the host's own words yet. React plainly to what they said and ask one plain follow-up about it. Don't add a personal story unless it's in the voice or offer files.)";
+}
+
+/** Who "my team" is when a lead replies to a setter. */
+export function setterPhrase(offer: MasterclassOffer): string {
+  const names = MASTERCLASS[offer].setterNames;
+  return names.length ? `a setter like ${names.join(" or ")}` : "a setter, someone who isn't me";
+}
+
+/** Sending the questionnaire, or handing the ask to a setter when there is none. */
+export function questionnaireRule(offer: MasterclassOffer): string {
+  const q = MASTERCLASS[offer].questionnaire;
+  return q
+    ? `- Asking for the questionnaire or application: send it, ${q} (e.g. "Here you go, here is the questionnaire: ${q}"). This link is approved even if offer.md doesn't list it.`
+    : `- Asking for the questionnaire or application: reply "", action "sales_call", call_request "wants the application". A setter sends it.`;
+}
 
 /** The prep doc rule, for offers that have one. */
 export function prepDocRule(offer: MasterclassOffer, when: string): string {
@@ -258,15 +297,31 @@ const BRONSON_BOOKINGS = "tblLZwboT5tfhq3H5"; // Calendly gameplan bookings (n8n
  * User, 2026-11-03: anyone who booked a sales call in the last 30 days belongs to the
  * setters and closers, so the masterclass engines never text them ("just let them be").
  * Canceled bookings count too: rebooking them is the setters' job. Contact IDs and emails,
- * since a booking can land on a duplicate contact. Aval has no Bookings table yet.
+ * since a booking can land on a duplicate contact. Aval (2026-11-06): its Calendly sales-call bookings, by email.
  */
 export async function bookedCall(offer: MasterclassOffer): Promise<(r: Row) => boolean> {
-  if (offer !== "bronsonMasterclass") return () => false;
+  if (offer === "avalMasterclass") {
+    const emails = new Set(await avalBookedEmails());
+    return (r) => emails.has(s(r.fields.Email).trim().toLowerCase());
+  }
   const since = Date.now() - 30 * DAY;
   const rows = (await airtableListFresh(BRONSON_BASE, BRONSON_BOOKINGS)).filter((b) => Date.parse(s(b.fields["Booked At"])) >= since);
   const ids = new Set(rows.map((b) => s(b.fields["Contact ID"])).filter(Boolean));
   const emails = new Set(rows.map((b) => s(b.fields.Email).trim().toLowerCase()).filter(Boolean));
   return (r) => ids.has(s(r.fields["GHL Contact ID"])) || emails.has(s(r.fields.Email).trim().toLowerCase());
+}
+
+/** Emails with an Aval Calendly sales call booked in the last 30 days (canceled too), re-read every 10 minutes. */
+function avalBookedEmails(): Promise<string[]> {
+  return staleWhileRevalidate(
+    "aval-booked-call-emails:v1",
+    async () => {
+      const made = await getBookingsMade({ ...(await calendlyFor("aval")), from: easternDay(Date.now() - 30 * DAY), to: easternDay(Date.now()) });
+      return [...new Set(made.flatMap((b) => (b.inviteeEmail ? [b.inviteeEmail.trim().toLowerCase()] : [])))];
+    },
+    600,
+    24 * 60 * 60
+  );
 }
 
 // ---------- Prompts ----------
@@ -318,11 +373,8 @@ Decision tree:
 - Can't make it: offer the next date (given below, use it exactly, don't assume it's next week). Only if that doesn't work either, ask what day and time would be perfect for them.
 - "What's this about?": one line of value and the date.
 - Replied yes: confirm and hype.
-- They answered "what's your main goal / what made you sign up": text like a real 20-something, not a copywriter. React to what they actually said, then (above all when it's short or vague) ask one curious follow-up so they open up more. Never a tagline or a polished line: no "Love that, that's exactly who this is built for", nothing like "monthly income that stacks is what changed it for me". Bronson's own examples:
-  "Get rich" -> "So am I haha. Is that the only goal you have, or what are you envisioning for yourself with this?"
-  "Time and financial freedom leading to generational wealth" -> "I respect that a lot. That was a big thing for me too, since I was working with construction when I first started. For your first goals since they are time and financial freedom, out of curiosity what does that look like for you specifically?"
-  "I'm trying to get out of car sales and be more present with my family" -> "I respect that a lot. Family is one of my personal core values, and I'm very glad I've been able to be more present myself because of e-com. Planning on showing you the same in the masterclass"
-  "My main goal is to be able to gain enough flexibility to attend to my future family and kids" + "Also my goal is to continue to grow as a business women and give back to the community I choose to reside" -> "I respect that a lot. Family is one of my core values too, and e-com is what let me be more present myself. In what way would you want to give back?" (the follow-up asks about the thing they said, in plain words; never a question that twists it)
+- They answered "what's your main goal / what made you sign up": text like a real 20-something, not a copywriter. React to what they actually said, then (above all when it's short or vague) ask one curious follow-up so they open up more. Never a tagline or a polished line: no "Love that, that's exactly who this is built for", nothing like "monthly income that stacks is what changed it for me".
+${goalExamples(offer)}
   Only use personal details that are true for you (these examples, or the voice and offer files); if nothing true connects, skip the personal part. These may run to three lines.
 - Their goal is confusing or doesn't fit what we teach (e.g. "Selling the products I already use and encourage clients to purchase for better health"): don't continue it. Reply "" and put their text in "question_to_review".
 - They answered your follow-up about their goal: short, real reaction, and tie it to the masterclass. No new question.
@@ -333,8 +385,8 @@ Decision tree:
 - Plain "ok", "thanks", a thumbs up: reply "".
 - STOP / remove me / unsubscribe: reply "", action "opt_out". "Wrong number" is NOT an opt-out.
 - Never promise to check on something or get back to them ("let me check", "I'll get back to you"): nobody follows up on those. If you can't answer it yourself, reply "" and put their question in "question_to_review".
-- Asking for the questionnaire or application: send it, https://form.typeform.com/to/h5RJJ0d7 (e.g. "Here you go, here is the questionnaire: https://form.typeform.com/to/h5RJJ0d7"). This link is approved even if offer.md doesn't list it.
-- Anything about a 1-on-1 or sales call (booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, "call me"), or a reply to someone from my team (a setter like Ewan or Kendyl) about a call: reply "", action "sales_call", and say what they want in "call_request". A setter picks it up.
+${questionnaireRule(offer)}
+- Anything about a 1-on-1 or sales call (booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, "call me"), or a reply to someone from my team (${setterPhrase(offer)}) about a call: reply "", action "sales_call", and say what they want in "call_request". A setter picks it up.
 - Time words must match the session: say "tonight" only on the event day before it starts.
 - The thread includes our automated reminder texts. Don't repeat them.
 - Never pitch, never mention the offer, never push a call. Build anticipation and accountability.

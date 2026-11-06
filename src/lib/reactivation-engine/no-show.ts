@@ -19,6 +19,8 @@ import {
   signupPageDate,
   NO_DATE_YET,
   prepDocRule,
+  questionnaireRule,
+  setterPhrase,
   splitTexts,
   TEXT_SHAPE,
   type MasterclassOffer,
@@ -89,7 +91,8 @@ ${rules(offer)}
 
 Goal: get them back on the next live masterclass. You save their seat for them.
 Rulebook: no guilt, never pitch, never mention price, never push a call, never send a link outside the approved set, under two lines unless it's a personal callback.
-Never promise to check on something or get back to them ("let me check", "I'll get back to you"): nobody follows up. If you can't answer it, reply "" and put their question in "question_to_review". Asking for the questionnaire or application: send it, https://form.typeform.com/to/h5RJJ0d7 (approved even if offer.md doesn't list it).
+Never promise to check on something or get back to them ("let me check", "I'll get back to you"): nobody follows up. If you can't answer it, reply "" and put their question in "question_to_review". 
+${questionnaireRule(offer)}
 ${prepDocRule(offer, "Right after you've saved their seat (same reply, as its own text after a blank line)")}
 ${DATES}
 
@@ -97,7 +100,7 @@ ${TEXT_SHAPE}
 
 Return JSON:
 - "reply": the text to send (two texts split by a blank line when there are two ideas), or "" (plain ok / thanks / 👍, or STOP).
-- "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "not_interested", "wrong_number" (they say this isn't the person who signed up), "opt_out" (STOP / remove me / unsubscribe), "sales_call" (anything about a 1-on-1 or sales call: booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, or a reply to a setter like Ewan or Kendyl about a call; reply "" and a setter picks it up), or "none".
+- "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "not_interested", "wrong_number" (they say this isn't the person who signed up), "opt_out" (STOP / remove me / unsubscribe), "sales_call" (anything about a 1-on-1 or sales call: booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, or a reply to ${setterPhrase(offer)} about a call; reply "" and a setter picks it up), or "none".
 - "call_request": with "sales_call", what they want about the call, short, else "".
 - "preferred_time": the day/time they say would work, in their words, or "".
 - "reason": why they missed it or why they're not interested, in their words, or "".
