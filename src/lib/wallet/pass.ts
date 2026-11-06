@@ -9,7 +9,6 @@ import { zip } from "./zip";
 /** The pass.json for one registrant, as of `now`. */
 export function passJson(ev: WalletEvent, serial: string, authToken: string, now = new Date()) {
   const ph = phase(ev, now);
-  const joinHost = new URL(ev.joinUrl).host;
   return {
     formatVersion: 1,
     passTypeIdentifier: passTypeId(),
@@ -48,7 +47,8 @@ export function passJson(ev: WalletEvent, serial: string, authToken: string, now
         { key: "access", label: "ACCESS", value: ev.access, textAlignment: "PKTextAlignmentRight" },
       ],
       auxiliaryFields: [
-        { key: "joinhost", label: "JOIN LINK", value: joinHost },
+        // Front-of-pass text can't be a link; the tappable link is on the back and in the QR.
+        { key: "join", label: "HOW TO JOIN", value: "Scan the QR code" },
         { key: "status", label: "STATUS", value: statusText(ev, ph.phase), changeMessage: "%@", textAlignment: "PKTextAlignmentRight" },
       ],
       backFields: [
