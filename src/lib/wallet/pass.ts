@@ -48,7 +48,7 @@ export function passJson(ev: WalletEvent, serial: string, authToken: string, now
       ],
       auxiliaryFields: [
         // Front-of-pass text cannot be a link (user wording 2026-11-06).
-        { key: "join", label: "HOW TO JOIN", value: "The link is in your email" },
+        { key: "join", label: "HOW TO JOIN", value: "The Link Is In Your Email!" },
         { key: "status", label: "STATUS", value: statusText(ev, ph.phase), changeMessage: "%@", textAlignment: "PKTextAlignmentRight" },
       ],
       backFields: [
@@ -74,7 +74,7 @@ export function passUpdatedAt(ev: WalletEvent, now = new Date()): Date {
  * Bump this (to the current time) whenever the pass layout or wording changes,
  * so installed passes pick up the new version on their next refresh.
  */
-export const PASS_DESIGN_UPDATED = "2026-11-06T04:30:00Z";
+export const PASS_DESIGN_UPDATED = "2026-11-06T05:00:00Z";
 
 function certMaterial() {
   const cert = process.env.WALLET_CERT_PEM;
