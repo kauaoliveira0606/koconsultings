@@ -27,7 +27,7 @@ describe("pkpass", () => {
   it("builds a signed pass with colon offsets", () => {
     const dir = process.env.WALLET_TEST_DIR;
     if (!dir) return;
-    process.env.WALLET_PASS_TYPE_ID = "pass.com.test.events";
+    process.env.WALLET_PASS_TYPE_ID = process.env.WALLET_REAL ? "pass.com.koconsultings.events" : "pass.com.test.events";
     process.env.WALLET_CERT_PEM = readFileSync(`${dir}/c.pem`, "utf8");
     process.env.WALLET_KEY_PEM = readFileSync(`${dir}/k.pem`, "utf8");
     const json = JSON.stringify(passJson(ev, "abc123abc123", "tok"));
