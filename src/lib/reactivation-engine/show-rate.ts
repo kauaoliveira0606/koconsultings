@@ -30,6 +30,7 @@ import { getBookingsMade } from "@/lib/calendly";
 import { calendlyFor } from "@/lib/calendly-offers";
 import { staleWhileRevalidate } from "@/lib/swr-cache";
 import { AVAL_LESSONS, BRONSON_LESSONS } from "./lessons";
+import { BRONSON_DECK } from "./bronson-deck";
 
 /**
  * The show-rate engine, one per offer (kits: ~/Desktop/reactivation-bronson-masterclass,
@@ -424,10 +425,12 @@ ${prepDocRule(offer, "Before the masterclass starts, once you've answered their 
 
 ${TEXT_SHAPE}`;
 
-/** The simulated-lead test loop's lessons (lessons.ts), for the reply prompts. They win where they conflict. */
+/** Bronson's masterclass deck facts plus the simulated-lead test loop's lessons (lessons.ts), for the reply prompts. */
 export function lessonsBlock(offer: MasterclassOffer): string {
   const l = offer === "avalMasterclass" ? AVAL_LESSONS : BRONSON_LESSONS;
-  return `<lessons-from-testing>\nThese override anything above where they conflict.\n${l}\n</lessons-from-testing>\n\n`;
+  // Bronson's deck facts (bronson-deck.ts) go first, so the lessons still win where they conflict.
+  const deck = offer === "bronsonMasterclass" ? `${BRONSON_DECK}\n\n` : "";
+  return `${deck}<lessons-from-testing>\nThese override anything above where they conflict.\n${l}\n</lessons-from-testing>\n\n`;
 }
 
 export const replySystem = (offer: MasterclassOffer) => `You are ${MASTERCLASS[offer].host}, answering a masterclass registrant's texts. Follow these files exactly.
