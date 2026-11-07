@@ -38,12 +38,16 @@ import { VOICES } from "./voice";
 
 const DAY = 86_400_000;
 const STOP = /^\s*(stop|unsubscribe|remove me|wrong number|cancel|quit|end)\b/i;
-/** BUILD.md: sonnet writes first texts, opus handles replies. */
-export const MODELS = { firstText: "claude-sonnet-5-5", reply: "claude-opus-5-5" } as const;
+/**
+ * User, 2026-11-07 (cost): Haiku writes outbound texts (first texts, follow-ups, no-show touches, 24h callbacks);
+ * Sonnet answers replies. Tested on 100 simulated leads per offer: Sonnet + the lessons block scored about Opus's level.
+ */
+export const MODELS = { firstText: "claude-haiku-5-5", reply: "claude-sonnet-5-5" } as const;
 /** Per million tokens; cache writes cost 1.25x input. */
 const PRICES: Record<string, { in: number; out: number; cacheRead: number }> = {
   "claude-sonnet-5-5": { in: 2, out: 10, cacheRead: 0.2 },
   "claude-opus-5-5": { in: 4, out: 20, cacheRead: 0.2 },
+  "claude-haiku-5-5": { in: 0.1, out: 0.5, cacheRead: 0.01 },
 };
 
 // ---------- Claude, with every call costed ----------
@@ -70,9 +74,8 @@ export async function generate(offer: ReactivationOffer, opts: {
     system: [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: opts.prompt }],
     ...(opts.schema ? { output_config: { format: { type: "json_schema", schema: opts.schema } } } : {}),
-    betas: ["server-side-fallback-2026-07-01"],
-    // On a policy decline the API reruns the request on Anthropic's recommended model.
-    fallbacks: "default",
+    // On a policy decline the API reruns the request on Anthropic's recommended model. Haiku has no server-side fallback.
+    ...(opts.model.includes("haiku") ? {} : { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" }),
   } as Anthropic.Beta.MessageCreateParamsNonStreaming);
 
   const u = res.usage;
@@ -124,7 +127,7 @@ ${v.offer}
 </offer.md>`;
 }
 
-const firstTextSystem = (offer: ReactivationOffer) => `You write texts to leads who signed up a while back and went cold. Follow these files exactly.
+export const firstTextSystem = (offer: ReactivationOffer) => `You write texts to leads who signed up a while back and went cold. Follow these files exactly.
 
 ${rules(offer)}
 

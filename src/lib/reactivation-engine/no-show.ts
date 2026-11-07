@@ -22,6 +22,7 @@ import {
   teamLine,
   questionnaireRule,
   setterPhrase,
+  lessonsBlock,
   splitTexts,
   TEXT_SHAPE,
   type MasterclassOffer,
@@ -71,7 +72,7 @@ ${m.sop}
 const DATES = `Dates: the approved examples name a day ("next Wednesday at 7pm ET", "next Sunday at 7pm ET") only as a placeholder. Always use the exact next date given below. Say "next <day>" only if it really is 7 days away or less; otherwise name it ("Sunday, November 15 at 7pm ET" style).`;
 
 type Touch = "night" | "late" | "push1" | "push2";
-const TOUCH_BRIEF: Record<Touch, string> = {
+export const TOUCH_BRIEF: Record<Touch, string> = {
   night: "the night-of text, about an hour after the class ended: warm and casual, saw you couldn't make it, no worries at all, want me to save you a seat for the next one",
   late: "the night-of text, going out late because it couldn't send last night: warm and casual, saw you couldn't make it, no worries at all, want me to save you a seat for the next one. Don't say tonight or last night",
   push1: "push #1, the next afternoon, they never replied: like the approved push #1 example",
@@ -99,7 +100,7 @@ ${DATES}
 
 ${TEXT_SHAPE}
 
-Return JSON:
+${lessonsBlock(offer)}Return JSON:
 - "reply": the text to send (two texts split by a blank line when there are two ideas), or "" (plain ok / thanks / 👍, or STOP).
 - "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "not_interested", "wrong_number" (they say this isn't the person who signed up), "opt_out" (STOP / remove me / unsubscribe), "sales_call" (anything about a 1-on-1 or sales call: booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, or a reply to ${setterPhrase(offer)} about a call; reply "" and a setter picks it up), or "none".
 - "call_request": with "sales_call", what they want about the call, short, else "".

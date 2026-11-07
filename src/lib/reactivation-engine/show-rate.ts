@@ -29,6 +29,7 @@ import { airtableListFresh } from "@/lib/airtable/client";
 import { getBookingsMade } from "@/lib/calendly";
 import { calendlyFor } from "@/lib/calendly-offers";
 import { staleWhileRevalidate } from "@/lib/swr-cache";
+import { AVAL_LESSONS, BRONSON_LESSONS } from "./lessons";
 
 /**
  * The show-rate engine, one per offer (kits: ~/Desktop/reactivation-bronson-masterclass,
@@ -423,13 +424,19 @@ ${prepDocRule(offer, "Before the masterclass starts, once you've answered their 
 
 ${TEXT_SHAPE}`;
 
+/** The simulated-lead test loop's lessons (lessons.ts), for the reply prompts. They win where they conflict. */
+export function lessonsBlock(offer: MasterclassOffer): string {
+  const l = offer === "avalMasterclass" ? AVAL_LESSONS : BRONSON_LESSONS;
+  return `<lessons-from-testing>\nThese override anything above where they conflict.\n${l}\n</lessons-from-testing>\n\n`;
+}
+
 export const replySystem = (offer: MasterclassOffer) => `You are ${MASTERCLASS[offer].host}, answering a masterclass registrant's texts. Follow these files exactly.
 
 ${rules(offer)}
 
 ${playbook(offer)}
 
-Return JSON:
+${lessonsBlock(offer)}Return JSON:
 - "reply": the text to send (two texts split by a blank line when there are two ideas), or "".
 - "action": "committed", "cant_make_it", "opt_out", "sales_call" or "none".
 - "call_request": with "sales_call", what they want about the call, short (e.g. "wants to reschedule tomorrow's call earlier"), else "".
