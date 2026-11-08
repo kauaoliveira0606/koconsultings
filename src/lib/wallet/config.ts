@@ -48,12 +48,13 @@ export const WALLET_EVENTS: WalletEvent[] = [
     name: "MRR E-Commerce Masterclass",
     brand: "The Inner Table",
     timeZone: "America/New_York",
-    weekday: 3,
+    weekday: 1,
     hour: 19,
     minute: 0,
     durationMinutes: 90,
     // Keep in step with ~/repos/bronson masterclass-confirmation/done-shared.js (MASTERCLASS_DATE).
-    pinnedDate: "2026-11-18",
+    // Mon Nov 16, 7 PM ET (user, 2026-11-08); weekly on Mondays after that.
+    pinnedDate: "2026-11-16",
     leadMinutes: 180,
     joinUrl: "https://event.webinarjam.com/8wgzn9/go/live/13q192tyipsxs4",
     access: "Live Only",

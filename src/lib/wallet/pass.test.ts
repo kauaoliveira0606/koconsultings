@@ -7,17 +7,17 @@ import { currentSession, leadLabel, phase, w3c } from "./schedule";
 const ev = eventById("bronson-masterclass")!;
 
 describe("wallet schedule", () => {
-  it("pins Nov 18 7pm ET and rolls weekly after that day", () => {
-    expect(w3c(currentSession(ev, new Date("2026-11-05T12:00:00Z")).start)).toBe("2026-11-19T00:00:00+00:00");
-    // still the 18th late that evening ET
-    expect(w3c(currentSession(ev, new Date("2026-11-19T04:30:00Z")).start)).toBe("2026-11-19T00:00:00+00:00");
-    // after midnight ET it rolls to Nov 25
-    expect(w3c(currentSession(ev, new Date("2026-11-19T05:30:00Z")).start)).toBe("2026-11-26T00:00:00+00:00");
+  it("pins Nov 16 7pm ET and rolls weekly after that day", () => {
+    expect(w3c(currentSession(ev, new Date("2026-11-05T12:00:00Z")).start)).toBe("2026-11-17T00:00:00+00:00");
+    // still the 16th late that evening ET
+    expect(w3c(currentSession(ev, new Date("2026-11-17T04:30:00Z")).start)).toBe("2026-11-17T00:00:00+00:00");
+    // after midnight ET it rolls to Nov 23
+    expect(w3c(currentSession(ev, new Date("2026-11-17T05:30:00Z")).start)).toBe("2026-11-24T00:00:00+00:00");
   });
   it("phases and lead wording", () => {
-    expect(phase(ev, new Date("2026-11-18T01:00:00Z")).phase).toBe("tomorrow");
-    expect(phase(ev, new Date("2026-11-18T21:30:00Z")).phase).toBe("lead");
-    expect(phase(ev, new Date("2026-11-18T23:50:00Z")).phase).toBe("now");
+    expect(phase(ev, new Date("2026-11-16T01:00:00Z")).phase).toBe("tomorrow");
+    expect(phase(ev, new Date("2026-11-16T21:30:00Z")).phase).toBe("lead");
+    expect(phase(ev, new Date("2026-11-16T23:50:00Z")).phase).toBe("now");
     expect(leadLabel(180)).toBe("3 hours");
     expect(leadLabel(90)).toBe("90 minutes");
   });

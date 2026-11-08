@@ -92,7 +92,7 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
     stages: { kind: "datePipelines" },
     paidTag: "masterclass paid",
     organicTag: "masterclass organic",
-    usualWeekday: 3,
+    usualWeekday: 1,
     cadenceDays: 7,
     prepDoc: "https://www.ad-ventur.com/masterclass-prep",
     questionnaire: "https://form.typeform.com/to/h5RJJ0d7",
