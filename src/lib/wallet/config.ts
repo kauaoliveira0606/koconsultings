@@ -37,6 +37,8 @@ export type WalletEvent = {
   colors: { background: string; foreground: string; label: string };
   /** Artwork key in WALLET_ASSETS. */
   assets: string;
+  /** Colours for the /wallet/p landing page. Omitted = the original green (Bronson). */
+  page?: { accent: string; glow: string; bgTop: string; bgBottom: string; tagBg: string; tagInk: string };
 };
 
 export const WALLET_EVENTS: WalletEvent[] = [
@@ -57,6 +59,25 @@ export const WALLET_EVENTS: WalletEvent[] = [
     access: "Live Only",
     colors: { background: "rgb(252,253,252)", foreground: "rgb(15,23,42)", label: "rgb(22,163,74)" },
     assets: "bronson-masterclass",
+  },
+  {
+    id: "aval-masterclass",
+    publicKey: "mom-19ureb",
+    name: "Mind Over Market Masterclass",
+    brand: "Mind Over Market",
+    timeZone: "America/New_York",
+    weekday: 0,
+    hour: 19,
+    minute: 0,
+    durationMinutes: 60,
+    // Keep in step with ~/repos/aval masterclass-next-steps/done-shared.js (MASTERCLASS_DATE).
+    pinnedDate: "2026-11-08",
+    leadMinutes: 180,
+    joinUrl: "https://event.webinarjam.com/qwk59l/go/live/k50k29izins2s1",
+    access: "Live Only",
+    colors: { background: "rgb(255,255,255)", foreground: "rgb(23,23,23)", label: "rgb(156,112,12)" },
+    assets: "aval-masterclass",
+    page: { accent: "#9c700c", glow: "rgba(217,169,59,.2)", bgTop: "#fbf6ea", bgBottom: "#ffffff", tagBg: "#f7ecd0", tagInk: "#9c700c" },
   },
 ];
 

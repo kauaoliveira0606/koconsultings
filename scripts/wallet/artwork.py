@@ -22,6 +22,23 @@ THEMES = {
         "green_bottom": (21, 128, 61),
         "ink": (15, 23, 42),
     },
+    # Aval (Mind Over Market): white + gold. Source logo is a transparent PNG, so the
+    # mark is cut out by its own alpha (mark_alpha) and padded to a square.
+    "aval-masterclass": {
+        "label": "LIVE MASTERCLASS",
+        "headline": "Mind Over Market Masterclass",
+        "logo_src": os.path.join(HERE, "sources", "mind-over-market-logo.png"),
+        "mark_box": (8, 16, 118, 176),
+        "mark_alpha": True,
+        # blank out the "M" of MARKET that sits inside the crop (box relative to the crop)
+        "mark_clear": (85, 112, 110, 160),
+        "green_top": (217, 169, 59),
+        "green_bottom": (156, 112, 12),
+        "ink": (23, 23, 23),
+        "preview_brand": "Mind Over Market",
+        "preview_date": "Nov 8, 7:00 PM",
+        "preview_accent": (156, 112, 12),
+    },
 }
 
 
@@ -34,6 +51,15 @@ def font(size, weight):
 def mark(theme, size, color):
     """The round logo mark, recoloured to a single colour on transparent."""
     src = Image.open(theme["logo_src"]).convert("RGBA").crop(theme["mark_box"])
+    if theme.get("mark_alpha"):
+        if theme.get("mark_clear"):
+            ImageDraw.Draw(src).rectangle(theme["mark_clear"], fill=(0, 0, 0, 0))
+        side = max(src.size)
+        sq = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+        sq.alpha_composite(src, ((side - src.width) // 2, (side - src.height) // 2))
+        solid = Image.new("RGBA", (side, side), color + (255,))
+        solid.putalpha(sq.getchannel("A"))
+        return solid.resize((size, size), Image.LANCZOS)
     gray = src.convert("L")
     # dark or green strokes -> opaque; near-white background -> transparent
     alpha = gray.point(lambda v: 0 if v > 235 else min(255, int((235 - v) * 2.4)))
@@ -152,18 +178,18 @@ def preview(theme, files, name):
     d = ImageDraw.Draw(card)
     lg = Image.open(io.BytesIO(files["logo@2x.png"]))
     card.alpha_composite(lg, (14 * S, 12 * S))
-    d.text((14 * S + lg.width + 8 * S, 12 * S + lg.height / 2), "The Inner Table", font=font(15 * S, 700), fill=theme["ink"], anchor="lm")
-    d.text((W - 14 * S, 14 * S), "STARTS", font=font(9 * S, 700), fill=(22, 163, 74), anchor="ra")
-    d.text((W - 14 * S, 27 * S), "Nov 18, 7:00 PM", font=font(14 * S, 600), fill=theme["ink"], anchor="ra")
+    d.text((14 * S + lg.width + 8 * S, 12 * S + lg.height / 2), theme.get("preview_brand", "The Inner Table"), font=font(15 * S, 700), fill=theme["ink"], anchor="lm")
+    d.text((W - 14 * S, 14 * S), "STARTS", font=font(9 * S, 700), fill=theme.get("preview_accent", (22, 163, 74)), anchor="ra")
+    d.text((W - 14 * S, 27 * S), theme.get("preview_date", "Nov 18, 7:00 PM"), font=font(14 * S, 600), fill=theme["ink"], anchor="ra")
     st = Image.open(io.BytesIO(files["strip@2x.png"]))
     card.alpha_composite(st, (0, 62 * S))
     y = 62 * S + st.height + 14 * S
     for (lx, la, va, al) in [(14, "YOUR SEAT", "Reserved", "la"), (361, "ACCESS", "Live Only", "ra")]:
-        d.text((lx * S, y), la, font=font(9 * S, 700), fill=(22, 163, 74), anchor=al)
+        d.text((lx * S, y), la, font=font(9 * S, 700), fill=theme.get("preview_accent", (22, 163, 74)), anchor=al)
         d.text((lx * S, y + 13 * S), va, font=font(15 * S, 600), fill=theme["ink"], anchor=al)
     y += 44 * S
     for (lx, la, va, al) in [(14, "JOIN LINK", "event.webinarjam.com", "la"), (361, "STATUS", "Confirmed", "ra")]:
-        d.text((lx * S, y), la, font=font(9 * S, 700), fill=(22, 163, 74), anchor=al)
+        d.text((lx * S, y), la, font=font(9 * S, 700), fill=theme.get("preview_accent", (22, 163, 74)), anchor=al)
         d.text((lx * S, y + 13 * S), va, font=font(14 * S, 600), fill=theme["ink"], anchor=al)
     qy = y + 48 * S
     q = 120 * S
