@@ -9,6 +9,7 @@ import { zip } from "./zip";
 /** The pass.json for one registrant, as of `now`. */
 export function passJson(ev: WalletEvent, serial: string, authToken: string, now = new Date()) {
   const ph = phase(ev, now);
+  const statusField = { key: "status", label: "STATUS", value: statusText(ev, ph.phase), changeMessage: "%@", textAlignment: "PKTextAlignmentRight" };
   return {
     formatVersion: 1,
     passTypeIdentifier: passTypeId(),
@@ -49,7 +50,9 @@ export function passJson(ev: WalletEvent, serial: string, authToken: string, now
       auxiliaryFields: [
         // Front-of-pass text cannot be a link (user wording 2026-11-06).
         { key: "join", label: "HOW TO JOIN", value: "The Link Is In Your Email!" },
-        { key: "status", label: "STATUS", value: statusText(ev, ph.phase), changeMessage: "%@", textAlignment: "PKTextAlignmentRight" },
+        ev.timeOnFront
+          ? { key: "time", label: "TIME", value: timeLabel(ev, ph.start), textAlignment: "PKTextAlignmentRight" }
+          : statusField,
       ],
       backFields: [
         {
@@ -59,9 +62,16 @@ export function passJson(ev: WalletEvent, serial: string, authToken: string, now
           attributedValue: `<a href='${ev.joinUrl}'>Tap to join the masterclass</a>`,
         },
         { key: "live", label: "LIVE ONLY", value: "There is no replay. Show up live to get your questions answered." },
+        // Kept on the back when the front shows the time, so the reminder alerts still come through.
+        ...(ev.timeOnFront ? [{ ...statusField, textAlignment: undefined }] : []),
       ],
     },
   };
+}
+
+/** "7:00 PM EST": start time with the zone abbreviation, in the event's own timezone. */
+export function timeLabel(ev: WalletEvent, start: Date): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone: ev.timeZone, hour: "numeric", minute: "2-digit", hour12: true, timeZoneName: "short" }).format(start);
 }
 
 /** Last-Modified for a pass: when its current content took effect. */
@@ -74,7 +84,7 @@ export function passUpdatedAt(ev: WalletEvent, now = new Date()): Date {
  * Bump this (to the current time) whenever the pass layout or wording changes,
  * so installed passes pick up the new version on their next refresh.
  */
-export const PASS_DESIGN_UPDATED = "2026-11-08T19:11:00Z";
+export const PASS_DESIGN_UPDATED = "2026-11-08T19:16:00Z";
 
 function certMaterial() {
   const cert = process.env.WALLET_CERT_PEM;

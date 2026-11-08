@@ -37,6 +37,11 @@ export type WalletEvent = {
   colors: { background: string; foreground: string; label: string };
   /** Artwork key in WALLET_ASSETS. */
   assets: string;
+  /**
+   * Front shows the start time with time zone ("7:00 PM EST") where STATUS was; the status moves
+   * to the back so its reminder alerts still fire (Bronson, user 2026-11-08: the card showed only the date).
+   */
+  timeOnFront?: boolean;
   /** Colours for the /wallet/p landing page. Omitted = the original green (Bronson). */
   page?: { accent: string; glow: string; bgTop: string; bgBottom: string; tagBg: string; tagInk: string };
 };
@@ -60,6 +65,7 @@ export const WALLET_EVENTS: WalletEvent[] = [
     access: "Live Only",
     colors: { background: "rgb(252,253,252)", foreground: "rgb(15,23,42)", label: "rgb(22,163,74)" },
     assets: "bronson-masterclass",
+    timeOnFront: true,
   },
   {
     id: "aval-masterclass",
