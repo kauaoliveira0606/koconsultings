@@ -49,6 +49,11 @@ export function rowEasternDate(dateField: unknown, createdTime: string): string 
 }
 
 async function sumSourceForDay(source: LiveCashSource, day: string): Promise<LiveCashSourceTotal> {
+  return sumSourceForRange(source, day, day);
+}
+
+/** Same rules as the live card, over Eastern dates from..to inclusive. */
+export async function sumSourceForRange(source: LiveCashSource, from: string, to: string): Promise<LiveCashSourceTotal> {
   const records = await airtableListAll<Record<string, unknown>>(source.baseId, source.tableId);
   const seen = new Set<string>();
   let cash = 0;
@@ -56,7 +61,8 @@ async function sumSourceForDay(source: LiveCashSource, day: string): Promise<Liv
   let lastEntryAt: string | null = null;
 
   for (const r of records) {
-    if (rowEasternDate(r.fields[source.dateField ?? "Date"], r.createdTime) !== day) continue;
+    const day = rowEasternDate(r.fields[source.dateField ?? "Date"], r.createdTime);
+    if (!day || day < from || day > to) continue;
     if (source.dedupeField) {
       const key = r.fields[source.dedupeField];
       if (typeof key === "string" && key) {
