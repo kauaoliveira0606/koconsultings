@@ -9,7 +9,14 @@ import { zip } from "./zip";
 /** The pass.json for one registrant, as of `now`. */
 export function passJson(ev: WalletEvent, serial: string, authToken: string, now = new Date()) {
   const ph = phase(ev, now);
-  const statusField = { key: "status", label: "STATUS", value: statusText(ev, ph.phase), changeMessage: "%@", textAlignment: "PKTextAlignmentRight" };
+  // The midnight "today" switch has no changeMessage, so it updates the pass without a lock-screen alert.
+  const statusField = {
+    key: "status",
+    label: "STATUS",
+    value: statusText(ev, ph.phase),
+    ...(ph.phase === "today" ? {} : { changeMessage: "%@" }),
+    textAlignment: "PKTextAlignmentRight",
+  };
   return {
     formatVersion: 1,
     passTypeIdentifier: passTypeId(),

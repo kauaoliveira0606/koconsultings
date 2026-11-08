@@ -91,7 +91,7 @@ export const WALLET_EVENTS: WalletEvent[] = [
     assets: "aval-masterclass",
     // TIME with zone on the front instead of STATUS, like Bronson (user, 2026-11-08).
     timeOnFront: true,
-    designUpdated: "2026-11-08T19:26:00Z",
+    designUpdated: "2026-11-08T19:30:01Z",
     page: { accent: "#9c700c", glow: "rgba(217,169,59,.2)", bgTop: "#fbf6ea", bgBottom: "#ffffff", tagBg: "#f7ecd0", tagInk: "#9c700c" },
   },
 ];

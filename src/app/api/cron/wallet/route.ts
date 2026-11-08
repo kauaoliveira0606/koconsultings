@@ -7,6 +7,7 @@ import { activeRegistrations, deactivateByToken, nudgeSent, recordNudge } from "
  * Every 5 minutes (vercel.json). Per event and session, pushes each nudge once:
  *  - "roll":     the pass moved to next week's session (header changeMessage "Next session: %@")
  *  - "tomorrow": 24 hours before  -> status "Starts tomorrow"
+ *  - "today":    local midnight of the session day -> status "Starts today" (silent, no alert)
  *  - "lead":     the event's lead time before -> status "Starts in N hours"
  *  - "now":      15 minutes before -> status "Starting now"
  * The push itself is empty; the alert comes from the status field changing.

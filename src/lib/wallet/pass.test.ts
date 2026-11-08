@@ -16,6 +16,9 @@ describe("wallet schedule", () => {
   });
   it("phases and lead wording", () => {
     expect(phase(ev, new Date("2026-11-16T01:00:00Z")).phase).toBe("tomorrow");
+    // after midnight ET on the day itself it is "today", not "tomorrow"
+    expect(phase(ev, new Date("2026-11-16T05:30:00Z")).phase).toBe("today");
+    expect(phase(ev, new Date("2026-11-16T19:00:00Z")).phase).toBe("today");
     expect(phase(ev, new Date("2026-11-16T21:30:00Z")).phase).toBe("lead");
     expect(phase(ev, new Date("2026-11-16T23:50:00Z")).phase).toBe("now");
     expect(leadLabel(180)).toBe("3 hours");

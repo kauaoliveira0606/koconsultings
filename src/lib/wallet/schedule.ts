@@ -85,7 +85,7 @@ export function leadLabel(minutes: number): string {
   return `${minutes} minutes`;
 }
 
-export type Phase = "confirmed" | "tomorrow" | "lead" | "now" | "ended";
+export type Phase = "confirmed" | "tomorrow" | "today" | "lead" | "now" | "ended";
 
 /** Where we are relative to the session, and when that state began. */
 export function phase(ev: WalletEvent, now = new Date()) {
@@ -94,6 +94,8 @@ export function phase(ev: WalletEvent, now = new Date()) {
   const s = start.getTime();
   const marks = {
     tomorrow: s - 24 * 3600e3,
+    // Local midnight starting the session day: "tomorrow" stops being true here (user, 2026-11-08).
+    today: dayEnd(new Date(s - 24 * 3600e3), ev.timeZone).getTime(),
     lead: s - ev.leadMinutes * 60e3,
     now: s - 15 * 60e3,
     ended: end.getTime(),
@@ -103,6 +105,7 @@ export function phase(ev: WalletEvent, now = new Date()) {
   if (t >= marks.ended) [p, since] = ["ended", marks.ended];
   else if (t >= marks.now) [p, since] = ["now", marks.now];
   else if (t >= marks.lead) [p, since] = ["lead", marks.lead];
+  else if (t >= marks.today) [p, since] = ["today", marks.today];
   else if (t >= marks.tomorrow) [p, since] = ["tomorrow", marks.tomorrow];
   return { phase: p, since: new Date(since), start, end, marks };
 }
@@ -111,6 +114,8 @@ export function statusText(ev: WalletEvent, p: Phase): string {
   switch (p) {
     case "tomorrow":
       return "Starts tomorrow";
+    case "today":
+      return "Starts today";
     case "lead":
       return `Starts in ${leadLabel(ev.leadMinutes)}`;
     case "now":
