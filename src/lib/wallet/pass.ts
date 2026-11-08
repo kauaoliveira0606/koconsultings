@@ -76,7 +76,7 @@ export function timeLabel(ev: WalletEvent, start: Date): string {
 
 /** Last-Modified for a pass: when its current content took effect. */
 export function passUpdatedAt(ev: WalletEvent, now = new Date()): Date {
-  const s = Math.max(phase(ev, now).since.getTime(), Date.parse(PASS_DESIGN_UPDATED));
+  const s = Math.max(phase(ev, now).since.getTime(), Date.parse(PASS_DESIGN_UPDATED), ev.designUpdated ? Date.parse(ev.designUpdated) : 0);
   return new Date(Math.floor(s / 1000) * 1000);
 }
 

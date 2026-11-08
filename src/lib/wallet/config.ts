@@ -42,6 +42,11 @@ export type WalletEvent = {
    * to the back so its reminder alerts still fire (Bronson, user 2026-11-08: the card showed only the date).
    */
   timeOnFront?: boolean;
+  /**
+   * Per-event version of PASS_DESIGN_UPDATED: bump it when only this event's pass changes,
+   * so other clients' installed passes are left alone.
+   */
+  designUpdated?: string;
   /** Colours for the /wallet/p landing page. Omitted = the original green (Bronson). */
   page?: { accent: string; glow: string; bgTop: string; bgBottom: string; tagBg: string; tagInk: string };
 };
@@ -84,6 +89,9 @@ export const WALLET_EVENTS: WalletEvent[] = [
     access: "Live Only",
     colors: { background: "rgb(255,255,255)", foreground: "rgb(23,23,23)", label: "rgb(156,112,12)" },
     assets: "aval-masterclass",
+    // TIME with zone on the front instead of STATUS, like Bronson (user, 2026-11-08).
+    timeOnFront: true,
+    designUpdated: "2026-11-08T19:26:00Z",
     page: { accent: "#9c700c", glow: "rgba(217,169,59,.2)", bgTop: "#fbf6ea", bgBottom: "#ffffff", tagBg: "#f7ecd0", tagInk: "#9c700c" },
   },
 ];
