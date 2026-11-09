@@ -14,9 +14,11 @@ import {
   AVAL_MASTERCLASS_NO_SHOW_STAGE,
   AVAL_MASTERCLASS_REGISTRANTS_STAGE,
   AVAL_MASTERCLASS_SHOWED_STAGES,
+  BRONSON_MASTERCLASS_NO_SHOW_STAGE,
+  BRONSON_MASTERCLASS_OPT_IN_STAGE,
+  BRONSON_MASTERCLASS_SHOWED_STAGES,
   getContact,
   history,
-  datePipelines,
   pipelineOpportunities,
   type GhlOpportunity,
   recentConversations,
@@ -47,13 +49,8 @@ type Masterclass = {
   signupPage: string;
   /** User, 2026-10-28: never send a link outside the approved set. */
   approvedLinks: string[];
-  /**
-   * Where registrants sit: one pipeline per session (Bronson's "Masterclass - Nov 4, 2026",
-   * see datePipelines), or named stages of the offer's pipeline (Aval).
-   */
-  stages:
-    | { kind: "datePipelines" }
-    | { kind: "stages"; registered: Set<string>; noShowStage: string; showedStages: Set<string> };
+  /** Where registrants sit: named stages of the offer's pipeline. */
+  stages: { registered: Set<string>; noShowStage: string; showedStages: Set<string> };
   /** GHL tags for the registrant's source. */
   paidTag: string;
   organicTag: string;
@@ -88,8 +85,13 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
       "https://form.typeform.com/to/h5RJJ0d7",
       "https://www.ad-ventur.com/masterclass-prep",
     ],
-    // User, 2026-11-04: registrants live in per-date pipelines; the main Masterclass pipeline is $27 Purchase onward.
-    stages: { kind: "datePipelines" },
+    // User, 2026-11-09: registrants are back in the main Masterclass pipeline (date pipelines removed).
+    // The $27 stage is left out: buyers stay there after the session, so it can't mean "upcoming".
+    stages: {
+      registered: new Set([BRONSON_MASTERCLASS_OPT_IN_STAGE]),
+      noShowStage: BRONSON_MASTERCLASS_NO_SHOW_STAGE,
+      showedStages: new Set(BRONSON_MASTERCLASS_SHOWED_STAGES),
+    },
     paidTag: "masterclass paid",
     organicTag: "masterclass organic",
     usualWeekday: 1,
@@ -121,7 +123,6 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
     ],
     // The $27 stage is left out: buyers stay there after the session, so it can't mean "upcoming".
     stages: {
-      kind: "stages",
       registered: new Set([AVAL_MASTERCLASS_REGISTRANTS_STAGE]),
       noShowStage: AVAL_MASTERCLASS_NO_SHOW_STAGE,
       showedStages: new Set(AVAL_MASTERCLASS_SHOWED_STAGES),
@@ -481,29 +482,17 @@ type Parsed = {
 
 const registrantName = (o: { contact?: { name?: string } }, fallback: string) => o.contact?.name?.trim() || fallback;
 
-type Synced = { o: GhlOpportunity; kind: "registered" | "noShow" | "showed"; /** The session, for date pipelines. */ date?: string };
+type Synced = { o: GhlOpportunity; kind: "registered" | "noShow" | "showed" };
 
 /**
  * The opportunities the sync needs, stage by stage (Aval's Webinar Pipeline holds
  * thousands of old deals, and reading all of it every 5 minutes hits GHL's rate limit).
- * Date pipelines: only sessions from the last 14 days.
  */
 async function* syncedOpportunities(offer: MasterclassOffer): AsyncGenerator<Synced> {
   const st = MASTERCLASS[offer].stages;
-  if (st.kind === "stages") {
-    for (const stage of st.registered) for await (const o of pipelineOpportunities(offer, stage)) yield { o, kind: "registered" };
-    for await (const o of pipelineOpportunities(offer, st.noShowStage)) yield { o, kind: "noShow" };
-    for (const stage of st.showedStages) for await (const o of pipelineOpportunities(offer, stage)) yield { o, kind: "showed" };
-    return;
-  }
-  const from = easternDay(Date.now() - 14 * DAY);
-  for (const p of (await datePipelines(offer)).filter((p) => p.date >= from)) {
-    const parts: [string | undefined, Synced["kind"]][] = [[p.optIn, "registered"], [p.noShow, "noShow"], [p.attended, "showed"], [p.stayed, "showed"]];
-    for (const [stage, kind] of parts) {
-      if (!stage) continue;
-      for await (const o of pipelineOpportunities(offer, stage, p.id)) yield { o, kind, date: p.date };
-    }
-  }
+  for (const stage of st.registered) for await (const o of pipelineOpportunities(offer, stage)) yield { o, kind: "registered" };
+  for await (const o of pipelineOpportunities(offer, st.noShowStage)) yield { o, kind: "noShow" };
+  for (const stage of st.showedStages) for await (const o of pipelineOpportunities(offer, stage)) yield { o, kind: "showed" };
 }
 
 /**
@@ -521,13 +510,11 @@ export async function syncRegistrants(offer: MasterclassOffer, session: Session)
   let outcomes = 0;
   const cutoff = Date.now() - 14 * DAY;
   const m = MASTERCLASS[offer];
-  for await (const { o, kind, date } of syncedOpportunities(offer)) {
+  for await (const { o, kind } of syncedOpportunities(offer)) {
     const row = latest.get(o.contactId);
     const pending = row?.fields.Outcome === "Pending";
     if (kind === "registered") {
-      // A date pipeline's Opt in for a session that already started is n8n's to move to No Show.
-      if (date && date < session.date) continue;
-      const forSession = date ?? session.date;
+      const forSession = session.date;
       const registeredAt = o.lastStageChangeAt ?? o.createdAt;
       if (row && pending) {
         // Still registered: they roll over to the upcoming session.
@@ -551,8 +538,7 @@ export async function syncRegistrants(offer: MasterclassOffer, session: Session)
         "Last Message At": registeredAt,
       });
       added++;
-    } else if (row && pending && (!date || s(row.fields.Session) === date)) {
-      // Date pipelines: an outcome only counts for the session it happened in.
+    } else if (row && pending) {
       await updateReactivationRow(offer, "leads", row.id, { Outcome: kind === "noShow" ? "No show" : "Showed" });
       outcomes++;
     }
