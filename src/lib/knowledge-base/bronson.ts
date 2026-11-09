@@ -122,6 +122,17 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
       ],
     },
     {
+      title: "Ascension",
+      description: "Our ascension package.",
+      layout: "pricing",
+      items: [
+        {
+          title: "$2.5K",
+          bullets: ["6 1:1 calls with Bronson"],
+        },
+      ],
+    },
+    {
       title: "Also Inside The Program",
       layout: "stack",
       items: [
