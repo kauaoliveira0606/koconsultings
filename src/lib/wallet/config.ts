@@ -83,7 +83,8 @@ export const WALLET_EVENTS: WalletEvent[] = [
     minute: 0,
     durationMinutes: 60,
     // Keep in step with ~/repos/aval masterclass-next-steps/done-shared.js (MASTERCLASS_DATE).
-    pinnedDate: "2026-11-08",
+    // Sun Dec 6, 7 PM ET (user, 2026-11-08; WebinarJam schedule 4).
+    pinnedDate: "2026-12-06",
     leadMinutes: 180,
     joinUrl: "https://event.webinarjam.com/qwk59l/go/live/k50k29izins2s1",
     access: "Live Only",
