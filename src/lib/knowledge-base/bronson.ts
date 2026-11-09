@@ -123,16 +123,38 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
     },
     {
       title: "Ascension",
-      description: "Our ascension package.",
+      description:
+        "Our ascension package. We typically sell it to people who won the 90-day challenge from the offer bonuses (hit $1K a day in revenue). Winning the challenge earns a $1K bonus, so the price is shown $1K higher and the bonus is credited off it. That's framing only: they pay the price below.",
       layout: "pricing",
       items: [
         {
           title: "$4.5K",
+          meta: "Challenge winners: $5.5K, minus their $1K bonus credit",
           bullets: ["6 1:1 calls with Bronson"],
         },
         {
           title: "$2.3K",
+          meta: "Challenge winners: $3.3K, minus their $1K bonus credit",
           bullets: ["3 1:1 calls with Bronson"],
+        },
+      ],
+    },
+    {
+      title: "Ascension: How To Pitch The Price",
+      layout: "stack",
+      items: [
+        {
+          title: "Won the 90-day challenge",
+          bullets: [
+            "Present the price $1K higher: $5.5K for 6 calls, $3.3K for 3 calls.",
+            "Credit their $1K challenge bonus off it, so they pay $4.5K or $2.3K.",
+          ],
+        },
+        {
+          title: "Didn't do the challenge",
+          bullets: [
+            "Sell it at the original price, no $1K bump: $4.5K for 6 calls, $2.3K for 3 calls.",
+          ],
         },
       ],
     },
