@@ -127,8 +127,12 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
       layout: "pricing",
       items: [
         {
-          title: "$4K",
+          title: "$4.5K",
           bullets: ["6 1:1 calls with Bronson"],
+        },
+        {
+          title: "$2K",
+          bullets: ["3 1:1 calls with Bronson"],
         },
       ],
     },
