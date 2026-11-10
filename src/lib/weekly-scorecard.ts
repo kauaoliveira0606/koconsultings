@@ -1570,13 +1570,17 @@ const WEBINAR_CARD_KEYS = [
   "callsOrganicBooked",
   "bookedConnRateOrganic",
 ];
+/** VIP purchases, cash and take rates get their own section right after Webinar (user, 2026-11-10). */
+const VIP_KEYS = ["vipPurchases", "vipCash", "vipTakeRatePaid", "vipTakeRateOrganic"];
 export const BRONSON_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.filter(
   (g) => !BRONSON_DROPPED_SECTIONS.has(g.title),
-).map((g) => {
+).flatMap((g) => {
   const keys = g.keys.filter((k) => !BRONSON_DROPPED.has(k));
-  if (g.title !== "Webinar") return { ...g, keys };
+  if (g.title !== "Webinar") return [{ ...g, keys }];
   const at = keys.indexOf("vipPurchases");
-  return { ...g, keys: [...keys.slice(0, at), ...WEBINAR_CARD_KEYS, ...keys.slice(at)] };
+  const webinar = [...keys.slice(0, at), ...WEBINAR_CARD_KEYS, ...keys.slice(at)].filter((k) => !VIP_KEYS.includes(k));
+  const vip = VIP_KEYS.filter((k) => keys.includes(k));
+  return [{ ...g, keys: webinar }, { emoji: "💎", title: "VIP", keys: vip }];
 });
 
 /** Bronson's pacing rows: no affiliate rows (same reason as above). */
