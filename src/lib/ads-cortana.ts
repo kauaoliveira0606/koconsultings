@@ -13,7 +13,7 @@ const HOURLY_TABLE = "tblDzlpmtwjR3v9kL";
 
 export type AdsDailyRow = {
   date: string;
-  level: "campaign" | "ad";
+  level: "campaign" | "adset" | "ad";
   name: string;
   entityId: string;
   status: string;
@@ -36,6 +36,8 @@ export type AdsDailyRow = {
   thruplays: number;
   frequency: number | null;
   video3s: number;
+  /** Ad set rows: their campaign. Ad rows from Meta: their ad set. */
+  parent?: string | null;
 };
 
 export type AdsHourlyRow = {
@@ -104,6 +106,7 @@ export async function getAdsHourly(): Promise<AdsHourlyRow[]> {
 export type AdsEntity = {
   entityId: string;
   name: string;
+  parent: string | null;
   status: string;
   dailyBudget: number | null;
   spend: number;
@@ -153,6 +156,7 @@ export function aggregateEntities(rows: AdsDailyRow[]): AdsEntity[] {
     out.push({
       entityId,
       name: latest.name,
+      parent: latest.parent ?? null,
       status: latest.status,
       dailyBudget: latest.dailyBudget,
       spend,

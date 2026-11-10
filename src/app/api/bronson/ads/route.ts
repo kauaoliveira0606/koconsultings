@@ -44,6 +44,18 @@ export async function GET(request: NextRequest) {
   const levelRows = adsDaily.filter((r) => isDateInRange(r.date, range));
   const campaigns = aggregateEntities(levelRows.filter((r) => r.level === "campaign"));
   const ads = aggregateEntities(levelRows.filter((r) => r.level === "ad"));
+  // By day: each date's totals and its campaigns / ads, newest first.
+  const dates = [...new Set(levelRows.map((r) => r.date))].sort().reverse();
+  const byDay = dates.map((date) => {
+    const dayCamp = levelRows.filter((r) => r.date === date && r.level === "campaign");
+    const total = aggregateEntities(dayCamp.map((r) => ({ ...r, entityId: "total", name: "Total" })))[0] ?? null;
+    return {
+      date,
+      total,
+      campaigns: aggregateEntities(dayCamp),
+      ads: aggregateEntities(levelRows.filter((r) => r.date === date && r.level === "ad")),
+    };
+  });
   const lastSpendDate = adsDaily.filter((r) => r.spend > 0).reduce((m, r) => (r.date > m ? r.date : m), "");
 
   const inRange = records
@@ -105,6 +117,7 @@ export async function GET(request: NextRequest) {
     daily,
     campaigns,
     ads,
+    byDay,
     cortanaSpend: sum(campaigns.map((c) => c.spend)) ?? 0,
     lastSpendDate: lastSpendDate || null,
     hasData: inRange.length > 0 || adSpend > 0 || levelRows.length > 0,

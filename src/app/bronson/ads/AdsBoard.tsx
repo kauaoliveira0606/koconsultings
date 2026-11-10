@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
@@ -11,13 +13,8 @@ import { KpiValue, toneFor } from "@/components/berlin/kpi";
 import { formatStatValue } from "@/lib/format";
 import type { AdsEntity } from "@/lib/ads-cortana";
 
-type SourceRow = {
-  source: string;
-  class: "Paid" | "Organic";
-  revenue: number;
-  leads: number;
-  purchases: number;
-};
+type SourceRow = { source: string; class: "Paid" | "Organic"; revenue: number; leads: number; purchases: number };
+type DayRow = { date: string; total: AdsEntity | null; campaigns: AdsEntity[]; ads: AdsEntity[] };
 
 type AdsData = {
   totals: {
@@ -31,51 +28,103 @@ type AdsData = {
     paidLeads: number;
   };
   sources: SourceRow[];
-  daily: { date: string; spend: number; revenue: number }[];
   campaigns: AdsEntity[];
   ads: AdsEntity[];
+  byDay: DayRow[];
   cortanaSpend: number;
   lastSpendDate: string | null;
   hasData: boolean;
 };
+type AdsetData = { ok: boolean; error?: string; adsets: AdsEntity[]; byDay: { date: string; adsets: AdsEntity[] }[] };
+
+type Level = "campaigns" | "adsets" | "ads";
+const LEVELS: { id: Level; label: string }[] = [
+  { id: "campaigns", label: "Campaigns" },
+  { id: "adsets", label: "Ad sets" },
+  { id: "ads", label: "Ads" },
+];
 
 function datesOf(rows: AdsEntity[]): string[] {
   return [...new Set(rows.flatMap((r) => r.daily.map((d) => d.date)))].sort();
 }
 
+function Toggle<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { id: T; label: string }[] }) {
+  return (
+    <div className="flex rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-0.5">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${value === o.id ? "bg-black text-white" : "text-[var(--text-muted)] hover:text-[var(--text-strong)]"}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function sumEntities(rows: AdsEntity[]) {
+  const s = (k: keyof AdsEntity) => rows.reduce((a, r) => a + ((r[k] as number) || 0), 0);
+  const spend = s("spend");
+  const impressions = s("impressions");
+  const registrations = s("registrations");
+  const revenue = s("revenue");
+  return {
+    spend,
+    impressions,
+    cpm: impressions ? (spend / impressions) * 1000 : null,
+    linkCtr: impressions ? s("linkClicks") / impressions : null,
+    registrations,
+    costPerOptIn: registrations && spend ? spend / registrations : null,
+    booked: s("booked"),
+    callsHeld: s("callsHeld"),
+    sales: s("sales"),
+    revenue,
+    roas: spend ? revenue / spend : null,
+  };
+}
+
+function weekday(date: string) {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
 export function AdsBoard() {
   const { range, setRange } = useSharedRange();
   const { data, isLoading } = useSectionData<AdsData>("/api/bronson/ads", range, 300_000);
+  const { data: adsetData, isLoading: adsetLoading } = useSectionData<AdsetData>("/api/bronson/ads/adsets", range, 300_000);
+  const [level, setLevel] = useState<Level>("campaigns");
+  const [view, setView] = useState<"totals" | "days">("totals");
+  const [openDay, setOpenDay] = useState<string | null>(null);
 
   const t = data?.totals;
   const top = data?.campaigns.find((c) => c.spend > 0) ?? null;
   const topAd = data?.ads.find((c) => c.spend > 0) ?? null;
   const dates = datesOf([...(data?.campaigns ?? []), ...(data?.ads ?? [])]);
 
+  const levelRows: AdsEntity[] = level === "campaigns" ? data?.campaigns ?? [] : level === "ads" ? data?.ads ?? [] : adsetData?.adsets ?? [];
+  const adsetBlocked = level === "adsets" && adsetData && !adsetData.ok;
+
+  // Day rows for the chosen level.
+  const days: { date: string; rows: AdsEntity[] }[] =
+    level === "adsets"
+      ? (adsetData?.byDay ?? []).map((d) => ({ date: d.date, rows: d.adsets }))
+      : (data?.byDay ?? []).map((d) => ({ date: d.date, rows: level === "campaigns" ? d.campaigns : d.ads }));
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[var(--text-strong)]">Ads</h1>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">Live pace, then every campaign and ad with what it spent and what it brought back.</p>
-      </div>
-
-      <PacePanel />
-
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="text-[15px] font-semibold text-[var(--text-strong)]">Breakdown</div>
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--text-strong)]">Ads</h1>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">Every campaign, ad set and ad with what it spent and what it brought back, in total or day by day.</p>
+        </div>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Ad spend" value={t?.adSpend ?? null} format="currency" subtext="Meta spend, from the daily form." />
         <StatCard label="Revenue (paid)" value={t?.paidRevenue ?? null} format="currency" subtext="Revenue attributed to paid sources (Cortana)." />
-        <StatCard
-          label="Paid ROAS"
-          value={t?.paidRoas ?? null}
-          format="ratio"
-          subtext="Paid revenue ÷ ad spend."
-          status={toneFor("roas", t?.paidRoas)}
-        />
+        <StatCard label="Paid ROAS" value={t?.paidRoas ?? null} format="ratio" subtext="Paid revenue ÷ ad spend." status={toneFor("roas", t?.paidRoas)} />
         <StatCard label="Cost per lead (paid)" value={t?.costPerLeadPaid ?? null} format="currency" subtext="Ad spend ÷ paid leads." />
       </div>
 
@@ -100,59 +149,130 @@ export function AdsBoard() {
         </Panel>
       ) : null}
 
-      {!isLoading && data && !data.hasData ? (
+      {/* Breakdown controls */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="text-[15px] font-semibold text-[var(--text-strong)]">Breakdown</div>
+        <Toggle value={level} onChange={(v) => { setLevel(v); setOpenDay(null); }} options={LEVELS} />
+        <Toggle value={view} onChange={setView} options={[{ id: "totals", label: "Totals" }, { id: "days", label: "By day" }]} />
+      </div>
+
+      {adsetBlocked ? (
         <EmptyState
-          title="No ad numbers in this range"
-          body="No ad spend or attributed revenue for the selected dates. Widen the range, or wait for the next sync."
+          title="Ad sets need a working Meta connection"
+          body="Cortana can't split by ad set, so ad sets come straight from Meta. The Meta token on the Bronson site is being rejected right now, so this view fills in as soon as it's replaced."
+          hint={`Meta says: ${adsetData?.error ?? "unknown error"}`}
+        />
+      ) : level === "adsets" && adsetLoading && !adsetData ? (
+        <Panel className="mb-6"><p className="text-sm text-[var(--text-muted)]">Loading ad sets from Meta…</p></Panel>
+      ) : !isLoading && data && !data.hasData && level !== "adsets" ? (
+        <EmptyState title="No ad numbers in this range" body="No ad spend or attributed revenue for the selected dates. Widen the range, or wait for the next sync." />
+      ) : view === "totals" ? (
+        <AdsEntityTable
+          title={LEVELS.find((l) => l.id === level)!.label}
+          subtitle="Sorted by spend. Click a column to sort. Colors use your KPI lines."
+          rows={levelRows}
+          dates={level === "adsets" ? datesOf(levelRows) : dates}
         />
       ) : (
-        <>
-          <AdsEntityTable
-            title="Campaigns"
-            subtitle="Sorted by spend. Click a column to sort. Colors use your KPI lines."
-            rows={data?.campaigns ?? []}
-            dates={dates}
-          />
-          <AdsEntityTable title="Ads" subtitle="Every ad, same columns." rows={data?.ads ?? []} dates={dates} />
-
-          <Panel className="overflow-hidden p-0">
-            <div className="border-b border-[var(--panel-border)] px-6 py-4 text-[15px] font-semibold text-[var(--text-strong)]">
-              Revenue by source
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[13px]">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
-                    <th className="px-6 py-3 font-medium">Source</th>
-                    <th className="px-6 py-3 font-medium">Class</th>
-                    <th className="px-6 py-3 text-right font-medium">Revenue</th>
-                    <th className="px-6 py-3 text-right font-medium">Leads</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data?.sources ?? []).map((s) => (
-                    <tr key={s.source} className="border-t border-[var(--panel-border)]">
-                      <td className="px-6 py-3.5 font-medium text-[var(--text-strong)]">{s.source}</td>
-                      <td className="px-6 py-3.5 text-[var(--text-muted)]">{s.class}</td>
-                      <td className="px-6 py-3.5 text-right tabular-nums">{formatStatValue(s.revenue, "currency")}</td>
-                      <td className="px-6 py-3.5 text-right tabular-nums">{s.leads}</td>
-                    </tr>
-                  ))}
-                  {!data && isLoading ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-10 text-center text-[var(--text-muted)]">Loading…</td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </>
+        <Panel className="mb-6 overflow-hidden p-0">
+          <div className="border-b border-[var(--panel-border)] px-5 py-4">
+            <div className="text-[15px] font-semibold text-[var(--text-strong)]">By day</div>
+            <div className="text-[12px] text-[var(--text-muted)]">Newest first. Click a day to see its {LEVELS.find((l) => l.id === level)!.label.toLowerCase()}.</div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-[13px]">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
+                  <th className="px-5 py-3 font-medium">Day</th>
+                  <th className="px-3 py-3 text-right font-medium">Spend</th>
+                  <th className="px-3 py-3 text-right font-medium">CPM</th>
+                  <th className="px-3 py-3 text-right font-medium">Link CTR</th>
+                  <th className="px-3 py-3 text-right font-medium">Opt-ins</th>
+                  <th className="px-3 py-3 text-right font-medium">Cost / opt-in</th>
+                  <th className="px-3 py-3 text-right font-medium">Booked</th>
+                  <th className="px-3 py-3 text-right font-medium">Calls held</th>
+                  <th className="px-3 py-3 text-right font-medium">Sales</th>
+                  <th className="px-3 py-3 text-right font-medium">Revenue</th>
+                  <th className="px-5 py-3 text-right font-medium">ROAS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {days.map((d) => {
+                  const s = sumEntities(d.rows);
+                  const open = openDay === d.date;
+                  return (
+                    <Fragment key={d.date}>
+                      <tr onClick={() => setOpenDay(open ? null : d.date)} className="cursor-pointer border-t border-[var(--panel-border)] hover:bg-[var(--panel-subtle)]">
+                        <td className="px-5 py-2.5 font-medium text-[var(--text-strong)]">
+                          <span className="inline-flex items-center gap-1.5">
+                            {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            {weekday(d.date)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.spend} format="currency" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.cpm} format="currency" tone={s.spend ? toneFor("cpm", s.cpm) : null} /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.linkCtr} format="percent" tone={s.spend ? toneFor("linkCtr", s.linkCtr) : null} /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.registrations} format="number" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.costPerOptIn} format="currency" tone={toneFor("costPerOptIn", s.costPerOptIn)} /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.booked} format="number" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.callsHeld} format="number" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.sales} format="number" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.revenue} format="currency" /></td>
+                        <td className="px-5 py-2.5 text-right"><KpiValue value={s.roas} format="ratio" tone={s.spend ? toneFor("roas", s.roas) : null} /></td>
+                      </tr>
+                      {open ? (
+                        <tr>
+                          <td colSpan={11} className="border-t border-[var(--panel-border)] bg-[var(--panel-subtle)] p-0">
+                            <AdsEntityTable flat title={`${weekday(d.date)} · ${LEVELS.find((l) => l.id === level)!.label}`} rows={d.rows} dates={[d.date]} />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+                {days.length === 0 ? (
+                  <tr><td colSpan={11} className="px-5 py-8 text-center text-[var(--text-muted)]">No days in this range.</td></tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       )}
+
+      <Panel className="mb-6 overflow-hidden p-0">
+        <div className="border-b border-[var(--panel-border)] px-6 py-4 text-[15px] font-semibold text-[var(--text-strong)]">Revenue by source</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
+                <th className="px-6 py-3 font-medium">Source</th>
+                <th className="px-6 py-3 font-medium">Class</th>
+                <th className="px-6 py-3 text-right font-medium">Revenue</th>
+                <th className="px-6 py-3 text-right font-medium">Leads</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.sources ?? []).map((s) => (
+                <tr key={s.source} className="border-t border-[var(--panel-border)]">
+                  <td className="px-6 py-3.5 font-medium text-[var(--text-strong)]">{s.source}</td>
+                  <td className="px-6 py-3.5 text-[var(--text-muted)]">{s.class}</td>
+                  <td className="px-6 py-3.5 text-right tabular-nums">{formatStatValue(s.revenue, "currency")}</td>
+                  <td className="px-6 py-3.5 text-right tabular-nums">{s.leads}</td>
+                </tr>
+              ))}
+              {!data && isLoading ? (
+                <tr><td colSpan={4} className="px-6 py-10 text-center text-[var(--text-muted)]">Loading…</td></tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <PacePanel />
 
       <p className="mt-4 text-xs leading-relaxed text-[var(--text-muted)]">
         Top cards: ad spend from the Marketing Daily Metrics form (source of truth for total spend). Campaign and ad rows: Cortana, synced hourly
-        {data?.lastSpendDate ? `; spend posted through ${data.lastSpendDate}` : ""}. Cortana&rsquo;s campaign spend can differ from the form total
+        {data?.lastSpendDate ? `; spend posted through ${data.lastSpendDate}` : ""}. Ad sets: Meta directly (pixel opt-ins only, no calls or cash). Cortana&rsquo;s campaign spend can differ from the form total
         {data ? ` (${formatStatValue(data.cortanaSpend, "currency")} in this range)` : ""}.
       </p>
     </div>

@@ -34,7 +34,7 @@ const COLS: Col[] = [
   { key: "frequency", label: "Freq", format: "number", kpi: "frequency" },
 ];
 
-export function AdsEntityTable({ title, subtitle, rows, dates }: { title: string; subtitle?: string; rows: AdsEntity[]; dates: string[] }) {
+export function AdsEntityTable({ title, subtitle, rows, dates, flat }: { title: string; subtitle?: string; rows: AdsEntity[]; dates: string[]; flat?: boolean }) {
   const [sortKey, setSortKey] = useState<keyof AdsEntity>("spend");
   const [desc, setDesc] = useState(true);
   const [q, setQ] = useState("");
@@ -66,7 +66,7 @@ export function AdsEntityTable({ title, subtitle, rows, dates }: { title: string
   }
 
   return (
-    <Panel className="mb-6 overflow-hidden p-0">
+    <Panel className={`${flat ? "rounded-none border-0" : "mb-6"} overflow-hidden p-0`}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--panel-border)] px-5 py-4">
         <div>
           <div className="text-[15px] font-semibold text-[var(--text-strong)]">{title}</div>
@@ -90,7 +90,7 @@ export function AdsEntityTable({ title, subtitle, rows, dates }: { title: string
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
               <th className="sticky left-0 z-10 bg-[var(--panel-bg)] px-5 py-3 font-medium">Name</th>
-              <th className="px-3 py-3 font-medium">Trend</th>
+              {dates.length > 1 ? <th className="px-3 py-3 font-medium">Trend</th> : null}
               {COLS.map((c) => (
                 <th key={c.key} className="px-3 py-3 text-right font-medium" title={c.title}>
                   <button onClick={() => sortBy(c.key)} className={`uppercase ${sortKey === c.key ? "text-[var(--text-strong)]" : ""}`}>
@@ -114,13 +114,16 @@ export function AdsEntityTable({ title, subtitle, rows, dates }: { title: string
                       <span className="truncate font-medium text-[var(--text-strong)]" title={r.name}>{r.name}</span>
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)]">
+                      {r.parent ? <span title={r.parent}>{r.parent.length > 38 ? `${r.parent.slice(0, 38)}…` : r.parent} · </span> : null}
                       {r.status || "—"}
                       {r.spendShare != null ? ` · ${(r.spendShare * 100).toFixed(0)}% of spend` : ""}
                     </div>
                   </td>
-                  <td className="px-3 py-2.5">
-                    <Sparkline values={dates.map((d) => byDate.get(d) ?? 0)} />
-                  </td>
+                  {dates.length > 1 ? (
+                    <td className="px-3 py-2.5">
+                      <Sparkline values={dates.map((d) => byDate.get(d) ?? 0)} />
+                    </td>
+                  ) : null}
                   {COLS.map((c) => {
                     const v = r[c.key] as number | null;
                     return (
@@ -133,11 +136,11 @@ export function AdsEntityTable({ title, subtitle, rows, dates }: { title: string
               );
             })}
             {shown.length === 0 ? (
-              <tr><td colSpan={COLS.length + 2} className="px-5 py-8 text-center text-[var(--text-muted)]">Nothing in this range.</td></tr>
+              <tr><td colSpan={COLS.length + 2} className="px-5 py-8 text-center text-[var(--text-muted)]">Nothing here{hideIdle ? " with spend. Untick \"Only with spend\" to see the rest" : ""}.</td></tr>
             ) : (
               <tr className="border-t-2 border-[var(--panel-border)] font-semibold">
                 <td className="sticky left-0 z-10 bg-[var(--panel-bg)] px-5 py-2.5 text-[var(--text-strong)]">Total ({shown.length})</td>
-                <td />
+                {dates.length > 1 ? <td /> : null}
                 {COLS.map((c) => {
                   const t =
                     c.key === "spend" ? totals.spend

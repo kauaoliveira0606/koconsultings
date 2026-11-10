@@ -1,132 +1,130 @@
+import { airtableListFresh } from "@/lib/airtable/client";
+
 /**
- * Every website Bronson has (user, 2026-11-10: "the funnel tab = every single
- * website we have for the client"). Pages come from ~/repos/bronson
- * (www.ad-ventur.com, one folder per page); the other Vercel sites are listed
- * at the end. Add a page here when a new one ships.
+ * Every Bronson website on the Funnel tab (user, 2026-11-10), stored in
+ * Airtable so sections and sites can be reordered by drag and drop.
+ * Funnel Sections (Name/Description/Order) + Funnel Websites
+ * (Name/URL/Description/Section/Order). A site's Section is the section's Name.
  */
-export type Website = { path: string; name: string; description: string; url?: string };
-export type WebsiteGroup = { title: string; description: string; sites: Website[] };
+const BASE = "appiMw8gpaLv2WITA";
+const SECTIONS = "tblJk7HxxbRGDSfXG";
+const SITES = "tblA4L3dF9pb6Wsor";
 
-export const SITE_ORIGIN = "https://www.ad-ventur.com";
+export type FunnelSite = { id: string; name: string; url: string; description: string; section: string; order: number };
+export type FunnelSection = { id: string; name: string; description: string; order: number; sites: FunnelSite[] };
 
-export const WEBSITE_GROUPS: WebsiteGroup[] = [
-  {
-    title: "Masterclass funnel",
-    description: "The live webinar: registration, order bump, prep and replay.",
-    sites: [
-      { path: "/masterclass", name: "Masterclass registration (organic)", description: "Live masterclass opt-in: build a subscription e-commerce brand." },
-      { path: "/masterclass-paid", name: "Masterclass registration (paid)", description: "Paid-traffic copy of the masterclass opt-in." },
-      { path: "/masterclass-confirmation", name: "Masterclass confirmation", description: "\"Wait! Before you go\" page after opt-in, with the $27 order bump." },
-      { path: "/masterclass-confirmation-purchase", name: "Order confirmed", description: "Thank-you page after buying the bump." },
-      { path: "/masterclass-prep", name: "Masterclass prep", description: "Everything to show up ready for the live masterclass." },
-      { path: "/masterclass-replay", name: "Masterclass replay", description: "Replay page for people who missed it live." },
-      { path: "/magnet-masterclass", name: "Masterclass download", description: "Lead magnet delivery page." },
-    ],
-  },
-  {
-    title: "Main site + application",
-    description: "The Inner Table home page and the high-ticket application.",
-    sites: [
-      { path: "/", name: "Home (The Inner Table)", description: "Main site with the Typeform application." },
-      { path: "/application", name: "Book your game plan call", description: "High-ticket application and booking page." },
-      { path: "/about", name: "About", description: "About Bronson." },
-      { path: "/testimonials", name: "Student wins", description: "Testimonials and results." },
-      { path: "/parent", name: "For parents", description: "Page for parents of younger applicants." },
-      { path: "/p", name: "The Inner Table (alt)", description: "Alternate landing page." },
-      { path: "/close", name: "The Inner Table (close)", description: "Page used on closing calls." },
-    ],
-  },
-  {
-    title: "Sales process",
-    description: "What a lead sees between booking a call and becoming a student.",
-    sites: [
-      { path: "/free-resource", name: "Before your call", description: "Pre-call video and program overview." },
-      { path: "/pre1on1prep", name: "Call prep", description: "Prep page before the 1-on-1." },
-      { path: "/guide", name: "The Opportunity Guide", description: "Full guide to the Inner Table mentorship." },
-      { path: "/deposit", name: "Deposit", description: "Deposit checkout page." },
-      { path: "/commitment", name: "Commitment", description: "Commitment page." },
-      { path: "/the-next-level", name: "The next level", description: "Upsell / next step page." },
-    ],
-  },
-  {
-    title: "Students",
-    description: "After the sale.",
-    sites: [
-      { path: "/onboarding", name: "Welcome / onboarding", description: "New student onboarding." },
-      { path: "/student-portal", name: "Student portal", description: "Student portal." },
-      { path: "/materials", name: "Materials", description: "Program materials." },
-    ],
-  },
-  {
-    title: "Lead magnets (Bronson Builds)",
-    description: "Free tools: landing page, tool page, and the access page they unlock.",
-    sites: [
-      { path: "/profit-margin", name: "Profit Margin Calculator", description: "Landing page." },
-      { path: "/profit-margin-tool", name: "Profit Margin Calculator (tool)", description: "The calculator." },
-      { path: "/profit-margin-access", name: "Profit Margin Calculator (access)", description: "Delivery page." },
-      { path: "/product-scorecard", name: "Product Scorecard", description: "Landing page." },
-      { path: "/product-scorecard-tool", name: "Product Scorecard (tool)", description: "Rate products on 6 factors." },
-      { path: "/product-scorecard-access", name: "Product Scorecard (access)", description: "Delivery page." },
-      { path: "/ab-test", name: "A/B Test Calculator", description: "Landing page." },
-      { path: "/ab-test-tool", name: "A/B Test Calculator (tool)", description: "Signal or noise checker." },
-      { path: "/ab-test-access", name: "A/B Test Calculator (access)", description: "Delivery page." },
-      { path: "/brand-name-generator", name: "Brand Name Prompt Pack", description: "Landing page." },
-      { path: "/brand-name-generator-tool", name: "Brand Name Prompt Pack (tool)", description: "7 AI prompts." },
-      { path: "/brand-name-generator-access", name: "Brand Name Prompt Pack (access)", description: "Delivery page." },
-      { path: "/subscription-vs-one-time", name: "Subscription vs One-Time", description: "Landing page." },
-      { path: "/subscription-vs-one-time-tool", name: "Subscription vs One-Time (tool)", description: "The breakdown and pricing worksheet." },
-      { path: "/subscription-vs-one-time-access", name: "Subscription vs One-Time (access)", description: "Delivery page." },
-    ],
-  },
-  {
-    title: "Affiliate funnel (old)",
-    description: "Base44 / Wix affiliate pages from before the webinar shift. Letter suffixes are per-setter links.",
-    sites: [
-      { path: "/lt", name: "Affiliate landing (organic)", description: "Build a successful e-commerce business." },
-      { path: "/paid", name: "Affiliate landing (paid)", description: "Paid-traffic copy." },
-      { path: "/receiveaccess", name: "You're in (Base44)", description: "Access confirmation." },
-      { path: "/base44", name: "We've moved", description: "Old Base44 page, now a moved notice." },
-      { path: "/link", name: "Base44 link", description: "Affiliate link page." },
-      { path: "/link-E", name: "Base44 link (E)", description: "Setter link." },
-      { path: "/link-J", name: "Base44 link (J)", description: "Setter link." },
-      { path: "/link-K", name: "Base44 link (K)", description: "Setter link." },
-      { path: "/wix", name: "Wix link", description: "Affiliate link page." },
-      { path: "/wix-E", name: "Wix link (E)", description: "Setter link." },
-      { path: "/wix-J", name: "Wix link (J)", description: "Setter link." },
-      { path: "/wix-K", name: "Wix link (K)", description: "Setter link." },
-      { path: "/wix-N", name: "Wix link (N)", description: "Setter link." },
-    ],
-  },
-  {
-    title: "Team (internal)",
-    description: "Scripts and tools for the sales team.",
-    sites: [
-      { path: "/script", name: "Sales scripts", description: "Script hub." },
-      { path: "/setter-script", name: "Setter script", description: "Setter call script." },
-      { path: "/closer-script", name: "Closer script", description: "Closer call script." },
-      { path: "/sop", name: "3-day workshop SOP", description: "Workshop SOP." },
-      { path: "/meta-analysis", name: "Meta ads analysis", description: "Ads analysis page." },
-      { path: "/dashboard", name: "Bronson dashboard (old)", description: "Old dashboard page on the site." },
-    ],
-  },
-  {
-    title: "Other Bronson sites",
-    description: "Separate sites outside ad-ventur.com.",
-    sites: [
-      { path: "", url: "https://bronson-masterclass.vercel.app", name: "Webinar presenter", description: "The masterclass slides, built from Canva." },
-      { path: "", url: "https://youtube-content-bronson.vercel.app", name: "Creator Library", description: "YouTube video briefs for the creator." },
-    ],
-  },
-  {
-    title: "Legal",
-    description: "",
-    sites: [
-      { path: "/privacy", name: "Privacy policy", description: "" },
-      { path: "/terms", name: "Terms of service", description: "" },
-    ],
-  },
-];
+function pat() {
+  const p = process.env.AIRTABLE_PAT;
+  if (!p) throw new Error("Missing AIRTABLE_PAT");
+  return p;
+}
 
-export function siteUrl(s: Website): string {
-  return s.url ?? `${SITE_ORIGIN}${s.path}`;
+async function write(table: string, method: "POST" | "PATCH", records: unknown[]) {
+  for (let i = 0; i < records.length; i += 10) {
+    const res = await fetch(`https://api.airtable.com/v0/${BASE}/${table}`, {
+      method,
+      headers: { Authorization: `Bearer ${pat()}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ records: records.slice(i, i + 10), typecast: true }),
+    });
+    if (!res.ok) throw new Error(`Airtable ${method} ${table} failed (${res.status}): ${await res.text()}`);
+  }
+}
+
+async function remove(table: string, id: string) {
+  const res = await fetch(`https://api.airtable.com/v0/${BASE}/${table}/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${pat()}` },
+  });
+  if (!res.ok) throw new Error(`Airtable DELETE ${table}/${id} failed (${res.status})`);
+}
+
+export async function getFunnel(): Promise<FunnelSection[]> {
+  const [secRecs, siteRecs] = await Promise.all([airtableListFresh(BASE, SECTIONS), airtableListFresh(BASE, SITES)]);
+  const sites: FunnelSite[] = siteRecs
+    .map((r) => {
+      const f = r.fields as Record<string, unknown>;
+      return {
+        id: r.id,
+        name: String(f.Name ?? ""),
+        url: String(f.URL ?? ""),
+        description: String(f.Description ?? ""),
+        section: String(f.Section ?? ""),
+        order: Number(f.Order ?? 999),
+      };
+    })
+    .filter((s) => s.name || s.url);
+  const sections: FunnelSection[] = secRecs
+    .map((r) => {
+      const f = r.fields as Record<string, unknown>;
+      return { id: r.id, name: String(f.Name ?? ""), description: String(f.Description ?? ""), order: Number(f.Order ?? 999), sites: [] as FunnelSite[] };
+    })
+    .filter((s) => s.name)
+    .sort((a, b) => a.order - b.order);
+
+  const byName = new Map(sections.map((s) => [s.name, s]));
+  const orphans: FunnelSite[] = [];
+  for (const site of sites) (byName.get(site.section)?.sites ?? orphans).push(site);
+  for (const s of sections) s.sites.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+  if (orphans.length) sections.push({ id: "unsorted", name: "Unsorted", description: "Sites whose section was removed.", order: 9999, sites: orphans });
+  return sections;
+}
+
+/** Save the full layout after a drag: section order, and each site's section + position. */
+export async function saveLayout(layout: { sections: { id: string; name: string }[]; sites: { id: string; section: string }[][] }) {
+  const current = await getFunnel();
+  const sectionPatches = layout.sections
+    .map((s, i) => ({ s, i }))
+    .filter(({ s, i }) => s.id !== "unsorted" && current.find((c) => c.id === s.id)?.order !== i)
+    .map(({ s, i }) => ({ id: s.id, fields: { Order: i } }));
+
+  const siteNow = new Map(current.flatMap((c) => c.sites).map((s) => [s.id, s]));
+  const sitePatches: { id: string; fields: Record<string, unknown> }[] = [];
+  layout.sites.forEach((list) =>
+    list.forEach((site, i) => {
+      const was = siteNow.get(site.id);
+      if (!was || was.section !== site.section || was.order !== i) sitePatches.push({ id: site.id, fields: { Section: site.section, Order: i } });
+    }),
+  );
+  if (sectionPatches.length) await write(SECTIONS, "PATCH", sectionPatches);
+  if (sitePatches.length) await write(SITES, "PATCH", sitePatches);
+}
+
+export async function addSection(name: string, description = "") {
+  const current = await getFunnel();
+  await write(SECTIONS, "POST", [{ fields: { Name: name, Description: description, Order: current.length } }]);
+}
+
+export async function renameSection(id: string, name: string, description?: string) {
+  const current = await getFunnel();
+  const sec = current.find((s) => s.id === id);
+  if (!sec) throw new Error("Section not found");
+  const fields: Record<string, unknown> = { Name: name };
+  if (description !== undefined) fields.Description = description;
+  await write(SECTIONS, "PATCH", [{ id, fields }]);
+  if (sec.name !== name && sec.sites.length) await write(SITES, "PATCH", sec.sites.map((s) => ({ id: s.id, fields: { Section: name } })));
+}
+
+export async function deleteSection(id: string) {
+  const current = await getFunnel();
+  const sec = current.find((s) => s.id === id);
+  if (sec && sec.sites.length) throw new Error("Move the sites out of this section first.");
+  await remove(SECTIONS, id);
+}
+
+export async function addSite(input: { name: string; url: string; description?: string; section: string }) {
+  const current = await getFunnel();
+  const n = current.find((s) => s.name === input.section)?.sites.length ?? 0;
+  await write(SITES, "POST", [{ fields: { Name: input.name, URL: input.url, Description: input.description ?? "", Section: input.section, Order: n } }]);
+}
+
+export async function updateSite(id: string, fields: { name?: string; url?: string; description?: string }) {
+  const f: Record<string, unknown> = {};
+  if (fields.name !== undefined) f.Name = fields.name;
+  if (fields.url !== undefined) f.URL = fields.url;
+  if (fields.description !== undefined) f.Description = fields.description;
+  await write(SITES, "PATCH", [{ id, fields: f }]);
+}
+
+export async function deleteSite(id: string) {
+  await remove(SITES, id);
 }
