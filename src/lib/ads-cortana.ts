@@ -24,6 +24,8 @@ export type AdsDailyRow = {
   clicks: number;
   linkClicks: number;
   lpViews: number;
+  pageViews: number;
+  uniqueVisitors: number;
   leads: number;
   registrations: number;
   booked: number;
@@ -70,6 +72,8 @@ export async function getAdsDaily(): Promise<AdsDailyRow[]> {
       clicks: n(f.Clicks),
       linkClicks: n(f["Link Clicks"]),
       lpViews: n(f["LP Views"]),
+      pageViews: n(f["Page Views"]),
+      uniqueVisitors: n(f["Unique Visitors"]),
       leads: n(f.Leads),
       registrations: n(f.Registrations),
       booked: n(f["Booked Calls"]),
@@ -113,6 +117,7 @@ export type AdsEntity = {
   impressions: number;
   linkClicks: number;
   lpViews: number;
+  uniqueVisitors: number;
   registrations: number;
   booked: number;
   callsHeld: number;
@@ -123,7 +128,8 @@ export type AdsEntity = {
   hookRate: number | null; // fraction
   holdRate: number | null; // fraction
   lpConnectRate: number | null; // LP views ÷ link clicks
-  optInRate: number | null; // registrations ÷ LP views
+  /** Opt-ins ÷ unique page visitors, both from Cortana's pixel (Meta LP views undercount, so opt-ins ÷ LP views went over 100%). */
+  optInRate: number | null;
   costPerOptIn: number | null;
   costPerBooked: number | null;
   roas: number | null;
@@ -163,6 +169,7 @@ export function aggregateEntities(rows: AdsDailyRow[]): AdsEntity[] {
       impressions,
       linkClicks: s("linkClicks"),
       lpViews: s("lpViews"),
+      uniqueVisitors: s("uniqueVisitors"),
       registrations: s("registrations"),
       booked: s("booked"),
       callsHeld: s("callsHeld"),
@@ -173,7 +180,9 @@ export function aggregateEntities(rows: AdsDailyRow[]): AdsEntity[] {
       hookRate: video3s ? hook : null,
       holdRate: video3s ? hold : null,
       lpConnectRate: safeDivide(s("lpViews"), s("linkClicks")),
-      optInRate: safeDivide(s("registrations"), s("lpViews")),
+      // Blank when opt-ins outnumber visitors: Cortana credits late opt-ins to the ad a person
+      // first came from, so a day (or a paused ad) can have opt-ins with no new visitors.
+      optInRate: s("uniqueVisitors") && s("uniqueVisitors") >= s("registrations") ? s("registrations") / s("uniqueVisitors") : null,
       costPerOptIn: spend ? safeDivide(spend, s("registrations")) : null,
       costPerBooked: spend ? safeDivide(spend, s("booked")) : null,
       roas: spend ? s("revenue") / spend : null,

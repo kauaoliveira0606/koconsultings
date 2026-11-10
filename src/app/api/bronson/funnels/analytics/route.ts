@@ -53,12 +53,13 @@ export async function GET(request: NextRequest) {
   ]);
 
   const camp = ads.filter((r) => r.level === "campaign" && isDateInRange(r.date, range));
-  const s = (k: "spend" | "impressions" | "linkClicks" | "lpViews" | "registrations") => camp.reduce((a, r) => a + r[k], 0);
+  const s = (k: "spend" | "impressions" | "linkClicks" | "lpViews" | "uniqueVisitors" | "registrations") => camp.reduce((a, r) => a + r[k], 0);
   const spend = s("spend");
   const impressions = s("impressions");
   const linkClicks = s("linkClicks");
   const lpViews = s("lpViews");
   const adOptIns = s("registrations");
+  const visitors = s("uniqueVisitors");
 
   const webinars = webinarSourceRows(WEBINAR_SCHEDULE.bronson, marketing, registrants, bookings, calls, notes, today, PITCH_AT_SECONDS.bronson)
     .filter((w) => isDateInRange(w.date, range));
@@ -75,7 +76,8 @@ export async function GET(request: NextRequest) {
     push("impressions", "Ad impressions", impressions || null, null, null, null, "Meta, all Bronson campaigns (Cortana)");
     push("clicks", "Link clicks", linkClicks || null, impressions || null, "Link CTR", "linkCtr", "Clicked through to the page");
     push("lp", "Landing page", lpViews || null, linkClicks || null, "LP connect", "lpConnectRate", "Landing page views");
-    push("optin", "Opted in", adOptIns || null, lpViews || null, "Opt-in rate", "optInRate", "Webinar registrations from ads (Cortana)");
+    push("visitors", "Page visitors", visitors || null, lpViews || null, null, null, "Unique people on the page (Cortana)");
+    push("optin", "Opted in", adOptIns || null, visitors || null, "Opt-in rate", "optInRate", "Unique webinar registrations from ads (Cortana)");
   } else {
     push("optin", "Opted in", registered, null, null, null, "WebinarJam registrants, organic");
   }

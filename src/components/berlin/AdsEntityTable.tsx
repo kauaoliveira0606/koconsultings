@@ -22,8 +22,9 @@ const COLS: Col[] = [
   { key: "hookRate", label: "Hook", format: "percent", kpi: "hookRate", title: "3-second views ÷ impressions" },
   { key: "holdRate", label: "Hold", format: "percent", kpi: "holdRate", title: "ThruPlays ÷ 3-second views" },
   { key: "lpConnectRate", label: "LP connect", format: "percent", kpi: "lpConnectRate", title: "Landing page views ÷ link clicks" },
-  { key: "registrations", label: "Opt-ins", format: "number", title: "Webinar registrations (CompleteRegistration)" },
-  { key: "optInRate", label: "Opt-in rate", format: "percent", kpi: "optInRate", title: "Opt-ins ÷ landing page views" },
+  { key: "uniqueVisitors", label: "Visitors", format: "number", title: "Unique people on the page (Cortana pixel)" },
+  { key: "registrations", label: "Opt-ins", format: "number", title: "Unique people who registered for the webinar (CompleteRegistration)" },
+  { key: "optInRate", label: "Opt-in rate", format: "percent", kpi: "optInRate", title: "Opt-ins ÷ unique visitors (both Cortana). Blank when opt-ins outnumber visitors, which happens when Cortana credits late opt-ins from earlier clicks." },
   { key: "costPerOptIn", label: "Cost / opt-in", format: "currency", kpi: "costPerOptIn" },
   { key: "booked", label: "Booked", format: "number" },
   { key: "costPerBooked", label: "Cost / booked", format: "currency" },
@@ -54,7 +55,7 @@ export function AdsEntityTable({ title, subtitle, rows, dates, flat }: { title: 
 
   const totals = useMemo(() => {
     const s = (k: keyof AdsEntity) => shown.reduce((acc, r) => acc + ((r[k] as number) || 0), 0);
-    return { spend: s("spend"), registrations: s("registrations"), booked: s("booked"), sales: s("sales"), revenue: s("revenue") };
+    return { spend: s("spend"), uniqueVisitors: s("uniqueVisitors"), registrations: s("registrations"), booked: s("booked"), sales: s("sales"), revenue: s("revenue") };
   }, [shown]);
 
   function sortBy(k: keyof AdsEntity) {
@@ -145,6 +146,8 @@ export function AdsEntityTable({ title, subtitle, rows, dates, flat }: { title: 
                   const t =
                     c.key === "spend" ? totals.spend
                     : c.key === "registrations" ? totals.registrations
+                    : c.key === "uniqueVisitors" ? totals.uniqueVisitors
+                    : c.key === "optInRate" ? (totals.uniqueVisitors && totals.uniqueVisitors >= totals.registrations ? totals.registrations / totals.uniqueVisitors : null)
                     : c.key === "booked" ? totals.booked
                     : c.key === "sales" ? totals.sales
                     : c.key === "revenue" ? totals.revenue

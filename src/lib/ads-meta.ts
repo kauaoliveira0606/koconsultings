@@ -70,6 +70,8 @@ export async function getMetaLevel(level: "campaign" | "adset" | "ad", since: st
           clicks: r.clicks,
           linkClicks: r.linkClicks,
           lpViews: r.lpViews,
+          pageViews: 0,
+          uniqueVisitors: 0,
           leads: r.leads,
           registrations: r.registrations || r.leads,
           booked: 0,
