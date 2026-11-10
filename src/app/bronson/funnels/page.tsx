@@ -1,6 +1,6 @@
-import { FunnelAnalytics } from "./FunnelAnalytics";
+import { WebsitesBoard } from "./WebsitesBoard";
 
-/** Berlin / Funnel: the webinar funnel as an analytics map. */
+/** Berlin / Funnel: every Bronson website, grouped by funnel stage. */
 export default function FunnelsPage() {
-  return <FunnelAnalytics />;
+  return <WebsitesBoard />;
 }
