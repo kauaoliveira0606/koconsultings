@@ -1,5 +1,8 @@
 import type { NextRequest } from "next/server";
-import { getOffice, addTask, updateTask, toggleTask, deleteTask, addPerson, deletePerson } from "@/lib/office";
+import {
+  getOffice, addTask, updateTask, toggleTask, deleteTask, addPerson, deletePerson,
+  setTaskStatus, approveTask, denyTask, TASK_STATUSES, type TaskStatus, type TaskPriority,
+} from "@/lib/office";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +32,19 @@ export async function POST(request: NextRequest) {
           department: String(body.department),
           role: String(body.role),
           assignee: body.assignee ? String(body.assignee) : "",
+          status: (TASK_STATUSES as readonly string[]).includes(String(body.status)) ? (body.status as TaskStatus) : undefined,
+          priority: ["High", "Normal", "Low"].includes(String(body.priority)) ? (body.priority as TaskPriority) : undefined,
         });
+        break;
+      case "setStatus":
+        if (!(TASK_STATUSES as readonly string[]).includes(String(body.status))) return Response.json({ error: "Bad status" }, { status: 400 });
+        await setTaskStatus(String(body.id), body.status as TaskStatus);
+        break;
+      case "approve":
+        await approveTask(String(body.id), body.note ? String(body.note) : "");
+        break;
+      case "deny":
+        await denyTask(String(body.id), body.note ? String(body.note) : "");
         break;
       case "updateTask":
         await updateTask(String(body.id), {
@@ -38,6 +53,7 @@ export async function POST(request: NextRequest) {
           assignee: body.assignee !== undefined ? String(body.assignee) : undefined,
           department: body.department !== undefined ? String(body.department) : undefined,
           role: body.role !== undefined ? String(body.role) : undefined,
+          priority: ["High", "Normal", "Low"].includes(String(body.priority)) ? (body.priority as TaskPriority) : undefined,
         });
         break;
       case "deleteTask":

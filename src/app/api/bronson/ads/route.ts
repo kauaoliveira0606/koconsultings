@@ -4,6 +4,7 @@ import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
 import { airtableListAll } from "@/lib/airtable/client";
 import { BRONSON_BASE_ID, getMarketingDailyMetrics } from "@/lib/airtable/tables";
 import { roas, costPerLead, sum } from "@/lib/metrics";
+import { aggregateEntities, getAdsDaily } from "@/lib/ads-cortana";
 
 export const revalidate = 60;
 
@@ -33,10 +34,17 @@ export async function GET(request: NextRequest) {
   // Cortana gives the per-source REVENUE/LEADS split. Ad SPEND comes from the
   // Marketing Daily Metrics form, which is the source of truth for spend
   // (Cortana's attributed spend over-counts). So spend/ROAS/CPL use the form.
-  const [records, marketing] = await Promise.all([
+  const [records, marketing, adsDaily] = await Promise.all([
     airtableListAll<AdFields>(BRONSON_BASE_ID, ADS_TABLE),
     getMarketingDailyMetrics(),
+    getAdsDaily(),
   ]);
+
+  // Campaign and ad level (Cortana): which campaign spends the most and what it gets back.
+  const levelRows = adsDaily.filter((r) => isDateInRange(r.date, range));
+  const campaigns = aggregateEntities(levelRows.filter((r) => r.level === "campaign"));
+  const ads = aggregateEntities(levelRows.filter((r) => r.level === "ad"));
+  const lastSpendDate = adsDaily.filter((r) => r.spend > 0).reduce((m, r) => (r.date > m ? r.date : m), "");
 
   const inRange = records
     .map((r) => r.fields)
@@ -95,6 +103,10 @@ export async function GET(request: NextRequest) {
     adSpendSource: "Marketing Daily Metrics form (Meta)",
     sources,
     daily,
-    hasData: inRange.length > 0 || adSpend > 0,
+    campaigns,
+    ads,
+    cortanaSpend: sum(campaigns.map((c) => c.spend)) ?? 0,
+    lastSpendDate: lastSpendDate || null,
+    hasData: inRange.length > 0 || adSpend > 0 || levelRows.length > 0,
   });
 }

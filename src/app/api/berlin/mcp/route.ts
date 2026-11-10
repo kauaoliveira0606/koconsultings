@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { ADMIN_COOKIE, SERVICE_TOKEN } from "@/lib/admin-gate";
 import { AD_FORMATS } from "@/lib/berlin/ad-formats";
+import { getOffice, addTask, setTaskStatus, TASK_STATUSES, AI_ASSIGNEE, type TaskStatus, type TaskPriority } from "@/lib/office";
 
 /**
  * Berlin for Claude — a minimal Model Context Protocol server (Streamable HTTP,
@@ -96,6 +97,101 @@ const TOOLS: Tool[] = [
       return f;
     },
   },
+  {
+    name: "get_ads_pace",
+    description:
+      "3-hour pace for Bronson ads: opt-ins, booked calls and cash in the last three finished hours vs the prior 3h and yesterday, opt-ins by hour today vs yesterday, and a budget call per campaign (scale / hold / watch / cut) from cost per opt-in. Today's spend is not available (Cortana posts spend next morning).",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    run: (_args, origin) => fetchJson(`${origin}/api/bronson/ads/pace`),
+  },
+  {
+    name: "get_campaigns_and_ads",
+    description:
+      "Every Bronson Meta campaign and ad for the range, sorted by spend: spend, CPM, link CTR, hook, hold, LP connect, opt-ins, opt-in rate, cost per opt-in, booked calls, calls held, sales, revenue, ROAS, frequency.",
+    inputSchema: { type: "object", properties: { preset: presetProp }, additionalProperties: false },
+    run: async (args, origin) => {
+      const d = await fetchJson(`${origin}/api/bronson/ads?preset=${preset(args)}`);
+      const slim = (rows: Record<string, unknown>[]) => rows.map(({ daily: _daily, ...rest }) => rest);
+      return { campaigns: slim(d.campaigns ?? []), ads: slim(d.ads ?? []), lastSpendDate: d.lastSpendDate };
+    },
+  },
+  {
+    name: "get_funnel_analytics",
+    description: "Bronson webinar funnel step by step for the range (impressions -> clicks -> landing page -> opt-in -> attended -> stayed -> booked -> showed -> closed -> cash), with conversion rates and cost per step. source: paid | organic | total.",
+    inputSchema: {
+      type: "object",
+      properties: { preset: presetProp, source: { type: "string", enum: ["paid", "organic", "total"] } },
+      additionalProperties: false,
+    },
+    run: (args, origin) =>
+      fetchJson(`${origin}/api/bronson/funnels/analytics?preset=${preset(args)}&source=${["paid", "organic", "total"].includes(String(args.source)) ? args.source : "paid"}`),
+  },
+  {
+    name: "list_office_tasks",
+    description:
+      "The Office board. Returns open tasks with id, task, description, assignee, status (Up Next / Doing / Blocked / Review / Done), priority and any review note. Tasks assigned to 'AI' are your queue: pick up 'Up Next', set 'Doing' while working, then 'Review' with a result for a human to approve. A 'Denied:' review note means redo it.",
+    inputSchema: {
+      type: "object",
+      properties: { only_ai: { type: "boolean", description: "Only tasks assigned to the AI. Default true." } },
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const { tasks } = await getOffice();
+      const onlyAi = args.only_ai !== false;
+      return tasks.filter((t) => !t.done && (!onlyAi || t.assignee === AI_ASSIGNEE));
+    },
+  },
+  {
+    name: "add_office_task",
+    description: "Add a task to the Office board. Defaults to the AI queue (assignee 'AI', status 'Up Next'). Use for work you found that needs doing, or to flag something Blocked for a person.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        task: { type: "string" },
+        description: { type: "string" },
+        assignee: { type: "string", description: "'AI' or a person's name. Default 'AI'." },
+        department: { type: "string", description: "Default 'Marketing'." },
+        role: { type: "string", description: "Default 'AI'." },
+        status: { type: "string", enum: ["Up Next", "Doing", "Blocked", "Review"] },
+        priority: { type: "string", enum: ["High", "Normal", "Low"] },
+      },
+      required: ["task"],
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const id = await addTask({
+        task: String(args.task),
+        description: args.description ? String(args.description) : "",
+        assignee: args.assignee ? String(args.assignee) : AI_ASSIGNEE,
+        department: args.department ? String(args.department) : "Marketing",
+        role: args.role ? String(args.role) : "AI",
+        status: (TASK_STATUSES as readonly string[]).includes(String(args.status)) ? (args.status as TaskStatus) : "Up Next",
+        priority: ["High", "Normal", "Low"].includes(String(args.priority)) ? (args.priority as TaskPriority) : "Normal",
+      });
+      return { ok: true, id };
+    },
+  },
+  {
+    name: "update_office_task",
+    description:
+      "Move an Office task: status 'Doing' when you start, 'Review' with a result when you finish (a human approves or denies it), 'Blocked' with a result explaining what you need. You cannot mark AI work Done yourself; that's the human's approval.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        status: { type: "string", enum: ["Up Next", "Doing", "Blocked", "Review"] },
+        result: { type: "string", description: "What you did, or what you need if Blocked." },
+      },
+      required: ["id", "status"],
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const status = String(args.status);
+      if (!["Up Next", "Doing", "Blocked", "Review"].includes(status)) throw new Error("status must be Up Next, Doing, Blocked or Review");
+      await setTaskStatus(String(args.id), status as TaskStatus, args.result !== undefined ? { result: String(args.result) } : {});
+      return { ok: true };
+    },
+  },
 ];
 
 function rpcResult(id: unknown, result: unknown) {
@@ -133,7 +229,7 @@ export async function POST(req: NextRequest) {
           protocolVersion: PROTOCOL_VERSION,
           capabilities: { tools: { listChanged: false } },
           serverInfo: { name: "Berlin", version: "1.0.0" },
-          instructions: "Berlin exposes the Bronson marketing dashboard. Use the tools to read live spend, revenue, ROAS and cash.",
+          instructions: "Berlin exposes the Bronson marketing dashboard and its Office AI queue. Read live pace, campaigns, ads, funnel, spend, revenue, ROAS and cash. Work the AI queue: list_office_tasks, set Doing, finish with Review + result for human approval.",
         });
       case "notifications/initialized":
       case "notifications/cancelled":

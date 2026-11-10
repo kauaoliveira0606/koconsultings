@@ -15,7 +15,22 @@ export type Task = {
   assignee: string;
   done: boolean;
   completedAt: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  reviewNote: string;
+  result: string;
 };
+
+export const TASK_STATUSES = ["Up Next", "Doing", "Blocked", "Review", "Done"] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+export type TaskPriority = "High" | "Normal" | "Low";
+/** Assignee name for work queued to the AI (Claude via the Berlin connector). */
+export const AI_ASSIGNEE = "AI";
+
+function asStatus(v: unknown, done: boolean): TaskStatus {
+  if (done) return "Done";
+  return (TASK_STATUSES as readonly string[]).includes(String(v)) && v !== "Done" ? (v as TaskStatus) : "Up Next";
+}
 
 function pat() {
   const p = process.env.AIRTABLE_PAT;
@@ -74,6 +89,10 @@ export async function getOffice(): Promise<{ people: Person[]; tasks: Task[] }> 
         assignee: String(f.Assignee ?? ""),
         done: f.Done === true,
         completedAt: f["Completed At"] ? String(f["Completed At"]) : null,
+        status: asStatus(f.Status, f.Done === true),
+        priority: (["High", "Normal", "Low"].includes(String(f.Priority)) ? f.Priority : "Normal") as TaskPriority,
+        reviewNote: String(f["Review Note"] ?? ""),
+        result: String(f.Result ?? ""),
       };
     })
     .filter((t) => t.task);
@@ -87,8 +106,10 @@ export async function addTask(input: {
   department: string;
   role: string;
   assignee: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
 }) {
-  await write(TASKS_TABLE, "POST", [
+  const res = await write(TASKS_TABLE, "POST", [
     {
       fields: {
         Task: input.task,
@@ -97,14 +118,39 @@ export async function addTask(input: {
         Role: input.role,
         Assignee: input.assignee,
         Done: false,
+        Status: input.status && input.status !== "Done" ? input.status : "Up Next",
+        Priority: input.priority ?? "Normal",
       },
     },
   ]);
+  return (res as { records?: { id: string }[] }).records?.[0]?.id ?? null;
+}
+
+/** Move a task between lanes. Done also checks it off; leaving Done reopens it. */
+export async function setTaskStatus(id: string, status: TaskStatus, extra: { result?: string; reviewNote?: string } = {}) {
+  const fields: Record<string, unknown> = {
+    Status: status,
+    Done: status === "Done",
+    "Completed At": status === "Done" ? new Date().toISOString() : null,
+  };
+  if (extra.result !== undefined) fields.Result = extra.result;
+  if (extra.reviewNote !== undefined) fields["Review Note"] = extra.reviewNote;
+  await write(TASKS_TABLE, "PATCH", [{ id, fields }]);
+}
+
+/** Approve AI work waiting in Review: it's done. */
+export async function approveTask(id: string, note = "") {
+  await setTaskStatus(id, "Done", { reviewNote: note ? `Approved: ${note}` : "Approved" });
+}
+
+/** Deny AI work: back to the queue with the reason, so the AI redoes it. */
+export async function denyTask(id: string, note = "") {
+  await setTaskStatus(id, "Up Next", { reviewNote: note ? `Denied: ${note}` : "Denied" });
 }
 
 export async function updateTask(
   id: string,
-  fields: { task?: string; description?: string; assignee?: string; department?: string; role?: string },
+  fields: { task?: string; description?: string; assignee?: string; department?: string; role?: string; priority?: TaskPriority },
 ) {
   const f: Record<string, unknown> = {};
   if (fields.task !== undefined) f.Task = fields.task;
@@ -112,12 +158,13 @@ export async function updateTask(
   if (fields.assignee !== undefined) f.Assignee = fields.assignee;
   if (fields.department !== undefined) f.Department = fields.department;
   if (fields.role !== undefined) f.Role = fields.role;
+  if (fields.priority !== undefined) f.Priority = fields.priority;
   await write(TASKS_TABLE, "PATCH", [{ id, fields: f }]);
 }
 
 export async function toggleTask(id: string, done: boolean) {
   await write(TASKS_TABLE, "PATCH", [
-    { id, fields: { Done: done, "Completed At": done ? new Date().toISOString() : null } },
+    { id, fields: { Done: done, Status: done ? "Done" : "Up Next", "Completed At": done ? new Date().toISOString() : null } },
   ]);
 }
 

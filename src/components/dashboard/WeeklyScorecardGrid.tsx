@@ -6,6 +6,18 @@ import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { formatStatValue } from "@/lib/format";
 import { STATUS_TEXT_STYLE } from "@/components/dashboard/status";
 import type { WeeklyScorecardPayload, CellStatus, ScorecardRow } from "@/lib/weekly-scorecard";
+import { Sparkline, TonePill } from "@/components/berlin/kpi";
+
+const TREND_COLOR: Record<string, string> = { green: "#059669", yellow: "#d97706", red: "#e11d48" };
+
+/** How far the week is from the goal, in the direction that matters ("12% above target"). */
+function vsGoal(row: ScorecardRow): string | null {
+  const v = row.week.value;
+  if (v === null || row.goal === null || row.goal === 0 || row.goalDirection === null) return null;
+  const pct = Math.abs((v - row.goal) / row.goal) * 100;
+  const above = v >= row.goal;
+  return `${pct.toFixed(0)}% ${above ? "above" : "below"} target`;
+}
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -113,17 +125,20 @@ export function WeeklyScorecardGrid({ apiPath }: { apiPath: string }) {
             <table className="w-full table-fixed border-collapse [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06] [&_tbody_tr.kpi-row:nth-of-type(even)]:bg-white/[0.03]">
               <colgroup>
                 <col style={{ width: "250px" }} />
+                <col style={{ width: "96px" }} />
                 {data.dayDates.map((d) => (
                   <col key={d} style={{ width: "88px" }} />
                 ))}
                 <col style={{ width: "108px" }} />
-                <col style={{ width: "80px" }} />
+                <col style={{ width: "120px" }} />
+                <col style={{ width: "110px" }} />
               </colgroup>
               <thead>
                 <tr>
                   <th className="sticky left-0 z-10 bg-[var(--panel-solid,#111c38)] px-3 py-3 text-left text-sm font-semibold text-[var(--text-muted)]">
                     Metric
                   </th>
+                  <th className="px-2 py-3 text-left text-sm font-semibold text-[var(--text-muted)]">Trend</th>
                   {data.dayDates.map((d, i) => {
                     const [, m, day] = d.split("-");
                     return (
@@ -137,6 +152,7 @@ export function WeeklyScorecardGrid({ apiPath }: { apiPath: string }) {
                     Week
                   </th>
                   <th className="px-3 py-3 text-right text-sm font-semibold text-[var(--text-muted)]">Goal</th>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-[var(--text-muted)]">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -165,15 +181,23 @@ function Swatch({ varName, label }: { varName: string; label: string }) {
 }
 
 function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows: ScorecardRow[] }) {
+  const counts = {
+    on: rows.filter((r) => r.week.status === "green").length,
+    off: rows.filter((r) => r.week.status === "yellow" || r.week.status === "red").length,
+    none: rows.filter((r) => !r.week.status).length,
+  };
   return (
     <>
       <tr className="!border-b-0">
-        <td colSpan={10} className="pt-5" />
+        <td colSpan={12} className="pt-5" />
       </tr>
       <tr className="!border-b-0">
-        <td colSpan={10} className="rounded-lg bg-gradient-to-r from-sky-300/[0.14] via-white/[0.04] to-transparent px-3 py-2.5 text-[15px] font-semibold text-white">
+        <td colSpan={12} className="rounded-lg bg-gradient-to-r from-sky-300/[0.14] via-white/[0.04] to-transparent px-3 py-2.5 text-[15px] font-semibold text-white">
           <span className="mr-2">{emoji}</span>
           {title}
+          <span className="ml-3 text-[12px] font-medium text-[var(--text-muted)]">
+            {counts.off} off target · {counts.on} on target · {counts.none} no target
+          </span>
         </td>
       </tr>
       {rows.map((row) => (
@@ -184,6 +208,9 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
           >
             <span className="text-sm font-medium leading-snug text-[var(--text-strong)]">{row.label}</span>
           </th>
+          <td className="px-2 py-2.5 align-middle">
+            <Sparkline values={row.days.map((d) => d.value)} color={row.week.status ? TREND_COLOR[row.week.status] : "#64748b"} width={84} />
+          </td>
           {row.days.map((cell) => (
             <Cell key={cell.date} value={cell.value} status={cell.status} format={row.format} />
           ))}
@@ -192,6 +219,10 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
           </td>
           <td className="px-3 py-2.5 text-right text-[13px] font-medium tabular-nums text-[var(--text-muted)]">
             {kpiText(row)}
+            {vsGoal(row) ? <div className="text-[11px] font-normal">{vsGoal(row)}</div> : null}
+          </td>
+          <td className="px-3 py-2.5 text-left align-middle">
+            <TonePill tone={row.week.status} />
           </td>
         </tr>
       ))}

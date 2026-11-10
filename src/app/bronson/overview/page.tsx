@@ -13,6 +13,7 @@ import type { WebinarTotals } from "@/lib/metrics";
 import { RateColumns } from "@/components/dashboard/RateColumns";
 import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
+import { PacePanel } from "@/components/berlin/PacePanel";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
@@ -164,6 +165,9 @@ export default function OverviewPage() {
       </div>
       <DashboardSection title="Live Cash Today">
         <LiveCashToday apiPath="/api/bronson/overview/live-cash" showAffiliate={false} />
+      </DashboardSection>
+      <DashboardSection title="Pace">
+        <PacePanel />
       </DashboardSection>
 
       {/* TIER 1 — KEYSTONE METRICS as hero cards: the numbers that answer "scale or pull the brake" */}
