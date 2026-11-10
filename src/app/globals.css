@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/*
+ * Global readability: lift the root size so every rem-based text and spacing
+ * utility scales up proportionally on every tab (2026-11-10, user: "easier to
+ * read, everything"). Dial this number to taste; it affects the whole app.
+ */
+html {
+  font-size: 17px;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
