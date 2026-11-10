@@ -102,6 +102,19 @@ export async function addTask(input: {
   ]);
 }
 
+export async function updateTask(
+  id: string,
+  fields: { task?: string; description?: string; assignee?: string; department?: string; role?: string },
+) {
+  const f: Record<string, unknown> = {};
+  if (fields.task !== undefined) f.Task = fields.task;
+  if (fields.description !== undefined) f.Description = fields.description;
+  if (fields.assignee !== undefined) f.Assignee = fields.assignee;
+  if (fields.department !== undefined) f.Department = fields.department;
+  if (fields.role !== undefined) f.Role = fields.role;
+  await write(TASKS_TABLE, "PATCH", [{ id, fields: f }]);
+}
+
 export async function toggleTask(id: string, done: boolean) {
   await write(TASKS_TABLE, "PATCH", [
     { id, fields: { Done: done, "Completed At": done ? new Date().toISOString() : null } },

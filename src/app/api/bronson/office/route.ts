@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getOffice, addTask, toggleTask, deleteTask, addPerson, deletePerson } from "@/lib/office";
+import { getOffice, addTask, updateTask, toggleTask, deleteTask, addPerson, deletePerson } from "@/lib/office";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,15 @@ export async function POST(request: NextRequest) {
           department: String(body.department),
           role: String(body.role),
           assignee: body.assignee ? String(body.assignee) : "",
+        });
+        break;
+      case "updateTask":
+        await updateTask(String(body.id), {
+          task: body.task !== undefined ? String(body.task) : undefined,
+          description: body.description !== undefined ? String(body.description) : undefined,
+          assignee: body.assignee !== undefined ? String(body.assignee) : undefined,
+          department: body.department !== undefined ? String(body.department) : undefined,
+          role: body.role !== undefined ? String(body.role) : undefined,
         });
         break;
       case "deleteTask":
