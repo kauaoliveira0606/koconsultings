@@ -1,22 +1,21 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
-import { addDaysToDateString, easternDateString } from "@/lib/date-range";
-import { aggregateEntities } from "@/lib/ads-cortana";
-import { getMetaLevel } from "@/lib/ads-meta";
+import { isDateInRange } from "@/lib/date-range";
+import { aggregateEntities, getAdsDaily } from "@/lib/ads-cortana";
 
-export const revalidate = 300;
+export const revalidate = 60;
 
-/** Ad set level from Meta (Cortana can't group by ad set): totals and by day for the range. */
+/**
+ * Ad set level. Cortana calls ad sets "medium" (groupBy=medium returns Meta ad
+ * set names + ids), synced hourly by n8n iXJRFVgLJ12gGZxd as Level = adset.
+ */
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
-  const until = range.end ?? easternDateString();
-  const since = range.start ?? addDaysToDateString(until, -89);
-  const meta = await getMetaLevel("adset", since, until);
-  if (!meta.ok) return Response.json({ ok: false, error: meta.error, adsets: [], byDay: [] });
-  const dates = [...new Set(meta.rows.map((r) => r.date))].sort().reverse();
+  const rows = (await getAdsDaily()).filter((r) => r.level === "adset" && isDateInRange(r.date, range));
+  const dates = [...new Set(rows.map((r) => r.date))].sort().reverse();
   return Response.json({
     ok: true,
-    adsets: aggregateEntities(meta.rows),
-    byDay: dates.map((date) => ({ date, adsets: aggregateEntities(meta.rows.filter((r) => r.date === date)) })),
+    adsets: aggregateEntities(rows),
+    byDay: dates.map((date) => ({ date, adsets: aggregateEntities(rows.filter((r) => r.date === date)) })),
   });
 }

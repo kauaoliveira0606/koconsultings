@@ -45,7 +45,7 @@ const LEVELS: { id: Level; label: string }[] = [
 ];
 
 function datesOf(rows: AdsEntity[]): string[] {
-  return [...new Set(rows.flatMap((r) => r.daily.map((d) => d.date)))].sort();
+  return [...new Set(rows.flatMap((r) => (Array.isArray(r.daily) ? r.daily : []).map((d) => d.date)))].sort();
 }
 
 function Toggle<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { id: T; label: string }[] }) {
@@ -97,19 +97,24 @@ export function AdsBoard() {
   const [view, setView] = useState<"totals" | "days">("totals");
   const [openDay, setOpenDay] = useState<string | null>(null);
 
+  // Guard every list: a cached answer from an older build may not have them.
+  const list = <T,>(v: T[] | undefined | null): T[] => (Array.isArray(v) ? v : []);
+  const campaigns = list(data?.campaigns);
+  const adsList = list(data?.ads);
+  const adsets = list(adsetData?.adsets);
   const t = data?.totals;
-  const top = data?.campaigns.find((c) => c.spend > 0) ?? null;
-  const topAd = data?.ads.find((c) => c.spend > 0) ?? null;
-  const dates = datesOf([...(data?.campaigns ?? []), ...(data?.ads ?? [])]);
+  const top = campaigns.find((c) => c.spend > 0) ?? null;
+  const topAd = adsList.find((c) => c.spend > 0) ?? null;
+  const dates = datesOf([...campaigns, ...adsList]);
 
-  const levelRows: AdsEntity[] = level === "campaigns" ? data?.campaigns ?? [] : level === "ads" ? data?.ads ?? [] : adsetData?.adsets ?? [];
+  const levelRows: AdsEntity[] = level === "campaigns" ? campaigns : level === "ads" ? adsList : adsets;
   const adsetBlocked = level === "adsets" && adsetData && !adsetData.ok;
 
   // Day rows for the chosen level.
   const days: { date: string; rows: AdsEntity[] }[] =
     level === "adsets"
-      ? (adsetData?.byDay ?? []).map((d) => ({ date: d.date, rows: d.adsets }))
-      : (data?.byDay ?? []).map((d) => ({ date: d.date, rows: level === "campaigns" ? d.campaigns : d.ads }));
+      ? list(adsetData?.byDay).map((d) => ({ date: d.date, rows: list(d.adsets) }))
+      : list(data?.byDay).map((d) => ({ date: d.date, rows: list(level === "campaigns" ? d.campaigns : d.ads) }));
 
   return (
     <div>
@@ -252,7 +257,7 @@ export function AdsBoard() {
               </tr>
             </thead>
             <tbody>
-              {(data?.sources ?? []).map((s) => (
+              {list(data?.sources).map((s) => (
                 <tr key={s.source} className="border-t border-[var(--panel-border)]">
                   <td className="px-6 py-3.5 font-medium text-[var(--text-strong)]">{s.source}</td>
                   <td className="px-6 py-3.5 text-[var(--text-muted)]">{s.class}</td>
@@ -271,8 +276,8 @@ export function AdsBoard() {
       <PacePanel />
 
       <p className="mt-4 text-xs leading-relaxed text-[var(--text-muted)]">
-        Top cards: ad spend from the Marketing Daily Metrics form (source of truth for total spend). Campaign and ad rows: Cortana, synced hourly
-        {data?.lastSpendDate ? `; spend posted through ${data.lastSpendDate}` : ""}. Ad sets: Meta directly (pixel opt-ins only, no calls or cash). Cortana&rsquo;s campaign spend can differ from the form total
+        Top cards: ad spend from the Marketing Daily Metrics form (source of truth for total spend). Campaign, ad set and ad rows: Cortana, synced hourly
+        {data?.lastSpendDate ? `; spend posted through ${data.lastSpendDate}` : ""}. Cortana&rsquo;s campaign spend can differ from the form total
         {data ? ` (${formatStatValue(data.cortanaSpend, "currency")} in this range)` : ""}.
       </p>
     </div>

@@ -65,7 +65,12 @@ function Delta({ now, before, label }: { now: number; before: number; label: str
 
 /** Manos-style 3-hour pace: last three finished hours, hour-by-hour opt-ins, and a budget call per campaign. */
 export function PacePanel() {
-  const { data } = useSWR<PaceData>("/api/bronson/ads/pace", fetcher, { refreshInterval: 120_000 });
+  const { data: raw } = useSWR<PaceData>("/api/bronson/ads/pace", fetcher, { refreshInterval: 120_000 });
+  // Only draw a complete answer (a copy saved by an older build may be missing pieces).
+  const data =
+    raw && raw.window && raw.last3h && raw.prev3h && raw.sameHoursYesterday && raw.yesterday && Array.isArray(raw.byHour) && Array.isArray(raw.campaigns) && raw.rules
+      ? raw
+      : null;
 
   if (!data) {
     return (

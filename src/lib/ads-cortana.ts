@@ -59,7 +59,7 @@ export async function getAdsDaily(): Promise<AdsDailyRow[]> {
   return recs
     .map(({ fields: f }) => ({
       date: String(f.Date ?? ""),
-      level: (f.Level === "ad" ? "ad" : "campaign") as "campaign" | "ad",
+      level: (f.Level === "ad" ? "ad" : f.Level === "adset" ? "adset" : "campaign") as "campaign" | "adset" | "ad",
       name: String(f.Name ?? ""),
       entityId: String(f["Entity ID"] ?? ""),
       status: String(f.Status ?? ""),

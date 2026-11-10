@@ -39,7 +39,21 @@ const refetchOnceSoon: Middleware = (useSWRNext) => (key, fetcher, config) => {
  * still goes out and replaces them as soon as it lands. Copies older than a
  * day are dropped, and the newest are kept when storage runs short.
  */
-const SAVED_KEY = "koc-sections-v1";
+// Tied to the deploy: an answer saved by an older build can have a different
+// shape than the new page expects (that crashed the Ads tab on 2026-11-10 for
+// ranges viewed before the update), so each deploy starts clean.
+const SAVED_PREFIX = "koc-sections-";
+export const SAVED_KEY = `${SAVED_PREFIX}${(process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ?? "v2").slice(0, 8)}`;
+
+/** Drops every saved section answer (used by the error screen). */
+export function clearSavedSections() {
+  saved = null;
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith(SAVED_PREFIX)) localStorage.removeItem(k);
+  } catch {
+    // Storage blocked: nothing to clear.
+  }
+}
 const SAVED_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const SAVED_MAX_CHARS = 3_000_000;
 type Saved = Record<string, { at: number; data: unknown }>;
@@ -50,6 +64,8 @@ function readSaved(): Saved {
   if (saved) return saved;
   saved = {};
   try {
+    // Older builds' copies: remove them so they can't be restored or fill storage.
+    for (const k of Object.keys(localStorage)) if (k.startsWith(SAVED_PREFIX) && k !== SAVED_KEY) localStorage.removeItem(k);
     const raw = JSON.parse(localStorage.getItem(SAVED_KEY) ?? "{}") as Saved;
     for (const [key, entry] of Object.entries(raw)) {
       if (entry && Date.now() - entry.at < SAVED_MAX_AGE_MS) saved[key] = entry;

@@ -103,7 +103,7 @@ export function AdsEntityTable({ title, subtitle, rows, dates, flat }: { title: 
           </thead>
           <tbody>
             {shown.map((r, i) => {
-              const byDate = new Map(r.daily.map((d) => [d.date, d.spend]));
+              const byDate = new Map((Array.isArray(r.daily) ? r.daily : []).map((d) => [d.date, d.spend]));
               return (
                 <tr key={r.entityId} className="border-t border-[var(--panel-border)]">
                   <td className="sticky left-0 z-10 max-w-[300px] bg-[var(--panel-bg)] px-5 py-2.5">
