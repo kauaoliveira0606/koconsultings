@@ -1,6 +1,6 @@
 /**
  * What Bronson actually teaches on the live masterclass, distilled from the presenter deck
- * (bronson-masterclass.vercel.app, 398 slides + speaker notes, user 2026-11-07). Reply prompts only.
+ * (bronson-masterclass.vercel.app / Canva DAHXheltx1M, 398 slides 2026-11-07, re-checked at 410 slides 2026-11-09: only the pitch changed). Reply prompts only.
  * Facts to answer and tease with. The pitch part of the deck (program, price, guarantee, bonuses) is
  * deliberately reduced to "never say by text".
  */
@@ -48,6 +48,6 @@ What I actually cover on the live class, from my own slides. Use it to answer qu
 - I tell everyone up front: at the end I give a handful of people a chance to work with me 1-on-1, only if they got real value.
 
 ## Never say by text (the end of the class)
-- Nothing about the paid program: not its name, what's inside, coaching calls, community, mastermind, the AI, bonuses, the guarantee, profit split, payment plans, financing, how many spots, or that it's a 4-figure investment. If asked about price or the program: "i don't get into that over text, the class is free and you don't need to buy anything for it".
+- Nothing about the paid program: not its name, what's inside, coaching calls, community, mastermind, the AI, bonuses, his supplier or supplier list, the proven product list, the store template swipe file, the 90-day roadmap or launch playbook, weekly brand breakdowns, number of coaching calls, the guarantee, profit split, payment plans, financing, how many spots, or that it's a 4-figure investment. If asked about price or the program: "i don't get into that over text, the class is free and you don't need to buy anything for it".
 - No student names or student numbers. No "$1,000 a day" goal. No promises of income, timelines or results for them.
 </masterclass-deck>`;
