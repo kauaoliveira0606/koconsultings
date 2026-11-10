@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import useSWR from "swr";
+import { RefreshCw } from "lucide-react";
 import { BerlinHeader, Panel, Tag } from "@/components/berlin/Berlin";
 import { INTEGRATIONS, type Integration } from "@/lib/berlin/integrations";
 
-type Status = { connected: boolean; note: string; updatedAt: string | null };
+type CheckResult = { name: string; state: "connected" | "problem" | "unverified"; detail: string; checkedAt: string };
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -13,40 +14,35 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
-function Tile({ it, connected, busy, onToggle }: { it: Integration; connected: boolean; busy: boolean; onToggle: (next: boolean) => void }) {
+const STATE: Record<CheckResult["state"], { label: string; style: React.CSSProperties }> = {
+  connected: { label: "Connected", style: { background: "var(--cell-green-bg)", color: "var(--cell-green-text)" } },
+  problem: { label: "Problem", style: { background: "var(--cell-red-bg)", color: "var(--cell-red-text)" } },
+  unverified: { label: "Not verified", style: { background: "var(--panel-subtle)", color: "var(--text-muted)" } },
+};
+
+function Tile({ it, result }: { it: Integration; result?: CheckResult }) {
+  const st = result ? STATE[result.state] : null;
   return (
     <Panel className="flex flex-col">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--panel-border)] bg-[var(--panel-subtle)] text-sm font-bold text-[var(--text-strong)]">
-          {it.short}
-        </div>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black text-sm font-bold text-white">{it.short}</span>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-[var(--text-strong)]">{it.name}</span>
-            <Tag tone="muted">{it.category}</Tag>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[15px] font-semibold text-[var(--text-strong)]">{it.name}</span>
+            {st ? (
+              <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold" style={st.style}>{st.label}</span>
+            ) : (
+              <span className="shrink-0 text-[11px] text-[var(--text-muted)]">Checking…</span>
+            )}
           </div>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-muted)]">{it.description}</p>
+          <div className="text-[12px] text-[var(--text-muted)]">{it.category}</div>
         </div>
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-            connected ? "bg-emerald-500/15 text-emerald-600" : "bg-[var(--panel-subtle)] text-[var(--text-muted)]"
-          }`}
-        >
-          {connected ? "Connected" : "Not connected"}
-        </span>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          disabled={busy}
-          onClick={() => onToggle(!connected)}
-          className={`rounded-lg px-3.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50 ${
-            connected
-              ? "border border-[var(--panel-border)] bg-transparent text-[var(--text-muted)] hover:border-rose-300 hover:text-rose-500"
-              : "bg-black text-white hover:opacity-90"
-          }`}
-        >
-          {busy ? "…" : connected ? "Disconnect" : "Connect"}
-        </button>
+      <p className="mt-3 text-[13px] leading-snug text-[var(--text-muted)]">{it.description}</p>
+      {result ? (
+        <p className="mt-3 rounded-md bg-[var(--panel-subtle)] px-2.5 py-2 text-[12px] leading-snug text-[var(--text-strong)]">{result.detail}</p>
+      ) : null}
+      <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
         {it.connectsToDashboard ? <Tag>Feeds dashboard</Tag> : null}
         {it.addToClaude ? <Tag tone="muted">For your Claude</Tag> : null}
       </div>
@@ -54,36 +50,27 @@ function Tile({ it, connected, busy, onToggle }: { it: Integration; connected: b
   );
 }
 
+/** Integrations: every source is checked for real (key test or data freshness). Nothing is marked connected by hand. */
 export function IntegrationsBoard() {
-  const { data, mutate } = useSWR<{ statuses: Record<string, Status> }>("/api/bronson/integrations", fetcher, { refreshInterval: 60_000 });
-  const [busy, setBusy] = useState<string | null>(null);
-  const statuses = data?.statuses ?? {};
+  const { data, mutate, isValidating } = useSWR<{ results: CheckResult[] }>("/api/bronson/integrations", fetcher);
+  const [rechecking, setRechecking] = useState(false);
+  const results = new Map((Array.isArray(data?.results) ? data!.results : []).map((r) => [r.name, r]));
 
-  async function toggle(name: string, next: boolean) {
-    setBusy(name);
-    // optimistic
-    mutate({ statuses: { ...statuses, [name]: { connected: next, note: statuses[name]?.note ?? "", updatedAt: null } } }, false);
+  async function recheck() {
+    setRechecking(true);
     try {
-      const res = await fetch("/api/bronson/integrations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, connected: next }),
-      });
-      if (res.ok) mutate(await res.json(), false);
+      const res = await fetch("/api/bronson/integrations?fresh=1");
+      if (res.ok) await mutate(await res.json(), false);
     } finally {
-      setBusy(null);
+      setRechecking(false);
     }
   }
 
-  const dashboard = INTEGRATIONS.filter((i) => i.tier === "dashboard");
-  const claude = INTEGRATIONS.filter((i) => i.tier === "claude");
-  const connectedCount = INTEGRATIONS.filter((i) => statuses[i.name]?.connected).length;
-
+  const count = (s: CheckResult["state"]) => INTEGRATIONS.filter((i) => results.get(i.name)?.state === s).length;
+  const checkedAt = data?.results?.[0]?.checkedAt;
   const grid = (list: Integration[]) => (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {list.map((it) => (
-        <Tile key={it.name} it={it} connected={!!statuses[it.name]?.connected} busy={busy === it.name} onToggle={(next) => toggle(it.name, next)} />
-      ))}
+      {list.map((it) => <Tile key={it.name} it={it} result={results.get(it.name)} />)}
     </div>
   );
 
@@ -91,24 +78,33 @@ export function IntegrationsBoard() {
     <div>
       <BerlinHeader
         title="Integrations"
-        subtitle="The tools Bronson runs on. Mark a source Connected once it is wired and feeding. The actual keys/automation live in the backend (n8n + API keys); ask me to wire any source and I set it up."
+        subtitle="Every source is checked for real: the dashboard calls the service with its own key, or checks how recently its data last synced. Nothing is marked connected by hand."
       />
 
-      <div className="mb-8 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-5 py-4 text-sm text-[var(--text-muted)]">
-        <span className="font-semibold text-[var(--text-strong)]">{connectedCount} of {INTEGRATIONS.length} connected. </span>
-        Click Connect on a source once it is wired and feeding; the status is saved.
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-5 py-4 text-sm text-[var(--text-muted)]">
+        <span>
+          <span className="font-semibold text-[var(--text-strong)]">{count("connected")} connected</span> · {count("problem")} with a problem · {count("unverified")} not verified
+          {checkedAt ? ` · checked ${new Date(checkedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} ET` : ""}
+        </span>
+        <button
+          onClick={recheck}
+          disabled={rechecking || isValidating}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-black px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
+        >
+          <RefreshCw size={14} className={rechecking ? "animate-spin" : ""} /> {rechecking ? "Checking…" : "Check again"}
+        </button>
       </div>
 
       <section className="mb-10">
         <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)]">Feeds your dashboard</h2>
-        <p className="mb-3 text-xs text-[var(--text-muted)]">Connect these first: they fill the numbers, pace and scorecard.</p>
-        {grid(dashboard)}
+        <p className="mb-3 text-xs text-[var(--text-muted)]">These fill the numbers, pace and scorecard.</p>
+        {grid(INTEGRATIONS.filter((i) => i.tier === "dashboard"))}
       </section>
 
       <section>
         <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)]">Optional, for your Claude</h2>
         <p className="mb-3 text-xs text-[var(--text-muted)]">Extra sources the research, audit and automation steps can read or act on.</p>
-        {grid(claude)}
+        {grid(INTEGRATIONS.filter((i) => i.tier === "claude"))}
       </section>
     </div>
   );

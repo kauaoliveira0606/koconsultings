@@ -17,6 +17,9 @@ export type Integration = {
 
 export const INTEGRATIONS: Integration[] = [
   // Tier 1 — feeds the dashboard.
+  { name: "Cortana", short: "Co", category: "Ads", tier: "dashboard", connectsToDashboard: true, addToClaude: true, description: "Attribution: spend, registrations, bookings and cash per campaign, ad set and ad. Feeds the Ads tab." },
+  { name: "Airtable", short: "At", category: "Data and attribution", tier: "dashboard", connectsToDashboard: true, addToClaude: true, description: "Where the forms, EODs, post call notes and synced numbers are stored." },
+  { name: "WebinarJam", short: "WJ", category: "Webinar", tier: "dashboard", connectsToDashboard: true, addToClaude: false, description: "Webinar registrants, attendance and time in the room." },
   { name: "Meta", short: "f", category: "Ads", tier: "dashboard", connectsToDashboard: true, addToClaude: true, description: "Meta Ads, spend and cost per lead, plus the Pixel and Conversions API." },
   { name: "GoHighLevel", short: "HL", category: "CRM", tier: "dashboard", connectsToDashboard: true, addToClaude: true, description: "Contacts, pipelines, calls booked, shows and closes." },
   { name: "Whop", short: "W", category: "Payments", tier: "dashboard", connectsToDashboard: true, addToClaude: false, description: "Checkout, memberships and renewals: the cash that actually came in." },
