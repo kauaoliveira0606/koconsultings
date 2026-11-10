@@ -42,7 +42,7 @@ function Tile({ it, connected, busy, onToggle }: { it: Integration; connected: b
           className={`rounded-lg px-3.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50 ${
             connected
               ? "border border-[var(--panel-border)] bg-transparent text-[var(--text-muted)] hover:border-rose-300 hover:text-rose-500"
-              : "bg-neutral-900 text-white hover:bg-neutral-700"
+              : "bg-black text-white hover:opacity-90"
           }`}
         >
           {busy ? "…" : connected ? "Disconnect" : "Connect"}

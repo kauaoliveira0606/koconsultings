@@ -45,7 +45,7 @@ export function EmptyState({
       {action ? (
         <a
           href={action.href}
-          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           {action.label}
         </a>

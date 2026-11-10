@@ -87,7 +87,7 @@ export function OfficeBoard() {
         <div className="flex shrink-0 gap-2">
           <button
             onClick={() => setComposer(true)}
-            className="rounded-lg bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
+            className="rounded-lg bg-black px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
             New task
           </button>
@@ -107,7 +107,7 @@ export function OfficeBoard() {
           <div className="text-base font-semibold text-[var(--text-strong)]">No tasks yet</div>
           <p className="mt-2 max-w-md text-sm text-[var(--text-muted)]">Add the people who work in the company, then create tasks and assign them. Completed tasks drop to the bottom.</p>
           <div className="mt-5 flex gap-2">
-            <button onClick={() => setComposer(true)} className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white">New task</button>
+            <button onClick={() => setComposer(true)} className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white">New task</button>
             <button onClick={() => setManagePeople(true)} className="rounded-lg border border-[var(--panel-border)] px-4 py-2 text-sm font-semibold text-[var(--text-strong)]">Add people</button>
           </div>
         </Panel>
@@ -177,7 +177,7 @@ export function OfficeBoard() {
               {completed.map((t) => (
                 <li key={t.id} className="group flex items-center gap-3.5 border-b border-[var(--panel-border)] py-3.5 last:border-0">
                   <button aria-label="Reopen" disabled={busy} onClick={() => post({ action: "toggle", id: t.id, done: false })}
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[11px] text-white">✓</button>
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[11px] text-white">✓</button>
                   <span className="min-w-0 flex-1 truncate text-[14px] text-[var(--text-muted)] line-through">{t.task}</span>
                   <span className="shrink-0 text-[11px] text-[var(--text-muted)]">{relDate(t.completedAt)}</span>
                   <button aria-label="Delete" onClick={() => post({ action: "deleteTask", id: t.id })} className="text-[var(--text-muted)] opacity-0 transition-opacity hover:text-rose-500 group-hover:opacity-100">✕</button>
@@ -211,7 +211,7 @@ function AddTask({ people, onAdd, onCancel }: { people: Person[]; onAdd: (task: 
           <option value="">Unassigned</option>
           {people.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
         </select>
-        <button disabled={!task.trim()} onClick={() => onAdd(task.trim(), description.trim(), assignee)} className="rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Add</button>
+        <button disabled={!task.trim()} onClick={() => onAdd(task.trim(), description.trim(), assignee)} className="rounded-md bg-black px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Add</button>
         <button onClick={onCancel} className="px-2 py-2 text-sm text-[var(--text-muted)]">Cancel</button>
       </div>
     </div>
@@ -232,7 +232,7 @@ function EditTask({ task, people, busy, onSave, onCancel }: { task: Task; people
           <option value="">Unassigned</option>
           {people.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
         </select>
-        <button disabled={busy || !name.trim()} onClick={() => onSave({ task: name.trim(), description: description.trim(), assignee })} className="rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Save</button>
+        <button disabled={busy || !name.trim()} onClick={() => onSave({ task: name.trim(), description: description.trim(), assignee })} className="rounded-md bg-black px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Save</button>
         <button onClick={onCancel} className="px-2 py-2 text-sm text-[var(--text-muted)]">Cancel</button>
       </div>
     </li>
@@ -266,7 +266,7 @@ function TaskComposer({ people, departments, roles, onAdd, onClose }: { people: 
           </select>
           <button disabled={!task.trim() || !department.trim() || !role.trim()}
             onClick={() => onAdd({ task: task.trim(), description: description.trim(), department: department.trim(), role: role.trim(), assignee })}
-            className="w-full rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Add task</button>
+            className="w-full rounded-md bg-black px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Add task</button>
         </div>
       </div>
     </div>
@@ -303,7 +303,7 @@ function PeoplePanel({ people, departments, onClose, post }: { people: Person[];
           <datalist id="ppl-depts">{departments.map((d) => <option key={d} value={d} />)}</datalist>
           <button disabled={!name.trim() || !department.trim() || !role.trim()}
             onClick={async () => { await post({ action: "addPerson", name: name.trim(), department: department.trim(), role: role.trim() }); setName(""); setRole(""); }}
-            className="rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Add person</button>
+            className="rounded-md bg-black px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Add person</button>
         </div>
       </div>
     </div>
