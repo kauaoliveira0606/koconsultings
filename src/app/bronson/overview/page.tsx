@@ -14,6 +14,7 @@ import { RateColumns } from "@/components/dashboard/RateColumns";
 import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { PacePanel } from "@/components/berlin/PacePanel";
+import { AlertsBanner } from "@/components/berlin/AlertsBanner";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
@@ -163,6 +164,7 @@ export default function OverviewPage() {
         <h1 className="text-2xl font-bold text-[var(--text-strong)]">Overview</h1>
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
+      <AlertsBanner />
       <DashboardSection title="Live Cash Today">
         <LiveCashToday apiPath="/api/bronson/overview/live-cash" showAffiliate={false} />
       </DashboardSection>

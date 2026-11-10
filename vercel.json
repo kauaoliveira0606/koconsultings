@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/wallet",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/ad-alerts",
+      "schedule": "20 * * * *"
     }
   ]
 }

@@ -8,6 +8,7 @@ import { useSectionData } from "@/lib/use-section-data";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Panel, EmptyState } from "@/components/berlin/Berlin";
 import { PacePanel } from "@/components/berlin/PacePanel";
+import { AlertsBanner } from "@/components/berlin/AlertsBanner";
 import { AdsEntityTable } from "@/components/berlin/AdsEntityTable";
 import { KpiValue, toneFor } from "@/components/berlin/kpi";
 import { formatStatValue } from "@/lib/format";
@@ -132,6 +133,7 @@ export function AdsBoard() {
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
 
+      <AlertsBanner />
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Ad spend" value={t?.adSpend ?? null} format="currency" subtext="Meta spend, from the daily form." />
         <StatCard label="Revenue (paid)" value={t?.paidRevenue ?? null} format="currency" subtext="Revenue attributed to paid sources (Cortana)." />
