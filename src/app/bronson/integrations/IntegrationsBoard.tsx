@@ -96,7 +96,7 @@ export function IntegrationsBoard() {
 
       <div className="mb-8 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-5 py-4 text-sm text-[var(--text-muted)]">
         <span className="font-semibold text-[var(--text-strong)]">{connectedCount} of {INTEGRATIONS.length} connected. </span>
-        One CRM is enough (GoHighLevel or Close), and one checkout (Commas or Whop).
+        Click Connect on a source once it is wired and feeding; the status is saved.
       </div>
 
       <section className="mb-10">
