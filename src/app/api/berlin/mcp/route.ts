@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { ADMIN_COOKIE, SERVICE_TOKEN } from "@/lib/admin-gate";
 import { AD_FORMATS } from "@/lib/berlin/ad-formats";
+import { aggregateEntities, getAdsRange } from "@/lib/ads-cortana";
+import { scoreCreatives } from "@/lib/creative-score";
 import { getBrain, searchBrain, addDoc, type BrainType } from "@/lib/brain";
 import { getOffice, addTask, setTaskStatus, TASK_STATUSES, AI_ASSIGNEE, type TaskStatus, type TaskPriority } from "@/lib/office";
 
@@ -126,6 +128,16 @@ const TOOLS: Tool[] = [
     },
     run: (args, origin) =>
       fetchJson(`${origin}/api/bronson/funnels/analytics?preset=${preset(args)}&source=${["paid", "organic", "total"].includes(String(args.source)) ? args.source : "paid"}`),
+  },
+  {
+    name: "get_creative_scores",
+    description:
+      "Every ad scored piece by piece (hook, body/hold, CTA/click, result = cost per registration) with a verdict (Scale / Fix the hook / Fix the body / Fix the CTA / Kill) and what to test next. Use it to write the next batch of ads from what worked.",
+    inputSchema: { type: "object", properties: { preset: presetProp }, additionalProperties: false },
+    run: async (args) => {
+      const rows = await getAdsRange(typeof args.preset === "string" ? args.preset : "last_7_days");
+      return rows ? scoreCreatives(aggregateEntities(rows.filter((r) => r.level === "ad"))) : [];
+    },
   },
   {
     name: "search_knowledge",

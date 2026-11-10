@@ -9,6 +9,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Panel, EmptyState } from "@/components/berlin/Berlin";
 import { PacePanel } from "@/components/berlin/PacePanel";
 import { AlertsBanner } from "@/components/berlin/AlertsBanner";
+import { CreativeScores } from "@/components/berlin/CreativeScores";
 import { AdsEntityTable } from "@/components/berlin/AdsEntityTable";
 import { KpiValue, toneFor } from "@/components/berlin/kpi";
 import { formatStatValue } from "@/lib/format";
@@ -248,6 +249,8 @@ export function AdsBoard() {
           </div>
         </Panel>
       )}
+
+      <CreativeScores />
 
       <Panel className="mb-6 overflow-hidden p-0">
         <div className="border-b border-[var(--panel-border)] px-6 py-4 text-[15px] font-semibold text-[var(--text-strong)]">Revenue by source</div>
