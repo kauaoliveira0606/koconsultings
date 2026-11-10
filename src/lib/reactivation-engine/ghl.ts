@@ -214,6 +214,9 @@ export type GhlMessage = {
   direction: "inbound" | "outbound";
   body?: string;
   error?: string;
+  /** Set when a person on the team sent it (with source "app"); workflows can carry one too. */
+  userId?: string;
+  source?: string;
 };
 
 /**
@@ -429,4 +432,26 @@ export async function flagSalesCall(offer: ReactivationOffer, c: GhlContact, ask
     }),
   });
   if (!res.ok) console.error("sales call Discord alert failed", res.status, await res.text());
+}
+
+/**
+ * A reply the masterclass engine held for a person (kit rule: low confidence, uncertainty or a blocked draft).
+ * GHL note plus a post in the setter channel, no role ping. The lead is on Human Hold until someone clears it in Airtable.
+ */
+export async function flagReview(offer: ReactivationOffer, c: GhlContact, reason: string, text: string): Promise<void> {
+  await ghl(offer, `/contacts/${c.id}/notes`, {
+    method: "POST",
+    body: { body: `Masterclass engine: reply held for a person, no text sent. ${reason}\nTheir text: "${text}"\nAnswer them, then clear Human Hold in Airtable to hand the lead back.` },
+  });
+  const webhook = GHL_OFFERS[offer].setterWebhookEnv ? process.env[GHL_OFFERS[offer].setterWebhookEnv!] : undefined;
+  if (!webhook) return;
+  const res = await fetch(webhook, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content: `🙋 **Masterclass reply needs a person** (engine held it, nothing sent)\n**${c.contactName || c.firstName || "Lead"}** ${c.phone ?? ""}\n${reason}\n> ${text.replace(/\n/g, " ").slice(0, 500)}\nhttps://app.gohighlevel.com/v2/location/${env(offer).locationId}/contacts/detail/${c.id}`,
+      allowed_mentions: { parse: [] },
+    }),
+  });
+  if (!res.ok) console.error("review Discord alert failed", res.status, await res.text());
 }

@@ -5,6 +5,7 @@ import {
 } from "@/lib/airtable/reactivation";
 import { firstNameOf, generate, localTime, MODELS, thread, trySend, type RunReport } from "./engine";
 import {
+  flagReview,
   flagSalesCall,
   ghlTeam,
   GHL_OFFERS,
@@ -32,7 +33,7 @@ import { getBookingsMade } from "@/lib/calendly";
 import { calendlyFor } from "@/lib/calendly-offers";
 import { staleWhileRevalidate } from "@/lib/swr-cache";
 import { AVAL_LESSONS, BRONSON_LESSONS } from "./lessons";
-import { CONVERSATION_RULES, CONFIDENCE_THRESHOLD, exactQuote, explicitOptOut, finalize, headsUpGiven, partDelayMs, sessionTimes } from "./guards";
+import { CONVERSATION_RULES, correctionDelayMs, exactQuote, explicitOptOut, finalize, headsUpGiven, humanTextAfter, partDelayMs, sessionTimes, toParts } from "./guards";
 import { BRONSON_DECK } from "./bronson-deck";
 
 /**
@@ -146,12 +147,12 @@ export const MASTERCLASS: Record<MasterclassOffer, Masterclass> = {
   },
 };
 const DAY = 86_400_000;
-/** User, 2026-10-28: "wrong number" is not an opt-out here, we remind them what they signed up for. */
+/** STOP keywords at the start. "Wrong number" and other stop phrases anywhere: guards.ts explicitOptOut (user, 2026-11-10). */
 export const STOP = /^\s*(stop|unsubscribe|remove me|cancel|quit|end)\b/i;
 
 /** User, 2026-11-05: how every text is shaped, for the show-up and no-show engines. */
 export const TEXT_SHAPE = `<text-shape>
-- One idea per text. Texts don't have sections. If a reply needs a second idea (e.g. confirm their seat, then ask about the prep doc), put a blank line between them: each part goes out as its own text, in order. Never more than two.
+- One idea per text. Texts don't have sections. If a reply needs a second idea (e.g. confirm their seat, then ask about the prep doc), put a blank line between them: each part goes out as its own text, in order. Never more than three (user, 2026-11-10); two is often enough.
 - Questions end in an easy yes: "right?", "yeah?", "want me to send it?". No open-ended questions early in the flow. The approved open questions stay (the goal follow-up, "what day and time would be perfect for you?").
 - Their name: only in the first text you ever send them and in a recovery ping (texting first after they've gone quiet: a no-show night-of or push #1). Never in replies. A name in every text reads as mail-merge.
 </text-shape>`;
@@ -198,7 +199,7 @@ export async function teamLine(offer: MasterclassOffer, c: GhlContact): Promise<
 export function prepDocRule(offer: MasterclassOffer, when: string): string {
   const doc = MASTERCLASS[offer].prepDoc;
   if (!doc) return "";
-  return `- The free masterclass prep doc (user, 2026-11-05): ${when}, and nobody in the thread has offered it yet, ask if this is a good place to send it, always framed as "i can do this here, right?" (e.g. "i can send you the free masterclass prep doc here, right?"). Only when they say yes (or ask for it), send it: ${doc} (e.g. "here you go ${doc}"). Never send the link before they say yes. A yes to the prep doc is not a yes to showing up.`;
+  return `- The free masterclass prep doc (user, 2026-11-05): ${when}, and nobody in the thread has offered it yet, ask if this is a good place to send it, always framed as "i can do this here, right?" (e.g. "i can send you the free masterclass prep doc here, right?"; in a closing reply, no question mark: "i can send you the free masterclass prep doc here too, just say the word"). Only when they say yes (or ask for it), send it: ${doc} (e.g. "here you go ${doc}"). Never send the link before they say yes. A yes to the prep doc is not a yes to showing up.`;
 }
 
 /** Protocol, "www.", trailing slash and trailing punctuation don't matter. */
@@ -414,7 +415,7 @@ ${goalExamples(offer)}
 - They confirm they'll be there: action "committed".
 - They flatly can't make it: ask what day and time would be perfect for them, action "cant_make_it".
 - Plain "ok", "thanks", a thumbs up: reply "".
-- STOP / remove me / unsubscribe: reply "", action "opt_out". "Wrong number" is NOT an opt-out.
+- STOP / remove me / unsubscribe / wrong number / a flat "not interested": reply "", action "opt_out".
 - Never promise to check on something or get back to them ("let me check", "I'll get back to you"): nobody follows up on those. If you can't answer it yourself, reply "" and put their question in "question_to_review".
 ${questionnaireRule(offer)}
 - Anything about a 1-on-1 or sales call (booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, "call me"), or a reply to someone from my team (${setterPhrase(offer)}) about a call: reply "", action "sales_call", and say what they want in "call_request". A setter picks it up.
@@ -448,7 +449,8 @@ After their first clear yes, if the lead details say reminders are still coming 
 </reminder-heads-up>
 
 ${lessonsBlock(offer)}Return JSON:
-- "reply": the text to send (two texts split by a blank line when there are two ideas), or "".
+- "reply": the text to send (up to three texts split by blank lines, one idea each; a planted-typo fix on its own last line), or "".
+- "close_exchange": true or false.
 - "action": "committed", "cant_make_it", "opt_out", "sales_call" or "none".
 - "committed_to": with "committed", "this_session" (the masterclass above) or "next_session" (the next date after it), else "".
 - "call_request": with "sales_call", what they want about the call, short (e.g. "wants to reschedule tomorrow's call earlier"), else "".
@@ -467,6 +469,7 @@ export const REPLY_SCHEMA = {
     reply: { type: "string" },
     action: { type: "string", enum: ["none", "committed", "cant_make_it", "opt_out", "sales_call"] },
     committed_to: { type: "string", enum: ["", "this_session", "next_session"] },
+    close_exchange: { type: "boolean" },
     call_request: { type: "string" },
     preferred_time: { type: "string" },
     goal: { type: "string" },
@@ -476,7 +479,7 @@ export const REPLY_SCHEMA = {
     confidence: { type: "number" },
     uncertainties: { type: "array", items: { type: "string" } },
   },
-  required: ["reply", "action", "committed_to", "call_request", "preferred_time", "goal", "wants_covered", "other_feedback", "question_to_review", "confidence", "uncertainties"],
+  required: ["reply", "action", "committed_to", "close_exchange", "call_request", "preferred_time", "goal", "wants_covered", "other_feedback", "question_to_review", "confidence", "uncertainties"],
   additionalProperties: false,
 };
 
@@ -484,6 +487,7 @@ type Parsed = {
   reply: string;
   action: string;
   committed_to?: string;
+  close_exchange?: boolean;
   confidence?: number;
   uncertainties?: string[];
   call_request: string;
@@ -638,6 +642,17 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
       continue;
     }
     if (lead.fields.Status === "Registered") fields.Status = "Replied";
+    // Kit rule: a setter's own text or an earlier held reply means a person owns this lead. Opt-outs above still count.
+    const setterText = humanTextAfter(msgs, handledUpTo, ["TYPE_SMS", ROEZAN_SMS]);
+    if (setterText) {
+      const next = appendTo(lead.fields["Human Hold"], `Setter texted them ${setterText.dateAdded.slice(0, 16)}Z: "${(setterText.body ?? "").slice(0, 120)}"`);
+      if (next) fields["Human Hold"] = next;
+    }
+    if (setterText || s(lead.fields["Human Hold"]).trim()) {
+      report.skipped["human hold: team owns it"] = (report.skipped["human hold: team owns it"] ?? 0) + 1;
+      await updateReactivationRow(offer, "leads", lead.id, fields);
+      continue;
+    }
 
     if (since !== null && Date.parse(fresh[fresh.length - 1].dateAdded) >= since) {
       const c = await getContact(offer, conv.contactId);
@@ -670,7 +685,16 @@ Answer their latest text.`,
       const inboundText = fresh.map((m) => m.body ?? "").join("\n");
       let held: string[] = [];
       if (parsed) {
-        const g = finalize({ reply: parsed.reply, action: parsed.action, latestInbound: latestText, remindersRemaining: remindersLeft });
+        const g = finalize({
+          reply: parsed.reply,
+          action: parsed.action,
+          latestInbound: latestText,
+          remindersRemaining: remindersLeft,
+          closeExchange: parsed.close_exchange,
+          confidence: parsed.confidence,
+          uncertainties: parsed.uncertainties,
+          ourTexts: msgs.filter((m) => m.direction === "outbound").map((m) => m.body ?? ""),
+        });
         parsed.reply = g.reply;
         parsed.action = g.action;
         held = g.held;
@@ -687,20 +711,20 @@ Answer their latest text.`,
         const question = parsed.question_to_review.trim() || (linkBlocked || held.length ? latestText : "");
         const notes: string[] = [];
         if (question) notes.push(`Q: ${question} → ${linkBlocked ? "NOT SENT (unapproved link)" : held.length ? `NOT SENT (${held.join("; ")})` : `Sent: ${parsed.reply || "(no reply)"}`}`);
-        notes.push(...lowConfidence(parsed, latestText));
         for (const note of notes) {
           const next = appendTo(fields["Questions To Review"] ?? lead.fields["Questions To Review"], note);
           if (next) fields["Questions To Review"] = next;
         }
-        if (held.length) report.skipped["reply held: finalizer"] = (report.skipped["reply held: finalizer"] ?? 0) + 1;
+        if (held.length || linkBlocked) {
+          // Kit rule: a held reply goes to a person, and the lead stays theirs until Human Hold is cleared.
+          const reason = linkBlocked ? "unapproved link" : held.join("; ");
+          fields["Human Hold"] = appendTo(lead.fields["Human Hold"], `Reply held ${new Date().toISOString().slice(0, 16)}Z: ${reason}`) ?? s(lead.fields["Human Hold"]);
+          await flagReview(offer, c, reason, latestText).catch((e) => console.error("show-rate: review alert failed", e));
+          report.skipped["reply held: sent to a person"] = (report.skipped["reply held: sent to a person"] ?? 0) + 1;
+          parsed.action = "none";
+        }
         if (parsed.reply && !linkBlocked) {
-          let sent = 0;
-          for (const part of splitTexts(parsed.reply)) {
-            if (sent && !(await stillCurrent(offer, c.id, fresh[fresh.length - 1].dateAdded, part))) break;
-            if (!(await trySend(offer, c.id, part, line))) break;
-            await logOut(offer, c, name, part, null);
-            sent++;
-          }
+          const sent = await sendParts(offer, c, name, parsed.reply, line, fresh[fresh.length - 1].dateAdded);
           if (sent) {
             fields["Last Message At"] = new Date().toISOString();
             report.replies++;
@@ -732,12 +756,20 @@ Answer their latest text.`,
 const REMINDER_OFFSETS = [2 * DAY, DAY, 7 * 3_600_000, 3_600_000, 60_000];
 export const remindersRemaining = (startsAt: number, now = Date.now()) => REMINDER_OFFSETS.filter((o) => startsAt - o > now).length;
 
-/** Kit rule: confidence under 90% or open uncertainties. Recorded for review only, the reply still goes out. */
-export function lowConfidence(p: { confidence?: number; uncertainties?: string[] }, latest: string): string[] {
-  const c = typeof p.confidence === "number" && Number.isFinite(p.confidence) && p.confidence >= 0 && p.confidence <= 1 ? p.confidence : null;
-  const u = (p.uncertainties ?? []).filter((x) => typeof x === "string" && x.trim());
-  if (c !== null && c >= CONFIDENCE_THRESHOLD && !u.length) return [];
-  return [`Low confidence ${c === null ? "(none given)" : `${Math.round(c * 100)}%`}${u.length ? `, unsure: ${u.join("; ")}` : ""} on "${latest.slice(0, 120)}" (sent anyway)`];
+/**
+ * Sends a finalized reply as up to three texts in order (logged as ours). A planted-typo fix follows its text
+ * after 2 to 3 seconds; other follow-on texts wait a reading pause and stop if they texted again meanwhile.
+ */
+export async function sendParts(offer: MasterclassOffer, c: GhlContact, name: string, reply: string, line: Line, lastInboundAt: string, label?: string): Promise<number> {
+  let sent = 0;
+  for (const part of toParts(reply)) {
+    if (sent && part.kind === "correction") await new Promise((r) => setTimeout(r, correctionDelayMs()));
+    else if (sent && !(await stillCurrent(offer, c.id, lastInboundAt, part.text))) break;
+    if (!(await trySend(offer, c.id, part.text, line))) break;
+    await logOut(offer, c, name, part.text, null, label);
+    sent++;
+  }
+  return sent;
 }
 
 /**

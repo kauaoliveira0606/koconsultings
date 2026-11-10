@@ -1,10 +1,9 @@
 /**
  * Deterministic checks on every model reply before it's sent, for the show-up and no-show engines.
  * Ported 2026-11-10 from a friend's draft-first conversation kit (policy.ts finalizeDraft + delivery-plan.ts),
- * adapted to our live engine. Left out on purpose (user rules win): bare "not interested" and "wrong number"
- * as opt-outs, silence once a human texts the lead, three-part replies, the planted typo + "*correction" trick,
- * no question on a closing text (our prep doc ask is one), and holding every reply under 90% confidence
- * (confidence is recorded only, see the Low Confidence note).
+ * adapted to our live engine. 2026-11-10 the user approved the rest too: "wrong number" and bare "not interested"
+ * are opt-outs, a setter's text puts the lead on Human Hold, up to three texts, one planted typo + "*correction",
+ * no question in a closing text, and every reply under 90% confidence is held for a person.
  */
 
 /** Plain ok / thanks / thumbs up: nothing to answer. */
@@ -16,16 +15,16 @@ export function isAcknowledgment(text: string): boolean {
 
 /**
  * Explicit "stop texting me" wording anywhere in the text, beyond the STOP keyword at the start.
- * "don't stop texting me" is not one. Per the user (2026-10-28, 2026-11-02), "wrong number" and
- * "not interested" are NOT opt-outs here, so they're left out of the kit's list.
+ * "don't stop texting me" is not one. "Wrong number" and a bare "not interested" are (user, 2026-11-10,
+ * replacing the 2026-10-28 and 2026-11-02 rules). Not interested in a job or a purchase is not.
  */
 export function explicitOptOut(text: string): boolean {
   const normalized = text.trim().replace(/[’‘]/g, "'");
   const direct = normalized.replace(/\b(?:dont|don't|do not) stop (?:text(?:ing)?|messag(?:e|ing)|contact(?:ing)?)(?: me)?\b/gi, "");
   if (/^(?:please\s+)?stop[!.\s]*$/i.test(normalized)) return true;
-  return /\b(?:(?:stop|quit) (?:text(?:ing)?|messag(?:e|ing)|contact(?:ing)?)(?: me)?|unsubscribe|remove me|no more (?:texts|messages)|do not (?:text|contact|message)|don't (?:text|contact|message)|dont (?:text|contact|message))\b/i.test(
-    direct
-  );
+  if (/\b(?:(?:stop|quit) (?:text(?:ing)?|messag(?:e|ing)|contact(?:ing)?)(?: me)?|unsubscribe|remove me|no more (?:texts|messages)|wrong (?:number|person)|do not (?:text|contact|message)|don't (?:text|contact|message)|dont (?:text|contact|message))\b/i.test(direct))
+    return true;
+  return /^(?:no[, ]+)?(?:i(?:'m| am) )?not interested(?: in (?:this|the) (?:webinar|masterclass|class|event))?(?:[, ]+(?:thanks|thank you))?[.!\s]*$/i.test(normalized);
 }
 
 /** Leaked JSON, code fences or literal "\n": never send it. */
@@ -52,8 +51,26 @@ export type GuardInput = {
   latestInbound: string;
   /** Show-up engine: how many of our scheduled reminder texts are still to come for this session. null = not known. */
   remindersRemaining: number | null;
+  closeExchange?: boolean;
+  confidence?: unknown;
+  uncertainties?: unknown;
+  /** Our earlier texts in this thread, to allow the planted typo only once per conversation. */
+  ourTexts?: string[];
 };
-export type GuardResult = { reply: string; action: string; held: string[] };
+/** held: why a person must answer instead (reply blank, lead goes on Human Hold). */
+export type GuardResult = { reply: string; action: string; held: string[]; typoUsed: boolean };
+
+/** Approved harmless typos: the word, and how it's misspelled in the first text. */
+export const TYPOS: Record<string, string> = { really: "realy", definitely: "defintely", absolutely: "absolutley", again: "agian" };
+const CORRECTION = /(?:^|\n)\s*\*([A-Za-z]+)(?:[.!]|\s|\p{Extended_Pictographic}|\uFE0F|\u200D)*(?=\n|$)/gu;
+/** A text of ours that was only a "*word" correction. */
+export const typoAlreadyUsed = (ourTexts: string[]) => ourTexts.some((t) => /^\s*\*[A-Za-z]+[.!\s]*$/.test(t) || /\n\s*\*[A-Za-z]+/.test(t));
+/** They asked for a typo or another correction themselves. */
+export function explicitlyRequestsCorrection(text: string, ourTexts: string[]): boolean {
+  if (/\b(?:no|never|stop|don't|do not)\b[^.!?]{0,35}\b(?:typo|misspell|spell|correction)/i.test(text)) return false;
+  if (/\b(?:make|do|give|send|write|add)\b[^.!?]{0,35}\b(?:typo|spelling (?:mistake|error)|correction)\b|\b(?:misspell|spell\b[^.!?]{0,30}\bwrong)/i.test(text)) return true;
+  return /\b(?:again|another|one more)\b/i.test(text) && typoAlreadyUsed(ourTexts);
+}
 
 /**
  * The finalizer: runs on the parsed model output. A blocked draft is never sent; the reasons go to
@@ -62,7 +79,7 @@ export type GuardResult = { reply: string; action: string; held: string[] };
 export function finalize(g: GuardInput): GuardResult {
   let { reply, action } = g;
   const held: string[] = [];
-  if (explicitOptOut(g.latestInbound)) return { reply: "", action: "opt_out", held };
+  if (explicitOptOut(g.latestInbound)) return { reply: "", action: "opt_out", held, typoUsed: false };
   // An ack gets no reply, but keeps the model's action: "sounds good" to "want me to save you a seat?" is still a yes.
   if (isAcknowledgment(g.latestInbound) && action === "none") reply = "";
   if (action === "committed" && untrustedInstruction(g.latestInbound)) {
@@ -75,9 +92,59 @@ export function finalize(g: GuardInput): GuardResult {
   if (reply && reminderPromise(reply) && !(g.remindersRemaining !== null && g.remindersRemaining > 0))
     held.push("promised reminders that aren't scheduled");
   if (reply && !textSafe(reply)) held.push("malformed reply");
+  // A closing text (they confirmed, seat saved) asks nothing more.
+  const closed = g.closeExchange || action === "committed" || action === "save_seat";
+  // The approved prep doc ask becomes its statement form in a closing text, instead of holding the whole reply.
+  if (closed)
+    reply = reply
+      .replace(/i can send you the free masterclass prep doc here,? right\?/gi, "i can send you the free masterclass prep doc here too, just say the word")
+      .replace(/te puedo mandar la gu[ií]a de preparaci[oó]n gratis por aqu[ií],? ¿verdad\?/gi, "te puedo mandar la guía de preparación gratis por aquí también, solo dime");
+  if (reply && closed && reply.replace(/“[^”]*”|"[^"]*"/g, "").includes("?")) held.push("asked a question in a closing text");
+
+  // The planted typo: one approved word misspelled, then "*word" as its own text. Once per conversation.
+  const ours = g.ourTexts ?? [];
+  let typoUsed = typoAlreadyUsed(ours);
+  const corrections = [...reply.matchAll(CORRECTION)];
+  if (reply && corrections.length) {
+    const word = corrections[0][1].toLowerCase();
+    const typo = TYPOS[word];
+    const body = reply.replace(CORRECTION, "").trim();
+    const valid = corrections.length === 1 && Boolean(typo) && new RegExp("\\b" + typo + "\\b", "i").test(body);
+    if (!valid) held.push("unsupported typo correction");
+    else if ((typoUsed && !explicitlyRequestsCorrection(g.latestInbound, ours)) || action !== "none" || /[0-9]|https?:|\b(?:hospital|surgery|medical|stop|unsubscribe)\b/i.test(body + " " + g.latestInbound)) {
+      reply = body.replace(new RegExp("\\b" + typo + "\\b", "gi"), word);
+    } else typoUsed = true;
+  }
+
+  // Confidence is the model's own estimate, not a calibrated score. Missing or under 90% means a person answers.
+  if (action !== "opt_out" && action !== "sales_call" && !isAcknowledgment(g.latestInbound)) {
+    const c = typeof g.confidence === "number" && Number.isFinite(g.confidence) && g.confidence >= 0 && g.confidence <= 1 ? g.confidence : null;
+    const u = Array.isArray(g.uncertainties) ? g.uncertainties.filter((x): x is string => typeof x === "string" && Boolean(x.trim())) : [];
+    if (c === null) held.push("no confidence given");
+    else if (c < CONFIDENCE_THRESHOLD) held.push(`confidence ${Math.round(c * 100)}% is below 90%`);
+    held.push(...u.map((x) => `unsure: ${x}`));
+  }
   if (held.length) reply = "";
-  return { reply, action, held };
+  return { reply, action, held, typoUsed };
 }
+
+export type Part = { text: string; kind: "message" | "correction" };
+/** A finalized reply as texts in order: blank lines split ideas, a trailing "*word" is its own text. Three at most. */
+export function toParts(reply: string): Part[] {
+  const m = reply.match(/^([\s\S]+)\n(\*[A-Za-z]+[^A-Za-z\n]*)$/);
+  const body = (m ? m[1] : reply).split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean);
+  const parts: Part[] = body.map((text) => ({ text, kind: "message" }));
+  if (m) parts.push({ text: m[2].trim(), kind: "correction" });
+  return parts.slice(0, 3);
+}
+/** The correction follows its typo after 2 to 3 seconds. */
+export const correctionDelayMs = () => 2000 + Math.floor(Math.random() * 1000);
+
+/** Raw GHL message fields we need to tell a setter's own text from ours or an automation's. */
+export type RawMessage = { direction: string; messageType: string; dateAdded: string; userId?: string; source?: string; body?: string };
+/** A text a person on the team typed (has their user id, not sent by a workflow), after `after`. */
+export const humanTextAfter = (msgs: RawMessage[], after: string, smsTypes: string[]) =>
+  msgs.find((m) => m.direction === "outbound" && smsTypes.includes(m.messageType) && Boolean(m.userId) && m.source !== "workflow" && m.dateAdded.slice(0, 19) > after.slice(0, 19)) ?? null;
 
 /** Feedback fields keep only their exact words from their newest texts, never a model paraphrase. */
 export function exactQuote(value: string, inbound: string): string {
@@ -131,5 +198,8 @@ export const CONVERSATION_RULES = `<conversation-rules>
 - Answer the newest detail instead of repeating what they said back to them. Vary how you say it ("the class shows", "the class goes over", "you'll learn how"), don't rotate phrases mechanically, don't force fillers or emojis. Don't repeat the same lesson in back-to-back replies, and don't turn every question into the same stock answer.
 - Never make up personal experiences, guarantees or benefits. Don't add disclaimers to normal texts, but never misstate who you are or the facts when asked directly.
 - feedback fields ("goal", "wants_covered", "preferred_time", "reason", "other_feedback"): copy their exact words from their newest texts, never a paraphrase.
-- "confidence": your honest 0 to 1 estimate that this reply is right and fully backed by the files. "uncertainties": any fact you needed but didn't have, or [].
+- "confidence": your honest 0 to 1 estimate that this reply is right and fully backed by the files. Under 0.9, a person answers instead. "uncertainties": any fact you needed but didn't have, or [] (any entry also sends it to a person).
+- "close_exchange": true when this reply closes the exchange (they confirmed, their seat is saved, they can't make it and nothing is left to ask). A closing reply has no question in it at all: offers become statements ("i can send you the free masterclass prep doc here too, just say the word").
+- Up to three short texts, separated by blank lines. Two is often enough.
+- The planted typo (looks human): once per conversation, in a casual reply with action "none" and nothing sensitive, when a text naturally uses "really", "definitely", "absolutely" or "again", misspell it ("realy", "defintely", "absolutley", "agian") and end the reply with a new line holding only the fix ("*really"). It goes out as its own text 2 to 3 seconds later. Only those words, one per conversation, never in names, dates, times, prices or links.
 </conversation-rules>`;

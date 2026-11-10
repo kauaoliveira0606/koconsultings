@@ -1,6 +1,6 @@
 import { createReactivationRow, getReactivationRows, updateReactivationRow } from "@/lib/airtable/reactivation";
 import { firstNameOf, generate, localTime, MODELS, outsideUsCanada, thread, trySend, type RunReport } from "./engine";
-import { clearSmsDnd, deadNumber, flagSalesCall, getContact, replyLine, ROEZAN_SMS, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
+import { clearSmsDnd, deadNumber, flagReview, flagSalesCall, getContact, replyLine, ROEZAN_SMS, history, recentConversations, smsBlocked, smsCarrierBlocked, type GhlContact } from "./ghl";
 import {
   appendTo,
   bookedCall,
@@ -23,15 +23,13 @@ import {
   questionnaireRule,
   setterPhrase,
   lessonsBlock,
-  lowConfidence,
-  stillCurrent,
-  splitTexts,
+  sendParts,
   TEXT_SHAPE,
   type MasterclassOffer,
   type Row,
 } from "./show-rate";
 import { NOSHOW_VOICES, VOICES } from "./voice";
-import { CONVERSATION_RULES, exactQuote, explicitOptOut, finalize, sessionTimes } from "./guards";
+import { CONVERSATION_RULES, exactQuote, explicitOptOut, finalize, humanTextAfter, sessionTimes } from "./guards";
 import { register, schedules, type WjSchedule } from "./webinarjam";
 
 /**
@@ -106,8 +104,9 @@ ${TEXT_SHAPE}
 ${CONVERSATION_RULES}
 
 ${lessonsBlock(offer)}Return JSON:
-- "reply": the text to send (two texts split by a blank line when there are two ideas), or "" (plain ok / thanks / 👍, or STOP).
-- "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "not_interested", "wrong_number" (they say this isn't the person who signed up), "opt_out" (STOP / remove me / unsubscribe), "sales_call" (anything about a 1-on-1 or sales call: booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, or a reply to ${setterPhrase(offer)} about a call; reply "" and a setter picks it up), or "none".
+- "reply": the text to send (up to three texts split by blank lines, one idea each; a planted-typo fix on its own last line), or "" (plain ok / thanks / 👍, or STOP).
+- "close_exchange": true or false.
+- "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "opt_out" (STOP / remove me / unsubscribe / wrong number / a flat "not interested", user 2026-11-10), "not_interested" (turning down this date but not asking us to stop, e.g. "not interested in the next one"), "sales_call" (anything about a 1-on-1 or sales call: booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, or a reply to ${setterPhrase(offer)} about a call; reply "" and a setter picks it up), or "none".
 - "call_request": with "sales_call", what they want about the call, short, else "".
 - "preferred_time": the day/time they say would work, in their words, or "".
 - "reason": why they missed it or why they're not interested, in their words, or "".
@@ -120,6 +119,7 @@ export const NO_SHOW_SCHEMA = {
   properties: {
     reply: { type: "string" },
     action: { type: "string", enum: ["none", "save_seat", "not_interested", "wrong_number", "opt_out", "sales_call"] },
+    close_exchange: { type: "boolean" },
     call_request: { type: "string" },
     preferred_time: { type: "string" },
     reason: { type: "string" },
@@ -127,7 +127,7 @@ export const NO_SHOW_SCHEMA = {
     confidence: { type: "number" },
     uncertainties: { type: "array", items: { type: "string" } },
   },
-  required: ["reply", "action", "call_request", "preferred_time", "reason", "question_to_review", "confidence", "uncertainties"],
+  required: ["reply", "action", "close_exchange", "call_request", "preferred_time", "reason", "question_to_review", "confidence", "uncertainties"],
   additionalProperties: false,
 };
 
@@ -138,6 +138,7 @@ type Parsed = {
   preferred_time: string;
   reason: string;
   question_to_review: string;
+  close_exchange?: boolean;
   confidence?: number;
   uncertainties?: string[];
 };
@@ -348,6 +349,17 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
       continue;
     }
     if (!STOPPED.has(s(lead.fields["No-show Status"]))) fields["No-show Status"] = "Replied";
+    // Kit rule: a setter's own text or an earlier held reply means a person owns this lead. Opt-outs above still count.
+    const setterText = humanTextAfter(msgs, handledUpTo, ["TYPE_SMS", ROEZAN_SMS]);
+    if (setterText) {
+      const next = appendTo(lead.fields["Human Hold"], `Setter texted them ${setterText.dateAdded.slice(0, 16)}Z: "${(setterText.body ?? "").slice(0, 120)}"`);
+      if (next) fields["Human Hold"] = next;
+    }
+    if (setterText || s(lead.fields["Human Hold"]).trim()) {
+      report.skipped["human hold: team owns it"] = (report.skipped["human hold: team owns it"] ?? 0) + 1;
+      await updateReactivationRow(offer, "leads", lead.id, fields);
+      continue;
+    }
 
     if (since !== null && Date.parse(fresh[fresh.length - 1].dateAdded) >= since) {
       const c = await getContact(offer, conv.contactId);
@@ -374,7 +386,16 @@ Answer their latest text.`,
       let held: string[] = [];
       if (parsed) {
         // No-shows get WebinarJam's and our usual reminders once their seat is saved (offer.md), so a reminder mention isn't blocked here.
-        const g = finalize({ reply: parsed.reply, action: parsed.action, latestInbound: latestText, remindersRemaining: 1 });
+        const g = finalize({
+          reply: parsed.reply,
+          action: parsed.action,
+          latestInbound: latestText,
+          remindersRemaining: 1,
+          closeExchange: parsed.close_exchange,
+          confidence: parsed.confidence,
+          uncertainties: parsed.uncertainties,
+          ourTexts: msgs.filter((m) => m.direction === "outbound").map((m) => m.body ?? ""),
+        });
         parsed.reply = g.reply;
         parsed.action = g.action;
         held = g.held;
@@ -386,6 +407,15 @@ Answer their latest text.`,
         await flagSalesCall(offer, c, parsed.call_request, fresh.map((m) => m.body ?? "").join(" / "));
         report.skipped["sales call: sent to setter"] = (report.skipped["sales call: sent to setter"] ?? 0) + 1;
       } else if (parsed) {
+        const linkBlocked = Boolean(parsed.reply) && !linksOk(offer, parsed.reply);
+        if (held.length || linkBlocked) {
+          // Kit rule: a held reply goes to a person (no seat saved, no status change), and the lead stays theirs until Human Hold is cleared.
+          const reason = linkBlocked ? "unapproved link" : held.join("; ");
+          fields["Human Hold"] = appendTo(lead.fields["Human Hold"], `Reply held ${new Date().toISOString().slice(0, 16)}Z: ${reason}`) ?? s(lead.fields["Human Hold"]);
+          await flagReview(offer, c, reason, latestText).catch((e) => console.error("no-show: review alert failed", e));
+          report.skipped["reply held: sent to a person"] = (report.skipped["reply held: sent to a person"] ?? 0) + 1;
+          parsed.action = "none";
+        }
         // Kit rule: one seat per contact per session. A second yes doesn't register them again.
         const already = s(lead.fields["No-show Status"]);
         if (parsed.action === "save_seat" && (already === "Seat Saved" || already === "Seat Pending")) {
@@ -398,17 +428,15 @@ Answer their latest text.`,
             fields["No-show Status"] = "Seat Pending";
           }
         } else if (parsed.action === "not_interested") fields["No-show Status"] = "Not interested";
-        else if (parsed.action === "wrong_number") fields["No-show Status"] = "Wrong number";
-        const linkBlocked = Boolean(parsed.reply) && !linksOk(offer, parsed.reply);
+        // User, 2026-11-10: a wrong number is an opt-out now.
+        else if (parsed.action === "wrong_number") Object.assign(fields, { Status: "Opted out", "No-show Status": "Opted out", "Opted Out At": new Date().toISOString() });
         const question = parsed.question_to_review.trim() || (linkBlocked || held.length ? latestText : "");
         const notes: string[] = [];
         if (question) notes.push(`Q (no-show): ${question} → ${linkBlocked ? "NOT SENT (unapproved link)" : held.length ? `NOT SENT (${held.join("; ")})` : `Sent: ${parsed.reply || "(no reply)"}`}`);
-        notes.push(...lowConfidence(parsed, latestText).map((n) => `(no-show) ${n}`));
         for (const note of notes) {
           const next = appendTo(fields["Questions To Review"] ?? lead.fields["Questions To Review"], note);
           if (next) fields["Questions To Review"] = next;
         }
-        if (held.length) report.skipped["reply held: finalizer"] = (report.skipped["reply held: finalizer"] ?? 0) + 1;
         for (const [field, value] of [
           ["Preferred Time", parsed.preferred_time],
           ["No-show Reason", parsed.reason],
@@ -417,13 +445,7 @@ Answer their latest text.`,
           if (next) fields[field] = next;
         }
         if (parsed.reply && !linkBlocked) {
-          let sent = 0;
-          for (const part of splitTexts(parsed.reply)) {
-            if (sent && !(await stillCurrent(offer, c.id, fresh[fresh.length - 1].dateAdded, part))) break;
-            if (!(await trySend(offer, c.id, part, line))) break;
-            await logOut(offer, c, name, part, null, "no-show reply");
-            sent++;
-          }
+          const sent = await sendParts(offer, c, name, parsed.reply, line, fresh[fresh.length - 1].dateAdded, "no-show reply");
           if (sent) {
             fields["Last Message At"] = new Date().toISOString();
             report.replies++;
