@@ -4,9 +4,15 @@ import { useState } from "react";
 import useSWR from "swr";
 import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { formatStatValue } from "@/lib/format";
-import { STATUS_TEXT_STYLE } from "@/components/dashboard/status";
 import type { WeeklyScorecardPayload, CellStatus, ScorecardRow } from "@/lib/weekly-scorecard";
 import { Sparkline, TonePill } from "@/components/berlin/kpi";
+
+/** Status tint from the theme's cell tokens: readable on both the light (Bronson) and dark themes. */
+const CELL_STYLE: Record<"green" | "yellow" | "red", React.CSSProperties> = {
+  green: { background: "var(--cell-green-bg)", color: "var(--cell-green-text)" },
+  yellow: { background: "var(--cell-yellow-bg)", color: "var(--cell-yellow-text)" },
+  red: { background: "var(--cell-red-bg)", color: "var(--cell-red-text)" },
+};
 
 const TREND_COLOR: Record<string, string> = { green: "#059669", yellow: "#d97706", red: "#e11d48" };
 
@@ -54,7 +60,7 @@ function Value({
     return (
       <span
         className={`inline-block rounded-md px-2 py-0.5 ${bold ? "font-bold" : "font-semibold"}`}
-        style={STATUS_TEXT_STYLE[status]}
+        style={CELL_STYLE[status]}
       >
         {text}
       </span>
@@ -122,7 +128,9 @@ export function WeeklyScorecardGrid({ apiPath }: { apiPath: string }) {
 
         {data ? (
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed border-collapse [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06] [&_tbody_tr.kpi-row:nth-of-type(even)]:bg-white/[0.03]">
+            <table
+              className="w-full table-fixed border-collapse border border-[color:var(--grid-line,var(--panel-border))] [&_thead_th]:border [&_thead_th]:border-[color:var(--grid-line,var(--panel-border))] [&_tr.grid-row>*]:border [&_tr.grid-row>*]:border-[color:var(--grid-line,var(--panel-border))] [&_tbody_tr.kpi-row:nth-of-type(even)]:bg-[var(--panel-subtle)]"
+            >
               <colgroup>
                 <col style={{ width: "250px" }} />
                 <col style={{ width: "96px" }} />
@@ -148,7 +156,7 @@ export function WeeklyScorecardGrid({ apiPath }: { apiPath: string }) {
                       </th>
                     );
                   })}
-                  <th className="rounded-t-lg bg-sky-300/10 px-3 py-3 text-right text-sm font-semibold text-sky-200">
+                  <th className="bg-sky-300/10 px-3 py-3 text-right text-sm font-semibold text-sky-200">
                     Week
                   </th>
                   <th className="px-3 py-3 text-right text-sm font-semibold text-[var(--text-muted)]">Goal</th>
@@ -188,11 +196,11 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
   };
   return (
     <>
-      <tr className="!border-b-0">
-        <td colSpan={12} className="pt-5" />
+      <tr>
+        <td colSpan={12} className="border-x-0 pt-5" />
       </tr>
-      <tr className="!border-b-0">
-        <td colSpan={12} className="rounded-lg bg-gradient-to-r from-sky-300/[0.14] via-white/[0.04] to-transparent px-3 py-2.5 text-[15px] font-semibold text-white">
+      <tr className="grid-row">
+        <td colSpan={12} className="bg-gradient-to-r from-sky-300/[0.14] via-white/[0.04] to-transparent px-3 py-2.5 text-[15px] font-semibold text-white">
           <span className="mr-2">{emoji}</span>
           {title}
           <span className="ml-3 text-[12px] font-medium text-[var(--text-muted)]">
@@ -201,7 +209,7 @@ function GroupRows({ emoji, title, rows }: { emoji: string; title: string; rows:
         </td>
       </tr>
       {rows.map((row) => (
-        <tr key={row.key} className={row.cash ? "bg-orange-400/[0.07]" : "kpi-row"}>
+        <tr key={row.key} className={`grid-row ${row.cash ? "bg-orange-400/[0.07]" : "kpi-row"}`}>
           <th
             className="sticky left-0 z-10 bg-[var(--panel-solid,#111c38)] px-3 py-2.5 text-left align-middle"
             style={row.cash ? { boxShadow: "inset 3px 0 0 rgb(251, 146, 60)" } : undefined}

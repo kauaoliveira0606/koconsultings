@@ -409,6 +409,8 @@ html {
  * Scoped to [data-theme="cream"] so Aval and Agency stay dark.
  */
 [data-theme="cream"] {
+  /* Scorecard grid lines: a touch stronger than panel borders so rows and columns read easily. */
+  --grid-line: rgba(120, 95, 50, 0.22);
   --app-bg:
     radial-gradient(1100px 600px at -5% -15%, rgba(214, 196, 160, 0.35), transparent 60%),
     linear-gradient(180deg, #f7f3ea 0%, #f1ebdf 100%);
