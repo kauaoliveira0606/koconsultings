@@ -1072,8 +1072,9 @@ function buildSpecs(
           week: (days) => safeDivide(sum(days.map(dVipPurchasesOrg)), sum(days.map(dWebinarOptInsOrg)) || null),
         },
         {
-          // Bronson (user, 2026-10-19): self-booked leads connected ÷ self-booked
-          // calls to reach out to, both from the setters' Affiliate EOD.
+          // self-booked leads connected ÷ self-booked calls to reach out to,
+          // both from the setters' EOD (user 2026-11-10: it's the setter EOD, not affiliate).
+          // Blank on days/weeks where "Self-booked calls to reach out to" is 0.
           key: "callConnectionRate",
           label: "Call Connection Rate",
           format: "percent",
@@ -1793,7 +1794,7 @@ function indexDays(
 ): (date: string) => DayCtx {
   const byDate = new Map(allMarketing.filter((r) => r.date).map((r) => [r.date as string, r]));
 
-  // Affiliate EOD is per-setter — roll every setter's row up per day.
+  // Setter EOD is per-setter — roll every setter's row up per day.
   const eodByDate = new Map<string, EodDay>();
   for (const r of allEod) {
     const d = toEasternDateOnly(r.date);
