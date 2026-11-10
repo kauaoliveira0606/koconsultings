@@ -37,28 +37,29 @@ const ICONS = {
 function Tile({ name, color }: { name: keyof typeof ICONS; color: string }) {
   return (
     <span
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-white ring-1 ring-black/5"
       style={{ background: color }}
     >
-      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
         {ICONS[name]}
       </svg>
     </span>
   );
 }
 
+// Solid, saturated tile colors: crisp white glyphs read clearly on these.
 const B = {
-  blue: "linear-gradient(135deg,#3b82f6,#2563eb)",
-  orange: "linear-gradient(135deg,#fb923c,#f97316)",
-  purple: "linear-gradient(135deg,#a78bfa,#7c3aed)",
-  green: "linear-gradient(135deg,#34d399,#10b981)",
-  teal: "linear-gradient(135deg,#2dd4bf,#0d9488)",
-  slate: "linear-gradient(135deg,#475569,#1e293b)",
-  indigo: "linear-gradient(135deg,#818cf8,#4f46e5)",
-  pink: "linear-gradient(135deg,#f472b6,#db2777)",
-  amber: "linear-gradient(135deg,#fbbf24,#d97706)",
-  rose: "linear-gradient(135deg,#fb7185,#e11d48)",
-  claude: "linear-gradient(135deg,#e8926a,#c15f3c)",
+  blue: "#2563eb",
+  orange: "#ea580c",
+  purple: "#7c3aed",
+  green: "#059669",
+  teal: "#0d9488",
+  slate: "#334155",
+  indigo: "#4f46e5",
+  pink: "#db2777",
+  amber: "#d97706",
+  rose: "#e11d48",
+  claude: "#c2552f",
 };
 
 const GROUPS: Group[] = [
@@ -155,9 +156,9 @@ function Body({ onNavigate }: { onNavigate?: () => void }) {
         {GROUPS.map((group) => (
           <div key={group.label}>
             {group.label ? (
-              <div className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-400">{group.label}</div>
+              <div className="mb-2 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">{group.label}</div>
             ) : null}
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {group.items.map((item) => {
                 const active = isActive(pathname, item.href);
                 return (
@@ -166,8 +167,8 @@ function Body({ onNavigate }: { onNavigate?: () => void }) {
                     href={item.href}
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
-                    className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors ${
-                      active ? "bg-neutral-100 text-neutral-900 ring-1 ring-inset ring-neutral-200" : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+                    className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-[15px] font-semibold transition-colors ${
+                      active ? "bg-neutral-100 text-neutral-900 ring-1 ring-inset ring-neutral-200" : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
                     }`}
                   >
                     <Tile name={item.icon} color={item.color} />
