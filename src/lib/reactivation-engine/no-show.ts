@@ -16,7 +16,6 @@ import {
   statedSoFar,
   STOP,
   toSession,
-  signupPageDate,
   NO_DATE_YET,
   prepDocRule,
   teamLine,
@@ -168,13 +167,11 @@ function sessionStart(r: Row, all: WjSchedule[]): number {
 const nextSchedule = (all: WjSchedule[], afterDay = "") =>
   all.find((sc) => sc.startsAt > Date.now() + 30 * 60_000 && easternDay(sc.startsAt) > afterDay) ?? null;
 
-/** What the texts call the next one: the WebinarJam date, else the usual weekday at 7pm ET. */
+/** What the texts call the next one: the WebinarJam date only (user, 2026-11-10), else "not set yet". */
 async function nextLabel(offer: MasterclassOffer, all: WjSchedule[]): Promise<string> {
   const sc = nextSchedule(all);
   if (sc) return toSession(sc.startsAt).label;
-  // Never a guessed weekday (2026-11-05: a guess told people Nov 11 when the next one was Nov 18).
-  const fromPage = await signupPageDate(offer);
-  if (fromPage && fromPage > Date.now() + 30 * 60_000) return toSession(fromPage).label;
+  // Never a guessed weekday or the signup page's date: WebinarJam is the only source.
   return NO_DATE_YET;
 }
 

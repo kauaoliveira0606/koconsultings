@@ -27,9 +27,10 @@ export async function runShowRateCron(offer: MasterclassOffer, request: Request)
   }
 
   const started = Date.now();
+  // WebinarJam is the only source of the date. With no session there, the show-up steps wait; the no-show engine still runs.
   const session = await nextSession(offer);
   const report: RunReport & { session: string; errors: string[]; synced?: { added: number; outcomes: number } } = {
-    session: session.label,
+    session: session?.label ?? "none in WebinarJam (show-up engine waiting)",
     firstTexts: 0,
     followUps: 0,
     replies: 0,
@@ -41,15 +42,19 @@ export async function runShowRateCron(offer: MasterclassOffer, request: Request)
   if (paused) report.skipped[`SMS limit, paused until ${new Date(paused).toISOString()}`] = 1;
   // Each step on its own, so a failed sync never blocks the replies.
   const steps = [
-    async () => {
-      report.synced = await syncRegistrants(offer, session);
-    },
-    ...(paused ? [] : [() => runShowRateReplies(offer, session, report), () => runNoShowReplies(offer, report)]),
+    ...(session
+      ? [
+          async () => {
+            report.synced = await syncRegistrants(offer, session);
+          },
+        ]
+      : []),
+    ...(paused ? [] : [...(session ? [() => runShowRateReplies(offer, session, report)] : []), () => runNoShowReplies(offer, report)]),
     () => runPendingSeats(offer, report),
     ...(paused
       ? []
       : [
-          () => runCallbacks(offer, session, started + 240_000, report),
+          ...(session ? [() => runCallbacks(offer, session, started + 240_000, report)] : []),
           () => runNoShowTouches(offer, started + 240_000, report),
         ]),
   ];

@@ -257,25 +257,20 @@ export function easternToUtc(y: number, mo: number, d: number, h: number, mi: nu
  * time), else the usual weekday at 7pm ET. A session stays "next" until 3 hours
  * after it starts.
  */
-export async function nextSession(offer: MasterclassOffer): Promise<Session> {
+/**
+ * The upcoming (or just-started) session, from WebinarJam only. User, 2026-11-10: "if WebinarJam says one thing,
+ * that's what it is, no matter what". No signup page date, no guessed weekday (a page date told 73 leads Nov 18
+ * when WebinarJam had Monday Nov 16). null when WebinarJam has none or can't be read: the show-up engine waits.
+ */
+export async function nextSession(offer: MasterclassOffer): Promise<Session | null> {
   const live = Date.now() - 3 * 3_600_000;
   try {
     const upcoming = (await schedules(offer)).find((sc) => sc.startsAt > live);
-    if (upcoming) return toSession(upcoming.startsAt);
+    return upcoming ? toSession(upcoming.startsAt) : null;
   } catch (e) {
     console.error("show-rate: couldn't read WebinarJam sessions", e);
+    return null;
   }
-  const fromPage = await signupPageDate(offer);
-  if (fromPage && fromPage > live) return toSession(fromPage);
-  // Fallback: the usual weekday at 7pm ET.
-  const now = Date.now();
-  for (let i = 0; i < 8; i++) {
-    const day = easternDay(now + i * DAY);
-    const [y, mo, d] = day.split("-").map(Number);
-    const start = easternToUtc(y, mo - 1, d, 19, 0);
-    if (new Date(`${day}T12:00:00Z`).getUTCDay() === MASTERCLASS[offer].usualWeekday && start > now - 2 * 3_600_000) return toSession(start);
-  }
-  return toSession(now);
 }
 
 /** The date on the masterclass signup page (user: it shows the current date and time), or null. */
@@ -393,8 +388,7 @@ async function nextDate(offer: MasterclassOffer, session: Session): Promise<stri
   } catch (e) {
     console.error("show-rate: couldn't read WebinarJam sessions", e);
   }
-  const fromPage = await signupPageDate(offer);
-  if (fromPage && fromPage > session.startsAt + 3_600_000) return toSession(fromPage).label;
+  // WebinarJam only (user, 2026-11-10): no signup page date.
   return NO_DATE_YET;
 }
 
