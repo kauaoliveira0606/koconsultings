@@ -69,8 +69,8 @@ export async function GET(request: Request) {
   const month = today.slice(0, 7);
   // Interleaved so both offers' bases share the load from the start.
   const paths = [
-    ...OFFER_PATHS.flatMap((p) => [`/api/bronson/${p}`, `/api/aval/${p}`]),
-    ...ONLY.aval.map((p) => `/api/aval/${p}`),
+    // Aval is no longer a client (2026-11-10): not warmed, so no Airtable reads for it.
+    ...OFFER_PATHS.map((p) => `/api/bronson/${p}`),
     ...ONLY.bronson.map((p) => `/api/bronson/${p}`),
     ...AGENCY_PATHS,
   ].map((p) => p.replaceAll("{month}", month).replace("{today}", today));
