@@ -81,8 +81,8 @@ export function OfficeBoard() {
   const empty = !isLoading && structure.length === 0 && completed.length === 0;
 
   return (
-    <div>
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto max-w-2xl">
+      <div className="mb-10 flex flex-wrap items-start justify-between gap-4">
         <BerlinHeader title="Office" subtitle={`${openCount} open · ${completed.length} done · grouped by department and role.`} />
         <div className="flex shrink-0 gap-2">
           <button
@@ -113,16 +113,16 @@ export function OfficeBoard() {
         </Panel>
       ) : null}
 
-      <div className="space-y-10">
+      <div className="space-y-12">
         {structure.map((dept) => (
           <section key={dept.department}>
-            <h2 className="mb-4 text-[13px] font-bold uppercase tracking-wide text-[var(--text-muted)]">{dept.department}</h2>
-            <div className="grid gap-5 xl:grid-cols-2">
+            <h2 className="mb-6 text-2xl font-bold tracking-tight text-[var(--text-strong)]">{dept.department}</h2>
+            <div className="space-y-9">
               {dept.roles.map((role) => {
                 const key = `${dept.department}|${role.role}`;
                 return (
-                  <Panel key={key} className="self-start p-0">
-                    <div className="flex flex-wrap items-center gap-2 border-b border-[var(--panel-border)] px-5 py-3">
+                  <div key={key}>
+                    <div className="mb-1 flex flex-wrap items-center gap-2 border-b border-[var(--panel-border)] pb-2">
                       <span className="text-[15px] font-semibold text-[var(--text-strong)]">{role.role}</span>
                       {role.people.map((p) => (
                         <span key={p.id} className="rounded-full bg-[var(--panel-subtle)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">{p.name}</span>
@@ -136,17 +136,17 @@ export function OfficeBoard() {
                             onCancel={() => setEditing(null)}
                             onSave={async (fields) => { await post({ action: "updateTask", id: t.id, ...fields }); setEditing(null); }} />
                         ) : (
-                          <li key={t.id} className="group flex items-start gap-3 border-b border-[var(--panel-border)] px-5 py-3 last:border-0">
+                          <li key={t.id} className="group flex items-start gap-3.5 border-b border-[var(--panel-border)] py-5 last:border-0">
                             <button aria-label="Complete" disabled={busy} onClick={() => post({ action: "toggle", id: t.id, done: true })}
-                              className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-[var(--panel-border)] transition-colors hover:border-[var(--accent)]" />
+                              className="mt-1 h-5 w-5 shrink-0 rounded-full border-2 border-[var(--panel-border)] transition-colors hover:border-[var(--accent)]" />
                             <div className="min-w-0 flex-1 cursor-text" onClick={() => setEditing(t.id)}>
-                              <div className="text-[15px] font-medium text-[var(--text-strong)]">{t.task}</div>
-                              {t.description ? <div className="mt-0.5 text-[13px] leading-relaxed text-[var(--text-muted)]">{t.description}</div> : null}
+                              <div className="text-base font-medium leading-snug text-[var(--text-strong)]">{t.task}</div>
+                              {t.description ? <div className="mt-1.5 text-[14px] leading-relaxed text-[var(--text-muted)]">{t.description}</div> : null}
                             </div>
                             {t.assignee ? (
                               <span title={t.assignee} className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/15 text-[10px] font-bold text-[var(--accent)]">{initials(t.assignee)}</span>
                             ) : null}
-                            <div className="mt-0.5 flex shrink-0 gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                            <div className="mt-0.5 flex shrink-0 gap-2.5 opacity-0 transition-opacity group-hover:opacity-100">
                               <button aria-label="Edit" onClick={() => setEditing(t.id)} className="text-[var(--text-muted)] hover:text-[var(--text-strong)]">✎</button>
                               <button aria-label="Delete" onClick={() => post({ action: "deleteTask", id: t.id })} className="text-[var(--text-muted)] hover:text-rose-500">✕</button>
                             </div>
@@ -159,9 +159,9 @@ export function OfficeBoard() {
                       <AddTask people={role.people.length ? role.people : people} onCancel={() => setAddingIn(null)}
                         onAdd={async (task, description, assignee) => { await post({ action: "addTask", task, description, assignee, department: dept.department, role: role.role }); setAddingIn(null); }} />
                     ) : (
-                      <button onClick={() => setAddingIn(key)} className="w-full px-5 py-2.5 text-left text-[13px] font-medium text-[var(--text-muted)] hover:text-[var(--accent)]">+ Add task</button>
+                      <button onClick={() => setAddingIn(key)} className="w-full py-3.5 text-left text-[13px] font-medium text-[var(--text-muted)] hover:text-[var(--accent)]">+ Add task</button>
                     )}
-                  </Panel>
+                  </div>
                 );
               })}
             </div>
@@ -170,12 +170,12 @@ export function OfficeBoard() {
       </div>
 
       {completed.length > 0 ? (
-        <section className="mt-12">
-          <h2 className="mb-4 text-[13px] font-bold uppercase tracking-wide text-[var(--text-muted)]">Completed</h2>
-          <Panel className="p-0">
+        <section className="mt-14">
+          <h2 className="mb-4 border-b border-[var(--panel-border)] pb-2 text-[13px] font-bold uppercase tracking-wide text-[var(--text-muted)]">Completed</h2>
+          <div>
             <ul>
               {completed.map((t) => (
-                <li key={t.id} className="group flex items-center gap-3 border-b border-[var(--panel-border)] px-5 py-2.5 last:border-0">
+                <li key={t.id} className="group flex items-center gap-3.5 border-b border-[var(--panel-border)] py-3.5 last:border-0">
                   <button aria-label="Reopen" disabled={busy} onClick={() => post({ action: "toggle", id: t.id, done: false })}
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[11px] text-white">✓</button>
                   <span className="min-w-0 flex-1 truncate text-[14px] text-[var(--text-muted)] line-through">{t.task}</span>
@@ -184,7 +184,7 @@ export function OfficeBoard() {
                 </li>
               ))}
             </ul>
-          </Panel>
+          </div>
         </section>
       ) : null}
 
@@ -203,7 +203,7 @@ function AddTask({ people, onAdd, onCancel }: { people: Person[]; onAdd: (task: 
   const [assignee, setAssignee] = useState(people[0]?.name ?? "");
   const input = "w-full rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--accent)]";
   return (
-    <div className="space-y-2 border-t border-[var(--panel-border)] px-5 py-3">
+    <div className="space-y-2 border-b border-[var(--panel-border)] py-4">
       <input autoFocus value={task} onChange={(e) => setTask(e.target.value)} placeholder="Task name" className={input} />
       <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (what exactly it is)" className={input} />
       <div className="flex items-center gap-2">
@@ -224,7 +224,7 @@ function EditTask({ task, people, busy, onSave, onCancel }: { task: Task; people
   const [assignee, setAssignee] = useState(task.assignee);
   const input = "w-full rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--accent)]";
   return (
-    <li className="space-y-2 border-b border-[var(--panel-border)] px-5 py-3 last:border-0">
+    <li className="space-y-2 border-b border-[var(--panel-border)] py-4 last:border-0">
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={input} />
       <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" className={input} />
       <div className="flex items-center gap-2">
