@@ -3,6 +3,7 @@ import { ADMIN_COOKIE, SERVICE_TOKEN } from "@/lib/admin-gate";
 import { AD_FORMATS } from "@/lib/berlin/ad-formats";
 import { aggregateEntities, getAdsRange } from "@/lib/ads-cortana";
 import { scoreCreatives } from "@/lib/creative-score";
+import { checkCopy } from "@/lib/copy-check";
 import { getBrain, searchBrain, addDoc, type BrainType } from "@/lib/brain";
 import { getOffice, addTask, setTaskStatus, TASK_STATUSES, AI_ASSIGNEE, type TaskStatus, type TaskPriority } from "@/lib/office";
 
@@ -138,6 +139,18 @@ const TOOLS: Tool[] = [
       const rows = await getAdsRange(typeof args.preset === "string" ? args.preset : "last_7_days");
       return rows ? scoreCreatives(aggregateEntities(rows.filter((r) => r.level === "ad"))) : [];
     },
+  },
+  {
+    name: "check_copy",
+    description:
+      "Check copy before it ships (ads, scripts, pages, emails): banned-word scan plus a review against the Bronson rules and ad creative framework. Returns ship / fix / block, every problem quoted, and a fixed version. Run this on anything you write for Bronson before putting it in Review.",
+    inputSchema: {
+      type: "object",
+      properties: { text: { type: "string" }, kind: { type: "string", description: "e.g. Ad script, YouTube script, Landing page, Email" } },
+      required: ["text"],
+      additionalProperties: false,
+    },
+    run: async (args) => checkCopy(String(args.text ?? ""), String(args.kind ?? "")),
   },
   {
     name: "search_knowledge",

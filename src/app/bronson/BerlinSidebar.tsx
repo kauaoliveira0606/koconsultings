@@ -75,6 +75,7 @@ const GROUPS: Group[] = [
       { href: "/bronson/ads", label: "Ads", icon: Megaphone, color: B.orange },
       { href: "/bronson/funnels", label: "Funnel", icon: Filter, color: B.purple },
       { href: "/bronson/ad-formats", label: "Ad formats", icon: Clapperboard, color: B.pink },
+      { href: "/bronson/copy-check", label: "Copy check", icon: ShieldCheck, color: B.green },
     ],
   },
   {
