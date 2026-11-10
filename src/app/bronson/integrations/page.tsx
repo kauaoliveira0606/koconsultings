@@ -13,7 +13,7 @@ function Tile({ it }: { it: Integration }) {
             <span className="text-sm font-semibold text-[var(--text-strong)]">{it.name}</span>
             <Tag tone="muted">{it.category}</Tag>
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">{it.description}</p>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-muted)]">{it.description}</p>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -44,7 +44,7 @@ export default function IntegrationsPage() {
         subtitle="Connect the tools Bronson runs on. Dashboard sources fill the numbers, pace and scorecard; Claude sources let the process work on the accounts."
       />
 
-      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-4 py-3 text-sm">
+      <div className="mb-8 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-5 py-4 text-sm">
         <span className="font-semibold text-[var(--text-strong)]">
           {connected} of {INTEGRATIONS.length} sources connected
         </span>

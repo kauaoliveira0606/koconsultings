@@ -70,35 +70,35 @@ export function AdsBoard() {
         />
       ) : (
         <Panel className="overflow-hidden p-0">
-          <div className="border-b border-[var(--panel-border)] px-5 py-3 text-sm font-semibold text-[var(--text-strong)]">
+          <div className="border-b border-[var(--panel-border)] px-6 py-4 text-[15px] font-semibold text-[var(--text-strong)]">
             By source
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-[13px]">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
-                  <th className="px-5 py-2 font-medium">Source</th>
-                  <th className="px-5 py-2 font-medium">Class</th>
-                  <th className="px-5 py-2 text-right font-medium">Spend</th>
-                  <th className="px-5 py-2 text-right font-medium">Revenue</th>
-                  <th className="px-5 py-2 text-right font-medium">Leads</th>
-                  <th className="px-5 py-2 text-right font-medium">ROAS</th>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
+                  <th className="px-6 py-3 font-medium">Source</th>
+                  <th className="px-6 py-3 font-medium">Class</th>
+                  <th className="px-6 py-3 text-right font-medium">Spend</th>
+                  <th className="px-6 py-3 text-right font-medium">Revenue</th>
+                  <th className="px-6 py-3 text-right font-medium">Leads</th>
+                  <th className="px-6 py-3 text-right font-medium">ROAS</th>
                 </tr>
               </thead>
               <tbody>
                 {(data?.sources ?? []).map((s) => (
                   <tr key={s.source} className="border-t border-[var(--panel-border)]">
-                    <td className="px-5 py-2.5 font-medium text-[var(--text-strong)]">{s.source}</td>
-                    <td className="px-5 py-2.5 text-[var(--text-muted)]">{s.class}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">{s.spend ? formatStatValue(s.spend, "currency") : "–"}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">{formatStatValue(s.revenue, "currency")}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">{s.leads}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">{s.roas == null ? "–" : formatStatValue(s.roas, "ratio")}</td>
+                    <td className="px-6 py-3.5 font-medium text-[var(--text-strong)]">{s.source}</td>
+                    <td className="px-6 py-3.5 text-[var(--text-muted)]">{s.class}</td>
+                    <td className="px-6 py-3.5 text-right tabular-nums">{s.spend ? formatStatValue(s.spend, "currency") : "–"}</td>
+                    <td className="px-6 py-3.5 text-right tabular-nums">{formatStatValue(s.revenue, "currency")}</td>
+                    <td className="px-6 py-3.5 text-right tabular-nums">{s.leads}</td>
+                    <td className="px-6 py-3.5 text-right tabular-nums">{s.roas == null ? "–" : formatStatValue(s.roas, "ratio")}</td>
                   </tr>
                 ))}
                 {!data && isLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-[var(--text-muted)]">Loading…</td>
+                    <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-muted)]">Loading…</td>
                   </tr>
                 ) : null}
               </tbody>

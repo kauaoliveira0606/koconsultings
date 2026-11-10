@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 /** Page header used across the Berlin (Manos-style) sections. */
 export function BerlinHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <header className="mb-6">
-      <h1 className="text-2xl font-bold text-[var(--text-strong)]">{title}</h1>
-      {subtitle ? <p className="mt-1 max-w-2xl text-sm text-[var(--text-muted)]">{subtitle}</p> : null}
+    <header className="mb-8">
+      <h1 className="text-[1.75rem] font-bold leading-tight tracking-tight text-[var(--text-strong)]">{title}</h1>
+      {subtitle ? <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-[var(--text-muted)]">{subtitle}</p> : null}
     </header>
   );
 }
@@ -13,7 +13,7 @@ export function BerlinHeader({ title, subtitle }: { title: string; subtitle?: st
 /** A standard panel card matching the dashboard theme tokens. */
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 ${className}`}>{children}</div>
+    <div className={`rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 ${className}`}>{children}</div>
   );
 }
 
