@@ -16,17 +16,9 @@ function Tile({ it }: { it: Integration }) {
           <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-muted)]">{it.description}</p>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {it.connectsToDashboard ? (
-          <button className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-2.5 py-1 text-[11px] font-medium text-[var(--text)]">
-            Connect to dashboard
-          </button>
-        ) : null}
-        {it.addToClaude ? (
-          <button className="rounded-md border border-[var(--panel-border)] bg-transparent px-2.5 py-1 text-[11px] font-medium text-[var(--text-muted)]">
-            Add to your Claude
-          </button>
-        ) : null}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {it.connectsToDashboard ? <Tag>Feeds dashboard</Tag> : null}
+        {it.addToClaude ? <Tag tone="muted">For your Claude</Tag> : null}
       </div>
     </Panel>
   );
@@ -35,22 +27,17 @@ function Tile({ it }: { it: Integration }) {
 export default function IntegrationsPage() {
   const dashboard = INTEGRATIONS.filter((i) => i.tier === "dashboard");
   const claude = INTEGRATIONS.filter((i) => i.tier === "claude");
-  const connected = 0;
 
   return (
     <div>
       <BerlinHeader
         title="Integrations"
-        subtitle="Connect the tools Bronson runs on. Dashboard sources fill the numbers, pace and scorecard; Claude sources let the process work on the accounts."
+        subtitle="The tools Bronson runs on. This is a reference map of the stack, connections are wired in the backend (n8n + API keys), not from this page."
       />
 
-      <div className="mb-8 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-5 py-4 text-sm">
-        <span className="font-semibold text-[var(--text-strong)]">
-          {connected} of {INTEGRATIONS.length} sources connected
-        </span>
-        <span className="text-[var(--text-muted)]">
-          One CRM is enough (GoHighLevel or Close), and one checkout (Commas or Whop).
-        </span>
+      <div className="mb-8 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-subtle)] px-5 py-4 text-sm text-[var(--text-muted)]">
+        <span className="font-semibold text-[var(--text-strong)]">How connections work: </span>
+        sources are connected by your operator through n8n workflows and stored API keys, so these cards show what each tool feeds, not a click-to-connect button. Tell me to wire a new source and I set it up in the backend.
       </div>
 
       <section className="mb-8">

@@ -8,12 +8,10 @@ import {
   LayoutDashboard,
   Megaphone,
   Filter,
-  ReceiptText,
   Target,
   Plug,
   CalendarDays,
   Users,
-  Coins,
   CreditCard,
   TrendingUp,
   Layers,
@@ -25,8 +23,6 @@ import {
   Clapperboard,
   BookOpen,
   Briefcase,
-  Smartphone,
-  Sparkles,
   Search as SearchIcon,
   ChevronsUpDown,
 } from "lucide-react";
@@ -62,24 +58,30 @@ const GROUPS: Group[] = [
     label: "Workspace",
     items: [
       { href: "/bronson/overview", label: "Overview", icon: LayoutDashboard, color: B.blue },
-      { href: "/bronson/ads", label: "Ads", icon: Megaphone, color: B.orange },
-      { href: "/bronson/funnels", label: "Funnel", icon: Filter, color: B.purple },
-      { href: "/bronson/sales", label: "Sales", icon: ReceiptText, color: B.green },
       { href: "/bronson/scorecard", label: "Scorecard", icon: Target, color: B.teal },
+      { href: "/bronson/cash-calendar", label: "Cash Calendar", icon: CalendarDays, color: B.green },
       { href: "/bronson/integrations", label: "Integrations", icon: Plug, color: B.slate },
+      { href: "/bronson/office", label: "Office", icon: Briefcase, color: B.indigo },
     ],
   },
   {
-    label: "Dashboard",
+    label: "Marketing",
     items: [
-      { href: "/bronson/cash-calendar", label: "Cash Calendar", icon: CalendarDays, color: B.green },
+      { href: "/bronson/ads", label: "Ads", icon: Megaphone, color: B.orange },
+      { href: "/bronson/funnels", label: "Funnel", icon: Filter, color: B.purple },
+      { href: "/bronson/ad-formats", label: "Ad formats", icon: Clapperboard, color: B.pink },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [
       { href: "/bronson/sales-team", label: "Sales Team", icon: Users, color: B.indigo },
-      { href: "/bronson/commissions", label: "Commissions", icon: Coins, color: B.amber },
+      { href: "/bronson/live-calls", label: "Live Calls", icon: PhoneCall, color: B.blue },
       { href: "/bronson/payment-plans", label: "Payment Plans", icon: CreditCard, color: B.teal },
       { href: "/bronson/upsell-potential", label: "Upsell Potential", icon: TrendingUp, color: B.rose },
       { href: "/bronson/models", label: "Models", icon: Layers, color: B.purple },
       { href: "/bronson/admin-team", label: "Admin Team", icon: ShieldCheck, color: B.slate },
-      { href: "/bronson/live-calls", label: "Live Calls", icon: PhoneCall, color: B.blue },
+      { href: "/bronson/knowledge-base", label: "Knowledge Base", icon: BookOpen, color: B.amber },
     ],
   },
   {
@@ -89,19 +91,6 @@ const GROUPS: Group[] = [
       { href: "/bronson/show-rate", label: "Show Rate", icon: Eye, color: B.teal },
       { href: "/bronson/no-shows", label: "No-Shows", icon: UserX, color: B.rose },
     ],
-  },
-  {
-    label: "Resources",
-    items: [
-      { href: "/bronson/ad-formats", label: "Ad formats", icon: Clapperboard, color: B.pink },
-      { href: "/bronson/knowledge-base", label: "Knowledge Base", icon: BookOpen, color: B.amber },
-      { href: "/bronson/office", label: "Office", icon: Briefcase, color: B.indigo },
-      { href: "/bronson/phone", label: "Phone app", icon: Smartphone, color: B.slate },
-    ],
-  },
-  {
-    label: "Your Claude",
-    items: [{ href: "/bronson/connect", label: "Connect Claude", icon: Sparkles, color: B.claude }],
   },
 ];
 
