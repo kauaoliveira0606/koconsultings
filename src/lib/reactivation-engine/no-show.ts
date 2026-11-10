@@ -23,12 +23,15 @@ import {
   questionnaireRule,
   setterPhrase,
   lessonsBlock,
+  lowConfidence,
+  stillCurrent,
   splitTexts,
   TEXT_SHAPE,
   type MasterclassOffer,
   type Row,
 } from "./show-rate";
 import { NOSHOW_VOICES, VOICES } from "./voice";
+import { CONVERSATION_RULES, exactQuote, explicitOptOut, finalize, sessionTimes } from "./guards";
 import { register, schedules, type WjSchedule } from "./webinarjam";
 
 /**
@@ -100,13 +103,17 @@ ${DATES}
 
 ${TEXT_SHAPE}
 
+${CONVERSATION_RULES}
+
 ${lessonsBlock(offer)}Return JSON:
 - "reply": the text to send (two texts split by a blank line when there are two ideas), or "" (plain ok / thanks / 👍, or STOP).
 - "action": "save_seat" only on a clear yes to saving their seat (never on a maybe), "not_interested", "wrong_number" (they say this isn't the person who signed up), "opt_out" (STOP / remove me / unsubscribe), "sales_call" (anything about a 1-on-1 or sales call: booking, rescheduling or cancelling a call or meeting, wanting to talk to someone, or a reply to ${setterPhrase(offer)} about a call; reply "" and a setter picks it up), or "none".
 - "call_request": with "sales_call", what they want about the call, short, else "".
 - "preferred_time": the day/time they say would work, in their words, or "".
 - "reason": why they missed it or why they're not interested, in their words, or "".
-- "question_to_review": if their newest text asks a real question the approved examples don't answer, that question in their words, else "".`;
+- "question_to_review": if their newest text asks a real question the approved examples don't answer, that question in their words, else "".
+- "confidence": a number from 0 to 1.
+- "uncertainties": an array of strings, or [].`;
 
 export const NO_SHOW_SCHEMA = {
   type: "object",
@@ -117,12 +124,23 @@ export const NO_SHOW_SCHEMA = {
     preferred_time: { type: "string" },
     reason: { type: "string" },
     question_to_review: { type: "string" },
+    confidence: { type: "number" },
+    uncertainties: { type: "array", items: { type: "string" } },
   },
-  required: ["reply", "action", "call_request", "preferred_time", "reason", "question_to_review"],
+  required: ["reply", "action", "call_request", "preferred_time", "reason", "question_to_review", "confidence", "uncertainties"],
   additionalProperties: false,
 };
 
-type Parsed = { reply: string; action: string; call_request: string; preferred_time: string; reason: string; question_to_review: string };
+type Parsed = {
+  reply: string;
+  action: string;
+  call_request: string;
+  preferred_time: string;
+  reason: string;
+  question_to_review: string;
+  confidence?: number;
+  uncertainties?: string[];
+};
 
 // ---------- Who's a no-show ----------
 
@@ -245,7 +263,7 @@ export async function runNoShowTouches(offer: MasterclassOffer, deadline: number
     // User, 2026-10-30: GHL's DND flag doesn't stop no-show texts. Dead numbers and anyone who texted STOP still do.
     const dnd = smsBlocked(c);
     const sofar = await history(offer, c.id);
-    if (!c.phone || outsideUsCanada(offer, c.phone) || smsCarrierBlocked(c) || deadNumber(sofar) || sofar.some((m) => m.direction === "inbound" && STOP.test(m.body ?? ""))) {
+    if (!c.phone || outsideUsCanada(offer, c.phone) || smsCarrierBlocked(c) || deadNumber(sofar) || sofar.some((m) => m.direction === "inbound" && (STOP.test(m.body ?? "") || explicitOptOut(m.body ?? "")))) {
       report.skipped["no-show: no textable phone"] = (report.skipped["no-show: no textable phone"] ?? 0) + 1;
       continue;
     }
@@ -312,7 +330,7 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
     const fields: Record<string, unknown> = { "Last Message At": fresh[fresh.length - 1].dateAdded };
     let optOut = false;
     for (const m of fresh) {
-      const isStop = STOP.test(m.body ?? "");
+      const isStop = STOP.test(m.body ?? "") || explicitOptOut(m.body ?? "");
       optOut ||= isStop;
       await createReactivationRow(offer, "messages", {
         Name: `${name} in`,
@@ -338,7 +356,7 @@ export async function runNoShowReplies(offer: MasterclassOffer, report: RunRepor
         model: MODELS.reply,
         system: noShowReplySystem(offer),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
-${await teamLine(offer, c)}${statedSoFar(lead)}Next masterclass: ${await nextLabel(offer, all)}${nextSchedule(all) ? "" : " (not set up yet: if they say yes, their seat is saved and confirmed once it is)"}
+${await teamLine(offer, c)}${statedSoFar(lead)}${seatLine(lead)}Next masterclass: ${await nextLabel(offer, all)}${nextSchedule(all) ? ` (start by time zone, use these, never convert yourself: ${sessionTimes(nextSchedule(all)!.startsAt, c.timezone)})` : " (not set up yet: if they say yes, their seat is saved and confirmed once it is)"}
 Now in Eastern time: ${localTime("America/New_York")}
 
 Full text thread, oldest first:
@@ -351,13 +369,28 @@ Answer their latest text.`,
         schema: NO_SHOW_SCHEMA,
       });
       const parsed = parse(out);
+      const latestText = fresh[fresh.length - 1].body ?? "";
+      const inboundText = fresh.map((m) => m.body ?? "").join("\n");
+      let held: string[] = [];
+      if (parsed) {
+        // No-shows get WebinarJam's and our usual reminders once their seat is saved (offer.md), so a reminder mention isn't blocked here.
+        const g = finalize({ reply: parsed.reply, action: parsed.action, latestInbound: latestText, remindersRemaining: 1 });
+        parsed.reply = g.reply;
+        parsed.action = g.action;
+        held = g.held;
+        for (const k of ["preferred_time", "reason"] as const) parsed[k] = exactQuote(parsed[k] ?? "", inboundText);
+      }
       if (parsed?.action === "opt_out") {
         Object.assign(fields, { Status: "Opted out", "No-show Status": "Opted out", "Opted Out At": new Date().toISOString() });
       } else if (parsed?.action === "sales_call") {
         await flagSalesCall(offer, c, parsed.call_request, fresh.map((m) => m.body ?? "").join(" / "));
         report.skipped["sales call: sent to setter"] = (report.skipped["sales call: sent to setter"] ?? 0) + 1;
       } else if (parsed) {
-        if (parsed.action === "save_seat") {
+        // Kit rule: one seat per contact per session. A second yes doesn't register them again.
+        const already = s(lead.fields["No-show Status"]);
+        if (parsed.action === "save_seat" && (already === "Seat Saved" || already === "Seat Pending")) {
+          report.skipped["seat already saved"] = (report.skipped["seat already saved"] ?? 0) + 1;
+        } else if (parsed.action === "save_seat") {
           try {
             Object.assign(fields, await saveSeat(offer, c, all));
           } catch (e) {
@@ -367,12 +400,15 @@ Answer their latest text.`,
         } else if (parsed.action === "not_interested") fields["No-show Status"] = "Not interested";
         else if (parsed.action === "wrong_number") fields["No-show Status"] = "Wrong number";
         const linkBlocked = Boolean(parsed.reply) && !linksOk(offer, parsed.reply);
-        const question = parsed.question_to_review.trim() || (linkBlocked ? fresh[fresh.length - 1].body ?? "" : "");
-        if (question) {
-          const note = `Q (no-show): ${question} → ${linkBlocked ? "NOT SENT (unapproved link)" : `Sent: ${parsed.reply || "(no reply)"}`}`;
-          const next = appendTo(lead.fields["Questions To Review"], note);
+        const question = parsed.question_to_review.trim() || (linkBlocked || held.length ? latestText : "");
+        const notes: string[] = [];
+        if (question) notes.push(`Q (no-show): ${question} → ${linkBlocked ? "NOT SENT (unapproved link)" : held.length ? `NOT SENT (${held.join("; ")})` : `Sent: ${parsed.reply || "(no reply)"}`}`);
+        notes.push(...lowConfidence(parsed, latestText).map((n) => `(no-show) ${n}`));
+        for (const note of notes) {
+          const next = appendTo(fields["Questions To Review"] ?? lead.fields["Questions To Review"], note);
           if (next) fields["Questions To Review"] = next;
         }
+        if (held.length) report.skipped["reply held: finalizer"] = (report.skipped["reply held: finalizer"] ?? 0) + 1;
         for (const [field, value] of [
           ["Preferred Time", parsed.preferred_time],
           ["No-show Reason", parsed.reason],
@@ -383,6 +419,7 @@ Answer their latest text.`,
         if (parsed.reply && !linkBlocked) {
           let sent = 0;
           for (const part of splitTexts(parsed.reply)) {
+            if (sent && !(await stillCurrent(offer, c.id, fresh[fresh.length - 1].dateAdded, part))) break;
             if (!(await trySend(offer, c.id, part, line))) break;
             await logOut(offer, c, name, part, null, "no-show reply");
             sent++;
@@ -396,6 +433,14 @@ Answer their latest text.`,
     }
     await updateReactivationRow(offer, "leads", lead.id, fields);
   }
+}
+
+/** Tells the model a seat is already saved, so it doesn't offer or confirm a second one. */
+function seatLine(lead: Row): string {
+  const st = s(lead.fields["No-show Status"]);
+  if (st === "Seat Saved") return `Seat already saved for: ${s(lead.fields["Seat Session"]) || "the next class"} (don't offer another)\n`;
+  if (st === "Seat Pending") return "Seat already requested, confirmed once the next date is set up (don't offer another)\n";
+  return "";
 }
 
 function parse(text: string | null): Parsed | null {

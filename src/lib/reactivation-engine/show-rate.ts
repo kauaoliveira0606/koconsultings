@@ -32,6 +32,7 @@ import { getBookingsMade } from "@/lib/calendly";
 import { calendlyFor } from "@/lib/calendly-offers";
 import { staleWhileRevalidate } from "@/lib/swr-cache";
 import { AVAL_LESSONS, BRONSON_LESSONS } from "./lessons";
+import { CONVERSATION_RULES, CONFIDENCE_THRESHOLD, exactQuote, explicitOptOut, finalize, headsUpGiven, partDelayMs, sessionTimes } from "./guards";
 import { BRONSON_DECK } from "./bronson-deck";
 
 /**
@@ -440,15 +441,24 @@ ${rules(offer)}
 
 ${playbook(offer)}
 
+${CONVERSATION_RULES}
+
+<reminder-heads-up>
+After their first clear yes, if the lead details say reminders are still coming and no text of ours already told them, you may use the second text for "btw, you'll get a couple reminders before the class too" (match the count: one reminder vs a couple). Once per class, never on every goodbye, and only when the prep doc ask isn't in this reply. Reminders still coming 0 or not given: never mention more texts or reminders. If they can't make it but reminders are still coming and the class is still ahead, you may say they could still get reminders in case their schedule opens up.
+</reminder-heads-up>
+
 ${lessonsBlock(offer)}Return JSON:
 - "reply": the text to send (two texts split by a blank line when there are two ideas), or "".
 - "action": "committed", "cant_make_it", "opt_out", "sales_call" or "none".
+- "committed_to": with "committed", "this_session" (the masterclass above) or "next_session" (the next date after it), else "".
 - "call_request": with "sales_call", what they want about the call, short (e.g. "wants to reschedule tomorrow's call earlier"), else "".
 - "preferred_time": the day/time they say would work for them, in their words, or "".
 - "goal": what they want out of this (e.g. answering "what's your main goal"), in their words, or "".
 - "wants_covered": what they want covered in the masterclass, in their words, or "".
 - "question_to_review": if their newest text asks a real question that the approved examples in my-voice.md don't already answer, that question in their words, else "".
 - "other_feedback": a real detail about their situation or an objection (work schedule, kids, money worries, past attempts), short, or "". Not a summary of what they said.
+- "confidence": a number from 0 to 1.
+- "uncertainties": an array of strings, or [].
 Only fill the feedback fields from their newest texts, never from earlier ones.`;
 
 export const REPLY_SCHEMA = {
@@ -456,20 +466,26 @@ export const REPLY_SCHEMA = {
   properties: {
     reply: { type: "string" },
     action: { type: "string", enum: ["none", "committed", "cant_make_it", "opt_out", "sales_call"] },
+    committed_to: { type: "string", enum: ["", "this_session", "next_session"] },
     call_request: { type: "string" },
     preferred_time: { type: "string" },
     goal: { type: "string" },
     wants_covered: { type: "string" },
     other_feedback: { type: "string" },
     question_to_review: { type: "string" },
+    confidence: { type: "number" },
+    uncertainties: { type: "array", items: { type: "string" } },
   },
-  required: ["reply", "action", "call_request", "preferred_time", "goal", "wants_covered", "other_feedback", "question_to_review"],
+  required: ["reply", "action", "committed_to", "call_request", "preferred_time", "goal", "wants_covered", "other_feedback", "question_to_review", "confidence", "uncertainties"],
   additionalProperties: false,
 };
 
 type Parsed = {
   reply: string;
   action: string;
+  committed_to?: string;
+  confidence?: number;
+  uncertainties?: string[];
   call_request: string;
   preferred_time: string;
   goal: string;
@@ -518,7 +534,11 @@ export async function syncRegistrants(offer: MasterclassOffer, session: Session)
       const registeredAt = o.lastStageChangeAt ?? o.createdAt;
       if (row && pending) {
         // Still registered: they roll over to the upcoming session.
-        if (s(row.fields.Session) < forSession) await updateReactivationRow(offer, "leads", row.id, { Session: forSession });
+        // A new date means an old yes or no doesn't carry over (kit rule): back to Replied for the new class.
+        if (s(row.fields.Session) < forSession) {
+          const carried = row.fields.Status === "Committed" || row.fields.Status === "Can't make it";
+          await updateReactivationRow(offer, "leads", row.id, { Session: forSession, ...(carried ? { Status: "Replied", "Committed At": null } : {}) });
+        }
         continue;
       }
       if (Date.parse(registeredAt) < cutoff) continue;
@@ -600,7 +620,7 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
     const fields: Record<string, unknown> = { "Last Message At": fresh[fresh.length - 1].dateAdded };
     let optOut = false;
     for (const m of fresh) {
-      const isStop = STOP.test(m.body ?? "");
+      const isStop = STOP.test(m.body ?? "") || explicitOptOut(m.body ?? "");
       optOut ||= isStop;
       await createReactivationRow(offer, "messages", {
         Name: `${name} in`,
@@ -622,11 +642,16 @@ export async function runShowRateReplies(offer: MasterclassOffer, session: Sessi
     if (since !== null && Date.parse(fresh[fresh.length - 1].dateAdded) >= since) {
       const c = await getContact(offer, conv.contactId);
       const timeZone = c.timezone || "America/New_York";
+      const remindersLeft = remindersRemaining(session.startsAt);
+      const sinceSession = session.startsAt - 14 * DAY;
+      const headsUp = headsUpGiven(msgs.filter((m) => m.direction !== "inbound" && Date.parse(m.dateAdded) > sinceSession).map((m) => m.body ?? ""));
       const out = await generate(offer, {
         model: MODELS.reply,
         system: replySystem(offer),
         prompt: `Lead first name: ${firstNameOf(c) ?? "(unknown, don't use a name)"}
 ${statedSoFar(lead)}${await teamLine(offer, c)}Masterclass: ${session.label}${Date.now() > session.startsAt ? " (it has already started)" : ""}
+Masterclass start by time zone (use these, never convert yourself): ${sessionTimes(session.startsAt, c.timezone)}
+Reminder texts still coming before it: ${remindersLeft}${headsUp ? " (we already told them reminders are coming, don't say it again)" : ""}
 Next date after that: ${await nextDate(offer, session)}
 Now in Eastern time: ${localTime("America/New_York")}
 Their local time now: ${localTime(timeZone)}
@@ -641,6 +666,16 @@ Answer their latest text.`,
         schema: REPLY_SCHEMA,
       });
       const parsed = parseReply(out);
+      const latestText = fresh[fresh.length - 1].body ?? "";
+      const inboundText = fresh.map((m) => m.body ?? "").join("\n");
+      let held: string[] = [];
+      if (parsed) {
+        const g = finalize({ reply: parsed.reply, action: parsed.action, latestInbound: latestText, remindersRemaining: remindersLeft });
+        parsed.reply = g.reply;
+        parsed.action = g.action;
+        held = g.held;
+        for (const k of ["preferred_time", "goal", "wants_covered", "other_feedback"] as const) parsed[k] = exactQuote(parsed[k] ?? "", inboundText);
+      }
       if (parsed?.action === "opt_out") {
         Object.assign(fields, { Status: "Opted out", "Opted Out At": new Date().toISOString() });
       } else if (parsed?.action === "sales_call") {
@@ -649,15 +684,19 @@ Answer their latest text.`,
       } else if (parsed) {
         const linkBlocked = Boolean(parsed.reply) && !linksOk(offer, parsed.reply);
         if (linkBlocked) report.skipped["reply held: unapproved link"] = (report.skipped["reply held: unapproved link"] ?? 0) + 1;
-        const question = parsed.question_to_review.trim() || (linkBlocked ? fresh[fresh.length - 1].body ?? "" : "");
-        if (question) {
-          const note = `Q: ${question} → ${linkBlocked ? "NOT SENT (unapproved link)" : `Sent: ${parsed.reply || "(no reply)"}`}`;
-          const next = appendTo(lead.fields["Questions To Review"], note);
+        const question = parsed.question_to_review.trim() || (linkBlocked || held.length ? latestText : "");
+        const notes: string[] = [];
+        if (question) notes.push(`Q: ${question} → ${linkBlocked ? "NOT SENT (unapproved link)" : held.length ? `NOT SENT (${held.join("; ")})` : `Sent: ${parsed.reply || "(no reply)"}`}`);
+        notes.push(...lowConfidence(parsed, latestText));
+        for (const note of notes) {
+          const next = appendTo(fields["Questions To Review"] ?? lead.fields["Questions To Review"], note);
           if (next) fields["Questions To Review"] = next;
         }
+        if (held.length) report.skipped["reply held: finalizer"] = (report.skipped["reply held: finalizer"] ?? 0) + 1;
         if (parsed.reply && !linkBlocked) {
           let sent = 0;
           for (const part of splitTexts(parsed.reply)) {
+            if (sent && !(await stillCurrent(offer, c.id, fresh[fresh.length - 1].dateAdded, part))) break;
             if (!(await trySend(offer, c.id, part, line))) break;
             await logOut(offer, c, name, part, null);
             sent++;
@@ -669,7 +708,8 @@ Answer their latest text.`,
         }
         // Said they can't make this one, then yes to the next date (2026-11-05: Tia, Selina): save that seat and keep
         // them off the no-show texts, instead of marking them committed to the class they already said they'd miss.
-        if (parsed.action === "committed" && s(lead.fields.Status) === "Can't make it") fields["No-show Status"] = "Seat Pending";
+        // committed_to tells a yes to the next date apart from a change of heart about this one (kit: a later yes recommits the same class).
+        if (parsed.action === "committed" && (parsed.committed_to === "next_session" || (s(lead.fields.Status) === "Can't make it" && parsed.committed_to !== "this_session"))) fields["No-show Status"] = "Seat Pending";
         else if (parsed.action === "committed") Object.assign(fields, { Status: "Committed", "Committed At": new Date().toISOString() });
         else if (parsed.action === "cant_make_it") fields.Status = "Can't make it";
         const feedback: [string, string][] = [
@@ -685,6 +725,32 @@ Answer their latest text.`,
       }
     }
     await updateReactivationRow(offer, "leads", lead.id, fields);
+  }
+}
+
+/** Our automated reminder texts before a class (user, 2026-11-06: 2 days, 1 day, 7 hours, 1 hour and 1 minute before). */
+const REMINDER_OFFSETS = [2 * DAY, DAY, 7 * 3_600_000, 3_600_000, 60_000];
+export const remindersRemaining = (startsAt: number, now = Date.now()) => REMINDER_OFFSETS.filter((o) => startsAt - o > now).length;
+
+/** Kit rule: confidence under 90% or open uncertainties. Recorded for review only, the reply still goes out. */
+export function lowConfidence(p: { confidence?: number; uncertainties?: string[] }, latest: string): string[] {
+  const c = typeof p.confidence === "number" && Number.isFinite(p.confidence) && p.confidence >= 0 && p.confidence <= 1 ? p.confidence : null;
+  const u = (p.uncertainties ?? []).filter((x) => typeof x === "string" && x.trim());
+  if (c !== null && c >= CONFIDENCE_THRESHOLD && !u.length) return [];
+  return [`Low confidence ${c === null ? "(none given)" : `${Math.round(c * 100)}%`}${u.length ? `, unsure: ${u.join("; ")}` : ""} on "${latest.slice(0, 120)}" (sent anyway)`];
+}
+
+/**
+ * Before a follow-on text: wait a reading-speed pause, then make sure no new text came in meanwhile
+ * (the kit's stale-context check). A new inbound cancels the rest; the next run answers it fresh.
+ */
+export async function stillCurrent(offer: MasterclassOffer, contactId: string, lastInboundAt: string, nextPart: string): Promise<boolean> {
+  await new Promise((r) => setTimeout(r, partDelayMs(nextPart)));
+  try {
+    const msgs = await history(offer, contactId);
+    return !msgs.some((m) => m.direction === "inbound" && m.dateAdded.slice(0, 19) > lastInboundAt.slice(0, 19));
+  } catch {
+    return true;
   }
 }
 
