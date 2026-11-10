@@ -1542,6 +1542,16 @@ const BRONSON_DROPPED = new Set([
   "htBookingRateFromLt",
   "leadToCloseRate",
   "cashPerOptInPaid",
+  // Webinar session metrics belong only on the Webinars tab (weekly, once a week — not daily). User 2026-11-10.
+  "webinarShowRate",
+  "webinarShowRatePaid",
+  "webinarShowRateOrganic",
+  "liveAttendees",
+  "liveAttendeesAtPitch",
+  "retentionRateUntilPitch",
+  "webinarBookingRate",
+  "bookingRatePaid",
+  "bookingRateOrganic",
 ]);
 const BRONSON_DROPPED_SECTIONS = new Set([
   "Lead Flow",
@@ -1550,19 +1560,13 @@ const BRONSON_DROPPED_SECTIONS = new Set([
   "Attribution & Refunds",
 ]);
 const WEBINAR_CARD_KEYS = [
-  "webinarShowRate",
-  "liveAttendees",
-  "liveAttendeesAtPitch",
-  "retentionRateUntilPitch",
-  "webinarBookingRate",
+  // Webinar session metrics (show rate, live attendees, retention, booking rate, paid/organic
+  // splits) were moved off the scorecard to the Webinars tab — they are weekly, not daily (user 2026-11-10).
+  // Call booking/connection metrics stay here (they happen daily).
   "callConnectionRate",
-  "webinarShowRatePaid",
-  "webinarShowRateOrganic",
   "callsPaidBooked",
-  "bookingRatePaid",
   "bookedConnRatePaid",
   "callsOrganicBooked",
-  "bookingRateOrganic",
   "bookedConnRateOrganic",
 ];
 export const BRONSON_SCORECARD_LAYOUT: ScorecardLayout = SCORECARD_LAYOUT.filter(
