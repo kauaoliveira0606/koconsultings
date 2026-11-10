@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { ADMIN_COOKIE, SERVICE_TOKEN } from "@/lib/admin-gate";
 import { AD_FORMATS } from "@/lib/berlin/ad-formats";
+import { getBrain, searchBrain, addDoc, type BrainType } from "@/lib/brain";
 import { getOffice, addTask, setTaskStatus, TASK_STATUSES, AI_ASSIGNEE, type TaskStatus, type TaskPriority } from "@/lib/office";
 
 /**
@@ -127,9 +128,62 @@ const TOOLS: Tool[] = [
       fetchJson(`${origin}/api/bronson/funnels/analytics?preset=${preset(args)}&source=${["paid", "organic", "total"].includes(String(args.source)) ? args.source : "paid"}`),
   },
   {
+    name: "search_knowledge",
+    description:
+      "Search the Skills & Knowledge library (Claude skills, SOPs, client copy rules, processes). Do this BEFORE starting any task: find the SOP or skill that covers it and follow it. Returns titles, types, ids and a snippet.",
+    inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false },
+    run: async (args) => searchBrain(await getBrain(), String(args.query ?? ""), 8),
+  },
+  {
+    name: "get_knowledge",
+    description: "Read one document from the Skills & Knowledge library in full. Pass its id (from search_knowledge / list_knowledge) or its exact title.",
+    inputSchema: { type: "object", properties: { id: { type: "string", description: "Document id or exact title" } }, required: ["id"], additionalProperties: false },
+    run: async (args) => {
+      const key = String(args.id ?? "").trim().toLowerCase();
+      const docs = await getBrain();
+      const d = docs.find((x) => x.id.toLowerCase() === key || x.title.toLowerCase() === key) ?? docs.find((x) => x.title.toLowerCase().includes(key));
+      if (!d) throw new Error(`No document matches "${args.id}". Use search_knowledge.`);
+      return d;
+    },
+  },
+  {
+    name: "list_knowledge",
+    description: "List every document in the Skills & Knowledge library (id, title, type, category, summary). Types: Skill, SOP, Rules, Process, Note.",
+    inputSchema: { type: "object", properties: { type: { type: "string", enum: ["Skill", "SOP", "Rules", "Process", "Note"] } }, additionalProperties: false },
+    run: async (args) =>
+      (await getBrain()).filter((d) => !args.type || d.type === args.type).map(({ id, title, type, category, summary }) => ({ id, title, type, category, summary })),
+  },
+  {
+    name: "add_knowledge",
+    description: "Add a document to the Skills & Knowledge library: a new SOP, training notes, a process, or an improvement to how something is done. Keep one topic per document.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        type: { type: "string", enum: ["Skill", "SOP", "Rules", "Process", "Note"] },
+        category: { type: "string" },
+        summary: { type: "string" },
+        body: { type: "string", description: "Markdown" },
+      },
+      required: ["title", "type", "body"],
+      additionalProperties: false,
+    },
+    run: async (args) => ({
+      ok: true,
+      id: await addDoc({
+        title: String(args.title),
+        type: String(args.type) as BrainType,
+        category: args.category ? String(args.category) : "",
+        summary: args.summary ? String(args.summary) : "",
+        body: String(args.body),
+        source: "Added by Claude",
+      }),
+    }),
+  },
+  {
     name: "list_office_tasks",
     description:
-      "The Office board. Returns open tasks with id, task, description, assignee, status (Up Next / Doing / Blocked / Review / Done), priority and any review note. Tasks assigned to 'AI' are your queue: pick up 'Up Next', set 'Doing' while working, then 'Review' with a result for a human to approve. A 'Denied:' review note means redo it.",
+      "The Office board. Returns open tasks with id, task, description, assignee, status (Up Next / Doing / Blocked / Review / Done), priority and any review note. Tasks assigned to 'AI' are your queue: before working one, search_knowledge for the SOP or skill that covers it and follow it. Pick up 'Up Next', set 'Doing' while working, then 'Review' with a result for a human to approve. A 'Denied:' review note means redo it.",
     inputSchema: {
       type: "object",
       properties: { only_ai: { type: "boolean", description: "Only tasks assigned to the AI. Default true." } },
