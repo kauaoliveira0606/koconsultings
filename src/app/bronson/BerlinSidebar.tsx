@@ -25,7 +25,9 @@ import {
   Briefcase,
   Search as SearchIcon,
   ChevronsUpDown,
+  LogOut,
 } from "lucide-react";
+import { SALES_PAGES, type Role } from "@/lib/admin-gate";
 
 type Item = { href: string; label: string; icon: LucideIcon; color: string };
 type Group = { label?: string; items: Item[] };
@@ -54,6 +56,8 @@ function Tile({ Icon, color }: { Icon: LucideIcon; color: string }) {
 }
 
 const GROUPS: Group[] = [
+  // Office sits on its own above Workspace (user's reference, 2026-11-10).
+  { items: [{ href: "/bronson/office", label: "Office", icon: Briefcase, color: B.indigo }] },
   {
     label: "Workspace",
     items: [
@@ -61,7 +65,6 @@ const GROUPS: Group[] = [
       { href: "/bronson/scorecard", label: "Scorecard", icon: Target, color: B.teal },
       { href: "/bronson/cash-calendar", label: "Cash Calendar", icon: CalendarDays, color: B.green },
       { href: "/bronson/integrations", label: "Integrations", icon: Plug, color: B.slate },
-      { href: "/bronson/office", label: "Office", icon: Briefcase, color: B.indigo },
     ],
   },
   {
@@ -100,7 +103,18 @@ function isActive(pathname: string | null, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-function Body({ onNavigate }: { onNavigate?: () => void }) {
+/** Sales Team only sees the tabs the proxy lets them open; admins see everything. */
+function groupsFor(role: Role): Group[] {
+  if (role === "admin") return GROUPS;
+  return GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => SALES_PAGES.includes(i.href)) })).filter((g) => g.items.length);
+}
+
+async function logout() {
+  await fetch("/api/login", { method: "DELETE" });
+  window.location.href = "/login";
+}
+
+function Body({ onNavigate, role }: { onNavigate?: () => void; role: Role }) {
   const pathname = usePathname();
   return (
     <div className="flex h-full flex-col">
@@ -132,8 +146,8 @@ function Body({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Groups */}
       <nav className="flex-1 space-y-5 overflow-y-auto px-1 pb-4">
-        {GROUPS.map((group) => (
-          <div key={group.label}>
+        {groupsFor(role).map((group) => (
+          <div key={group.label ?? group.items[0].href}>
             {group.label ? (
               <div className="mb-2 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">{group.label}</div>
             ) : null}
@@ -162,17 +176,28 @@ function Body({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* User chip */}
       <div className="mt-auto flex items-center gap-2.5 border-t border-neutral-200 px-2 pt-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-xs font-bold text-neutral-700">K</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-xs font-bold text-neutral-700">
+          {role === "admin" ? "A" : "S"}
+        </span>
         <div className="min-w-0 flex-1 leading-tight">
-          <div className="truncate text-[13px] font-bold text-neutral-900">Kaua</div>
-          <div className="truncate text-[11px] text-neutral-500">kaua.bage@gmail.com</div>
+          <div className="truncate text-[13px] font-bold text-neutral-900">{role === "admin" ? "Admin Team" : "Sales Team"}</div>
+          <div className="truncate text-[11px] text-neutral-500">Logged in</div>
         </div>
+        <button
+          type="button"
+          onClick={logout}
+          aria-label="Log out"
+          title="Log out"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+        >
+          <LogOut size={16} strokeWidth={2.25} />
+        </button>
       </div>
     </div>
   );
 }
 
-export function BerlinSidebar() {
+export function BerlinSidebar({ role }: { role: Role }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -196,14 +221,14 @@ export function BerlinSidebar() {
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-72 overflow-y-auto border-r border-neutral-200 bg-white p-3 shadow-2xl">
-            <Body onNavigate={() => setOpen(false)} />
+            <Body onNavigate={() => setOpen(false)} role={role} />
           </aside>
         </div>
       ) : null}
 
       {/* Desktop */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 self-start flex-col overflow-y-auto border-r border-neutral-200 bg-white px-3 py-5 lg:flex">
-        <Body />
+        <Body role={role} />
       </aside>
     </>
   );

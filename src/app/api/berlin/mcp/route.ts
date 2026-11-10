@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { ADMIN_COOKIE, SERVICE_TOKEN } from "@/lib/admin-gate";
 import { AD_FORMATS } from "@/lib/berlin/ad-formats";
 
 /**
@@ -30,7 +31,11 @@ const presetProp = {
 };
 
 async function fetchJson(url: string) {
-  const res = await fetch(url, { cache: "no-store", headers: { accept: "application/json" } });
+  // The dashboard APIs sit behind the login; this server-to-server call uses the service key.
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { accept: "application/json", cookie: `${ADMIN_COOKIE}=${SERVICE_TOKEN}` },
+  });
   if (!res.ok) throw new Error(`Upstream ${url} failed (${res.status})`);
   return res.json();
 }

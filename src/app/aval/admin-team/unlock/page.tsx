@@ -1,5 +1,7 @@
-import { AdminUnlock } from "@/components/dashboard/AdminUnlock";
+import { redirect } from "next/navigation";
 
-export default function AdminUnlockPage() {
-  return <AdminUnlock fallback="/aval/admin-team" />;
+/** Old password page: the proxy now handles login, so just go where the link pointed. */
+export default async function AdminUnlockPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const { next } = await searchParams;
+  redirect(next && next.startsWith("/") && !next.startsWith("//") ? next : "/aval/admin-team");
 }

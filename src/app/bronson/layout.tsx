@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { BerlinSidebar } from "./BerlinSidebar";
+import { cookies } from "next/headers";
 import { RangeProvider } from "@/lib/range-context";
+import { roleFromCookies } from "@/lib/admin-gate";
 
 export const metadata: Metadata = {
   title: "Berlin",
@@ -17,7 +19,10 @@ export const viewport = {
   themeColor: "#000000",
 };
 
-export default function BronsonLayout({ children }: { children: ReactNode }) {
+export default async function BronsonLayout({ children }: { children: ReactNode }) {
+  // The proxy already blocks anyone not logged in; this only picks which tabs to list.
+  const jar = await cookies();
+  const role = (await roleFromCookies((name) => jar.get(name)?.value)) ?? "sales";
   return (
     <RangeProvider initialPreset="this_month">
       <div
@@ -25,7 +30,7 @@ export default function BronsonLayout({ children }: { children: ReactNode }) {
         style={{ background: "var(--app-bg)" }}
         className="flex min-h-screen flex-col text-[var(--text)] lg:flex-row"
       >
-        <BerlinSidebar />
+        <BerlinSidebar role={role} />
         <main className="flex-1 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
       </div>
     </RangeProvider>

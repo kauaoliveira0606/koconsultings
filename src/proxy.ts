@@ -1,43 +1,43 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ADMIN_COOKIE, adminToken } from "@/lib/admin-gate";
+import { SALES_HOME, SERVICE_TOKEN, ADMIN_COOKIE, roleFromCookies, salesCanSee } from "@/lib/admin-gate";
 
-/** Keeps the Admin Team and Scorecard tabs, their data and the reactivation controls behind the admin password. */
+/**
+ * Login gate for the whole dashboard (Bronson, Aval, Agency).
+ * Admin sees everything; Sales Team only the Sales tabs + Cash Calendar.
+ */
+
+/** Called by n8n without a cookie (payment plan Discord posts); kept open as before. */
+const OPEN_APIS = ["/api/bronson/payment-plans/weekly-summary", "/api/bronson/payment-plans/reminders"];
+
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (pathname.endsWith("/admin-team/unlock")) return NextResponse.next();
+  const isApi = pathname.startsWith("/api/");
 
-  if (request.cookies.get(ADMIN_COOKIE)?.value === (await adminToken())) return NextResponse.next();
+  if (OPEN_APIS.includes(pathname)) return NextResponse.next();
+  if (isApi && request.cookies.get(ADMIN_COOKIE)?.value === SERVICE_TOKEN) return NextResponse.next();
 
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "Admin password required" }, { status: 401 });
+  const role = await roleFromCookies((name) => request.cookies.get(name)?.value);
+  if (role === "admin") return NextResponse.next();
+
+  if (role === "sales") {
+    if (salesCanSee(pathname)) return NextResponse.next();
+    if (isApi) return NextResponse.json({ error: "Not available for the Sales Team" }, { status: 403 });
+    return NextResponse.redirect(new URL(SALES_HOME, request.url));
   }
-  const offer = pathname.split("/")[1];
-  const url = new URL(`/${offer}/admin-team/unlock`, request.url);
+
+  if (isApi) return NextResponse.json({ error: "Login required" }, { status: 401 });
+  const url = new URL("/login", request.url);
   url.searchParams.set("next", pathname + search);
   return NextResponse.redirect(url);
 }
 
 export const config = {
   matcher: [
-    "/aval/admin-team/:path*",
-    "/bronson/admin-team/:path*",
-    "/api/aval/admin-team/:path*",
-    "/api/bronson/admin-team/:path*",
-    "/api/aval/commissions/:path*",
-    "/api/bronson/commissions/:path*",
-    "/aval/scorecard/:path*",
-    "/bronson/scorecard/:path*",
-    "/api/aval/overview/weekly-scorecard/:path*",
-    "/api/bronson/overview/weekly-scorecard/:path*",
-    "/api/aval/overview/pacing/:path*",
-    "/api/bronson/overview/pacing/:path*",
-    "/api/aval/overview/recent-changes/:path*",
-    "/api/bronson/overview/recent-changes/:path*",
-    "/api/aval/overview/reactivation/controls/:path*",
-    "/api/bronson/overview/reactivation/controls/:path*",
-    "/api/bronson/show-rate/controls/:path*",
-    "/api/bronson/no-shows/controls/:path*",
-    "/api/aval/show-rate/controls/:path*",
-    "/api/aval/no-shows/controls/:path*",
+    "/bronson/:path*",
+    "/aval/:path*",
+    "/agency/:path*",
+    "/api/bronson/:path*",
+    "/api/aval/:path*",
+    "/api/agency/:path*",
   ],
 };
