@@ -2,7 +2,11 @@
 
 import { DashboardSidebar, type SidebarSection } from "@/components/dashboard/DashboardSidebar";
 
-/** Same structure as Aval (user, 2026-10-28): Reactivation and Webinars are their own dashboards. */
+/**
+ * Berlin shell over the Bronson dashboard. The top switcher is each section;
+ * the Manos-style sections (Ads, Funnel, Integrations, Office) sit alongside the
+ * existing dashboard tabs. Reactivation retired (user, 2026-11-09).
+ */
 const SECTIONS: SidebarSection[] = [
   {
     label: "Dashboard",
@@ -19,7 +23,17 @@ const SECTIONS: SidebarSection[] = [
       { href: "/bronson/admin-team", label: "Admin Team" },
     ],
   },
-  { label: "Reactivation", items: [{ href: "/bronson/reactivation", label: "Reactivation" }] },
+  {
+    label: "Ads",
+    items: [
+      { href: "/bronson/ads", label: "Ads" },
+      { href: "/bronson/ads/campaigns", label: "Campaigns" },
+      { href: "/bronson/ad-formats", label: "Ad Formats" },
+    ],
+  },
+  { label: "Funnel", items: [{ href: "/bronson/funnels", label: "Funnels" }] },
+  { label: "Integrations", items: [{ href: "/bronson/integrations", label: "Integrations" }] },
+  { label: "Office", items: [{ href: "/bronson/office", label: "Office" }] },
   {
     label: "Webinars",
     items: [
@@ -31,5 +45,5 @@ const SECTIONS: SidebarSection[] = [
 ];
 
 export function BronsonSidebar() {
-  return <DashboardSidebar initials="BR" name="Bronson (The Inner Table)" logo="/brand/bronson-logo.png" sections={SECTIONS} />;
+  return <DashboardSidebar initials="BR" name="Berlin" logo="/brand/bronson-logo.png" sections={SECTIONS} />;
 }

@@ -25,6 +25,12 @@ const ICONS: Record<string, ReactNode> = {
   "admin-team": <path d="M10 2.5l6 2.5v4.5c0 4-2.6 6.8-6 8-3.4-1.2-6-4-6-8V5l6-2.5z" />,
   commissions: <path d="M10 2.5v15M13.5 5.5H8.25a2.25 2.25 0 000 4.5h3.5a2.25 2.25 0 010 4.5H6" />,
   reactivation: <path d="M3.5 10a6.5 6.5 0 0111.3-4.4M16.5 10a6.5 6.5 0 01-11.3 4.4M15 2.5v3.5h-3.5M5 17.5V14h3.5" />,
+  ads: <path d="M3.5 16.5V9M8.5 16.5V4M13.5 16.5v-5M17 16.5H2.5" />,
+  campaigns: <path d="M3 11l13-6-3 13-3.5-4.5L3 11zM6.5 12.5L9.5 15.5" />,
+  "ad-formats": <path d="M3.5 4.5h13v11h-13zM3.5 8h13M8 8v7.5" />,
+  funnels: <path d="M3 4.5h14l-5 6v5l-4 2v-7l-5-6z" />,
+  integrations: <path d="M8 4V2.5M12 4V2.5M8 16v1.5M12 16v1.5M4 8H2.5M4 12H2.5M16 8h1.5M16 12h1.5M5.5 5.5h9v9h-9z" />,
+  office: <path d="M3.5 7.5h13v9h-13zM7 7.5V4.5a1 1 0 011-1h4a1 1 0 011 1v3M3.5 11h13" />,
 };
 
 function NavIcon({ href }: { href: string }) {
