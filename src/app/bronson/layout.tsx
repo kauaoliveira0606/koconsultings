@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { BerlinSidebar } from "./BerlinSidebar";
+import { AskBerlin } from "@/components/berlin/AskBerlin";
 import { cookies } from "next/headers";
 import { RangeProvider } from "@/lib/range-context";
 import { roleFromCookies } from "@/lib/admin-gate";
@@ -32,6 +33,7 @@ export default async function BronsonLayout({ children }: { children: ReactNode 
       >
         <BerlinSidebar role={role} />
         <main className="flex-1 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
+        {role === "admin" ? <AskBerlin /> : null}
       </div>
     </RangeProvider>
   );
