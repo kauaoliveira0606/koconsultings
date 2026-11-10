@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { parseRangeFromRequest } from "@/lib/api-range";
-import { isDateInRange } from "@/lib/date-range";
+import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
 import { airtableListAll } from "@/lib/airtable/client";
-import { BRONSON_BASE_ID } from "@/lib/airtable/tables";
+import { BRONSON_BASE_ID, getMarketingDailyMetrics } from "@/lib/airtable/tables";
 import { roas, costPerLead, sum } from "@/lib/metrics";
 
 export const revalidate = 60;
@@ -14,7 +14,6 @@ type AdFields = {
   Date?: string;
   Source?: string;
   Class?: string;
-  Spend?: number;
   Revenue?: number;
   Leads?: number;
   Purchases?: number;
@@ -23,55 +22,64 @@ type AdFields = {
 type SourceRow = {
   source: string;
   class: "Paid" | "Organic";
-  spend: number;
   revenue: number;
   leads: number;
   purchases: number;
-  roas: number | null;
 };
 
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
-  const records = await airtableListAll<AdFields>(BRONSON_BASE_ID, ADS_TABLE);
+
+  // Cortana gives the per-source REVENUE/LEADS split. Ad SPEND comes from the
+  // Marketing Daily Metrics form, which is the source of truth for spend
+  // (Cortana's attributed spend over-counts). So spend/ROAS/CPL use the form.
+  const [records, marketing] = await Promise.all([
+    airtableListAll<AdFields>(BRONSON_BASE_ID, ADS_TABLE),
+    getMarketingDailyMetrics(),
+  ]);
 
   const inRange = records
     .map((r) => r.fields)
     .filter((f) => isDateInRange((f.Date ?? "").slice(0, 10), range));
 
+  // Form ad spend (Meta), per Eastern day and total in range.
+  const inRangeMarketing = marketing.filter((r) => isDateInRange(toEasternDateOnly(r.date), range));
+  const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta)) ?? 0;
+  const spendByDate = new Map<string, number>();
+  for (const r of inRangeMarketing) {
+    const d = toEasternDateOnly(r.date);
+    if (!d) continue;
+    spendByDate.set(d, (spendByDate.get(d) ?? 0) + (r.adSpendMeta ?? 0));
+  }
+
   const bySource = new Map<string, SourceRow>();
   for (const f of inRange) {
     const source = f.Source ?? "Unknown";
     const cls = f.Class === "Paid" ? "Paid" : "Organic";
-    const row =
-      bySource.get(source) ?? { source, class: cls, spend: 0, revenue: 0, leads: 0, purchases: 0, roas: null };
-    row.spend += Number(f.Spend ?? 0);
+    const row = bySource.get(source) ?? { source, class: cls, revenue: 0, leads: 0, purchases: 0 };
     row.revenue += Number(f.Revenue ?? 0);
     row.leads += Number(f.Leads ?? 0);
     row.purchases += Number(f.Purchases ?? 0);
     bySource.set(source, row);
   }
 
-  const sources = [...bySource.values()]
-    .map((r) => ({ ...r, roas: roas(r.revenue, r.spend) }))
-    .sort((a, b) => b.revenue - a.revenue);
-
+  const sources = [...bySource.values()].sort((a, b) => b.revenue - a.revenue);
   const paid = sources.filter((s) => s.class === "Paid");
-  const adSpend = sum(sources.map((s) => s.spend)) ?? 0;
   const paidRevenue = sum(paid.map((s) => s.revenue)) ?? 0;
   const totalRevenue = sum(sources.map((s) => s.revenue)) ?? 0;
   const paidLeads = sum(paid.map((s) => s.leads)) ?? 0;
 
-  // Daily spend vs revenue, for the trend.
-  const byDate = new Map<string, { date: string; spend: number; revenue: number }>();
+  // Daily: spend from the form, revenue from Cortana.
+  const revByDate = new Map<string, number>();
   for (const f of inRange) {
     const d = (f.Date ?? "").slice(0, 10);
     if (!d) continue;
-    const row = byDate.get(d) ?? { date: d, spend: 0, revenue: 0 };
-    row.spend += Number(f.Spend ?? 0);
-    row.revenue += Number(f.Revenue ?? 0);
-    byDate.set(d, row);
+    revByDate.set(d, (revByDate.get(d) ?? 0) + Number(f.Revenue ?? 0));
   }
-  const daily = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const allDates = new Set([...spendByDate.keys(), ...revByDate.keys()]);
+  const daily = [...allDates]
+    .sort()
+    .map((date) => ({ date, spend: spendByDate.get(date) ?? 0, revenue: revByDate.get(date) ?? 0 }));
 
   return Response.json({
     totals: {
@@ -84,8 +92,9 @@ export async function GET(request: NextRequest) {
       leads: sum(sources.map((s) => s.leads)) ?? 0,
       paidLeads,
     },
+    adSpendSource: "Marketing Daily Metrics form (Meta)",
     sources,
     daily,
-    hasData: inRange.length > 0,
+    hasData: inRange.length > 0 || adSpend > 0,
   });
 }
