@@ -205,7 +205,7 @@ function AddTask({ people, onAdd, onCancel }: { people: Person[]; onAdd: (task: 
   return (
     <div className="space-y-2 border-b border-[var(--panel-border)] py-4">
       <input autoFocus value={task} onChange={(e) => setTask(e.target.value)} placeholder="Task name" className={input} />
-      <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (what exactly it is)" className={input} />
+      <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (what exactly it is)" rows={3} className={`${input} min-h-[80px] resize-y leading-relaxed`} />
       <div className="flex items-center gap-2">
         <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-2 text-sm text-[var(--text)]">
           <option value="">Unassigned</option>
@@ -226,7 +226,7 @@ function EditTask({ task, people, busy, onSave, onCancel }: { task: Task; people
   return (
     <li className="space-y-2 border-b border-[var(--panel-border)] py-4 last:border-0">
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={input} />
-      <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" className={input} />
+      <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={3} className={`${input} min-h-[80px] resize-y leading-relaxed`} />
       <div className="flex items-center gap-2">
         <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2 py-2 text-sm text-[var(--text)]">
           <option value="">Unassigned</option>
@@ -253,7 +253,7 @@ function TaskComposer({ people, departments, roles, onAdd, onClose }: { people: 
           <button onClick={onClose} className="rounded-md border border-[var(--panel-border)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">Close</button></div>
         <div className="mt-4 space-y-2.5">
           <input autoFocus value={task} onChange={(e) => setTask(e.target.value)} placeholder="Task name" className={input} />
-          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (what exactly it is)" className={input} />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (what exactly it is)" rows={3} className={`${input} min-h-[80px] resize-y leading-relaxed`} />
           <div className="flex gap-2">
             <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department" list="comp-depts" className={input} />
             <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Role" list="comp-roles" className={input} />
