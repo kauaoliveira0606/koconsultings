@@ -69,6 +69,7 @@ export async function getMetaLevel(level: "campaign" | "adset" | "ad", since: st
           reach: r.reach,
           clicks: r.clicks,
           linkClicks: r.linkClicks,
+          uniqueLinkClicks: r.linkClicks,
           lpViews: r.lpViews,
           pageViews: 0,
           uniqueVisitors: 0,
@@ -79,11 +80,13 @@ export async function getMetaLevel(level: "campaign" | "adset" | "ad", since: st
           htSales: 0,
           sales: r.purchases,
           revenue: 0,
+          htRevenue: 0,
           hookRate: null,
           holdRate: null,
           thruplays: r.thruplays,
           frequency: r.frequency,
           video3s: r.video3s,
+          video3sImpressions: r.impressions,
         };
       }),
     };

@@ -68,20 +68,26 @@ function sumEntities(rows: AdsEntity[]) {
   const s = (k: keyof AdsEntity) => rows.reduce((a, r) => a + ((r[k] as number) || 0), 0);
   const spend = s("spend");
   const impressions = s("impressions");
-  const registrations = s("registrations");
-  const revenue = s("revenue");
+  const ulc = s("uniqueLinkClicks");
+  const lc = s("linkClicks");
+  const lpv = s("lpViews");
+  const reg = s("registrations");
+  const booked = s("booked");
   return {
     spend,
     impressions,
     cpm: impressions ? (spend / impressions) * 1000 : null,
-    linkCtr: impressions ? s("linkClicks") / impressions : null,
-    registrations,
-    costPerOptIn: registrations && spend ? spend / registrations : null,
-    booked: s("booked"),
-    callsHeld: s("callsHeld"),
-    sales: s("sales"),
-    revenue,
-    roas: spend ? revenue / spend : null,
+    linkCtr: impressions ? ulc / impressions : null,
+    lpViews: lpv,
+    lpConnect: lc ? lpv / lc : null,
+    registrations: reg,
+    costPerReg: reg && spend ? spend / reg : null,
+    optInRate: lpv && lpv >= reg ? reg / lpv : null,
+    booked,
+    costPerBooked: booked && spend ? spend / booked : null,
+    htSales: s("htSales"),
+    htRevenue: s("htRevenue"),
+    roas: spend ? s("revenue") / spend : null,
   };
 }
 
@@ -139,16 +145,16 @@ export function AdsBoard() {
           <div className="mt-1 text-lg font-bold text-[var(--text-strong)]">{top.name}</div>
           <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <Mini label="Spend" value={<KpiValue value={top.spend} format="currency" bold />} sub={top.spendShare != null ? `${(top.spendShare * 100).toFixed(0)}% of all spend` : undefined} />
-            <Mini label="Opt-ins" value={<KpiValue value={top.registrations} format="number" bold />} />
-            <Mini label="Cost / opt-in" value={<KpiValue value={top.costPerOptIn} format="currency" tone={toneFor("costPerOptIn", top.costPerOptIn)} bold />} />
-            <Mini label="Booked calls" value={<KpiValue value={top.booked} format="number" bold />} sub={top.costPerBooked != null ? `${formatStatValue(top.costPerBooked, "currency")} each` : undefined} />
-            <Mini label="Revenue" value={<KpiValue value={top.revenue} format="currency" bold />} sub={`${top.sales} sale${top.sales === 1 ? "" : "s"}`} />
+            <Mini label="Complete registrations" value={<KpiValue value={top.registrations} format="number" bold />} sub={top.optInRate != null ? `${formatStatValue(top.optInRate, "percent")} opt-in rate` : undefined} />
+            <Mini label="Cost per complete reg." value={<KpiValue value={top.costPerOptIn} format="currency" tone={toneFor("costPerOptIn", top.costPerOptIn)} bold />} />
+            <Mini label="Schedule" value={<KpiValue value={top.booked} format="number" bold />} sub={top.costPerBooked != null ? `${formatStatValue(top.costPerBooked, "currency")} per schedule` : undefined} />
+            <Mini label="High ticket revenue" value={<KpiValue value={top.htRevenue} format="currency" bold />} sub={`${top.htSales} high ticket`} />
             <Mini label="ROAS" value={<KpiValue value={top.roas} format="ratio" tone={toneFor("roas", top.roas)} bold />} />
           </div>
           {topAd ? (
             <p className="mt-4 text-[13px] text-[var(--text-muted)]">
               Top ad: <span className="font-semibold text-[var(--text-strong)]">{topAd.name}</span> · {formatStatValue(topAd.spend, "currency")} spend ·{" "}
-              {topAd.registrations} opt-ins at {formatStatValue(topAd.costPerOptIn, "currency")} · {formatStatValue(topAd.revenue, "currency")} revenue
+              {topAd.registrations} complete registrations at {formatStatValue(topAd.costPerOptIn, "currency")} · {topAd.booked} scheduled · {formatStatValue(topAd.htRevenue, "currency")} high ticket revenue
             </p>
           ) : null}
         </Panel>
@@ -185,20 +191,13 @@ export function AdsBoard() {
             <div className="text-[12px] text-[var(--text-muted)]">Newest first. Click a day to see its {LEVELS.find((l) => l.id === level)!.label.toLowerCase()}.</div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-[13px]">
+            <table className="w-full min-w-[1500px] text-[13px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
                   <th className="px-5 py-3 font-medium">Day</th>
-                  <th className="px-3 py-3 text-right font-medium">Spend</th>
-                  <th className="px-3 py-3 text-right font-medium">CPM</th>
-                  <th className="px-3 py-3 text-right font-medium">Link CTR</th>
-                  <th className="px-3 py-3 text-right font-medium">Opt-ins</th>
-                  <th className="px-3 py-3 text-right font-medium">Cost / opt-in</th>
-                  <th className="px-3 py-3 text-right font-medium">Booked</th>
-                  <th className="px-3 py-3 text-right font-medium">Calls held</th>
-                  <th className="px-3 py-3 text-right font-medium">Sales</th>
-                  <th className="px-3 py-3 text-right font-medium">Revenue</th>
-                  <th className="px-5 py-3 text-right font-medium">ROAS</th>
+                  {["Spent", "Impressions", "CPM", "LCTR", "Landing page views", "LP connect", "Complete reg.", "Cost per reg.", "Opt-in rate", "Schedule", "Cost per schedule", "High ticket", "HT revenue", "ROAS"].map((h) => (
+                    <th key={h} className="px-3 py-3 text-right font-medium">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -215,19 +214,23 @@ export function AdsBoard() {
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-right"><KpiValue value={s.spend} format="currency" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.impressions} format="number" /></td>
                         <td className="px-3 py-2.5 text-right"><KpiValue value={s.cpm} format="currency" tone={s.spend ? toneFor("cpm", s.cpm) : null} /></td>
                         <td className="px-3 py-2.5 text-right"><KpiValue value={s.linkCtr} format="percent" tone={s.spend ? toneFor("linkCtr", s.linkCtr) : null} /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.lpViews} format="number" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.lpConnect} format="percent" tone={s.spend ? toneFor("lpConnectRate", s.lpConnect) : null} /></td>
                         <td className="px-3 py-2.5 text-right"><KpiValue value={s.registrations} format="number" /></td>
-                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.costPerOptIn} format="currency" tone={toneFor("costPerOptIn", s.costPerOptIn)} /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.costPerReg} format="currency" tone={toneFor("costPerOptIn", s.costPerReg)} /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.optInRate} format="percent" tone={s.spend ? toneFor("optInRate", s.optInRate) : null} /></td>
                         <td className="px-3 py-2.5 text-right"><KpiValue value={s.booked} format="number" /></td>
-                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.callsHeld} format="number" /></td>
-                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.sales} format="number" /></td>
-                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.revenue} format="currency" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.costPerBooked} format="currency" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.htSales} format="number" /></td>
+                        <td className="px-3 py-2.5 text-right"><KpiValue value={s.htRevenue} format="currency" /></td>
                         <td className="px-5 py-2.5 text-right"><KpiValue value={s.roas} format="ratio" tone={s.spend ? toneFor("roas", s.roas) : null} /></td>
                       </tr>
                       {open ? (
                         <tr>
-                          <td colSpan={11} className="border-t border-[var(--panel-border)] bg-[var(--panel-subtle)] p-0">
+                          <td colSpan={15} className="border-t border-[var(--panel-border)] bg-[var(--panel-subtle)] p-0">
                             <AdsEntityTable flat title={`${weekday(d.date)} · ${LEVELS.find((l) => l.id === level)!.label}`} rows={d.rows} dates={[d.date]} />
                           </td>
                         </tr>
@@ -236,7 +239,7 @@ export function AdsBoard() {
                   );
                 })}
                 {days.length === 0 ? (
-                  <tr><td colSpan={11} className="px-5 py-8 text-center text-[var(--text-muted)]">No days in this range.</td></tr>
+                  <tr><td colSpan={15} className="px-5 py-8 text-center text-[var(--text-muted)]">No days in this range.</td></tr>
                 ) : null}
               </tbody>
             </table>

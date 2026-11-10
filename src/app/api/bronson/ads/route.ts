@@ -4,7 +4,7 @@ import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
 import { airtableListAll } from "@/lib/airtable/client";
 import { BRONSON_BASE_ID, getMarketingDailyMetrics } from "@/lib/airtable/tables";
 import { roas, costPerLead, sum } from "@/lib/metrics";
-import { aggregateEntities, getAdsDaily } from "@/lib/ads-cortana";
+import { aggregateEntities, getAdsDaily, getAdsRange } from "@/lib/ads-cortana";
 
 export const revalidate = 60;
 
@@ -34,16 +34,21 @@ export async function GET(request: NextRequest) {
   // Cortana gives the per-source REVENUE/LEADS split. Ad SPEND comes from the
   // Marketing Daily Metrics form, which is the source of truth for spend
   // (Cortana's attributed spend over-counts). So spend/ROAS/CPL use the form.
-  const [records, marketing, adsDaily] = await Promise.all([
+  const preset = request.nextUrl.searchParams.get("preset") ?? "all_time";
+  const [records, marketing, adsDaily, rangeRows] = await Promise.all([
     airtableListAll<AdFields>(BRONSON_BASE_ID, ADS_TABLE),
     getMarketingDailyMetrics(),
     getAdsDaily(),
+    getAdsRange(preset),
   ]);
 
   // Campaign and ad level (Cortana): which campaign spends the most and what it gets back.
   const levelRows = adsDaily.filter((r) => isDateInRange(r.date, range));
-  const campaigns = aggregateEntities(levelRows.filter((r) => r.level === "campaign"));
-  const ads = aggregateEntities(levelRows.filter((r) => r.level === "ad"));
+  // Range totals: Cortana's own deduplicated numbers for the preset when synced;
+  // a custom range falls back to summing the daily rows.
+  const totalsRows = rangeRows ?? levelRows;
+  const campaigns = aggregateEntities(totalsRows.filter((r) => r.level === "campaign"));
+  const ads = aggregateEntities(totalsRows.filter((r) => r.level === "ad"));
   // By day: each date's totals and its campaigns / ads, newest first.
   const dates = [...new Set(levelRows.map((r) => r.date))].sort().reverse();
   const byDay = dates.map((date) => {
@@ -118,6 +123,7 @@ export async function GET(request: NextRequest) {
     campaigns,
     ads,
     byDay,
+    totalsSource: rangeRows ? "cortana-range" : "daily-sum",
     cortanaSpend: sum(campaigns.map((c) => c.spend)) ?? 0,
     lastSpendDate: lastSpendDate || null,
     hasData: inRange.length > 0 || adSpend > 0 || levelRows.length > 0,

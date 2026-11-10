@@ -14,25 +14,29 @@ type Col = {
   title?: string;
 };
 
-/** The "webinar" column set: spend -> creative -> landing page -> opt-in -> call -> cash. */
+/** The user's Cortana "webinar" column set, same order (screenshot 2026-11-10). Status sits under the name. */
 const COLS: Col[] = [
-  { key: "spend", label: "Spend", format: "currency" },
+  { key: "dailyBudget", label: "Budget", format: "currency" },
+  { key: "spend", label: "Spent", format: "currency" },
+  { key: "reach", label: "Reach", format: "number" },
+  { key: "impressions", label: "Impressions", format: "number" },
+  { key: "hookRate", label: "Hook rate", format: "percent", kpi: "hookRate", title: "3-second views ÷ impressions (Cortana)" },
+  { key: "holdRate", label: "Hold rate", format: "percent", kpi: "holdRate", title: "Cortana hold rate" },
+  { key: "frequency", label: "Frequency", format: "number", kpi: "frequency" },
   { key: "cpm", label: "CPM", format: "currency", kpi: "cpm" },
-  { key: "linkCtr", label: "Link CTR", format: "percent", kpi: "linkCtr" },
-  { key: "hookRate", label: "Hook", format: "percent", kpi: "hookRate", title: "3-second views ÷ impressions" },
-  { key: "holdRate", label: "Hold", format: "percent", kpi: "holdRate", title: "ThruPlays ÷ 3-second views" },
+  { key: "costPerLinkClick", label: "Cost per link click", format: "currency" },
+  { key: "uniqueLinkClicks", label: "Unique link clicks", format: "number" },
+  { key: "linkCtr", label: "LCTR", format: "percent", kpi: "linkCtr", title: "Unique link clicks ÷ impressions" },
+  { key: "lpViews", label: "Landing page views", format: "number" },
   { key: "lpConnectRate", label: "LP connect", format: "percent", kpi: "lpConnectRate", title: "Landing page views ÷ link clicks" },
-  { key: "uniqueVisitors", label: "Visitors", format: "number", title: "Unique people on the page (Cortana pixel)" },
-  { key: "registrations", label: "Opt-ins", format: "number", title: "Unique people who registered for the webinar (CompleteRegistration)" },
-  { key: "optInRate", label: "Opt-in rate", format: "percent", kpi: "optInRate", title: "Opt-ins ÷ unique visitors (both Cortana). Blank when opt-ins outnumber visitors, which happens when Cortana credits late opt-ins from earlier clicks." },
-  { key: "costPerOptIn", label: "Cost / opt-in", format: "currency", kpi: "costPerOptIn" },
-  { key: "booked", label: "Booked", format: "number" },
-  { key: "costPerBooked", label: "Cost / booked", format: "currency" },
-  { key: "callsHeld", label: "Calls held", format: "number", title: "Post call notes logged" },
-  { key: "sales", label: "Sales", format: "number" },
-  { key: "revenue", label: "Revenue", format: "currency" },
-  { key: "roas", label: "ROAS", format: "ratio", kpi: "roas" },
-  { key: "frequency", label: "Freq", format: "number", kpi: "frequency" },
+  { key: "registrations", label: "Complete registrations", format: "number", title: "Unique people who registered" },
+  { key: "costPerOptIn", label: "Cost per complete reg.", format: "currency", kpi: "costPerOptIn" },
+  { key: "optInRate", label: "Opt-in rate", format: "percent", kpi: "optInRate", title: "Complete registrations ÷ landing page views. Blank when registrations outnumber page views (Cortana credits late opt-ins to an earlier click)." },
+  { key: "booked", label: "Schedule", format: "number", title: "Calls booked" },
+  { key: "costPerBooked", label: "Cost per schedule", format: "currency" },
+  { key: "htSales", label: "High ticket", format: "number" },
+  { key: "htRevenue", label: "High ticket revenue", format: "currency" },
+  { key: "roas", label: "ROAS", format: "ratio", kpi: "roas", title: "Revenue ÷ spent" },
 ];
 
 export function AdsEntityTable({ title, subtitle, rows, dates, flat }: { title: string; subtitle?: string; rows: AdsEntity[]; dates: string[]; flat?: boolean }) {
@@ -55,7 +59,10 @@ export function AdsEntityTable({ title, subtitle, rows, dates, flat }: { title: 
 
   const totals = useMemo(() => {
     const s = (k: keyof AdsEntity) => shown.reduce((acc, r) => acc + ((r[k] as number) || 0), 0);
-    return { spend: s("spend"), uniqueVisitors: s("uniqueVisitors"), registrations: s("registrations"), booked: s("booked"), sales: s("sales"), revenue: s("revenue") };
+    return {
+      spend: s("spend"), reach: s("reach"), impressions: s("impressions"), linkClicks: s("linkClicks"), uniqueLinkClicks: s("uniqueLinkClicks"),
+      lpViews: s("lpViews"), registrations: s("registrations"), booked: s("booked"), htSales: s("htSales"), htRevenue: s("htRevenue"), revenue: s("revenue"),
+    };
   }, [shown]);
 
   function sortBy(k: keyof AdsEntity) {
@@ -87,10 +94,11 @@ export function AdsEntityTable({ title, subtitle, rows, dates, flat }: { title: 
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1500px] text-[13px]">
+        <table className="w-full min-w-[2200px] text-[13px]">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
               <th className="sticky left-0 z-10 bg-[var(--panel-bg)] px-5 py-3 font-medium">Name</th>
+              <th className="px-3 py-3 font-medium">Status</th>
               {dates.length > 1 ? <th className="px-3 py-3 font-medium">Trend</th> : null}
               {COLS.map((c) => (
                 <th key={c.key} className="px-3 py-3 text-right font-medium" title={c.title}>
@@ -116,9 +124,13 @@ export function AdsEntityTable({ title, subtitle, rows, dates, flat }: { title: 
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)]">
                       {r.parent ? <span title={r.parent}>{r.parent.length > 38 ? `${r.parent.slice(0, 38)}…` : r.parent} · </span> : null}
-                      {r.status || "—"}
                       {r.spendShare != null ? ` · ${(r.spendShare * 100).toFixed(0)}% of spend` : ""}
                     </div>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${/active/i.test(r.status) ? "bg-[var(--cell-green-bg)] text-[var(--cell-green-text)]" : "bg-[var(--panel-subtle)] text-[var(--text-muted)]"}`}>
+                      {r.status ? r.status.charAt(0) + r.status.slice(1).toLowerCase().replace(/_/g, " ") : "—"}
+                    </span>
                   </td>
                   {dates.length > 1 ? (
                     <td className="px-3 py-2.5">
@@ -137,24 +149,27 @@ export function AdsEntityTable({ title, subtitle, rows, dates, flat }: { title: 
               );
             })}
             {shown.length === 0 ? (
-              <tr><td colSpan={COLS.length + 2} className="px-5 py-8 text-center text-[var(--text-muted)]">Nothing here{hideIdle ? " with spend. Untick \"Only with spend\" to see the rest" : ""}.</td></tr>
+              <tr><td colSpan={COLS.length + 3} className="px-5 py-8 text-center text-[var(--text-muted)]">Nothing here{hideIdle ? " with spend. Untick \"Only with spend\" to see the rest" : ""}.</td></tr>
             ) : (
               <tr className="border-t-2 border-[var(--panel-border)] font-semibold">
                 <td className="sticky left-0 z-10 bg-[var(--panel-bg)] px-5 py-2.5 text-[var(--text-strong)]">Total ({shown.length})</td>
+                <td />
                 {dates.length > 1 ? <td /> : null}
                 {COLS.map((c) => {
-                  const t =
-                    c.key === "spend" ? totals.spend
-                    : c.key === "registrations" ? totals.registrations
-                    : c.key === "uniqueVisitors" ? totals.uniqueVisitors
-                    : c.key === "optInRate" ? (totals.uniqueVisitors && totals.uniqueVisitors >= totals.registrations ? totals.registrations / totals.uniqueVisitors : null)
-                    : c.key === "booked" ? totals.booked
-                    : c.key === "sales" ? totals.sales
-                    : c.key === "revenue" ? totals.revenue
-                    : c.key === "costPerOptIn" ? (totals.registrations ? totals.spend / totals.registrations : null)
-                    : c.key === "costPerBooked" ? (totals.booked ? totals.spend / totals.booked : null)
-                    : c.key === "roas" ? (totals.spend ? totals.revenue / totals.spend : null)
-                    : undefined;
+                  const T = totals;
+                  const sums: Partial<Record<keyof AdsEntity, number | null>> = {
+                    spend: T.spend, reach: T.reach, impressions: T.impressions, uniqueLinkClicks: T.uniqueLinkClicks, lpViews: T.lpViews,
+                    registrations: T.registrations, booked: T.booked, htSales: T.htSales, htRevenue: T.htRevenue,
+                    cpm: T.impressions ? (T.spend / T.impressions) * 1000 : null,
+                    costPerLinkClick: T.linkClicks ? T.spend / T.linkClicks : null,
+                    linkCtr: T.impressions ? T.uniqueLinkClicks / T.impressions : null,
+                    lpConnectRate: T.linkClicks ? T.lpViews / T.linkClicks : null,
+                    costPerOptIn: T.registrations ? T.spend / T.registrations : null,
+                    optInRate: T.lpViews && T.lpViews >= T.registrations ? T.registrations / T.lpViews : null,
+                    costPerBooked: T.booked ? T.spend / T.booked : null,
+                    roas: T.spend ? T.revenue / T.spend : null,
+                  };
+                  const t = c.key in sums ? sums[c.key] : undefined;
                   return (
                     <td key={c.key} className="px-3 py-2.5 text-right">
                       {t === undefined ? null : <KpiValue value={t} format={c.format} tone={c.kpi ? toneFor(c.kpi, t) : null} bold />}
