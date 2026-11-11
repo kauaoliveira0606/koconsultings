@@ -3,6 +3,7 @@ import { easternDateString } from "@/lib/date-range";
 import { askJeremy, jeremyConfigured } from "@/lib/jeremy";
 import { addTask, AI_ASSIGNEE } from "@/lib/office";
 import { snapshotText } from "@/lib/berlin-snapshot";
+import { getBrain, METRICS, sopsFor } from "@/lib/brain";
 
 /**
  * Jeremy AI's daily feedback and weekly process review (user, 2026-11-11:
@@ -61,7 +62,14 @@ export async function runFeedback(type: "daily" | "weekly", opts: { force?: bool
   const title = type === "daily" ? `Jeremy AI daily feedback · ${date}` : `Jeremy AI weekly process review · week of ${date}`;
   const origin = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://www.koconsultings.com";
   const data = await snapshotText(origin).catch(() => "");
-  const { text } = await askJeremy(`${PROMPTS[type]}${data ? `\n\nLIVE NUMBERS:\n${data}` : ""}`, null, 270_000);
+  // The operator's SOPs, by the metric they fix, so the feedback can name the SOP behind each fix.
+  const docs = await getBrain();
+  const sopIndex = METRICS.map((m) => {
+    const list = sopsFor(docs, m.tag);
+    return `- ${m.label}: ${list.length ? list.slice(0, 3).map((d) => d.title).join("; ") : "no SOP yet"}`;
+  }).join("\n");
+  const cite = `\n\nOur SOP library, by metric. When a metric is off, name the SOP that fixes it and use its steps (or say "no SOP yet"):\n${sopIndex}`;
+  const { text } = await askJeremy(`${PROMPTS[type]}${cite}${data ? `\n\nLIVE NUMBERS:\n${data}` : ""}`, null, 270_000);
   if (!text.trim()) return { ok: false, reason: "Empty reply" };
   await save({ title, type, date, feedback: text, created: new Date().toISOString() });
   try {

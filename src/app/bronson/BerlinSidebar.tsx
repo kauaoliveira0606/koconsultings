@@ -68,7 +68,6 @@ const GROUPS: Group[] = [
       { href: "/bronson/scorecard", label: "Scorecard", icon: Target, color: B.teal },
       { href: "/bronson/cash-calendar", label: "Cash Calendar", icon: CalendarDays, color: B.green },
       { href: "/bronson/integrations", label: "Integrations", icon: Plug, color: B.slate },
-      { href: "/bronson/brain", label: "Skills & Knowledge", icon: Brain, color: B.purple },
       { href: "/bronson/feedback", label: "Feedback", icon: Sparkles, color: B.claude },
     ],
   },
@@ -101,6 +100,10 @@ const GROUPS: Group[] = [
       { href: "/bronson/show-rate", label: "Show Rate", icon: Eye, color: B.teal },
       { href: "/bronson/no-shows", label: "No-Shows", icon: UserX, color: B.rose },
     ],
+  },
+  {
+    label: "Skills and SOPs",
+    items: [{ href: "/bronson/brain", label: "Skills and SOPs", icon: Brain, color: B.purple }],
   },
 ];
 

@@ -20,7 +20,52 @@ export type BrainDoc = {
   body: string;
   source: string;
   updated: string;
+  /** Where this doc's knowledge comes from (training, files, memory). */
+  learnsFrom: string;
+  /** Metric tags this doc fixes (e.g. "show rate", "frequency"); feedback and alerts use it to cite the SOP. */
+  covers: string[];
 };
+
+/**
+ * The metrics Berlin can tie an SOP to. Each has the words that identify it in a
+ * scorecard row, alert or question. Coverage on the Skills and SOPs page lists
+ * which of these have an SOP and which still need one.
+ */
+export const METRICS: { tag: string; label: string; words: string[] }[] = [
+  { tag: "cost per registration", label: "Cost per registration", words: ["cost per registration", "cost per lead", "cpl", "cost per opt"] },
+  { tag: "cpm", label: "CPM", words: ["cpm"] },
+  { tag: "frequency", label: "Frequency", words: ["frequency"] },
+  { tag: "hook rate", label: "Hook rate", words: ["hook rate", "hook"] },
+  { tag: "hold rate", label: "Hold rate", words: ["hold rate", "hold"] },
+  { tag: "link ctr", label: "Link CTR", words: ["link click", "ctr", "click-through", "lctr"] },
+  { tag: "opt-in rate", label: "Opt-in rate", words: ["opt-in rate", "opt in rate", "optin"] },
+  { tag: "roas", label: "ROAS", words: ["roas"] },
+  { tag: "booking rate", label: "Booking rate", words: ["booking rate", "calls booked", "booked"] },
+  { tag: "connection rate", label: "Connection rate", words: ["connection rate", "connected"] },
+  { tag: "show rate", label: "Show rate", words: ["show rate", "no-show", "no show", "showed"] },
+  { tag: "close rate", label: "Close rate", words: ["close rate", "closed", "closing"] },
+  { tag: "lead quality", label: "Lead quality", words: ["lead quality", "disqualified", "can't afford", "couldn't afford"] },
+  { tag: "webinar retention", label: "Masterclass retention", words: ["retention", "live attendees", "stayed"] },
+  { tag: "email", label: "Email", words: ["email"] },
+];
+
+/** Which metric tags a piece of text (scorecard label, alert title) is about. */
+export function metricTagsFor(text: string): string[] {
+  const t = text.toLowerCase();
+  return METRICS.filter((m) => m.words.some((w) => t.includes(w))).map((m) => m.tag);
+}
+
+/** An AI agent prompt (general role), as opposed to a real playbook. */
+export const isAgent = (d: BrainDoc) => d.category === "Agents" || d.title.startsWith("Agent:");
+
+/**
+ * SOPs / skills tagged as fixing a metric (never rules or client notes), real
+ * playbooks first: SOP, Process, Format, Skill, and general agents last.
+ */
+export function sopsFor(docs: BrainDoc[], tag: string): BrainDoc[] {
+  const rank = (d: BrainDoc) => (isAgent(d) ? 9 : ({ SOP: 0, Process: 1, Format: 2, Skill: 3 } as Record<string, number>)[d.type] ?? 5);
+  return docs.filter((d) => d.type !== "Rules" && d.type !== "Note" && d.covers.includes(tag)).sort((a, b) => rank(a) - rank(b));
+}
 
 function pat() {
   const p = process.env.AIRTABLE_PAT;
@@ -43,6 +88,11 @@ export async function getBrain(): Promise<BrainDoc[]> {
         body: String(f.Body ?? ""),
         source: String(f.Source ?? ""),
         updated: String(f.Updated ?? ""),
+        learnsFrom: String(f["Learns From"] ?? ""),
+        covers: String(f.Covers ?? "")
+          .split(",")
+          .map((c) => c.trim().toLowerCase())
+          .filter(Boolean),
       };
     })
     .filter((d) => d.title)
@@ -82,12 +132,24 @@ async function write(method: "POST" | "PATCH", records: unknown[]) {
   return res.json() as Promise<{ records: { id: string }[] }>;
 }
 
-type DocInput = { title: string; type: BrainType; category?: string; summary?: string; body: string; source?: string };
+type DocInput = { title: string; type: BrainType; category?: string; summary?: string; body: string; source?: string; learnsFrom?: string; covers?: string[] };
 const today = () => new Date().toISOString().slice(0, 10);
 
 export async function addDoc(d: DocInput) {
   const res = await write("POST", [
-    { fields: { Title: d.title, Type: d.type, Category: d.category ?? "", Summary: d.summary ?? "", Body: d.body, Source: d.source ?? "Added in Berlin", Updated: today() } },
+    {
+      fields: {
+        Title: d.title,
+        Type: d.type,
+        Category: d.category ?? "",
+        Summary: d.summary ?? "",
+        Body: d.body,
+        Source: d.source ?? "Added in Berlin",
+        "Learns From": d.learnsFrom ?? d.source ?? "Added in Berlin",
+        Covers: (d.covers ?? []).join(", "),
+        Updated: today(),
+      },
+    },
   ]);
   return res.records[0]?.id ?? null;
 }
@@ -99,7 +161,23 @@ export async function updateDoc(id: string, d: Partial<DocInput>) {
   if (d.category !== undefined) f.Category = d.category;
   if (d.summary !== undefined) f.Summary = d.summary;
   if (d.body !== undefined) f.Body = d.body;
+  if (d.learnsFrom !== undefined) f["Learns From"] = d.learnsFrom;
+  if (d.covers !== undefined) f.Covers = d.covers.join(", ");
   await write("PATCH", [{ id, fields: f }]);
+}
+
+/**
+ * Keep building a skill or SOP: append new knowledge under a dated heading and
+ * record where it came from. Body is capped at Airtable's long-text limit.
+ */
+export async function appendKnowledge(id: string, text: string, source: string) {
+  const docs = await getBrain();
+  const d = docs.find((x) => x.id === id);
+  if (!d) throw new Error("Document not found");
+  const added = `\n\n---\n\n## Added ${today()}${source ? ` (from ${source})` : ""}\n\n${text.trim()}`;
+  const body = (d.body + added).slice(0, 99_000);
+  const learnsFrom = source && !d.learnsFrom.includes(source) ? `${d.learnsFrom}${d.learnsFrom ? "\n" : ""}${source}` : d.learnsFrom;
+  await updateDoc(id, { body, learnsFrom });
 }
 
 export async function deleteDoc(id: string) {

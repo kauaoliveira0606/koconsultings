@@ -4,7 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 
-type A = { key: string; level: "red" | "yellow"; title: string; detail: string; firstAt: string };
+type A = { key: string; level: "red" | "yellow"; title: string; detail: string; firstAt: string; sop?: { id: string; title: string } | null };
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 /** Active ad problems from the hourly check. Hidden when everything is inside the lines. */
@@ -24,6 +24,9 @@ export function AlertsBanner() {
         {shown.map((a) => (
           <li key={a.key} className="text-[13px] leading-snug" style={{ color: a.level === "red" ? "var(--cell-red-text)" : "var(--cell-yellow-text)" }}>
             <span className="font-semibold">{a.level === "red" ? "🔴" : "🟡"} {a.title}.</span> {a.detail}
+            {a.sop ? (
+              <a href={`/bronson/brain?doc=${a.sop.id}`} className="ml-1 font-semibold underline">Fix with: {a.sop.title}</a>
+            ) : null}
           </li>
         ))}
       </ul>

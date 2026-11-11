@@ -2,6 +2,7 @@ import { airtableListFresh } from "@/lib/airtable/client";
 import { getPostCallNotes } from "@/lib/airtable/tables";
 import { addDaysToDateString, easternDateString } from "@/lib/date-range";
 import { askClaude } from "@/lib/claude";
+import { getBrain, metricTagsFor, sopsFor } from "@/lib/brain";
 import { ADMIN_COOKIE, SERVICE_TOKEN } from "@/lib/admin-gate";
 import type { WeeklyScorecardPayload } from "@/lib/weekly-scorecard";
 
@@ -75,10 +76,11 @@ Rules:
 - Name each bottleneck as a stage, show the number against its goal (and last week), say why it's happening (use lead quality where it explains it), and give the specific fix and who owns it (marketing, setters, closers, operator).
 - Say plainly if the data is too thin to judge a stage.
 - Call out lead quality explicitly: are the people reaching calls able and ready to buy?
+- For each bottleneck, use the matching SOP from "SOPs for off-target metrics" when there is one: name it exactly ("SOP: <title>") and base the fix on its steps. If no SOP covers that stage, write "No SOP yet for <metric>" so the operator knows to add one.
 
 Format in markdown, short lines, no em dashes:
 **Biggest bottleneck:** one line.
-Then "## 1. <stage>" sections (what's happening, why, fix, owner).
+Then "## 1. <stage>" sections (what's happening, why, fix with the SOP named, owner).
 Then "## Lead quality" (3-5 lines).
 Then "## On pace?" (2-3 lines on pacing vs goals).`;
 
@@ -87,7 +89,12 @@ export async function runBottlenecks(): Promise<BottleneckReport> {
   const lastWeek = thisWeek ? await internal<WeeklyScorecardPayload>(`/api/bronson/overview/weekly-scorecard?weekStart=${addDaysToDateString(thisWeek.weekStart, -7)}`) : null;
   const [pacing, quality] = await Promise.all([internal<unknown>("/api/bronson/overview/pacing"), leadQuality()]);
   const data = { thisWeek: compactScorecard(thisWeek), lastWeek: compactScorecard(lastWeek), pacing, leadQuality: quality };
-  const r = await askClaude({ system: SYSTEM, user: `Scorecard, pacing and lead quality (JSON; percent rows are fractions, 0.25 = 25%):\n${JSON.stringify(data)}`, effort: "medium" });
+  const sops = await sopContext(thisWeek);
+  const r = await askClaude({
+    system: SYSTEM,
+    user: `Scorecard, pacing and lead quality (JSON; percent rows are fractions, 0.25 = 25%):\n${JSON.stringify(data)}\n\nSOPs for off-target metrics:\n${sops || "(none of the off-target metrics has an SOP yet)"}`,
+    effort: "medium",
+  });
   if (r.refused || !r.text.trim()) throw new Error("The analysis came back empty. Try again.");
   const date = easternDateString();
   const created = new Date().toISOString();
@@ -98,6 +105,22 @@ export async function runBottlenecks(): Promise<BottleneckReport> {
   });
   const json = (await res.json()) as { records?: { id: string }[] };
   return { id: json.records?.[0]?.id ?? "", date, created, text: r.text };
+}
+
+/** The SOPs tagged for each red / yellow scorecard row (and always lead quality), trimmed to fit. */
+async function sopContext(p: WeeklyScorecardPayload | null): Promise<string> {
+  const tags = new Set<string>(["lead quality"]);
+  for (const g of p?.groups ?? []) for (const r of g.rows) if (r.week.status === "red" || r.week.status === "yellow") metricTagsFor(r.label).forEach((t) => tags.add(t));
+  const docs = await getBrain();
+  const picked = new Map<string, { title: string; body: string; tags: string[] }>();
+  for (const t of tags) for (const d of sopsFor(docs, t).slice(0, 2)) {
+    const e = picked.get(d.id) ?? { title: d.title, body: d.body, tags: [] };
+    e.tags.push(t);
+    picked.set(d.id, e);
+  }
+  const missing = [...tags].filter((t) => !sopsFor(docs, t).length);
+  const blocks = [...picked.values()].slice(0, 8).map((d) => `### ${d.title} (fixes: ${d.tags.join(", ")})\n${d.body.slice(0, 5000)}`);
+  return `${blocks.join("\n\n")}${missing.length ? `\n\nNo SOP yet for: ${missing.join(", ")}` : ""}`;
 }
 
 export async function latestBottlenecks(): Promise<BottleneckReport | null> {
