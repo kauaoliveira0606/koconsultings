@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/bottlenecks",
       "schedule": "30 12 * * *"
+    },
+    {
+      "path": "/api/cron/area-feedback",
+      "schedule": "15 14 * * *"
     }
   ]
 }

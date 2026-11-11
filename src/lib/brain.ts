@@ -1,4 +1,5 @@
 import { airtableListFresh } from "@/lib/airtable/client";
+import { areasFor } from "@/lib/areas";
 
 /**
  * Skills & Knowledge (user, 2026-11-10): every Claude skill, SOP, rules doc and
@@ -24,6 +25,8 @@ export type BrainDoc = {
   learnsFrom: string;
   /** Metric tags this doc fixes (e.g. "show rate", "frequency"); feedback and alerts use it to cite the SOP. */
   covers: string[];
+  /** Business areas (lib/areas.ts ids). Saved choices win; otherwise worked out from the doc. */
+  sections: string[];
 };
 
 /**
@@ -93,9 +96,14 @@ export async function getBrain(): Promise<BrainDoc[]> {
           .split(",")
           .map((c) => c.trim().toLowerCase())
           .filter(Boolean),
+        sections: String(f.Sections ?? "")
+          .split(",")
+          .map((c) => c.trim())
+          .filter(Boolean),
       };
     })
     .filter((d) => d.title)
+    .map((d) => (d.sections.length ? d : { ...d, sections: areasFor(d) }))
     .sort((a, b) => BRAIN_TYPES.indexOf(a.type) - BRAIN_TYPES.indexOf(b.type) || a.title.localeCompare(b.title));
 }
 
@@ -132,7 +140,7 @@ async function write(method: "POST" | "PATCH", records: unknown[]) {
   return res.json() as Promise<{ records: { id: string }[] }>;
 }
 
-type DocInput = { title: string; type: BrainType; category?: string; summary?: string; body: string; source?: string; learnsFrom?: string; covers?: string[] };
+type DocInput = { title: string; type: BrainType; category?: string; summary?: string; body: string; source?: string; learnsFrom?: string; covers?: string[]; sections?: string[] };
 const today = () => new Date().toISOString().slice(0, 10);
 
 export async function addDoc(d: DocInput) {
@@ -147,6 +155,7 @@ export async function addDoc(d: DocInput) {
         Source: d.source ?? "Added in Berlin",
         "Learns From": d.learnsFrom ?? d.source ?? "Added in Berlin",
         Covers: (d.covers ?? []).join(", "),
+        Sections: (d.sections ?? []).join(", "),
         Updated: today(),
       },
     },
@@ -163,6 +172,7 @@ export async function updateDoc(id: string, d: Partial<DocInput>) {
   if (d.body !== undefined) f.Body = d.body;
   if (d.learnsFrom !== undefined) f["Learns From"] = d.learnsFrom;
   if (d.covers !== undefined) f.Covers = d.covers.join(", ");
+  if (d.sections !== undefined) f.Sections = d.sections.join(", ");
   await write("PATCH", [{ id, fields: f }]);
 }
 

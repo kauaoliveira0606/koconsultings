@@ -17,6 +17,8 @@ const TYPE_COLOR: Record<BrainType, string> = { Skill: "#7c3aed", SOP: "#2563eb"
 const input =
   "w-full rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--accent)]";
 type Metric = { tag: string; label: string };
+type AreaInfo = { id: string; label: string; about: string; feedback: boolean };
+type AreaFeedback = { id: string; area: string; date: string; created: string; text: string };
 
 /** Where Berlin puts each kind of doc to work. */
 function usedIn(d: BrainDoc): string[] {
@@ -33,7 +35,10 @@ function words(n: string) {
 
 /** Skills and SOPs: every skill, SOP, rule and piece of knowledge Berlin is trained on, card by card. */
 export function BrainBoard() {
-  const { data, mutate } = useSWR<{ docs: BrainDoc[]; metrics: Metric[] }>("/api/bronson/brain", fetcher);
+  const { data, mutate } = useSWR<{ docs: BrainDoc[]; metrics: Metric[]; areas: AreaInfo[] }>("/api/bronson/brain", fetcher);
+  const { data: fb, mutate: mutateFb } = useSWR<{ latest: Record<string, AreaFeedback> }>("/api/bronson/area-feedback", fetcher);
+  const areas = data?.areas ?? [];
+  const [area, setArea] = useState<string>("all");
   const docs = useMemo(() => (Array.isArray(data?.docs) ? data!.docs : []), [data]);
   const metrics = data?.metrics ?? [];
   const [type, setType] = useState<BrainType | "All">("All");
@@ -48,6 +53,7 @@ export function BrainBoard() {
   const query = q.trim().toLowerCase();
   const shown = docs.filter(
     (d) =>
+      (area === "all" || d.sections.includes(area)) &&
       (type === "All" || d.type === type) &&
       (!metric || d.covers.includes(metric)) &&
       (!query || d.title.toLowerCase().includes(query) || d.summary.toLowerCase().includes(query) || d.body.toLowerCase().includes(query)),
@@ -67,7 +73,7 @@ export function BrainBoard() {
       setError(json.error ?? "Save failed");
       return false;
     }
-    await mutate({ ...json, metrics }, false);
+    await mutate({ ...json, metrics, areas }, false);
     return true;
   }
 
@@ -83,6 +89,24 @@ export function BrainBoard() {
         </button>
       </div>
       {error ? <p className="mb-4 rounded-md bg-[var(--cell-red-bg)] px-3 py-2 text-sm text-[var(--cell-red-text)]">{error}</p> : null}
+
+      {/* Areas: everything split by part of the business */}
+      <div className="mb-5 flex flex-wrap gap-1.5">
+        {[{ id: "all", label: `Everything (${docs.length})` }, ...areas.map((a) => ({ id: a.id, label: `${a.label} (${docs.filter((d) => d.sections.includes(a.id)).length})` }))].map((a) => (
+          <button
+            key={a.id}
+            onClick={() => setArea(a.id)}
+            className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${area === a.id ? "bg-black text-white" : "border border-[var(--panel-border)] text-[var(--text-muted)] hover:text-[var(--text-strong)]"}`}
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+      {area !== "all" && areas.find((a) => a.id === area)?.feedback ? (
+        <JeremyAreaPanel area={areas.find((a) => a.id === area)!} feedback={fb?.latest?.[area] ?? null} onNew={(f) => mutateFb({ latest: { ...(fb?.latest ?? {}), [f.area]: f } }, false)} />
+      ) : area !== "all" ? (
+        <p className="mb-6 text-[13px] text-[var(--text-muted)]">{areas.find((a) => a.id === area)?.about}</p>
+      ) : null}
 
       {/* Coverage: which metrics have an SOP behind them */}
       <section className="mb-8 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4">
@@ -158,6 +182,8 @@ export function BrainBoard() {
         <Reader
           doc={open}
           metrics={metrics}
+          areas={areas}
+          onDelete={async () => { if (await post({ action: "delete", id: open.id })) setOpenId(null); }}
           onClose={() => setOpenId(null)}
           onEdit={() => { setEditing(open); setOpenId(null); }}
           post={post}
@@ -179,7 +205,15 @@ export function BrainBoard() {
   );
 }
 
-function Reader({ doc, metrics, onClose, onEdit, post }: { doc: BrainDoc; metrics: Metric[]; onClose: () => void; onEdit: () => void; post: (p: Record<string, unknown>) => Promise<boolean> }) {
+function Reader({ doc, metrics, areas, onClose, onEdit, onDelete, post }: { doc: BrainDoc; metrics: Metric[]; areas: AreaInfo[]; onClose: () => void; onEdit: () => void; onDelete: () => Promise<void>; post: (p: Record<string, unknown>) => Promise<boolean> }) {
+  const [sections, setSections] = useState<string[]>(doc.sections);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  async function toggleSection(id: string) {
+    const next = sections.includes(id) ? sections.filter((x) => x !== id) : [...sections, id];
+    if (!next.length) return;
+    setSections(next);
+    await post({ action: "update", id: doc.id, sections: next });
+  }
   const [adding, setAdding] = useState(false);
   const [text, setText] = useState("");
   const [source, setSource] = useState("");
@@ -201,7 +235,16 @@ function Reader({ doc, metrics, onClose, onEdit, post }: { doc: BrainDoc; metric
             <h2 className="mt-2 text-2xl font-bold text-[var(--text-strong)]">{doc.title}</h2>
             <div className="mt-1 text-[12px] text-[var(--text-muted)]">{doc.category}{doc.updated ? ` · updated ${doc.updated}` : ""} · {words(doc.body).toLocaleString()} words</div>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            {confirmDelete ? (
+              <>
+                <span className="text-[12px] text-rose-600">Delete for good?</span>
+                <button onClick={onDelete} className="rounded-md bg-rose-600 px-2.5 py-1.5 text-[12px] font-semibold text-white">Yes, delete</button>
+                <button onClick={() => setConfirmDelete(false)} className="px-1 text-[12px] text-[var(--text-muted)]">Cancel</button>
+              </>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1 rounded-md border border-[var(--panel-border)] px-2.5 py-1.5 text-[12px] font-semibold text-rose-600"><Trash2 size={13} /> Delete</button>
+            )}
             <button onClick={onEdit} className="inline-flex items-center gap-1 rounded-md border border-[var(--panel-border)] px-2.5 py-1.5 text-[12px] font-semibold"><Pencil size={13} /> Edit</button>
             <button onClick={onClose} className="rounded-md border border-[var(--panel-border)] p-1.5" aria-label="Close"><X size={15} /></button>
           </div>
@@ -221,6 +264,16 @@ function Reader({ doc, metrics, onClose, onEdit, post }: { doc: BrainDoc; metric
           <div className="rounded-lg bg-[var(--panel-subtle)] p-3 sm:col-span-2">
             <div className="mb-1 text-[11px] font-bold uppercase text-[var(--text-muted)]">Used in</div>
             <ul className="list-disc space-y-0.5 pl-4 text-[13px] text-[var(--text-strong)]">{usedIn({ ...doc, covers }).map((u) => <li key={u}>{u}</li>)}</ul>
+          </div>
+          <div className="rounded-lg bg-[var(--panel-subtle)] p-3 sm:col-span-2">
+            <div className="mb-1.5 text-[11px] font-bold uppercase text-[var(--text-muted)]">Sections (click to move it)</div>
+            <div className="flex flex-wrap gap-1.5">
+              {areas.map((a) => (
+                <button key={a.id} onClick={() => toggleSection(a.id)} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${sections.includes(a.id) ? "bg-black text-white" : "border border-[var(--panel-border)] text-[var(--text-muted)]"}`}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
           </div>
           {doc.type !== "Rules" && doc.type !== "Note" ? (
             <div className="rounded-lg bg-[var(--panel-subtle)] p-3 sm:col-span-2">
@@ -297,5 +350,46 @@ function Editor({ doc, onSave, onClose, onDelete }: {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Jeremy AI's latest feedback on one area, with a button to get fresh feedback now. */
+function JeremyAreaPanel({ area, feedback, onNew }: { area: AreaInfo; feedback: AreaFeedback | null; onNew: (f: AreaFeedback) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
+  async function run() {
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetch("/api/bronson/area-feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ area: area.id }) });
+      const j = await r.json();
+      if (r.ok) {
+        onNew(j.feedback);
+        setOpen(true);
+      } else setError(j.error ?? "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="mb-6 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-1.5 text-[15px] font-bold text-[var(--text-strong)]"><Sparkles size={15} /> Jeremy AI on {area.label}</div>
+          <div className="text-[12px] text-[var(--text-muted)]">{feedback ? `Updated ${feedback.date} · refreshes every morning` : area.about}</div>
+        </div>
+        <button onClick={run} disabled={busy} className="rounded-lg bg-black px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50">
+          {busy ? "Jeremy is reviewing… (about a minute)" : feedback ? "Get fresh feedback" : "Get Jeremy's feedback"}
+        </button>
+      </div>
+      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      {feedback ? (
+        <div className={open ? "" : "max-h-48 overflow-hidden"}>
+          <Markdown source={feedback.text} />
+        </div>
+      ) : null}
+      {feedback ? <button onClick={() => setOpen(!open)} className="mt-1 text-[12px] font-semibold text-[var(--accent)]">{open ? "Show less" : "Read all"}</button> : null}
+    </section>
   );
 }

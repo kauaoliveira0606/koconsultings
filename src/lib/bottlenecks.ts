@@ -17,18 +17,18 @@ const TABLE = "tbljVE1MhYrfBNpt1";
 
 export type BottleneckReport = { id: string; date: string; created: string; text: string };
 
-function origin() {
+export function origin() {
   return process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://www.koconsultings.com";
 }
 
-async function internal<T>(path: string): Promise<T | null> {
+export async function internal<T>(path: string): Promise<T | null> {
   return fetch(`${origin()}${path}`, { headers: { cookie: `${ADMIN_COOKIE}=${SERVICE_TOKEN}` }, cache: "no-store" })
     .then((r) => (r.ok ? (r.json() as Promise<T>) : null))
     .catch(() => null);
 }
 
 /** The scorecard as compact rows: label, week value, goal, status and the daily values. */
-function compactScorecard(p: WeeklyScorecardPayload | null) {
+export function compactScorecard(p: WeeklyScorecardPayload | null) {
   if (!p) return null;
   return {
     week: p.weekLabel,
@@ -47,7 +47,7 @@ function compactScorecard(p: WeeklyScorecardPayload | null) {
   };
 }
 
-async function leadQuality() {
+export async function leadQuality() {
   const since = addDaysToDateString(easternDateString(), -30);
   const notes = (await getPostCallNotes()).filter((n) => n.date && n.date >= since);
   const recs = await airtableListFresh(BASE, "tbltiRXQvojxiTJaM");
