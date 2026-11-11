@@ -141,6 +141,13 @@ export async function setTaskStatus(id: string, status: TaskStatus, extra: { res
 /** Approve AI work waiting in Review: it's done. */
 export async function approveTask(id: string, note = "") {
   await setTaskStatus(id, "Done", { reviewNote: note ? `Approved: ${note}` : "Approved" });
+  // Launch flows ("Flow · <name> · <n>. <step>"): approving a step queues the next one for the AI.
+  const { tasks } = await getOffice();
+  const done = tasks.find((t) => t.id === id);
+  const m = done?.task.match(/^Flow · (.*) · (\d+)\. /);
+  if (!m) return;
+  const next = tasks.find((t) => t.task.startsWith(`Flow · ${m[1]} · ${Number(m[2]) + 1}. `));
+  if (next && !next.done && next.status === "Blocked") await setTaskStatus(next.id, "Up Next");
 }
 
 /** Deny AI work: back to the queue with the reason, so the AI redoes it. */

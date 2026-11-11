@@ -27,6 +27,7 @@ import {
   ChevronsUpDown,
   LogOut,
   Brain,
+  Rocket,
 } from "lucide-react";
 import { SALES_PAGES, type Role } from "@/lib/admin-gate";
 
@@ -76,6 +77,7 @@ const GROUPS: Group[] = [
       { href: "/bronson/funnels", label: "Funnel", icon: Filter, color: B.purple },
       { href: "/bronson/ad-formats", label: "Ad formats", icon: Clapperboard, color: B.pink },
       { href: "/bronson/copy-check", label: "Copy check", icon: ShieldCheck, color: B.green },
+      { href: "/bronson/launch", label: "Launch", icon: Rocket, color: B.orange },
     ],
   },
   {
