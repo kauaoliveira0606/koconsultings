@@ -28,6 +28,7 @@ export const INTEGRATIONS: Integration[] = [
   { name: "VTurb", short: "V", category: "Data and attribution", tier: "dashboard", connectsToDashboard: true, addToClaude: false, description: "VSL player: play rate, retention and where viewers drop." },
 
   // Tier 2 — optional, for your Claude.
+  { name: "Jeremy AI", short: "JA", category: "AI", tier: "claude", connectsToDashboard: true, addToClaude: true, description: "Jeremy AI over MCP: marketing judgment inside Ask Berlin and Copy check." },
   { name: "Calendly", short: "Ca", category: "CRM", tier: "claude", connectsToDashboard: true, addToClaude: false, description: "Where calls get booked." },
   { name: "n8n", short: "n8", category: "Automations", tier: "claude", connectsToDashboard: true, addToClaude: true, description: "The automations behind the funnel." },
   { name: "Roezan", short: "R", category: "SMS", tier: "claude", connectsToDashboard: true, addToClaude: false, description: "Bulk and drip SMS campaigns." },

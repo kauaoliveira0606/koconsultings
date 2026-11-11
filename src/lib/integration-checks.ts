@@ -1,5 +1,6 @@
 import { airtableListFresh } from "@/lib/airtable/client";
 import { easternDateString } from "@/lib/date-range";
+import { jeremyConfigured, listJeremyTools } from "@/lib/jeremy-mcp";
 
 /**
  * Real connection checks for the Integrations tab (user, 2026-11-10: the old
@@ -140,6 +141,12 @@ const CHECKS: Record<string, Check> = {
     return off.length
       ? { state: "problem", detail: `Tag found on ${on.join(", ")} but missing on ${off.join(", ")}.` }
       : { state: "connected", detail: `Tag found on ${on.join(", ")}.` };
+  },
+
+  async "Jeremy AI"() {
+    if (!jeremyConfigured()) return { state: "unverified", detail: "Not connected yet: needs the MCP server URL plus the header name and value." };
+    const tools = await listJeremyTools();
+    return { state: "connected", detail: `MCP server answered with ${tools.length} tool${tools.length === 1 ? "" : "s"}${tools.length ? `: ${tools.slice(0, 4).map((t) => t.name).join(", ")}${tools.length > 4 ? "…" : ""}` : ""}. Used by Ask Berlin and Copy check.` };
   },
 
   async Whop() {

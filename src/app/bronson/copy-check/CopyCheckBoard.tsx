@@ -95,7 +95,7 @@ export function CopyCheckBoard() {
               <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-lg px-3 py-1.5 text-[15px] font-bold" style={VERDICT[res.verdict].style}>{VERDICT[res.verdict].label}</span>
                 <span className="text-[22px] font-bold text-[var(--text-strong)]">{res.score}<span className="text-[13px] font-normal text-[var(--text-muted)]">/100</span></span>
-                <span className="text-[12px] text-[var(--text-muted)]">Reviewed by {res.reviewedBy === "claude" ? "rules + Claude" : "rule scan only"}</span>
+                <span className="text-[12px] text-[var(--text-muted)]">Reviewed by {res.reviewedBy === "claude + jeremy ai" ? "rules + Claude + Jeremy AI" : res.reviewedBy === "claude" ? "rules + Claude" : "rule scan only"}</span>
               </div>
               <p className="mt-3 text-[14px] text-[var(--text)]">{res.summary}</p>
               <IssueList title="Rule scan" issues={res.ruleHits} />

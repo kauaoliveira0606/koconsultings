@@ -1,4 +1,5 @@
-import { askClaude } from "@/lib/claude";
+import { askClaude, askClaudeWithJeremy } from "@/lib/claude";
+import { jeremyConfigured } from "@/lib/jeremy-mcp";
 import { getBrain } from "@/lib/brain";
 
 /**
@@ -15,7 +16,7 @@ export type CopyCheckResult = {
   issues: Issue[];
   rewrite: string;
   ruleHits: Issue[];
-  reviewedBy: "claude" | "rules only";
+  reviewedBy: "claude" | "claude + jeremy ai" | "rules only";
 };
 
 const BANNED: { re: RegExp; rule: string; fix: string; severity: Issue["severity"] }[] = [
@@ -89,7 +90,26 @@ ${rulesText}
 
 Verdict: "block" if anything would hurt the brand or break a hard rule (banned words, invented claims or deliverables, wrong guarantee wording, compliance risk); "fix" if it needs edits but the idea is sound; "ship" only if it's ready as is. Score 0-100 for how ready it is. Also judge: does it sell the outcome rather than the mechanism, speak to a problem-aware lead, and sound like a real person (no polished AI filler)? In "rewrite", return the full corrected copy that keeps the author's idea and voice and fixes every issue, written in short lines with no em dashes. If the verdict is "ship", rewrite may repeat the original.`;
 
-  const r = await askClaude({ system, user: `Type of copy: ${kind || "unspecified"}\n\nCopy to review:\n"""\n${text}\n"""`, schema: SCHEMA as unknown as Record<string, unknown>, effort: "medium" });
+  // Jeremy AI's take first (when connected), folded into the structured review.
+  let jeremy = "";
+  if (jeremyConfigured()) {
+    try {
+      const j = await askClaudeWithJeremy({
+        system: "Use Jeremy AI's tools (names start with jeremy__) to get its review of this marketing copy: what's weak, what breaks good direct-response practice, and how to fix it. Return Jeremy AI's points as a concise bullet list.",
+        user: `Type of copy: ${kind || "unspecified"}\n\n"""\n${text}\n"""`,
+        maxTurns: 4,
+      });
+      jeremy = j.used.length ? j.text : "";
+    } catch (e) {
+      console.error("Jeremy AI unavailable for copy check", e);
+    }
+  }
+  const r = await askClaude({
+    system,
+    user: `Type of copy: ${kind || "unspecified"}\n\nCopy to review:\n"""\n${text}\n"""${jeremy ? `\n\nJeremy AI's review (weigh it alongside the rules; include its valid points as issues):\n${jeremy}` : ""}`,
+    schema: SCHEMA as unknown as Record<string, unknown>,
+    effort: "medium",
+  });
   const j = r.json as Omit<CopyCheckResult, "ruleHits" | "reviewedBy"> | null;
   if (!j) {
     const verdict = ruleHits.some((h) => h.severity === "block") ? "block" : ruleHits.length ? "fix" : "ship";
@@ -97,5 +117,5 @@ Verdict: "block" if anything would hurt the brand or break a hard rule (banned w
   }
   // A hard rule hit always overrides an AI "ship".
   const verdict = ruleHits.some((h) => h.severity === "block") ? "block" : j.verdict === "ship" && ruleHits.some((h) => h.severity === "fix") ? "fix" : j.verdict;
-  return { ...j, verdict, ruleHits, reviewedBy: "claude" };
+  return { ...j, verdict, ruleHits, reviewedBy: jeremy ? "claude + jeremy ai" : "claude" };
 }

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
-import { askClaude } from "@/lib/claude";
+import { askClaude, askClaudeWithJeremy } from "@/lib/claude";
+import { jeremyConfigured } from "@/lib/jeremy-mcp";
 import { aggregateEntities, getAdsRange, type AdsEntity } from "@/lib/ads-cortana";
 import { scoreCreatives } from "@/lib/creative-score";
 import { getStoredAlerts } from "@/lib/ad-alerts";
@@ -92,8 +93,21 @@ ${JSON.stringify(data)}
 
 ${knowledge ? `RELEVANT SOPs FROM SKILLS & KNOWLEDGE:\n${knowledge}` : ""}`;
 
+  const user = history ? `Earlier in this chat:\n${history}\n\nQuestion: ${question}` : question;
   try {
-    const r = await askClaude({ system, user: history ? `Earlier in this chat:\n${history}\n\nQuestion: ${question}` : question, effort: "medium" });
+    if (jeremyConfigured()) {
+      // Jeremy AI's tools are available: Claude brings the numbers, Jeremy AI the marketing judgment.
+      try {
+        const r = await askClaudeWithJeremy({
+          system: `${system}\n\nYou also have Jeremy AI's tools (names start with jeremy__). Jeremy AI is the operator's marketing expert: consult it for strategy, offer, funnel, ad and copy judgment, then combine its advice with the live numbers. Say when an answer leans on Jeremy AI.`,
+          user,
+        });
+        if (!r.refused) return Response.json({ answer: r.text, sources: [...hits.map((h) => h.title), ...(r.used.length ? [`Jeremy AI (${[...new Set(r.used)].join(", ")})`] : [])] });
+      } catch (e) {
+        console.error("Jeremy AI unavailable, answering without it", e);
+      }
+    }
+    const r = await askClaude({ system, user, effort: "medium" });
     if (r.refused) return Response.json({ answer: "I can't answer that one. Try asking it a different way." });
     return Response.json({ answer: r.text, sources: hits.map((h) => h.title) });
   } catch (err) {
