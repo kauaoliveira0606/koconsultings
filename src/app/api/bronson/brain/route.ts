@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { AREAS } from "@/lib/areas";
-import { BRAIN_TYPES, METRICS, addDoc, appendKnowledge, deleteDoc, getBrain, searchBrain, updateDoc, type BrainType } from "@/lib/brain";
+import { BRAIN_TYPES, METRICS, addDoc, appendKnowledge, deleteDoc, deleteDocs, getBrain, searchBrain, updateDoc, type BrainType } from "@/lib/brain";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +37,10 @@ export async function POST(request: NextRequest) {
       await appendKnowledge(String(b.id), s("text")!, s("source")?.trim() ?? "");
     } else if (b.action === "delete") {
       await deleteDoc(String(b.id));
+    } else if (b.action === "deleteMany") {
+      const ids = Array.isArray(b.ids) ? (b.ids as unknown[]).map(String).filter((x) => /^rec[A-Za-z0-9]+$/.test(x)) : [];
+      if (!ids.length) return Response.json({ error: "Nothing selected" }, { status: 400 });
+      await deleteDocs(ids);
     } else {
       return Response.json({ error: "Unknown action" }, { status: 400 });
     }

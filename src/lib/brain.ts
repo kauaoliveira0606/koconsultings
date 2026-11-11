@@ -194,3 +194,12 @@ export async function deleteDoc(id: string) {
   const res = await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE}/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${pat()}` } });
   if (!res.ok) throw new Error(`Airtable DELETE failed (${res.status})`);
 }
+
+/** Delete many at once (Airtable takes 10 per request). */
+export async function deleteDocs(ids: string[]) {
+  for (let i = 0; i < ids.length; i += 10) {
+    const q = ids.slice(i, i + 10).map((id) => `records[]=${encodeURIComponent(id)}`).join("&");
+    const res = await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE}?${q}`, { method: "DELETE", headers: { Authorization: `Bearer ${pat()}` } });
+    if (!res.ok) throw new Error(`Airtable DELETE failed (${res.status})`);
+  }
+}

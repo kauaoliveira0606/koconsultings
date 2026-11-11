@@ -49,6 +49,23 @@ export function BrainBoard() {
   const [openId, setOpenId] = useState<string | null>(() => params.get("doc"));
   const [editing, setEditing] = useState<BrainDoc | "new" | null>(null);
   const [error, setError] = useState("");
+  // Bulk delete: tick cards, then Delete.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const toggleSelect = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  async function deleteSelected() {
+    setDeleting(true);
+    if (await post({ action: "deleteMany", ids: [...selected] })) setSelected(new Set());
+    setConfirmBulk(false);
+    setDeleting(false);
+  }
 
   const query = q.trim().toLowerCase();
   const shown = docs.filter(
@@ -156,9 +173,50 @@ export function BrainBoard() {
 
       {!data ? <p className="text-sm text-[var(--text-muted)]">Loading…</p> : null}
 
+      {/* Bulk actions */}
+      <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-3 bg-[var(--app-bg)] py-2">
+        <label className="flex items-center gap-2 text-[13px] text-[var(--text-muted)]">
+          <input
+            type="checkbox"
+            checked={shown.length > 0 && shown.every((d) => selected.has(d.id))}
+            onChange={(e) => setSelected(e.target.checked ? new Set([...selected, ...shown.map((d) => d.id)]) : new Set([...selected].filter((id) => !shown.some((d) => d.id === id))))}
+          />
+          Select all shown ({shown.length})
+        </label>
+        {selected.size ? (
+          confirmBulk ? (
+            <span className="flex items-center gap-2">
+              <span className="text-[13px] font-semibold text-rose-600">Delete {selected.size} for good?</span>
+              <button onClick={deleteSelected} disabled={deleting} className="rounded-md bg-rose-600 px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50">{deleting ? "Deleting…" : "Yes, delete"}</button>
+              <button onClick={() => setConfirmBulk(false)} className="px-1 text-[13px] text-[var(--text-muted)]">Cancel</button>
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <button onClick={() => setConfirmBulk(true)} className="inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-[13px] font-semibold text-white"><Trash2 size={14} /> Delete ({selected.size})</button>
+              <button onClick={() => setSelected(new Set())} className="px-1 text-[13px] text-[var(--text-muted)]">Clear</button>
+            </span>
+          )
+        ) : null}
+      </div>
+
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {shown.map((d) => (
-          <button key={d.id} onClick={() => setOpenId(d.id)} className="flex flex-col rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 text-left transition-colors hover:border-[var(--accent)]/50">
+          <div
+            key={d.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => setOpenId(d.id)}
+            onKeyDown={(e) => { if (e.key === "Enter") setOpenId(d.id); }}
+            className={`relative flex cursor-pointer flex-col rounded-xl border bg-[var(--panel-bg)] p-4 pr-10 text-left transition-colors hover:border-[var(--accent)]/50 ${selected.has(d.id) ? "border-rose-500 ring-1 ring-rose-500" : "border-[var(--panel-border)]"}`}
+          >
+            <input
+              type="checkbox"
+              aria-label={`Select ${d.title}`}
+              checked={selected.has(d.id)}
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => toggleSelect(d.id)}
+              className="absolute right-3 top-3 h-4 w-4 cursor-pointer"
+            />
             <div className="flex items-center gap-2">
               <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white" style={{ background: TYPE_COLOR[d.type] }}>{d.type}</span>
               {d.category ? <span className="truncate text-[11px] text-[var(--text-muted)]">{d.category}</span> : null}
@@ -173,7 +231,7 @@ export function BrainBoard() {
             <div className="mt-auto pt-3 text-[11px] text-[var(--text-muted)]">
               {words(d.body).toLocaleString()} words · learns from {d.learnsFrom.split("\n")[0] || d.source || "Berlin"}
             </div>
-          </button>
+          </div>
         ))}
         {data && shown.length === 0 ? <p className="text-sm text-[var(--text-muted)]">Nothing matches.</p> : null}
       </div>
