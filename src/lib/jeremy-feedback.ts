@@ -2,6 +2,7 @@ import { airtableListFresh } from "@/lib/airtable/client";
 import { easternDateString } from "@/lib/date-range";
 import { askJeremy, jeremyConfigured } from "@/lib/jeremy";
 import { addTask, AI_ASSIGNEE } from "@/lib/office";
+import { snapshotText } from "@/lib/berlin-snapshot";
 
 /**
  * Jeremy AI's daily feedback and weekly process review (user, 2026-11-11:
@@ -18,7 +19,7 @@ export type Feedback = { id: string; title: string; type: "daily" | "weekly"; da
 const PROMPTS = {
   daily: `Daily feedback for Bronson / The Inner Table (subscription-based e-commerce coaching sold through a live masterclass funnel).
 
-Use your Berlin tools before writing: get_overview_metrics, get_campaigns_and_ads (yesterday and last_7_days), get_creative_scores, get_ads_pace, get_sales_by_ad, and list_office_tasks.
+The live numbers from the Berlin dashboard are attached below as JSON (ads by campaign, ad set and ad for today, yesterday, last 7 days and this month; pace; creative scores; active alerts; overview). Rates are percentages.
 
 Give me:
 1. Yesterday in 3 lines: spend, registrations and cost per registration, calls booked, cash.
@@ -27,14 +28,14 @@ Give me:
 4. Funnel and sales: where people are dropping (opt-in, show, booking, close) and the fix.
 5. The 3 things to do today, in order.
 
-Be blunt and specific. Short lines. If something needs doing, also add it to the Office queue with add_office_task.`,
+Be blunt and specific. Short lines.`,
   weekly: `Weekly process review for Bronson / The Inner Table.
 
-Use your Berlin tools first: get_overview_metrics (last_7_days and this_month), get_campaigns_and_ads, get_creative_scores, get_funnel_analytics, get_sales_by_ad, list_office_tasks, and search_knowledge for the SOPs we follow.
+The live numbers from the Berlin dashboard are attached below as JSON (ads by campaign, ad set and ad; pace; creative scores; alerts; overview). Use your own knowledge for what good looks like.
 
 Analyze the whole process end to end: ads and creative testing, the masterclass funnel (registration, show, retention to pitch, booking), the sales team (connection, show, close), copy, and how the team and the AI queue are working. Compare it with the SOPs and with what good looks like.
 
-Give me: what's working (keep), what's broken (with the number), the 3 biggest changes for next week in order of impact, and any SOP that should be updated. Add the changes to the Office queue with add_office_task.`,
+Give me: what's working (keep), what's broken (with the number), the 3 biggest changes for next week in order of impact, and any SOP that should be updated.`,
 };
 
 async function save(f: Omit<Feedback, "id">) {
@@ -66,7 +67,9 @@ export async function runFeedback(type: "daily" | "weekly") {
   if (!jeremyConfigured()) return { ok: false, reason: "Jeremy AI not connected" };
   const date = easternDateString();
   const title = type === "daily" ? `Jeremy AI daily feedback · ${date}` : `Jeremy AI weekly process review · week of ${date}`;
-  const { text } = await askJeremy(PROMPTS[type], null, 270_000);
+  const origin = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://www.koconsultings.com";
+  const data = await snapshotText(origin).catch(() => "");
+  const { text } = await askJeremy(`${PROMPTS[type]}${data ? `\n\nLIVE NUMBERS:\n${data}` : ""}`, null, 270_000);
   if (!text.trim()) return { ok: false, reason: "Empty reply" };
   await save({ title, type, date, feedback: text, created: new Date().toISOString() });
   try {
