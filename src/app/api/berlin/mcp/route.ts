@@ -369,7 +369,12 @@ export async function POST(req: NextRequest) {
   return Response.json(payloads);
 }
 
-export function GET() {
+export function GET(req: NextRequest) {
+  // MCP clients GET with Accept: text/event-stream to open a server-to-client stream.
+  // This server has none, so per the MCP spec answer 405 (a 200 JSON page can confuse clients).
+  if ((req.headers.get("accept") ?? "").includes("text/event-stream")) {
+    return new Response(null, { status: 405, headers: { Allow: "POST" } });
+  }
   return Response.json(
     { name: "Berlin MCP", transport: "streamable-http", hint: "POST JSON-RPC 2.0 here; add ?token=... to authenticate." },
     { status: 200 },
