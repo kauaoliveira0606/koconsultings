@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AD_FORMATS, GOALS, PRODUCTION_STYLES, AWARENESS_LABELS, HOOK_TYPES, type AdFormat } from "@/lib/berlin/ad-formats";
 import { Panel, Tag } from "@/components/berlin/Berlin";
+import { NewFormats } from "./NewFormats";
 
 function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -120,6 +121,8 @@ export function AdFormatsBoard() {
 
   return (
     <div>
+      <NewFormats />
+      <h2 className="mb-3 text-lg font-bold text-[var(--text-strong)]">Core library</h2>
       <div className="mb-5 space-y-3">
         <input
           value={q}

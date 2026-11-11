@@ -81,8 +81,14 @@ const TOOLS: Tool[] = [
     description:
       "List the Krueger-method ad formats (the creative playbook): id, name, one-line summary, goals, production style and length. Use get_ad_format for the full breakdown.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    run: async () =>
-      AD_FORMATS.map((f) => ({ id: f.id, name: f.name, tldr: f.tldr, goals: f.goals, production: f.production, length: f.length })),
+    run: async () => {
+      // Newest first: formats added in Skills & Knowledge (type Format), then the core library.
+      const added = (await getBrain())
+        .filter((d) => d.type === "Format")
+        .sort((a, b) => b.updated.localeCompare(a.updated))
+        .map((d) => ({ id: d.id, name: d.title, tldr: d.summary, added: d.updated, new: true }));
+      return [...added, ...AD_FORMATS.map((f) => ({ id: f.id, name: f.name, tldr: f.tldr, goals: f.goals, production: f.production, length: f.length }))];
+    },
   },
   {
     name: "get_ad_format",
@@ -97,6 +103,10 @@ const TOOLS: Tool[] = [
     run: async (args) => {
       const q = String(args.id ?? "").toLowerCase().trim();
       const f = AD_FORMATS.find((x) => x.id === q || x.name.toLowerCase() === q || x.id.includes(q) || x.name.toLowerCase().includes(q));
+      if (!f) {
+        const added = (await getBrain()).find((d) => d.type === "Format" && (d.id.toLowerCase() === q || d.title.toLowerCase().includes(q)));
+        if (added) return added;
+      }
       if (!f) throw new Error(`No ad format matches "${args.id}". Use list_ad_formats to see ids.`);
       return f;
     },
@@ -174,18 +184,18 @@ const TOOLS: Tool[] = [
   {
     name: "list_knowledge",
     description: "List every document in the Skills & Knowledge library (id, title, type, category, summary). Types: Skill, SOP, Rules, Process, Note.",
-    inputSchema: { type: "object", properties: { type: { type: "string", enum: ["Skill", "SOP", "Rules", "Process", "Note"] } }, additionalProperties: false },
+    inputSchema: { type: "object", properties: { type: { type: "string", enum: ["Skill", "SOP", "Rules", "Process", "Format", "Note"] } }, additionalProperties: false },
     run: async (args) =>
       (await getBrain()).filter((d) => !args.type || d.type === args.type).map(({ id, title, type, category, summary }) => ({ id, title, type, category, summary })),
   },
   {
     name: "add_knowledge",
-    description: "Add a document to the Skills & Knowledge library: a new SOP, training notes, a process, or an improvement to how something is done. Keep one topic per document.",
+    description: "Add a document to the Skills & Knowledge library: a new SOP, training notes, a process, an improvement to how something is done, or a new ad format (type Format: what it is, why it works, beat-by-beat structure, template, example). New formats show up first in list_ad_formats. Keep one topic per document.",
     inputSchema: {
       type: "object",
       properties: {
         title: { type: "string" },
-        type: { type: "string", enum: ["Skill", "SOP", "Rules", "Process", "Note"] },
+        type: { type: "string", enum: ["Skill", "SOP", "Rules", "Process", "Format", "Note"] },
         category: { type: "string" },
         summary: { type: "string" },
         body: { type: "string", description: "Markdown" },

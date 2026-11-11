@@ -9,7 +9,7 @@ import { airtableListFresh } from "@/lib/airtable/client";
 const BASE = "appiMw8gpaLv2WITA";
 const TABLE = "tbl7o75JG2me4rLgB";
 
-export const BRAIN_TYPES = ["Skill", "SOP", "Rules", "Process", "Note"] as const;
+export const BRAIN_TYPES = ["Skill", "SOP", "Rules", "Process", "Format", "Note"] as const;
 export type BrainType = (typeof BRAIN_TYPES)[number];
 export type BrainDoc = {
   id: string;

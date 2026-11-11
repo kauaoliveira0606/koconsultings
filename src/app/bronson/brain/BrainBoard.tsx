@@ -8,9 +8,9 @@ import { Markdown } from "@/components/berlin/Markdown";
 import type { BrainDoc, BrainType } from "@/lib/brain";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
-const TYPES: BrainType[] = ["Skill", "SOP", "Rules", "Process", "Note"];
-const TYPE_LABEL: Record<BrainType, string> = { Skill: "Skills", SOP: "SOPs", Rules: "Rules", Process: "Processes", Note: "Notes" };
-const TYPE_COLOR: Record<BrainType, string> = { Skill: "#7c3aed", SOP: "#2563eb", Rules: "#e11d48", Process: "#059669", Note: "#64748b" };
+const TYPES: BrainType[] = ["Skill", "SOP", "Rules", "Process", "Format", "Note"];
+const TYPE_LABEL: Record<BrainType, string> = { Skill: "Skills", SOP: "SOPs", Rules: "Rules", Process: "Processes", Format: "Ad formats", Note: "Notes" };
+const TYPE_COLOR: Record<BrainType, string> = { Skill: "#7c3aed", SOP: "#2563eb", Rules: "#e11d48", Process: "#059669", Format: "#db2777", Note: "#64748b" };
 const input =
   "w-full rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--accent)]";
 
