@@ -1,5 +1,4 @@
 import { airtableListFresh } from "@/lib/airtable/client";
-import { getMetaLevel } from "@/lib/ads-meta";
 import { easternDateString } from "@/lib/date-range";
 
 /**
@@ -51,10 +50,8 @@ const CHECKS: Record<string, Check> = {
   },
 
   async Meta() {
-    const today = easternDateString();
-    const r = await getMetaLevel("campaign", today, today);
-    if (r.ok) return { state: "connected", detail: "Meta answered with today's campaign data." };
-    return { state: "problem", detail: `Meta rejected the request: ${r.error.replace(/[.]+$/, "")}. Ad numbers still arrive through Cortana; a new Meta token fixes this.` };
+    // User, 2026-11-11: no Meta token, he switches ad accounts often. Ad data comes through Cortana.
+    return { state: "unverified", detail: "Not connected on purpose: you switch ad accounts, so all ad numbers come through Cortana instead." };
   },
 
   async GoHighLevel() {
