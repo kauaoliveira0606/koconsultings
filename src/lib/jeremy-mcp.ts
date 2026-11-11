@@ -48,7 +48,7 @@ async function rpc(method: string, params: Record<string, unknown> = {}, notify 
   if (!url) throw new Error("Jeremy AI isn't connected (JEREMY_MCP_URL not set)");
   const id = nextId++;
   const body = notify ? { jsonrpc: "2.0", method, params } : { jsonrpc: "2.0", id, method, params };
-  const res = await fetch(url, { method: "POST", headers: headers(), body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(60_000) });
+  const res = await fetch(url, { method: "POST", headers: headers(), body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(270_000) });
   const sid = res.headers.get("mcp-session-id");
   if (sid) session = sid;
   if (notify) return null;
