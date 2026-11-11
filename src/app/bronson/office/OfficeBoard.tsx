@@ -196,7 +196,6 @@ export function OfficeBoard() {
 
   return (
     <div>
-    <AiQueue tasks={aiOpen} busy={busy} post={post} onQueue={() => setComposer("ai")} />
     <div className="mx-auto max-w-2xl">
       <div className="mb-10 flex flex-wrap items-start justify-between gap-4">
         <BerlinHeader title="Office" subtitle={`${openCount} open · ${completed.length} done · grouped by department and role.`} />
@@ -309,6 +308,9 @@ export function OfficeBoard() {
           onAdd={async (payload) => { await post({ action: "addTask", ...payload }); setComposer(false); }} />
       ) : null}
       {managePeople ? <PeoplePanel people={people} departments={departments} onClose={() => setManagePeople(false)} post={post} /> : null}
+    </div>
+    <div className="mt-14">
+      <AiQueue tasks={aiOpen} busy={busy} post={post} onQueue={() => setComposer("ai")} />
     </div>
     </div>
   );
