@@ -59,8 +59,10 @@ export function searchBrain(docs: BrainDoc[], query: string, limit = 8) {
       const title = d.title.toLowerCase();
       const summary = d.summary.toLowerCase();
       const body = d.body.toLowerCase();
+      // Title and summary matter most; body hits are capped so very long docs don't drown the rest.
       let score = 0;
-      for (const t of terms) score += count(title, t) * 10 + count(summary, t) * 4 + Math.min(count(body, t), 20);
+      for (const t of terms) score += count(title, t) * 10 + count(summary, t) * 4 + Math.min(count(body, t), 6);
+      if (title.includes(query.toLowerCase().trim())) score += 30;
       const at = terms.map((t) => body.indexOf(t)).filter((i) => i >= 0).sort((a, b) => a - b)[0];
       const snippet = at === undefined ? d.summary.slice(0, 240) : d.body.slice(Math.max(0, at - 120), at + 200).replace(/\s+/g, " ").trim();
       return { id: d.id, title: d.title, type: d.type, category: d.category, summary: d.summary, snippet, score };
