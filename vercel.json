@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/ad-alerts",
       "schedule": "20 * * * *"
+    },
+    {
+      "path": "/api/cron/jeremy-feedback?type=daily",
+      "schedule": "30 13 * * *"
+    },
+    {
+      "path": "/api/cron/jeremy-feedback?type=weekly",
+      "schedule": "0 14 * * 1"
     }
   ]
 }

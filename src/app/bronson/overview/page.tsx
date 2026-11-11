@@ -15,6 +15,7 @@ import { PaidPnlSection } from "@/components/dashboard/PaidPnlSection";
 import { LiveCashToday } from "@/components/dashboard/LiveCashToday";
 import { PacePanel } from "@/components/berlin/PacePanel";
 import { AlertsBanner } from "@/components/berlin/AlertsBanner";
+import { LatestFeedback } from "@/components/berlin/LatestFeedback";
 import { RangeFilterBar } from "@/components/dashboard/RangeFilterBar";
 import { useSharedRange } from "@/lib/range-context";
 import { useSectionData } from "@/lib/use-section-data";
@@ -165,6 +166,7 @@ export default function OverviewPage() {
         <RangeFilterBar value={range} onChange={setRange} />
       </div>
       <AlertsBanner />
+      <LatestFeedback />
       <DashboardSection title="Live Cash Today">
         <LiveCashToday apiPath="/api/bronson/overview/live-cash" showAffiliate={false} />
       </DashboardSection>

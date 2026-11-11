@@ -28,6 +28,7 @@ import {
   LogOut,
   Brain,
   Rocket,
+  Sparkles,
 } from "lucide-react";
 import { SALES_PAGES, type Role } from "@/lib/admin-gate";
 
@@ -68,6 +69,7 @@ const GROUPS: Group[] = [
       { href: "/bronson/cash-calendar", label: "Cash Calendar", icon: CalendarDays, color: B.green },
       { href: "/bronson/integrations", label: "Integrations", icon: Plug, color: B.slate },
       { href: "/bronson/brain", label: "Skills & Knowledge", icon: Brain, color: B.purple },
+      { href: "/bronson/feedback", label: "Feedback", icon: Sparkles, color: B.claude },
     ],
   },
   {

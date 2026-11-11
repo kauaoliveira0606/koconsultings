@@ -6,6 +6,7 @@ import { rangeToQuery, useSectionData } from "@/lib/use-section-data";
 import { Panel } from "@/components/berlin/Berlin";
 import { formatStatValue } from "@/lib/format";
 import type { CreativeScore } from "@/lib/creative-score";
+import { askAssistant } from "@/components/berlin/AskBerlin";
 
 const VERDICT_STYLE: Record<CreativeScore["verdict"], React.CSSProperties> = {
   Scale: { background: "var(--cell-green-bg)", color: "var(--cell-green-text)" },
@@ -90,6 +91,12 @@ export function CreativeScores() {
                 <td className="max-w-[340px] px-5 py-3">
                   <span className="inline-block rounded-md px-2 py-0.5 text-[12px] font-bold" style={VERDICT_STYLE[s.verdict]}>{s.verdict}</span>
                   <div className="mt-1 text-[12px] leading-snug text-[var(--text-muted)]">{s.why} {s.testNext}</div>
+                  <button
+                    onClick={() => askAssistant(jeremyAdPrompt(s))}
+                    className="mt-1.5 text-[12px] font-semibold text-[var(--accent)] hover:underline"
+                  >
+                    Ask Jeremy about this ad
+                  </button>
                 </td>
               </tr>
             ))}
@@ -99,4 +106,14 @@ export function CreativeScores() {
       </div>
     </Panel>
   );
+}
+
+/** Question for Jeremy AI about one ad, with its scores and spend. */
+function jeremyAdPrompt(s: CreativeScore): string {
+  const spent = Math.round(s.spend);
+  return [
+    `Look at the ad "${s.name}" in Berlin (get_creative_scores and get_campaigns_and_ads).`,
+    `Score ${s.score}, verdict ${s.verdict}; hook ${s.pieces.hook.score}, body ${s.pieces.body.score}, CTA ${s.pieces.cta.score}; ${spent} dollars spent, ${s.registrations} registrations.`,
+    "What exactly should I change? Write me the new version.",
+  ].join(" ");
 }

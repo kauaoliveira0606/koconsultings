@@ -1,5 +1,5 @@
-import { askClaude, askClaudeWithJeremy } from "@/lib/claude";
-import { jeremyConfigured } from "@/lib/jeremy-mcp";
+import { askClaude } from "@/lib/claude";
+import { askJeremy, jeremyConfigured } from "@/lib/jeremy";
 import { getBrain } from "@/lib/brain";
 
 /**
@@ -94,12 +94,12 @@ Verdict: "block" if anything would hurt the brand or break a hard rule (banned w
   let jeremy = "";
   if (jeremyConfigured()) {
     try {
-      const j = await askClaudeWithJeremy({
-        system: "Use Jeremy AI's tools (names start with jeremy__) to get its review of this marketing copy: what's weak, what breaks good direct-response practice, and how to fix it. Return Jeremy AI's points as a concise bullet list.",
-        user: `Type of copy: ${kind || "unspecified"}\n\n"""\n${text}\n"""`,
-        maxTurns: 4,
-      });
-      jeremy = j.used.length ? j.text : "";
+      const j = await askJeremy(
+        `Review this ${kind || "marketing copy"} for Bronson / The Inner Table before it ships. What's weak, what breaks good direct-response practice, and exactly how to fix it? Bullet points only.\n\n"""\n${text}\n"""`,
+        null,
+        150_000,
+      );
+      jeremy = j.text;
     } catch (e) {
       console.error("Jeremy AI unavailable for copy check", e);
     }

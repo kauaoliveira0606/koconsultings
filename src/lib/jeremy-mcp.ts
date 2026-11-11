@@ -95,3 +95,8 @@ export async function callJeremyTool(name: string, args: Record<string, unknown>
     return (r.content ?? []).map((c) => (c.type === "text" ? c.text ?? "" : `[${c.type}]`)).join("\n");
   }
 }
+
+/** Calls a Jeremy AI tool and returns its raw text (JSON string when the tool returns JSON). */
+export async function callJeremyRaw(name: string, args: Record<string, unknown>): Promise<string> {
+  return callJeremyTool(name, args);
+}
