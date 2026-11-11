@@ -192,7 +192,7 @@ export function PacePanel() {
         </table>
       </div>
       <p className="mt-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
-        Calls are recommendations only. Cortana posts a day&rsquo;s spend the next morning, so today&rsquo;s spend and a true 3-hour ROAS aren&rsquo;t available until Meta is connected directly. Lines: cost per opt-in ${data.rules.cplGood} good, over ${data.rules.cplBad} bad.
+        Calls are recommendations only. Spend by the hour isn&rsquo;t available from Cortana, so budget calls use yesterday&rsquo;s and the 3-day cost per registration. Goal: under ${data.rules.cplGood}, red over ${data.rules.cplBad}.
       </p>
     </Panel>
   );

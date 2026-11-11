@@ -4,9 +4,9 @@ import { safeDivide } from "@/lib/metrics";
 
 export const revalidate = 60;
 
-/** Bronson webinar cost per opt-in lines (goals.ts costPerLeadMeta): green ≤ $10, red over $12. */
-const CPL_GOOD = 10;
-const CPL_BAD = 12;
+/** Bronson cost per registration lines (goals.ts costPerLeadMeta): green ≤ $15, red over $18. */
+const CPL_GOOD = 15;
+const CPL_BAD = 18;
 
 type Window = { leads: number; registrations: number; booked: number; sales: number; revenue: number };
 const empty = (): Window => ({ leads: 0, registrations: 0, booked: 0, sales: 0, revenue: 0 });

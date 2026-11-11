@@ -17,7 +17,7 @@ export const KPI_LINES = {
   linkCtr: { dir: "min", good: 0.02, bad: 0.005 },
   cpm: { dir: "max", good: 20, bad: 80 },
   frequency: { dir: "max", good: 2, bad: 3.5 },
-  costPerOptIn: { dir: "max", good: 10, bad: 12 },
+  costPerOptIn: { dir: "max", good: 15, bad: 18 },
 } as const;
 
 export type KpiKey = keyof typeof KPI_LINES;

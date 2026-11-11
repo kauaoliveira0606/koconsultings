@@ -3,7 +3,6 @@ import { easternDateString } from "@/lib/date-range";
 import { askJeremy, jeremyConfigured } from "@/lib/jeremy";
 import { addTask, AI_ASSIGNEE } from "@/lib/office";
 import { snapshotText } from "@/lib/berlin-snapshot";
-import { postToDiscord } from "@/lib/discord";
 
 /**
  * Jeremy AI's daily feedback and weekly process review (user, 2026-11-11:
@@ -48,11 +47,6 @@ async function save(f: Omit<Feedback, "id">) {
   if (!res.ok) throw new Error(`Saving feedback failed (${res.status})`);
 }
 
-async function postDiscord(title: string, text: string) {
-  const url = process.env.DISCORD_BRONSON_FEEDBACK_WEBHOOK ?? process.env.DISCORD_BRONSON_ALERTS_WEBHOOK;
-  if (!url) return false;
-  return postToDiscord(url, "Jeremy AI", `**${title}**\n\n${text}`);
-}
 
 export async function runFeedback(type: "daily" | "weekly", opts: { force?: boolean } = {}) {
   if (!jeremyConfigured()) return { ok: false, reason: "Jeremy AI not connected" };
@@ -83,8 +77,8 @@ export async function runFeedback(type: "daily" | "weekly", opts: { force?: bool
   } catch {
     // The feedback is saved even if the Office write fails.
   }
-  const discord = await postDiscord(title, text);
-  return { ok: true, discord };
+  // No Discord post (user, 2026-11-11: "I don't want a report sent to Discord").
+  return { ok: true };
 }
 
 export async function getFeedback(): Promise<Feedback[]> {

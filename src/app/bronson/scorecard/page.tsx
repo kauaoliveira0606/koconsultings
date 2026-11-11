@@ -1,4 +1,5 @@
 import { PacingSection } from "@/components/dashboard/PacingSection";
+import { BottleneckAnalysis } from "@/components/dashboard/BottleneckAnalysis";
 import { RecentChanges } from "@/components/dashboard/RecentChanges";
 import { DashboardSection } from "@/components/dashboard/StatCardGrid";
 import { WeeklyScorecardGrid } from "@/components/dashboard/WeeklyScorecardGrid";
@@ -8,6 +9,9 @@ export default function ScorecardPage() {
     <div>
       <h1 className="mb-6 text-2xl font-bold text-[var(--text-strong)]">Scorecard</h1>
       <WeeklyScorecardGrid apiPath="/api/bronson/overview/weekly-scorecard" />
+      <DashboardSection title="Bottlenecks (AI)">
+        <BottleneckAnalysis />
+      </DashboardSection>
       <DashboardSection title="Pacing">
         <PacingSection apiPath="/api/bronson/overview/pacing" />
       </DashboardSection>

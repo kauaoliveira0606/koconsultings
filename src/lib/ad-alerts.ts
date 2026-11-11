@@ -51,12 +51,12 @@ export async function findAlerts(now = new Date()): Promise<Alert[]> {
     out.push({ key: "spend-zero-today", level: "red", title: "No ad spend today", detail: `Yesterday spent ${money(y.spend)}, today shows $0 at ${hourET}:00 ET. Check the ad account, billing or campaign status.` });
 
   // Cost per complete registration, today (once enough has been spent) and yesterday.
-  if (t.spend >= 75 && t.cpr !== null && t.cpr > 12)
-    out.push({ key: "cpr-today", level: "red", title: "Cost per registration is over $12 today", detail: `${money(t.cpr)} per complete registration (${money(t.spend)} spent, ${t.reg} registrations). Line: $10 good, over $12 bad.` });
+  if (t.spend >= 75 && t.cpr !== null && t.cpr > 15)
+    out.push({ key: "cpr-today", level: "red", title: "Cost per registration is over $15 today", detail: `${money(t.cpr)} per complete registration (${money(t.spend)} spent, ${t.reg} registrations). Goal: under $15 (red over $18).` });
   else if (t.spend >= 75 && t.cpr === null)
     out.push({ key: "cpr-today", level: "red", title: "Spend but no registrations today", detail: `${money(t.spend)} spent and 0 complete registrations so far.` });
-  if (y.spend >= 75 && y.cpr !== null && y.cpr > 12)
-    out.push({ key: "cpr-yesterday", level: "yellow", title: "Cost per registration was over $12 yesterday", detail: `${money(y.cpr)} per complete registration (${money(y.spend)} spent, ${y.reg} registrations).` });
+  if (y.spend >= 75 && y.cpr !== null && y.cpr > 15)
+    out.push({ key: "cpr-yesterday", level: "yellow", title: "Cost per registration was over $15 yesterday", detail: `${money(y.cpr)} per complete registration (${money(y.spend)} spent, ${y.reg} registrations).` });
 
   // Opt-in rate on the page.
   if (t.lpv >= 40 && t.optIn !== null && t.optIn < 0.2)
@@ -69,8 +69,8 @@ export async function findAlerts(now = new Date()): Promise<Alert[]> {
   // Per campaign, last 3 days: cost per registration, CPM, link CTR, frequency.
   for (const c of campaigns(last3)) {
     if (c.spend < 100) continue;
-    if (c.costPerOptIn !== null && c.costPerOptIn > 12)
-      out.push({ key: `camp-cpr-${c.entityId}`, level: "yellow", title: `"${c.name}" over $12 per registration (3 days)`, detail: `${money(c.costPerOptIn)} per registration on ${money(c.spend)} spent.` });
+    if (c.costPerOptIn !== null && c.costPerOptIn > 15)
+      out.push({ key: `camp-cpr-${c.entityId}`, level: "yellow", title: `"${c.name}" over $15 per registration (3 days)`, detail: `${money(c.costPerOptIn)} per registration on ${money(c.spend)} spent.` });
     if (c.cpm !== null && c.cpm > 80)
       out.push({ key: `camp-cpm-${c.entityId}`, level: "yellow", title: `"${c.name}" CPM over $80 (3 days)`, detail: `CPM ${money(c.cpm)}. Line: under $20 good, over $80 bad.` });
     if (c.linkCtr !== null && c.linkCtr < 0.005)

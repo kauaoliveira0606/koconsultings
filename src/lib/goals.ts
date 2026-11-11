@@ -62,8 +62,8 @@ export async function getGoals(): Promise<GoalsConfig> {
   return {
     adSpendMeta: null,
     // Webinar cost per lead (registration), user's line 2026-10-29: good
-    // under $10, red over $12, yellow between.
-    costPerLeadMeta: { max: 10, redAbove: 12 },
+    // under $15, red over $18, yellow between (user, 2026-11-11; was $10 / $12).
+    costPerLeadMeta: { max: 15, redAbove: 18 },
     cashCollectedLowTicket: null,
     funnelConversionRate: { min: 0.1 },
     roasTotal: { min: 3 },

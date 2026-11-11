@@ -11,7 +11,7 @@ const LINES: Record<"hook" | "body" | "cta" | "result", Line> = {
   hook: { good: 0.3, bad: 0.2, higherIsBetter: true },
   body: { good: 0.25, bad: 0.15, higherIsBetter: true },
   cta: { good: 0.02, bad: 0.005, higherIsBetter: true },
-  result: { good: 10, bad: 12, higherIsBetter: false },
+  result: { good: 15, bad: 18, higherIsBetter: false },
 };
 const WEIGHTS = { hook: 0.25, body: 0.2, cta: 0.2, result: 0.35 };
 export const MIN_SPEND = 30;
@@ -80,7 +80,7 @@ export function scoreCreatives(ads: AdsEntity[]): CreativeScore[] {
           a.registrations === 0
             ? `$${a.spend.toFixed(0)} spent with no registrations.`
             : (pieces.result.score ?? 100) === 0
-              ? `Registrations cost $${(a.costPerOptIn ?? 0).toFixed(2)}, far over the $12 line, and no calls or sales came from it.`
+              ? `Registrations cost $${(a.costPerOptIn ?? 0).toFixed(2)}, far over the $18 line, and no calls or sales came from it.`
               : `Weak across the board (score ${score}).`;
         testNext = "Turn it off. Don't iterate; start the next one from a winning format.";
       } else {
