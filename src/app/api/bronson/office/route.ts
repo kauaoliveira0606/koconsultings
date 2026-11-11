@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
       case "removePerson":
         await deletePerson(String(body.id));
         break;
+      case "refresh":
+        break;
       default:
         return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }

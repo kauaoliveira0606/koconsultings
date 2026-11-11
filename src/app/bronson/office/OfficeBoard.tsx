@@ -37,16 +37,29 @@ function AiQueue({ tasks, busy, post, onQueue }: { tasks: Task[]; busy: boolean;
   const [note, setNote] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const review = tasks.filter((t) => t.status === "Review").length;
+  const [working, setWorking] = useState(false);
+  async function workNow() {
+    setWorking(true);
+    try {
+      await fetch("/api/bronson/office/run", { method: "POST" });
+      await post({ action: "refresh" });
+    } finally {
+      setWorking(false);
+    }
+  }
   return (
     <section className="mb-14">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-[var(--text-strong)]">AI queue</h2>
           <p className="mt-1 text-[14px] text-[var(--text-muted)]">
-            {tasks.length} open{review ? ` · ${review} waiting for your review` : ""}. Claude works this queue through the Berlin connector.
+            {tasks.length} open{review ? ` · ${review} waiting for your review` : ""}. The AI worker picks up the next queued task every hour from 8 AM to 9 PM ET and puts the result in Review.
           </p>
         </div>
-        <button onClick={onQueue} className="rounded-lg bg-[#7c3aed] px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90">Queue for AI</button>
+        <div className="flex gap-2">
+          <button onClick={workNow} disabled={working} className="rounded-lg border border-[var(--panel-border)] px-3.5 py-2 text-sm font-semibold disabled:opacity-50">{working ? "Working… (1-4 min)" : "Work next task now"}</button>
+          <button onClick={onQueue} className="rounded-lg bg-[#7c3aed] px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90">Queue for AI</button>
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {LANES.map((lane) => {

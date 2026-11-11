@@ -110,15 +110,6 @@ const CHECKS: Record<string, Check> = {
       : { state: "problem", detail: `The hourly n8n jobs last wrote ${ago(last)}.` };
   },
 
-  async VTurb() {
-    const last = await newest("tblXkoLdiizJoUjjD", "Date");
-    if (!last) return { state: "problem", detail: "No VSL stats have ever been synced." };
-    const days = Math.round((Date.parse(easternDateString()) - Date.parse(last)) / 86400_000);
-    return days <= 2
-      ? { state: "connected", detail: `VSL stats synced through ${last}.` }
-      : { state: "problem", detail: `Last VSL stats are from ${last} (${days} days ago). Nothing is syncing.` };
-  },
-
   async Vercel() {
     const started = Date.now();
     const res = await fetch(`${SITE}/`, { cache: "no-store" });

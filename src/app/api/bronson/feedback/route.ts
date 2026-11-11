@@ -12,7 +12,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const b = (await request.json().catch(() => ({}))) as { type?: string };
   try {
-    const r = await runFeedback(b.type === "weekly" ? "weekly" : "daily");
+    const r = await runFeedback(b.type === "weekly" ? "weekly" : "daily", { force: true });
     if (!r.ok) return Response.json({ error: r.reason }, { status: 400 });
     return Response.json({ feedback: await getFeedback() });
   } catch (err) {

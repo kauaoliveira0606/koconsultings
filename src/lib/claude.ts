@@ -105,3 +105,72 @@ export async function askClaudeWithJeremy(o: { system: string; user: string; max
   }
   return { text: "I ran out of steps before finishing. Try a narrower question.", used, refused: false };
 }
+
+/** A tool Claude can call during askClaudeWithTools; `run` executes it on our side. */
+export type LocalTool = {
+  name: string;
+  description: string;
+  input_schema: Anthropic.Beta.BetaTool.InputSchema;
+  run: (input: Record<string, unknown>) => Promise<string>;
+};
+
+/** Claude with our own tools (manual tool loop). Returns the final text and the tools it used. */
+export async function askClaudeWithTools(o: {
+  system: string;
+  user: string;
+  tools: LocalTool[];
+  maxTurns?: number;
+  effort?: "low" | "medium" | "high";
+  /** After this many ms, tools are switched off and Claude writes up what it has. */
+  budgetMs?: number;
+}) {
+  const byName = new Map(o.tools.map((t) => [t.name, t]));
+  const tools = o.tools.map(({ name, description, input_schema }) => ({ name, description, input_schema }));
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: o.user }];
+  const used: string[] = [];
+  const maxTurns = o.maxTurns ?? 8;
+  const deadline = Date.now() + (o.budgetMs ?? 10 * 60_000);
+  for (let turn = 0; turn < maxTurns; turn++) {
+    // Last turn or out of time: no more tools, write the final answer now.
+    const final = turn === maxTurns - 1 || Date.now() > deadline;
+    if (final) {
+      const last = messages[messages.length - 1];
+      const note = { type: "text" as const, text: "Time's up for tools. Write the final deliverable now with what you have." };
+      if (last.role === "user") last.content = typeof last.content === "string" ? [{ type: "text", text: last.content }, note] : [...last.content, note];
+    }
+    const res = (await anthropic().beta.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      system: o.system,
+      tools,
+      ...(final ? { tool_choice: { type: "none" } } : {}),
+      messages,
+      output_config: { effort: o.effort ?? "medium" },
+    } as Parameters<ReturnType<typeof anthropic>["beta"]["messages"]["create"]>[0])) as Anthropic.Beta.BetaMessage;
+    if (res.stop_reason === "refusal") return { text: "", used, refused: true };
+    if (res.stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: res.content });
+      continue;
+    }
+    const calls = res.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+    if (res.stop_reason !== "tool_use" || !calls.length) {
+      return { text: res.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text").map((b) => b.text).join(""), used, refused: false };
+    }
+    messages.push({ role: "assistant", content: res.content });
+    const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+    for (const c of calls) {
+      used.push(c.name);
+      const tool = byName.get(c.name);
+      try {
+        const out = tool ? await tool.run((c.input ?? {}) as Record<string, unknown>) : `Unknown tool ${c.name}`;
+        results.push({ type: "tool_result", tool_use_id: c.id, content: out.slice(0, 60_000) || "(empty)" });
+      } catch (e) {
+        results.push({ type: "tool_result", tool_use_id: c.id, content: e instanceof Error ? e.message : "Tool failed", is_error: true });
+      }
+    }
+    messages.push({ role: "user", content: results });
+  }
+  return { text: "", used, refused: false, outOfTurns: true };
+}

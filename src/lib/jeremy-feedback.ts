@@ -63,9 +63,16 @@ async function postDiscord(title: string, text: string) {
   return true;
 }
 
-export async function runFeedback(type: "daily" | "weekly") {
+export async function runFeedback(type: "daily" | "weekly", opts: { force?: boolean } = {}) {
   if (!jeremyConfigured()) return { ok: false, reason: "Jeremy AI not connected" };
   const date = easternDateString();
+  // Scheduled runs happen at most once per day (daily) or per 6 days (weekly), however the
+  // cron URL gets hit, so a copied request can't run up AI costs. Buttons pass force.
+  if (!opts.force) {
+    const recent = (await getFeedback()).find((f) => f.type === type);
+    const cutoff = type === "daily" ? date : new Date(Date.now() - 6 * 86400_000).toISOString().slice(0, 10);
+    if (recent && recent.date >= cutoff) return { ok: false, reason: `Already ran (${recent.date})` };
+  }
   const title = type === "daily" ? `Jeremy AI daily feedback · ${date}` : `Jeremy AI weekly process review · week of ${date}`;
   const origin = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://www.koconsultings.com";
   const data = await snapshotText(origin).catch(() => "");

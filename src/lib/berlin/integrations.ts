@@ -25,7 +25,6 @@ export const INTEGRATIONS: Integration[] = [
   { name: "Whop", short: "W", category: "Payments", tier: "dashboard", connectsToDashboard: true, addToClaude: false, description: "Checkout, memberships and renewals: the cash that actually came in." },
   { name: "Supabase", short: "Sb", category: "Data and attribution", tier: "dashboard", connectsToDashboard: true, addToClaude: true, description: "Where opt-ins and funnel data land." },
   { name: "Vercel", short: "▲", category: "Data and attribution", tier: "dashboard", connectsToDashboard: true, addToClaude: true, description: "Where the funnel pages live: visits and page metrics." },
-  { name: "VTurb", short: "V", category: "Data and attribution", tier: "dashboard", connectsToDashboard: true, addToClaude: false, description: "VSL player: play rate, retention and where viewers drop." },
 
   // Tier 2 — optional, for your Claude.
   { name: "Jeremy AI", short: "JA", category: "AI", tier: "claude", connectsToDashboard: true, addToClaude: true, description: "Jeremy AI over MCP: marketing judgment inside Ask Berlin and Copy check." },
