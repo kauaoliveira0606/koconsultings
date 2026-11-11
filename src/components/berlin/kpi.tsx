@@ -13,7 +13,7 @@ export const KPI_LINES = {
   lpConnectRate: { dir: "min", good: 0.8, bad: 0.7 },
   optInRate: { dir: "min", good: 0.3, bad: 0.2 },
   hookRate: { dir: "min", good: 0.3, bad: 0.3 },
-  holdRate: { dir: "min", good: 0.25, bad: 0.15 },
+  holdRate: { dir: "min", good: 0.5, bad: 0.3 },
   linkCtr: { dir: "min", good: 0.02, bad: 0.005 },
   cpm: { dir: "max", good: 20, bad: 80 },
   frequency: { dir: "max", good: 2, bad: 3.5 },

@@ -9,7 +9,7 @@ import type { AdsEntity } from "@/lib/ads-cortana";
 type Line = { good: number; bad: number; higherIsBetter: boolean };
 const LINES: Record<"hook" | "body" | "cta" | "result", Line> = {
   hook: { good: 0.3, bad: 0.2, higherIsBetter: true },
-  body: { good: 0.25, bad: 0.15, higherIsBetter: true },
+  body: { good: 0.5, bad: 0.3, higherIsBetter: true },
   cta: { good: 0.02, bad: 0.005, higherIsBetter: true },
   result: { good: 15, bad: 18, higherIsBetter: false },
 };

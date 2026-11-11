@@ -81,7 +81,7 @@ export async function getGoals(): Promise<GoalsConfig> {
     optInRate: { min: 0.2 },
     webinarOptInRate: { min: 0.3, redBelow: 0.2 },
     hookRate: { min: 0.3, redBelow: 0.3 },
-    holdRate: { min: 0.25, redBelow: 0.15 },
+    holdRate: { min: 0.5, redBelow: 0.3 }, // user 2026-11-11: green 50%+, red under 30%
     linkClickThroughRate: { min: 0.02, redBelow: 0.005 },
     cpm: { max: 20, redAbove: 80 },
     adFrequency: { max: 2, redAbove: 3.5 },
