@@ -33,6 +33,7 @@ const SECTIONS: SidebarSection[] = [
   },
   { label: "Funnel", items: [{ href: "/bronson/funnels", label: "Funnels" }] },
   { label: "Integrations", items: [{ href: "/bronson/integrations", label: "Integrations" }] },
+  { label: "Office", items: [{ href: "/bronson/office", label: "Office" }] },
   {
     label: "Webinars",
     items: [

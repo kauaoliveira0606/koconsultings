@@ -22,6 +22,7 @@ import {
   UserX,
   Clapperboard,
   BookOpen,
+  Briefcase,
   Search as SearchIcon,
   ChevronsUpDown,
   LogOut,
@@ -59,6 +60,7 @@ function Tile({ Icon, color }: { Icon: LucideIcon; color: string }) {
 
 const GROUPS: Group[] = [
   // Office sits on its own above Workspace (user's reference, 2026-11-10).
+  { items: [{ href: "/bronson/office", label: "Office", icon: Briefcase, color: B.indigo }] },
   {
     label: "Workspace",
     items: [
