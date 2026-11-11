@@ -1,6 +1,7 @@
 import { airtableListFresh } from "@/lib/airtable/client";
 import { aggregateEntities, getAdsRange, type AdsDailyRow, type AdsEntity } from "@/lib/ads-cortana";
 import { addTask, AI_ASSIGNEE } from "@/lib/office";
+import { postToDiscord } from "@/lib/discord";
 
 /**
  * "Hear about problems first" (user, 2026-11-10). Hourly check of the ad
@@ -125,12 +126,7 @@ async function postDiscord(alerts: Alert[]) {
   const url = process.env.DISCORD_BRONSON_ALERTS_WEBHOOK;
   if (!url || !alerts.length) return false;
   const lines = alerts.map((a) => `${a.level === "red" ? "🔴" : "🟡"} **${a.title}**\n${a.detail}`);
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "Berlin", content: `**Ad alerts**\n\n${lines.join("\n\n")}\n\nhttps://www.koconsultings.com/bronson/ads`.slice(0, 1990) }),
-  });
-  return res.ok;
+  return postToDiscord(url, "Berlin", `**Ad alerts**\n\n${lines.join("\n\n")}\n\nhttps://www.koconsultings.com/bronson/ads`);
 }
 
 /** Runs the check: saves alerts, resolves cleared ones, queues new ones for the AI, posts to Discord. */

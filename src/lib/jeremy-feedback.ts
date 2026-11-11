@@ -3,6 +3,7 @@ import { easternDateString } from "@/lib/date-range";
 import { askJeremy, jeremyConfigured } from "@/lib/jeremy";
 import { addTask, AI_ASSIGNEE } from "@/lib/office";
 import { snapshotText } from "@/lib/berlin-snapshot";
+import { postToDiscord } from "@/lib/discord";
 
 /**
  * Jeremy AI's daily feedback and weekly process review (user, 2026-11-11:
@@ -50,17 +51,7 @@ async function save(f: Omit<Feedback, "id">) {
 async function postDiscord(title: string, text: string) {
   const url = process.env.DISCORD_BRONSON_FEEDBACK_WEBHOOK ?? process.env.DISCORD_BRONSON_ALERTS_WEBHOOK;
   if (!url) return false;
-  // Discord caps a message at 2,000 characters: send in chunks.
-  const chunks: string[] = [];
-  let rest = `**${title}**\n\n${text}`;
-  while (rest.length) {
-    chunks.push(rest.slice(0, 1900));
-    rest = rest.slice(1900);
-  }
-  for (const content of chunks.slice(0, 5)) {
-    await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: "Jeremy AI", content }) });
-  }
-  return true;
+  return postToDiscord(url, "Jeremy AI", `**${title}**\n\n${text}`);
 }
 
 export async function runFeedback(type: "daily" | "weekly", opts: { force?: boolean } = {}) {
