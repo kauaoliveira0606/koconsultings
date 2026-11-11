@@ -1,6 +1,6 @@
-import { OfficeBoard } from "./OfficeBoard";
+import { redirect } from "next/navigation";
 
-/** Berlin / Office — TickTick-style task board: tasks assigned to people, grouped by department and role. */
+/** Office (task board + AI queue) shut down by the user 2026-11-11. Board code kept in OfficeBoard.tsx. */
 export default function OfficePage() {
-  return <OfficeBoard />;
+  redirect("/bronson/overview");
 }

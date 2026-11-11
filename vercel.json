@@ -29,10 +29,6 @@
       "schedule": "0 14 * * 1"
     },
     {
-      "path": "/api/cron/ai-worker",
-      "schedule": "45 0,1,12-23 * * *"
-    },
-    {
       "path": "/api/cron/bottlenecks",
       "schedule": "30 12 * * *"
     },

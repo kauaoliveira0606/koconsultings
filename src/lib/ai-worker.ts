@@ -75,7 +75,11 @@ You can't touch ad accounts, websites or other systems. If the task needs that, 
 
 Reply in markdown with: **Done:** one line, then the deliverable, then **For you to do:** (only if a person must act). If the task truly can't be done without missing information, start your reply with "BLOCKED:" and say exactly what's needed.`;
 
+/** Office AI shut down by the user 2026-11-11 (API cost). Flip to true to turn it back on. */
+const OFFICE_AI_ENABLED = false;
+
 export async function runWorker(): Promise<{ ok: boolean; task?: string; status?: string; reason?: string }> {
+  if (!OFFICE_AI_ENABLED) return { ok: true, reason: "Office AI is shut down" };
   const { tasks } = await getOffice();
   const task = nextTask(tasks);
   if (!task) return { ok: true, reason: "Queue empty" };
