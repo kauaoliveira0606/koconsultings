@@ -4,6 +4,8 @@ import { AD_FORMATS } from "@/lib/berlin/ad-formats";
 import { aggregateEntities, getAdsRange } from "@/lib/ads-cortana";
 import { scoreCreatives } from "@/lib/creative-score";
 import { checkCopy } from "@/lib/copy-check";
+import { getSalesByAd } from "@/lib/sales-attribution";
+import { resolveRange, type RangePreset } from "@/lib/date-range";
 import { getBrain, searchBrain, addDoc, type BrainType } from "@/lib/brain";
 import { getOffice, addTask, setTaskStatus, TASK_STATUSES, AI_ASSIGNEE, type TaskStatus, type TaskPriority } from "@/lib/office";
 
@@ -149,6 +151,12 @@ const TOOLS: Tool[] = [
       const rows = await getAdsRange(typeof args.preset === "string" ? args.preset : "last_7_days");
       return rows ? scoreCreatives(aggregateEntities(rows.filter((r) => r.level === "ad"))) : [];
     },
+  },
+  {
+    name: "get_sales_by_ad",
+    description: "Every sale in the range with the ad that made it (Cortana, by hour), the amount, and the customer/closer/offer from the matching post call note. Unmatched non-high-ticket sales are VIP or other online purchases.",
+    inputSchema: { type: "object", properties: { preset: presetProp }, additionalProperties: false },
+    run: async (args) => getSalesByAd(resolveRange(preset(args) as RangePreset)),
   },
   {
     name: "check_copy",

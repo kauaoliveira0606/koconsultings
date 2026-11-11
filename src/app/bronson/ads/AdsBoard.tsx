@@ -10,6 +10,7 @@ import { Panel, EmptyState } from "@/components/berlin/Berlin";
 import { PacePanel } from "@/components/berlin/PacePanel";
 import { AlertsBanner } from "@/components/berlin/AlertsBanner";
 import { CreativeScores } from "@/components/berlin/CreativeScores";
+import { SalesByAd } from "@/components/berlin/SalesByAd";
 import { AdsEntityTable } from "@/components/berlin/AdsEntityTable";
 import { KpiValue, toneFor } from "@/components/berlin/kpi";
 import { formatStatValue } from "@/lib/format";
@@ -249,6 +250,8 @@ export function AdsBoard() {
           </div>
         </Panel>
       )}
+
+      <SalesByAd />
 
       <CreativeScores />
 
