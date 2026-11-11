@@ -3,7 +3,7 @@ import { easternDateString } from "@/lib/date-range";
 import { askJeremy, jeremyConfigured } from "@/lib/jeremy";
 import { snapshotText } from "@/lib/berlin-snapshot";
 import { getBrain } from "@/lib/brain";
-import { AREAS, FEEDBACK_AREAS } from "@/lib/areas";
+import { AREAS, FEEDBACK_AREAS, normalizeArea } from "@/lib/areas";
 import { compactScorecard, internal, leadQuality } from "@/lib/bottlenecks";
 import type { WeeklyScorecardPayload } from "@/lib/weekly-scorecard";
 
@@ -22,7 +22,7 @@ export async function getAreaFeedback(): Promise<AreaFeedback[]> {
   return recs
     .map((r) => ({ id: r.id, f: r.fields as Record<string, unknown> }))
     .filter(({ f }) => f.Type === "area" && f.Area && f.Feedback)
-    .map(({ id, f }) => ({ id, area: String(f.Area), date: String(f.Date ?? ""), created: String(f.Created ?? ""), text: String(f.Feedback) }))
+    .map(({ id, f }) => ({ id, area: normalizeArea(String(f.Area)), date: String(f.Date ?? ""), created: String(f.Created ?? ""), text: String(f.Feedback) }))
     .sort((a, b) => b.created.localeCompare(a.created));
 }
 

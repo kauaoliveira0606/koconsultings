@@ -1,5 +1,5 @@
 import { airtableListFresh } from "@/lib/airtable/client";
-import { areasFor } from "@/lib/areas";
+import { areasFor, normalizeArea } from "@/lib/areas";
 
 /**
  * Skills & Knowledge (user, 2026-11-10): every Claude skill, SOP, rules doc and
@@ -96,10 +96,10 @@ export async function getBrain(): Promise<BrainDoc[]> {
           .split(",")
           .map((c) => c.trim().toLowerCase())
           .filter(Boolean),
-        sections: String(f.Sections ?? "")
+        sections: [...new Set(String(f.Sections ?? "")
           .split(",")
-          .map((c) => c.trim())
-          .filter(Boolean),
+          .map((c) => normalizeArea(c.trim()))
+          .filter(Boolean))],
       };
     })
     .filter((d) => d.title)

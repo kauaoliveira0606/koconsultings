@@ -16,25 +16,32 @@ export type Area = {
 
 export const AREAS: Area[] = [
   {
-    id: "ads",
-    label: "Ads & creative",
-    about: "Meta ads, creative, hooks, cost per registration, CPM, frequency, ROAS.",
-    words: ["ad ", "ads", "creative", "hook", "hold", "ctr", "cpm", "frequency", "roas", "cost per registration", "media buyer", "mkt-ads", "mkt-dr", "copywriter", "copy framework", "ad format", "ad writing"],
-    focus: "Ad spend efficiency, cost per registration vs the $15 goal, CPM, frequency, creative fatigue, testing cadence, and whether paid traffic is profitable.",
+    id: "copywriting",
+    label: "Copywriting",
+    about: "Everything written: ad copy, hooks, CTAs, masterclass and confirmation page copy, emails, scripts, brand voice and the copy rules.",
+    words: ["copy", "copywriter", "hook", "cta", "headline", "brand voice", "ad writing", "narrative", "reasons", "body", "mkt-dr-001", "mkt-dr-002", "mkt-dr-004", "mkt-dr-005", "youtube"],
+    focus: "Copy quality across ads, the masterclass and confirmation pages, emails and scripts: hooks, body, CTAs, offer language and the Bronson copy rules. What to rewrite first and why, using hook rate, hold rate, link CTR and opt-in rate as the signals.",
   },
   {
-    id: "low-ticket",
-    label: "Low ticket",
-    about: "Front-end offers: the $27 VIP masterclass upgrade, the $147/mo AI offer, affiliate software.",
-    words: ["low ticket", "affiliate", "vip", "order bump", "ai offer", "front-end", "front end", "software"],
-    focus: "Low ticket take rates (VIP, AI offer), front-end cash per registration, and how well low ticket buyers ascend to high ticket.",
+    id: "media-buying",
+    label: "Media buying",
+    about: "Meta ad buying: budgets, scaling, testing, cost per registration, CPM, frequency, ROAS.",
+    words: ["media buyer", "mkt-ads", "paid advertising", "cpm", "frequency", "roas", "cost per registration", "budget", "ad spend", "campaign", "ad format", "creative testing", "ads"],
+    focus: "Media buying: cost per registration against the $15 goal, CPM, frequency, budget allocation and scaling, testing cadence, and whether paid traffic pays back (ROAS). Not copy.",
   },
   {
-    id: "high-ticket",
-    label: "High ticket",
-    about: "The coaching program sale: pricing, payment plans, deposits, close rate, cash collected.",
-    words: ["high ticket", "close rate", "closing", "pricing", "payment plan", "deposit", "sales call", "sls-", "objection", "pitch", "aov"],
-    focus: "High ticket close rate, cash collected vs contract value, payment plans and deposits, objections (money, partner, think about it), and pricing.",
+    id: "market-research",
+    label: "Market research",
+    about: "Who the buyers are, what the market says, competitors, awareness level, targeting and lead quality.",
+    words: ["research", "competitor", "cmp-", "market research", "market sophistication", "in-market", "icp", "ideal client", "avatar", "voice of customer", "intake", "lead quality", "positioning", "differentiation"],
+    focus: "The market and the buyer: who is actually booking and buying vs who we want (lead quality), awareness level, objections, competitors' angles and the positioning gap. What research to run next.",
+  },
+  {
+    id: "tickets",
+    label: "High & low ticket",
+    about: "The offers people pay for: the coaching program (high ticket) and the $27 VIP upgrade, $147/mo AI offer and affiliate software (low ticket).",
+    words: ["high ticket", "low ticket", "close rate", "closing", "pricing", "payment plan", "deposit", "sales call", "sls-", "objection", "pitch", "aov", "affiliate", "vip", "order bump", "ai offer", "front-end", "front end", "software"],
+    focus: "Both offer tiers. High ticket: close rate, cash collected vs contract value, payment plans and deposits, objections and pricing. Low ticket: VIP and AI offer take rates, front-end cash per registration, and how low ticket buyers ascend to high ticket.",
   },
   {
     id: "vsl",
@@ -61,7 +68,7 @@ export const AREAS: Area[] = [
     id: "offers",
     label: "Creating offers",
     about: "Offer design, value stack, guarantees, upsells and the offer ladder.",
-    words: ["offer", "value equation", "guarantee", "upsell", "ascension", "ecosystem", "cao-", "bonus", "narrative"],
+    words: ["offer", "value equation", "guarantee", "upsell", "ascension", "ecosystem", "cao-cmo", "cao-upsell", "bonus"],
     focus: "The offer itself: value stack, guarantee, price points, the ladder from low ticket to high ticket, and fit with the people buying.",
   },
   {
@@ -94,17 +101,22 @@ export const AREAS: Area[] = [
   },
 ];
 
+/** Old area ids (before the 2026-11-11 split) -> new ids, for saved sections and stored feedback. */
+export const AREA_ALIASES: Record<string, string> = { ads: "media-buying", "low-ticket": "tickets", "high-ticket": "tickets" };
+export const normalizeArea = (id: string) => AREA_ALIASES[id] ?? id;
+
 /** Areas Jeremy AI gives feedback on (the business areas, not Clients / General). */
 export const FEEDBACK_AREAS = AREAS.filter((a) => a.focus);
 
 /** Areas a doc belongs to, from its title, category, summary and metric tags. */
 const AGENT_AREAS: Record<string, string[]> = {
-  "media buyer": ["ads"],
-  copywriter: ["ads", "vsl", "email-sms"],
+  "media buyer": ["media-buying"],
+  copywriter: ["copywriting", "vsl", "email-sms"],
   "web designer": ["vsl", "confirmation"],
-  research: ["offers"],
-  cmo: ["ads"],
-  cso: ["high-ticket", "sales-team"],
+  research: ["market-research"],
+  "content creator": ["copywriting"],
+  cmo: ["media-buying", "copywriting"],
+  cso: ["tickets", "sales-team"],
   coo: ["sales-team"],
 };
 
@@ -118,6 +130,7 @@ export function areasFor(doc: { title: string; category: string; summary: string
   // Title, category and the metrics it fixes (summaries are too broad to sort by).
   const text = ` ${doc.title} ${doc.category} ${doc.covers.join(" ")} `.toLowerCase();
   const hits = AREAS.filter((a) => a.words.some((w) => text.includes(w))).map((a) => a.id);
-  if (doc.type === "Format" && !hits.includes("ads")) hits.unshift("ads");
+  if (doc.type === "Format" && !hits.includes("media-buying")) hits.unshift("media-buying");
+  if (doc.type === "Rules" && /copy|em dash|banned|wording|language/i.test(doc.title) && !hits.includes("copywriting")) hits.unshift("copywriting");
   return hits.length ? hits : ["general"];
 }
