@@ -1,3 +1,4 @@
+import { AREAS, PILLARS } from "@/lib/areas";
 import type { NextRequest } from "next/server";
 import { ADMIN_COOKIE, SERVICE_TOKEN } from "@/lib/admin-gate";
 import { AD_FORMATS } from "@/lib/berlin/ad-formats";
@@ -207,6 +208,11 @@ const TOOLS: Tool[] = [
         category: { type: "string" },
         summary: { type: "string" },
         body: { type: "string", description: "Markdown" },
+        sections: {
+          type: "array",
+          items: { type: "string", enum: AREAS.map((a) => a.id) },
+          description: "Area ids it belongs in. Pillars: " + PILLARS.map((p) => `${p.label} = ${AREAS.filter((a) => a.pillar === p.id).map((a) => a.id).join("/")}`).join("; ") + ". Omit to auto-sort from the title.",
+        },
       },
       required: ["title", "type", "body"],
       additionalProperties: false,
@@ -220,6 +226,7 @@ const TOOLS: Tool[] = [
         summary: args.summary ? String(args.summary) : "",
         body: String(args.body),
         source: "Added by Claude",
+        ...(Array.isArray(args.sections) && args.sections.length ? { sections: (args.sections as unknown[]).map(String) } : {}),
       }),
     }),
   },

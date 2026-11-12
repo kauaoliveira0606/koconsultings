@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { AREAS } from "@/lib/areas";
+import { AREAS, PILLARS } from "@/lib/areas";
 import { BRAIN_TYPES, METRICS, addDoc, appendKnowledge, deleteDoc, deleteDocs, getBrain, searchBrain, updateDoc, type BrainType } from "@/lib/brain";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const docs = await getBrain();
   const q = request.nextUrl.searchParams.get("q");
   if (q) return Response.json({ results: searchBrain(docs, q, 20) });
-  return Response.json({ docs, metrics: METRICS.map(({ tag, label }) => ({ tag, label })), areas: AREAS.map(({ id, label, about, focus }) => ({ id, label, about, feedback: Boolean(focus) })) });
+  return Response.json({ docs, metrics: METRICS.map(({ tag, label }) => ({ tag, label })), areas: AREAS.map(({ id, label, about, focus, pillar }) => ({ id, label, about, pillar, feedback: Boolean(focus) })), pillars: PILLARS });
 }
 
 export async function POST(request: NextRequest) {

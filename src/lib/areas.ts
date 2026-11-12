@@ -12,7 +12,17 @@ export type Area = {
   words: string[];
   /** What Jeremy AI should judge in this area. */
   focus: string;
+  /** Top-level split (user, 2026-11-11): offer creation, fulfillment, sales. */
+  pillar: PillarId;
 };
+
+export type PillarId = "offer" | "fulfillment" | "sales" | "other";
+export const PILLARS: { id: PillarId; label: string; about: string }[] = [
+  { id: "offer", label: "Offer creation", about: "Building what we sell: offer design, pricing, guarantees, the ladder, and the market research behind it." },
+  { id: "fulfillment", label: "Fulfillment", about: "Delivering what we sold: onboarding, coaching, curriculum, community, client results, retention and renewals." },
+  { id: "sales", label: "Sales", about: "Getting people to buy: ads, copy, funnels, webinars, show-up, follow-up, setters and closers." },
+  { id: "other", label: "Other", about: "Client knowledge, working rules and everything else." },
+];
 
 export const AREAS: Area[] = [
   {
@@ -21,6 +31,7 @@ export const AREAS: Area[] = [
     about: "Everything written: ad copy, hooks, CTAs, masterclass and confirmation page copy, emails, scripts, brand voice and the copy rules.",
     words: ["copy", "copywriter", "hook", "cta", "headline", "brand voice", "ad writing", "narrative", "reasons", "body", "mkt-dr-001", "mkt-dr-002", "mkt-dr-004", "mkt-dr-005", "youtube"],
     focus: "Copy quality across ads, the masterclass and confirmation pages, emails and scripts: hooks, body, CTAs, offer language and the Bronson copy rules. What to rewrite first and why, using hook rate, hold rate, link CTR and opt-in rate as the signals.",
+    pillar: "sales",
   },
   {
     id: "media-buying",
@@ -28,6 +39,7 @@ export const AREAS: Area[] = [
     about: "Meta ad buying: budgets, scaling, testing, cost per registration, CPM, frequency, ROAS.",
     words: ["media buyer", "mkt-ads", "paid advertising", "cpm", "frequency", "roas", "cost per registration", "budget", "ad spend", "campaign", "ad format", "creative testing", "ads"],
     focus: "Media buying: cost per registration against the $15 goal, CPM, frequency, budget allocation and scaling, testing cadence, and whether paid traffic pays back (ROAS). Not copy.",
+    pillar: "sales",
   },
   {
     id: "market-research",
@@ -35,6 +47,7 @@ export const AREAS: Area[] = [
     about: "Who the buyers are, what the market says, competitors, awareness level, targeting and lead quality.",
     words: ["research", "competitor", "cmp-", "market research", "market sophistication", "in-market", "icp", "ideal client", "avatar", "voice of customer", "intake", "lead quality", "positioning", "differentiation"],
     focus: "The market and the buyer: who is actually booking and buying vs who we want (lead quality), awareness level, objections, competitors' angles and the positioning gap. What research to run next.",
+    pillar: "offer",
   },
   {
     id: "tickets",
@@ -42,6 +55,7 @@ export const AREAS: Area[] = [
     about: "The offers people pay for: the coaching program (high ticket) and the $27 VIP upgrade, $147/mo AI offer and affiliate software (low ticket).",
     words: ["high ticket", "low ticket", "close rate", "closing", "pricing", "payment plan", "deposit", "sales call", "sls-", "objection", "pitch", "aov", "affiliate", "vip", "order bump", "ai offer", "front-end", "front end", "software"],
     focus: "Both offer tiers. High ticket: close rate, cash collected vs contract value, payment plans and deposits, objections and pricing. Low ticket: VIP and AI offer take rates, front-end cash per registration, and how low ticket buyers ascend to high ticket.",
+    pillar: "sales",
   },
   {
     id: "vsl",
@@ -49,6 +63,7 @@ export const AREAS: Area[] = [
     about: "Video sales letter pages, VSL watch time and the path from VSL to application.",
     words: ["vsl", "video sales letter", "vturb"],
     focus: "The VSL funnel: page conversion, VSL engagement, and VSL to application or booking.",
+    pillar: "sales",
   },
   {
     id: "webinars",
@@ -56,6 +71,7 @@ export const AREAS: Area[] = [
     about: "The live masterclass: registration, show-up, retention to the pitch, booking from the room.",
     words: ["webinar", "masterclass", "retention", "live attendee", "fladlien", "booking rate", "registration"],
     focus: "Masterclass registration to attendance, retention until the pitch, and booking rate from the room.",
+    pillar: "sales",
   },
   {
     id: "confirmation",
@@ -63,6 +79,7 @@ export const AREAS: Area[] = [
     about: "Confirmation and thank-you pages, reminders and everything that gets people to show up.",
     words: ["confirmation", "show rate", "no-show", "no show", "show-up", "reminder", "thank you page", "pre-call", "prep"],
     focus: "Confirmation pages, reminders and pre-call content: show rate for the masterclass and for booked calls.",
+    pillar: "sales",
   },
   {
     id: "offers",
@@ -70,6 +87,7 @@ export const AREAS: Area[] = [
     about: "Offer design, value stack, guarantees, upsells and the offer ladder.",
     words: ["offer", "value equation", "guarantee", "upsell", "ascension", "ecosystem", "cao-cmo", "cao-upsell", "bonus"],
     focus: "The offer itself: value stack, guarantee, price points, the ladder from low ticket to high ticket, and fit with the people buying.",
+    pillar: "offer",
   },
   {
     id: "sales-team",
@@ -77,6 +95,7 @@ export const AREAS: Area[] = [
     about: "Setter outreach, speed to lead, connection rate, closer process and the sales team.",
     words: ["setter", "closer", "sdr", "connection rate", "speed to lead", "eod", "sales team", "sales script", "dials", "pickup"],
     focus: "Setter speed to lead and connection rate, call quality, closer process, and team accountability (EODs, post call notes).",
+    pillar: "sales",
   },
   {
     id: "email-sms",
@@ -84,6 +103,15 @@ export const AREAS: Area[] = [
     about: "Email and SMS follow-up, nurture, deliverability.",
     words: ["email", "sms", "deliverability", "subject line", "nurture", "mkt-eml"],
     focus: "Email and SMS follow-up: nurture, reminders, deliverability and how much it drives shows and sales.",
+    pillar: "sales",
+  },
+  {
+    id: "fulfillment",
+    label: "Delivery & retention",
+    about: "Delivering the program: onboarding, coaching calls, curriculum, community, client wins, refunds, churn and renewals.",
+    words: ["fulfillment", "fulfilment", "onboarding", "delivery", "coaching call", "curriculum", "community", "client success", "client results", "retention", "churn", "renewal", "refund", "testimonial", "case study", "student", "member"],
+    focus: "Fulfillment: how fast new clients get onboarded and to a first win, coaching and curriculum quality, community engagement, refunds, churn and renewals, and how many wins turn into testimonials.",
+    pillar: "fulfillment",
   },
   {
     id: "clients",
@@ -91,6 +119,7 @@ export const AREAS: Area[] = [
     about: "Knowledge about each client and their buyers.",
     words: ["client:"],
     focus: "",
+    pillar: "other",
   },
   {
     id: "general",
@@ -98,6 +127,7 @@ export const AREAS: Area[] = [
     about: "Working rules, operations and everything else.",
     words: [],
     focus: "",
+    pillar: "other",
   },
 ];
 

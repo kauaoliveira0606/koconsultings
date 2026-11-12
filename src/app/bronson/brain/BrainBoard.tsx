@@ -17,7 +17,8 @@ const TYPE_COLOR: Record<BrainType, string> = { Skill: "#7c3aed", SOP: "#2563eb"
 const input =
   "w-full rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--accent)]";
 type Metric = { tag: string; label: string };
-type AreaInfo = { id: string; label: string; about: string; feedback: boolean };
+type AreaInfo = { id: string; label: string; about: string; pillar: string; feedback: boolean };
+type PillarInfo = { id: string; label: string; about: string };
 type AreaFeedback = { id: string; area: string; date: string; created: string; text: string };
 
 /** Where Berlin puts each kind of doc to work. */
@@ -35,10 +36,14 @@ function words(n: string) {
 
 /** Skills and SOPs: every skill, SOP, rule and piece of knowledge Berlin is trained on, card by card. */
 export function BrainBoard() {
-  const { data, mutate } = useSWR<{ docs: BrainDoc[]; metrics: Metric[]; areas: AreaInfo[] }>("/api/bronson/brain", fetcher);
+  const { data, mutate } = useSWR<{ docs: BrainDoc[]; metrics: Metric[]; areas: AreaInfo[]; pillars: PillarInfo[] }>("/api/bronson/brain", fetcher);
   const { data: fb, mutate: mutateFb } = useSWR<{ latest: Record<string, AreaFeedback> }>("/api/bronson/area-feedback", fetcher);
   const areas = data?.areas ?? [];
   const [area, setArea] = useState<string>("all");
+  const pillars = data?.pillars ?? [];
+  const [pillar, setPillar] = useState<string>("all");
+  const pillarAreas = (p: string) => areas.filter((a) => a.pillar === p).map((a) => a.id);
+  const inPillar = (d: BrainDoc, p: string) => p === "all" || d.sections.some((s) => pillarAreas(p).includes(s));
   const docs = useMemo(() => (Array.isArray(data?.docs) ? data!.docs : []), [data]);
   const metrics = data?.metrics ?? [];
   const [type, setType] = useState<BrainType | "All">("All");
@@ -70,6 +75,7 @@ export function BrainBoard() {
   const query = q.trim().toLowerCase();
   const shown = docs.filter(
     (d) =>
+      inPillar(d, pillar) &&
       (area === "all" || d.sections.includes(area)) &&
       (type === "All" || d.type === type) &&
       (!metric || d.covers.includes(metric)) &&
@@ -90,7 +96,7 @@ export function BrainBoard() {
       setError(json.error ?? "Save failed");
       return false;
     }
-    await mutate({ ...json, metrics, areas }, false);
+    await mutate({ ...json, metrics, areas, pillars }, false);
     return true;
   }
 
@@ -107,13 +113,25 @@ export function BrainBoard() {
       </div>
       {error ? <p className="mb-4 rounded-md bg-[var(--cell-red-bg)] px-3 py-2 text-sm text-[var(--cell-red-text)]">{error}</p> : null}
 
-      {/* Areas: everything split by part of the business */}
+      {/* Top level: offer creation, fulfillment, sales; then the areas inside it */}
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {[{ id: "all", label: `Everything (${docs.length})` }, ...pillars.map((p) => ({ id: p.id, label: `${p.label} (${docs.filter((d) => inPillar(d, p.id)).length})` }))].map((p) => (
+          <button
+            key={p.id}
+            onClick={() => { setPillar(p.id); setArea("all"); }}
+            className={`rounded-lg px-3.5 py-2 text-[14px] font-bold ${pillar === p.id ? "bg-black text-white" : "border border-[var(--panel-border)] text-[var(--text-strong)] hover:bg-[var(--panel-subtle)]"}`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {pillar !== "all" ? <p className="mb-2 text-[13px] text-[var(--text-muted)]">{pillars.find((p) => p.id === pillar)?.about}</p> : null}
       <div className="mb-5 flex flex-wrap gap-1.5">
-        {[{ id: "all", label: `Everything (${docs.length})` }, ...areas.map((a) => ({ id: a.id, label: `${a.label} (${docs.filter((d) => d.sections.includes(a.id)).length})` }))].map((a) => (
+        {[{ id: "all", label: pillar === "all" ? "All areas" : `All ${pillars.find((p) => p.id === pillar)?.label ?? ""}` }, ...areas.filter((a) => pillar === "all" || a.pillar === pillar).map((a) => ({ id: a.id, label: `${a.label} (${docs.filter((d) => d.sections.includes(a.id)).length})` }))].map((a) => (
           <button
             key={a.id}
             onClick={() => setArea(a.id)}
-            className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${area === a.id ? "bg-black text-white" : "border border-[var(--panel-border)] text-[var(--text-muted)] hover:text-[var(--text-strong)]"}`}
+            className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${area === a.id ? "bg-black text-white" : "border border-[var(--panel-border)] text-[var(--text-muted)] hover:text-[var(--text-strong)]"}`}
           >
             {a.label}
           </button>
