@@ -199,7 +199,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: "add_knowledge",
-    description: "Add a document to the Skills & Knowledge library: a new SOP, training notes, a process, an improvement to how something is done, or a new ad format (type Format: what it is, why it works, beat-by-beat structure, template, example). New formats show up first in list_ad_formats. Keep one topic per document.",
+    description: "Add a document to the Skills & Knowledge library: a new SOP, training notes, a process, an improvement to how something is done, or a new ad format (type Format: what it is, why it works, beat-by-beat structure, template, example). New formats show up first in list_ad_formats. Keep one topic per document. Type Skill = a tool Claude runs; every Skill body MUST start with a breakdown block: '<!-- breakdown -->' then '### What it is', '### When to use it', '### When not to use it', '### What you give it', '### What you get back', '### How it works', '### Rules it follows', '### Works with', '### How to run it', then '<!-- /breakdown -->', then the full skill file. Everything else (SOPs, course lessons, transcripts, rules) is the Knowledge base.",
     inputSchema: {
       type: "object",
       properties: {

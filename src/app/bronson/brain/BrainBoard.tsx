@@ -30,6 +30,25 @@ function usedIn(d: BrainDoc): string[] {
   return out;
 }
 
+/**
+ * Skill breakdown (user, 2026-11-11: "a full breakdown of what it is" for every
+ * skill). Stored at the top of the body between <!-- breakdown --> markers, one
+ * "### Heading" per part; the full skill file follows it.
+ */
+function parseBreakdown(body: string): { parts: { h: string; text: string }[]; rest: string } {
+  const m = body.match(/<!-- breakdown -->([\s\S]*?)<!-- \/breakdown -->/);
+  if (!m) return { parts: [], rest: body };
+  const parts = m[1]
+    .split(/^### /m)
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .map((c) => {
+      const nl = c.indexOf("\n");
+      return nl < 0 ? { h: c, text: "" } : { h: c.slice(0, nl).trim(), text: c.slice(nl + 1).trim() };
+    });
+  return { parts, rest: body.replace(m[0], "").trim() };
+}
+
 function words(n: string) {
   return n.split(/\s+/).filter(Boolean).length;
 }
@@ -42,6 +61,9 @@ export function BrainBoard() {
   const [area, setArea] = useState<string>("all");
   const pillars = data?.pillars ?? [];
   const [pillar, setPillar] = useState<string>("all");
+  // Skills (things Claude runs) vs Knowledge base (SOPs, trainings, rules, notes): user, 2026-11-11.
+  const [lib, setLib] = useState<"skills" | "kb">("kb");
+  const inLib = (d: BrainDoc, l: "skills" | "kb") => (l === "skills" ? d.type === "Skill" : d.type !== "Skill");
   const pillarAreas = (p: string) => areas.filter((a) => a.pillar === p).map((a) => a.id);
   const inPillar = (d: BrainDoc, p: string) => p === "all" || d.sections.some((s) => pillarAreas(p).includes(s));
   const docs = useMemo(() => (Array.isArray(data?.docs) ? data!.docs : []), [data]);
@@ -75,6 +97,7 @@ export function BrainBoard() {
   const query = q.trim().toLowerCase();
   const shown = docs.filter(
     (d) =>
+      inLib(d, lib) &&
       inPillar(d, pillar) &&
       (area === "all" || d.sections.includes(area)) &&
       (type === "All" || d.type === type) &&
@@ -113,9 +136,27 @@ export function BrainBoard() {
       </div>
       {error ? <p className="mb-4 rounded-md bg-[var(--cell-red-bg)] px-3 py-2 text-sm text-[var(--cell-red-text)]">{error}</p> : null}
 
+      {/* Library: Skills vs Knowledge base */}
+      <div className="mb-4 inline-flex rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] p-1">
+        {([["kb", "Knowledge base"], ["skills", "Skills"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => { setLib(id); setType("All"); }}
+            className={`rounded-lg px-4 py-2 text-[15px] font-bold ${lib === id ? "bg-black text-white" : "text-[var(--text-muted)] hover:text-[var(--text-strong)]"}`}
+          >
+            {label} ({docs.filter((d) => inLib(d, id)).length})
+          </button>
+        ))}
+      </div>
+      <p className="mb-4 text-[13px] text-[var(--text-muted)]">
+        {lib === "skills"
+          ? "Skills are tools Claude runs to do a job (write copy, review a webinar, build a BID). Open one for the full breakdown: what it does, when to use it, what to give it and what you get back."
+          : "The knowledge base is what we know: SOPs, course lessons and call transcripts, rules and notes. Skills and Berlin look things up here."}
+      </p>
+
       {/* Top level: offer creation, fulfillment, sales; then the areas inside it */}
       <div className="mb-2 flex flex-wrap gap-1.5">
-        {[{ id: "all", label: `Everything (${docs.length})` }, ...pillars.map((p) => ({ id: p.id, label: `${p.label} (${docs.filter((d) => inPillar(d, p.id)).length})` }))].map((p) => (
+        {[{ id: "all", label: `Everything (${docs.filter((d) => inLib(d, lib)).length})` }, ...pillars.map((p) => ({ id: p.id, label: `${p.label} (${docs.filter((d) => inLib(d, lib) && inPillar(d, p.id)).length})` }))].map((p) => (
           <button
             key={p.id}
             onClick={() => { setPillar(p.id); setArea("all"); }}
@@ -127,7 +168,7 @@ export function BrainBoard() {
       </div>
       {pillar !== "all" ? <p className="mb-2 text-[13px] text-[var(--text-muted)]">{pillars.find((p) => p.id === pillar)?.about}</p> : null}
       <div className="mb-5 flex flex-wrap gap-1.5">
-        {[{ id: "all", label: pillar === "all" ? "All areas" : `All ${pillars.find((p) => p.id === pillar)?.label ?? ""}` }, ...areas.filter((a) => pillar === "all" || a.pillar === pillar).map((a) => ({ id: a.id, label: `${a.label} (${docs.filter((d) => d.sections.includes(a.id)).length})` }))].map((a) => (
+        {[{ id: "all", label: pillar === "all" ? "All areas" : `All ${pillars.find((p) => p.id === pillar)?.label ?? ""}` }, ...areas.filter((a) => pillar === "all" || a.pillar === pillar).map((a) => ({ id: a.id, label: `${a.label} (${docs.filter((d) => inLib(d, lib) && d.sections.includes(a.id)).length})` }))].map((a) => (
           <button
             key={a.id}
             onClick={() => setArea(a.id)}
@@ -172,14 +213,14 @@ export function BrainBoard() {
       </section>
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-0.5">
-          {(["All", ...TYPES] as const).map((t) => (
+        <div className={`flex flex-wrap rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-0.5 ${lib === "skills" ? "hidden" : ""}`}>
+          {(["All", ...TYPES.filter((t) => t !== "Skill")] as const).map((t) => (
             <button
               key={t}
               onClick={() => setType(t)}
               className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${type === t ? "bg-black text-white" : "text-[var(--text-muted)] hover:text-[var(--text-strong)]"}`}
             >
-              {t === "All" ? `All (${docs.length})` : `${TYPE_LABEL[t]} (${docs.filter((d) => d.type === t).length})`}
+              {t === "All" ? `All (${docs.filter((d) => inLib(d, "kb")).length})` : `${TYPE_LABEL[t]} (${docs.filter((d) => d.type === t).length})`}
             </button>
           ))}
         </div>
@@ -241,6 +282,14 @@ export function BrainBoard() {
             </div>
             <div className="mt-2 text-[15px] font-semibold leading-snug text-[var(--text-strong)]">{d.title}</div>
             {d.summary ? <p className="mt-1.5 line-clamp-3 text-[13px] leading-snug text-[var(--text-muted)]">{d.summary}</p> : null}
+            {d.type === "Skill" ? (() => {
+              const use = parseBreakdown(d.body).parts.find((p) => /^when to use/i.test(p.h));
+              return use ? (
+                <p className="mt-2 line-clamp-3 rounded-md bg-[var(--panel-subtle)] px-2 py-1.5 text-[12px] leading-snug text-[var(--text-strong)]"><b>Use it when:</b> {use.text.replace(/^[-*]\s*/gm, "").split("\n")[0]}</p>
+              ) : (
+                <p className="mt-2 text-[11px] font-semibold text-amber-600">No breakdown yet</p>
+              );
+            })() : null}
             {d.covers.length ? (
               <div className="mt-2 flex flex-wrap gap-1">
                 {d.covers.slice(0, 5).map((c) => <span key={c} className="rounded bg-[var(--panel-subtle)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-strong)]">fixes {c}</span>)}
@@ -295,6 +344,7 @@ function Reader({ doc, metrics, areas, onClose, onEdit, onDelete, post }: { doc:
   const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
   const [covers, setCovers] = useState<string[]>(doc.covers);
+  const breakdown = parseBreakdown(doc.body);
 
   async function toggleCover(tag: string) {
     const next = covers.includes(tag) ? covers.filter((c) => c !== tag) : [...covers, tag];
@@ -325,6 +375,24 @@ function Reader({ doc, metrics, areas, onClose, onEdit, onDelete, post }: { doc:
             <button onClick={onClose} className="rounded-md border border-[var(--panel-border)] p-1.5" aria-label="Close"><X size={15} /></button>
           </div>
         </div>
+
+        {doc.type === "Skill" ? (
+          breakdown.parts.length ? (
+            <section className="mb-6">
+              <div className="mb-2 flex items-center gap-2 text-[15px] font-bold text-[var(--text-strong)]"><Sparkles size={16} /> Skill breakdown</div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {breakdown.parts.map((p) => (
+                  <div key={p.h} className={`rounded-lg border border-[var(--panel-border)] p-3 ${p.text.length > 280 ? "sm:col-span-2" : ""}`}>
+                    <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-[#7c3aed]">{p.h}</div>
+                    <div className="text-[13px] text-[var(--text-strong)]"><Markdown source={p.text} /></div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <p className="mb-6 rounded-lg bg-[var(--cell-yellow-bg)] px-3 py-2 text-[13px] text-[var(--cell-yellow-text)]">No breakdown yet. Ask Claude to write the breakdown for this skill.</p>
+          )
+        ) : null}
 
         <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="rounded-lg bg-[var(--panel-subtle)] p-3">
@@ -381,7 +449,8 @@ function Reader({ doc, metrics, areas, onClose, onEdit, onDelete, post }: { doc:
           )}
         </div>
 
-        <Markdown source={doc.body} />
+        {doc.type === "Skill" && breakdown.parts.length ? <div className="mb-2 text-[11px] font-bold uppercase text-[var(--text-muted)]">Full skill file</div> : null}
+        <Markdown source={doc.type === "Skill" ? breakdown.rest : doc.body} />
       </div>
     </div>
   );
