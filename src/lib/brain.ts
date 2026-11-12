@@ -125,10 +125,30 @@ export async function getBrain(): Promise<BrainDoc[]> {
 }
 
 /** Simple ranked search: title hits weigh most, then summary, then body. Returns a snippet around the first body hit. */
+/** Words that say nothing about the topic; matching them made long transcripts outrank the right SOP. */
+const STOP = new Set("a an and are as at be but by can could do does for from get got have how i if in into is it its me more most my of on or our out people should so some than that the their them then there these they this to us was we what when where which who why will with would you your about any just like make want need too very really much many also still help".split(" "));
+
+/** Query words worth matching: lowercased, filler dropped, plurals cut to the stem so "emails" finds "email". */
+export function queryTerms(query: string): string[] {
+  return [...new Set(query.toLowerCase().replace(/[^a-z0-9$%\s-]/g, " ").split(/\s+/)
+    .filter((t) => t.length > 1 && !STOP.has(t))
+    .map((t) => (t.length > 4 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t)))];
+}
+
 export function searchBrain(docs: BrainDoc[], query: string, limit = 8) {
-  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
+  const terms = queryTerms(query);
   if (!terms.length) return [];
-  const count = (text: string, t: string) => text.split(t).length - 1;
+  // Short words must match whole words ("too" was matching "tools"); longer ones match inside words too ("email" in "emails").
+  const rx = new Map(terms.map((t) => [t, new RegExp(t.length <= 4 ? `\\b${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b` : t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")]));
+  const count = (text: string, t: string) => (text.match(rx.get(t)!) ?? []).length;
+  // Rare words decide the topic ("cpm" over "high"): weight each by how few docs use it.
+  const idf = new Map(terms.map((t) => {
+    const re = new RegExp(rx.get(t)!.source);
+    const df = docs.filter((d) => re.test(d.title.toLowerCase()) || re.test(d.summary.toLowerCase()) || re.test(d.body.toLowerCase())).length;
+    return [t, Math.log(1 + docs.length / Math.max(1, df))];
+  }));
+  // Neighbouring words together ("pre-call email", "show rate") are worth far more than either alone.
+  const pairs = terms.slice(1).map((t, i) => [terms[i], t] as const);
   return docs
     .map((d) => {
       const title = d.title.toLowerCase();
@@ -136,9 +156,15 @@ export function searchBrain(docs: BrainDoc[], query: string, limit = 8) {
       const body = d.body.toLowerCase();
       // Title and summary matter most; body hits are capped so very long docs don't drown the rest.
       let score = 0;
-      for (const t of terms) score += count(title, t) * 10 + count(summary, t) * 4 + Math.min(count(body, t), 6);
+      for (const t of terms) score += (count(title, t) * 10 + count(summary, t) * 4 + Math.min(count(body, t), 6)) * idf.get(t)!;
+      for (const [a, b] of pairs) {
+        const re = new RegExp(`${a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s-]+${b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+        if (re.test(title)) score += 25;
+        else if (re.test(summary)) score += 12;
+        else if (re.test(body)) score += 6;
+      }
       if (title.includes(query.toLowerCase().trim())) score += 30;
-      const at = terms.map((t) => body.indexOf(t)).filter((i) => i >= 0).sort((a, b) => a - b)[0];
+      const at = terms.map((t) => body.search(new RegExp(rx.get(t)!.source))).filter((i) => i >= 0).sort((a, b) => a - b)[0];
       const snippet = at === undefined ? d.summary.slice(0, 240) : d.body.slice(Math.max(0, at - 120), at + 200).replace(/\s+/g, " ").trim();
       return { id: d.id, title: d.title, type: d.type, category: d.category, summary: d.summary, snippet, score };
     })
@@ -153,7 +179,7 @@ export function searchBrain(docs: BrainDoc[], query: string, limit = 8) {
  * "Playbook" beats everything, so answers come from the SOP rather than small talk.
  */
 export function knowledgeFor(docs: BrainDoc[], query: string, limit = 4): BrainDoc[] {
-  const weight = (d: BrainDoc) => (/playbook/i.test(d.title) ? 1.6 : d.type === "Note" ? 0.5 : d.type === "Rules" ? 0.8 : isAgent(d) ? 0.6 : 1);
+  const weight = (d: BrainDoc) => (/playbook/i.test(d.title) && d.type !== "Note" ? 1.6 : d.type === "Note" ? 0.5 : d.type === "Rules" ? 0.8 : isAgent(d) ? 0.6 : 1);
   return searchBrain(docs, query, 30)
     .map((h) => ({ d: docs.find((x) => x.id === h.id)!, score: h.score }))
     .filter((x) => x.d)
@@ -171,7 +197,7 @@ export function excerptFor(d: BrainDoc, query: string, max = 5000): string {
   const bd = d.body.match(/<!-- breakdown -->([\s\S]*?)<!-- \/breakdown -->/);
   if (bd) return bd[1].trim().slice(0, max);
   if (d.body.length <= max) return d.body;
-  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+  const terms = queryTerms(query);
   const paras = d.body.split(/\n{2,}/);
   const hits = paras.map((p) => terms.reduce((n, t) => n + (p.toLowerCase().split(t).length - 1), 0));
   let best = 0, bestScore = -1;
