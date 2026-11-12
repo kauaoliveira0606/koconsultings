@@ -1,15 +1,30 @@
 import type { NextRequest } from "next/server";
 import { AREAS, PILLARS } from "@/lib/areas";
-import { BRAIN_TYPES, METRICS, addDoc, appendKnowledge, deleteDoc, deleteDocs, getBrain, searchBrain, updateDoc, type BrainType } from "@/lib/brain";
+import { BRAIN_TYPES, METRICS, addDoc, appendKnowledge, deleteDoc, deleteDocs, getBrain, liteDocs, searchBrain, updateDoc, type BrainType } from "@/lib/brain";
 
 export const dynamic = "force-dynamic";
 
-/** Skills & Knowledge library. GET ?q= searches; POST adds / updates / deletes a document. */
+/**
+ * Skills & Knowledge library. GET returns the list without bodies (user, 2026-11-12:
+ * 493 docs made the tab load 5.7 MB); ?id= returns one full doc, ?contains= the ids
+ * whose text has that phrase (full-text filter), ?full=1 every doc with bodies
+ * (export script, ad formats), ?q= ranked search. POST adds / updates / deletes.
+ */
 export async function GET(request: NextRequest) {
   const docs = await getBrain();
-  const q = request.nextUrl.searchParams.get("q");
+  const sp = request.nextUrl.searchParams;
+  const q = sp.get("q");
   if (q) return Response.json({ results: searchBrain(docs, q, 20) });
-  return Response.json({ docs, metrics: METRICS.map(({ tag, label }) => ({ tag, label })), areas: AREAS.map(({ id, label, about, focus, pillar }) => ({ id, label, about, pillar, feedback: Boolean(focus) })), pillars: PILLARS });
+  const id = sp.get("id");
+  if (id) {
+    const doc = docs.find((d) => d.id === id);
+    return doc ? Response.json({ doc }) : Response.json({ error: "Not found" }, { status: 404 });
+  }
+  const contains = sp.get("contains")?.trim().toLowerCase();
+  if (contains) return Response.json({ ids: docs.filter((d) => `${d.title}\n${d.summary}\n${d.body}`.toLowerCase().includes(contains)).map((d) => d.id) });
+  const type = sp.get("type");
+  const pick = type ? docs.filter((d) => d.type === type) : docs;
+  return Response.json({ docs: sp.get("full") ? pick : liteDocs(pick), metrics: METRICS.map(({ tag, label }) => ({ tag, label })), areas: AREAS.map(({ id, label, about, focus, pillar }) => ({ id, label, about, pillar, feedback: Boolean(focus) })), pillars: PILLARS });
 }
 
 export async function POST(request: NextRequest) {
@@ -47,5 +62,5 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : "Save failed" }, { status: 500 });
   }
-  return Response.json({ docs: await getBrain() });
+  return Response.json({ docs: liteDocs(await getBrain()) });
 }

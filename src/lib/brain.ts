@@ -27,7 +27,24 @@ export type BrainDoc = {
   covers: string[];
   /** Business areas (lib/areas.ts ids). Saved choices win; otherwise worked out from the doc. */
   sections: string[];
+  /** Only on list (lite) responses, where body is left out: word count and a skill's "When to use it" first line. */
+  words?: number;
+  useWhen?: string | null;
 };
+
+/** First line of a skill's "When to use it" breakdown section, or null when it has none. */
+export function useWhenOf(body: string): string | null {
+  const m = body.match(/<!-- breakdown -->([\s\S]*?)<!-- \/breakdown -->/);
+  if (!m) return null;
+  const sec = m[1].split(/^### /m).find((x) => /^when to use/i.test(x));
+  if (!sec) return "";
+  return sec.split("\n").slice(1).map((l) => l.replace(/^[-*]\s*/, "").trim()).find(Boolean) ?? "";
+}
+
+/** The list view: everything but the body (opened docs load it by id). */
+export function liteDocs(docs: BrainDoc[]): BrainDoc[] {
+  return docs.map((d) => ({ ...d, body: "", words: d.body.trim() ? d.body.trim().split(/\s+/).length : 0, useWhen: d.type === "Skill" ? useWhenOf(d.body) : null }));
+}
 
 /**
  * The metrics Berlin can tie an SOP to. Each has the words that identify it in a
@@ -128,6 +145,54 @@ export function searchBrain(docs: BrainDoc[], query: string, limit = 8) {
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
+}
+
+/**
+ * Docs for an AI answer (Ask Berlin; user, 2026-11-12): ranked like searchBrain, but
+ * written playbooks beat raw call/video transcripts (type Note), and a distilled
+ * "Playbook" beats everything, so answers come from the SOP rather than small talk.
+ */
+export function knowledgeFor(docs: BrainDoc[], query: string, limit = 4): BrainDoc[] {
+  const weight = (d: BrainDoc) => (/playbook/i.test(d.title) ? 1.6 : d.type === "Note" ? 0.5 : d.type === "Rules" ? 0.8 : isAgent(d) ? 0.6 : 1);
+  return searchBrain(docs, query, 30)
+    .map((h) => ({ d: docs.find((x) => x.id === h.id)!, score: h.score }))
+    .filter((x) => x.d)
+    .map((x) => ({ ...x, score: x.score * weight(x.d) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => x.d);
+}
+
+/**
+ * The part of a long doc that answers the question: a skill's breakdown, or else
+ * the run of paragraphs with the most query-word hits, up to `max` characters.
+ */
+export function excerptFor(d: BrainDoc, query: string, max = 5000): string {
+  const bd = d.body.match(/<!-- breakdown -->([\s\S]*?)<!-- \/breakdown -->/);
+  if (bd) return bd[1].trim().slice(0, max);
+  if (d.body.length <= max) return d.body;
+  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+  const paras = d.body.split(/\n{2,}/);
+  const hits = paras.map((p) => terms.reduce((n, t) => n + (p.toLowerCase().split(t).length - 1), 0));
+  let best = 0, bestScore = -1;
+  for (let i = 0; i < paras.length; i++) {
+    let len = 0, score = 0;
+    for (let j = i; j < paras.length && len < max; j++) { len += paras[j].length + 2; score += hits[j]; }
+    if (score > bestScore) { bestScore = score; best = i; }
+  }
+  if (bestScore <= 0) return d.body.slice(0, max);
+  let out = "", j = best;
+  while (j < paras.length && out.length < max) {
+    const p = paras[j++];
+    const room = max - out.length;
+    if (p.length <= room) { out += p + "\n\n"; continue; }
+    // A paragraph too long to fit (call transcripts are one block): cut around its first hit.
+    const at = terms.map((t) => p.toLowerCase().indexOf(t)).filter((i) => i >= 0).sort((a, b) => a - b)[0] ?? 0;
+    const start = Math.max(0, Math.min(at - Math.floor(room / 4), p.length - room));
+    out += (start > 0 ? "[...] " : "") + p.slice(start, start + room) + " [...]";
+    break;
+  }
+  return (best > 0 ? "[...]\n\n" : "") + out.trim();
 }
 
 async function write(method: "POST" | "PATCH", records: unknown[]) {

@@ -22,7 +22,7 @@ from datetime import datetime
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.expanduser("~/Desktop/Knowledge Library")
-URL = "https://www.koconsultings.com/api/bronson/brain"
+URL = "https://www.koconsultings.com/api/bronson/brain?full=1"
 
 
 def token():

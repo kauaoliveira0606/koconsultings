@@ -95,6 +95,9 @@ export function BrainBoard() {
   }
 
   const query = q.trim().toLowerCase();
+  // The list has no bodies (they load per doc), so full-text matches come from the server.
+  const { data: bodyHits } = useSWR<{ ids: string[] }>(query.length >= 3 ? `/api/bronson/brain?contains=${encodeURIComponent(query)}` : null, fetcher, { keepPreviousData: true });
+  const hitIds = useMemo(() => new Set(bodyHits?.ids ?? []), [bodyHits]);
   const shown = docs.filter(
     (d) =>
       inLib(d, lib) &&
@@ -102,9 +105,11 @@ export function BrainBoard() {
       (area === "all" || d.sections.includes(area)) &&
       (type === "All" || d.type === type) &&
       (!metric || d.covers.includes(metric)) &&
-      (!query || d.title.toLowerCase().includes(query) || d.summary.toLowerCase().includes(query) || d.body.toLowerCase().includes(query)),
+      (!query || d.title.toLowerCase().includes(query) || d.summary.toLowerCase().includes(query) || hitIds.has(d.id)),
   );
   const open = docs.find((d) => d.id === openId) ?? null;
+  const { data: full, mutate: mutateFull } = useSWR<{ doc: BrainDoc }>(openId ? `/api/bronson/brain?id=${openId}` : null, fetcher);
+  const openFull = full?.doc && full.doc.id === openId ? full.doc : null;
   const coverage = metrics.map((m) => {
     const all = docs.filter((d) => d.type !== "Rules" && d.type !== "Note" && d.covers.includes(m.tag));
     const real = all.filter((d) => !isAgent(d));
@@ -120,6 +125,7 @@ export function BrainBoard() {
       return false;
     }
     await mutate({ ...json, metrics, areas, pillars }, false);
+    if (openId) await mutateFull();
     return true;
   }
 
@@ -283,9 +289,9 @@ export function BrainBoard() {
             <div className="mt-2 text-[15px] font-semibold leading-snug text-[var(--text-strong)]">{d.title}</div>
             {d.summary ? <p className="mt-1.5 line-clamp-3 text-[13px] leading-snug text-[var(--text-muted)]">{d.summary}</p> : null}
             {d.type === "Skill" ? (() => {
-              const use = parseBreakdown(d.body).parts.find((p) => /^when to use/i.test(p.h));
-              return use ? (
-                <p className="mt-2 line-clamp-3 rounded-md bg-[var(--panel-subtle)] px-2 py-1.5 text-[12px] leading-snug text-[var(--text-strong)]"><b>Use it when:</b> {use.text.replace(/^[-*]\s*/gm, "").split("\n")[0]}</p>
+              const use = d.useWhen;
+              return use != null ? (
+                <p className="mt-2 line-clamp-3 rounded-md bg-[var(--panel-subtle)] px-2 py-1.5 text-[12px] leading-snug text-[var(--text-strong)]"><b>Use it when:</b> {use}</p>
               ) : (
                 <p className="mt-2 text-[11px] font-semibold text-amber-600">No breakdown yet</p>
               );
@@ -296,7 +302,7 @@ export function BrainBoard() {
               </div>
             ) : null}
             <div className="mt-auto pt-3 text-[11px] text-[var(--text-muted)]">
-              {words(d.body).toLocaleString()} words · learns from {d.learnsFrom.split("\n")[0] || d.source || "Berlin"}
+              {(d.words ?? words(d.body)).toLocaleString()} words · learns from {d.learnsFrom.split("\n")[0] || d.source || "Berlin"}
             </div>
           </div>
         ))}
@@ -305,12 +311,13 @@ export function BrainBoard() {
 
       {open ? (
         <Reader
-          doc={open}
+          doc={openFull ?? open}
+          loading={!openFull}
           metrics={metrics}
           areas={areas}
           onDelete={async () => { if (await post({ action: "delete", id: open.id })) setOpenId(null); }}
           onClose={() => setOpenId(null)}
-          onEdit={() => { setEditing(open); setOpenId(null); }}
+          onEdit={() => { if (!openFull) return; setEditing(openFull); setOpenId(null); }}
           post={post}
         />
       ) : null}
@@ -330,7 +337,7 @@ export function BrainBoard() {
   );
 }
 
-function Reader({ doc, metrics, areas, onClose, onEdit, onDelete, post }: { doc: BrainDoc; metrics: Metric[]; areas: AreaInfo[]; onClose: () => void; onEdit: () => void; onDelete: () => Promise<void>; post: (p: Record<string, unknown>) => Promise<boolean> }) {
+function Reader({ doc, loading, metrics, areas, onClose, onEdit, onDelete, post }: { doc: BrainDoc; loading: boolean; metrics: Metric[]; areas: AreaInfo[]; onClose: () => void; onEdit: () => void; onDelete: () => Promise<void>; post: (p: Record<string, unknown>) => Promise<boolean> }) {
   const [sections, setSections] = useState<string[]>(doc.sections);
   const [confirmDelete, setConfirmDelete] = useState(false);
   async function toggleSection(id: string) {
@@ -359,7 +366,7 @@ function Reader({ doc, metrics, areas, onClose, onEdit, onDelete, post }: { doc:
           <div>
             <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white" style={{ background: TYPE_COLOR[doc.type] }}>{doc.type}</span>
             <h2 className="mt-2 text-2xl font-bold text-[var(--text-strong)]">{doc.title}</h2>
-            <div className="mt-1 text-[12px] text-[var(--text-muted)]">{doc.category}{doc.updated ? ` · updated ${doc.updated}` : ""} · {words(doc.body).toLocaleString()} words</div>
+            <div className="mt-1 text-[12px] text-[var(--text-muted)]">{doc.category}{doc.updated ? ` · updated ${doc.updated}` : ""} · {(loading ? doc.words ?? 0 : words(doc.body)).toLocaleString()} words</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {confirmDelete ? (
@@ -371,7 +378,7 @@ function Reader({ doc, metrics, areas, onClose, onEdit, onDelete, post }: { doc:
             ) : (
               <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1 rounded-md border border-[var(--panel-border)] px-2.5 py-1.5 text-[12px] font-semibold text-rose-600"><Trash2 size={13} /> Delete</button>
             )}
-            <button onClick={onEdit} className="inline-flex items-center gap-1 rounded-md border border-[var(--panel-border)] px-2.5 py-1.5 text-[12px] font-semibold"><Pencil size={13} /> Edit</button>
+            <button onClick={onEdit} disabled={loading} className="inline-flex items-center gap-1 rounded-md border border-[var(--panel-border)] px-2.5 py-1.5 text-[12px] font-semibold disabled:opacity-40"><Pencil size={13} /> Edit</button>
             <button onClick={onClose} className="rounded-md border border-[var(--panel-border)] p-1.5" aria-label="Close"><X size={15} /></button>
           </div>
         </div>
@@ -450,7 +457,7 @@ function Reader({ doc, metrics, areas, onClose, onEdit, onDelete, post }: { doc:
         </div>
 
         {doc.type === "Skill" && breakdown.parts.length ? <div className="mb-2 text-[11px] font-bold uppercase text-[var(--text-muted)]">Full skill file</div> : null}
-        <Markdown source={doc.type === "Skill" ? breakdown.rest : doc.body} />
+        {loading ? <p className="text-sm text-[var(--text-muted)]">Loading the full document…</p> : <Markdown source={doc.type === "Skill" ? breakdown.rest : doc.body} />}
       </div>
     </div>
   );

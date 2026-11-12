@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { askClaude } from "@/lib/claude";
-import { getBrain, searchBrain } from "@/lib/brain";
+import { excerptFor, getBrain, knowledgeFor } from "@/lib/brain";
 import { snapshot } from "@/lib/berlin-snapshot";
 
 export const maxDuration = 120;
@@ -22,12 +22,9 @@ export async function POST(request: NextRequest) {
 
   const origin = new URL(request.url).origin;
   const [data, docs] = await Promise.all([snapshot(origin), getBrain()]);
-  const hits = searchBrain(docs, question, 3);
-  const knowledge = hits
-    .map((h) => docs.find((d) => d.id === h.id))
-    .filter(Boolean)
-    .map((d) => `### ${d!.title}\n${d!.body.slice(0, 6000)}`)
-    .join("\n\n");
+  // Playbooks and SOPs first, transcripts last; quote the passage that matches, not the opening.
+  const hits = knowledgeFor(docs, question, 4);
+  const knowledge = hits.map((d) => `### ${d.title} (${d.type})\n${excerptFor(d, question, 5000)}`).join("\n\n");
   const history = (Array.isArray(b.history) ? b.history : []).slice(-6).map((t) => `${t.role === "user" ? "Q" : "A"}: ${String(t.content).slice(0, 2000)}`).join("\n");
   const now = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
 

@@ -26,7 +26,7 @@ const TEMPLATE = `## Why it works
  * The newest show first here and in Claude's list_ad_formats.
  */
 export function NewFormats() {
-  const { data, mutate } = useSWR<{ docs: BrainDoc[] }>("/api/bronson/brain", fetcher);
+  const { data, mutate } = useSWR<{ docs: BrainDoc[] }>("/api/bronson/brain?type=Format&full=1", fetcher);
   const formats = (Array.isArray(data?.docs) ? data!.docs : []).filter((d) => d.type === "Format").sort((a, b) => b.updated.localeCompare(a.updated));
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<BrainDoc | null>(null);
@@ -45,7 +45,7 @@ export function NewFormats() {
       body: JSON.stringify({ action: "add", type: "Format", category: "Ad format", title, summary, body }),
     });
     if (r.ok) {
-      await mutate(await r.json(), false);
+      await mutate();
       setAdding(false);
       setTitle("");
       setSummary("");
