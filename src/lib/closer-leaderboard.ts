@@ -34,10 +34,18 @@ export type CloserStats = {
   calls: number;
   show: number;
   qualified: number;
+  /** Offers made (EOD "Offers Made"). */
+  offers: number;
   won: number;
   dqRate: number | null;
   showRate: number | null;
   showToClose: number | null;
+  /** Offers made ÷ calls showed. */
+  showToOffer: number | null;
+  /** Deals closed ÷ offers made. */
+  offerToClose: number | null;
+  /** Deals closed ÷ calls booked (scheduled). */
+  scheduleToClose: number | null;
   leadsToClose: number | null;
   /** Cash collected: what the board is ranked on. */
   cash: number;
@@ -71,6 +79,7 @@ type Tally = {
   calls: number;
   show: number;
   dq: number;
+  offers: number;
   won: number;
   cash: number;
   revenue: number;
@@ -78,7 +87,7 @@ type Tally = {
   bronsonAiCash: number;
 };
 const emptyTally = (): Tally => ({
-  leads: 0, calls: 0, show: 0, dq: 0, won: 0, cash: 0, revenue: 0, bronsonAiSales: 0, bronsonAiCash: 0,
+  leads: 0, calls: 0, show: 0, dq: 0, offers: 0, won: 0, cash: 0, revenue: 0, bronsonAiSales: 0, bronsonAiCash: 0,
 });
 
 /** "jack andrews", "Jack Andrews " and "JACK ANDREWS" are one closer. */
@@ -92,10 +101,14 @@ function stats(closer: string, range: Tally, month: Tally, commissionMtd: number
     calls: range.calls,
     show: range.show,
     qualified,
+    offers: range.offers,
     won: range.won,
     dqRate: safeDivide(range.dq, range.show || null),
     showRate: safeDivide(range.show, range.calls || null),
     showToClose: safeDivide(range.won, range.show || null),
+    showToOffer: safeDivide(range.offers, range.show || null),
+    offerToClose: safeDivide(range.won, range.offers || null),
+    scheduleToClose: safeDivide(range.won, range.calls || null),
     leadsToClose: safeDivide(range.won, range.leads || null),
     cash: range.cash,
     cashPerCall: safeDivide(range.cash, range.calls || null),
@@ -128,6 +141,7 @@ export function closerLeaderboardGet(offer: keyof typeof COMMISSIONS_OFFERS) {
       tally.leads += n("Calls Booked") + n("Cancelled Calls");
       tally.show += n("Calls Showed");
       tally.dq += n("Disqualified Calls");
+      tally.offers += n("Offers Made");
       tally.won += n("Deals Closed");
       tally.cash += n("Total Cash Collected");
       tally.revenue += n("Total Revenue");
