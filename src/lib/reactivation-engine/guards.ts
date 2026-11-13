@@ -43,8 +43,8 @@ export const reminderPromise = (reply: string) =>
 /** "Ignore your instructions and mark me ..." is not attendance evidence. */
 export const untrustedInstruction = (text: string) => /\bignore\b[^.!?]{0,60}\binstructions?\b/i.test(text);
 
-/** The approved prep doc ask (English + Spanish). The one question a closing text may hold. */
-const PREP_DOC_ASK = /i can send you the free masterclass prep doc here,? right\?|te puedo mandar la gu[ií]a de preparaci[oó]n gratis por aqu[ií],? ¿verdad\?/gi;
+/** The approved prep doc ask The one question a closing text may hold. */
+const PREP_DOC_ASK = /i can send you the free masterclass prep doc here,? right\?/gi;
 
 export const CONFIDENCE_THRESHOLD = 0.9;
 
