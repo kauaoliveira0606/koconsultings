@@ -1,4 +1,4 @@
-import { isDateInRange, toEasternDateOnly, type ResolvedRange } from "@/lib/date-range";
+import { toEasternDateOnly } from "@/lib/date-range";
 
 /**
  * Numbers for each offer's Show Rate tab (the masterclass show-rate engine). Every
@@ -13,6 +13,8 @@ export type ShowRateStatus = "Registered" | "Replied" | "Committed" | "Can't mak
 export type ShowRateOutcome = "Pending" | "Showed" | "No show";
 
 export type ShowRateResponse = {
+  sessions: string[];
+  session: string;
   registrants: number;
   replied: number;
   replyRate: number | null;
@@ -61,8 +63,18 @@ export type ShowRateResponse = {
 const s = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const rate = (n: number, d: number) => (d ? n / d : null);
 
-export function buildShowRate(leads: Row[], messages: Row[], aiCalls: Row[], range: ResolvedRange): ShowRateResponse {
-  const inRange = leads.filter((l) => isDateInRange(s(l.fields.Session) || null, range));
+/**
+ * The tab is picked by webinar session, not by date range (user, 2026-11-12):
+ * a date range hid the whole engine whenever no session fell inside it.
+ * `session` is a YYYY-MM-DD session date or "all"; empty picks the next
+ * upcoming session (else the latest one).
+ */
+export function buildShowRate(leads: Row[], messages: Row[], aiCalls: Row[], session: string | null): ShowRateResponse {
+  const sessionList = [...new Set(leads.map((l) => s(l.fields.Session)).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+  const today = toEasternDateOnly(new Date().toISOString()) ?? "";
+  const upcoming = sessionList.filter((d) => d >= today).pop();
+  const selected = session === "all" || (session && sessionList.includes(session)) ? session : (upcoming ?? sessionList[0] ?? "all");
+  const inRange = selected === "all" ? leads : leads.filter((l) => s(l.fields.Session) === selected);
   const status = (l: Row) => (s(l.fields.Status) || "Registered") as ShowRateStatus;
   const outcome = (l: Row) => (s(l.fields.Outcome) || "Pending") as ShowRateOutcome;
   const replied = (l: Row) => status(l) !== "Registered";
@@ -144,10 +156,12 @@ export function buildShowRate(leads: Row[], messages: Row[], aiCalls: Row[], ran
     .slice(0, 150);
 
   const aiCost = aiCalls
-    .filter((c) => isDateInRange(toEasternDateOnly(s(c.fields["Created At"]) || c.createdTime || null), range))
+    .filter((c) => selected === "all" || leadById.has(s(c.fields["GHL Contact ID"])))
     .reduce((sum, c) => sum + (typeof c.fields["Cost USD"] === "number" ? c.fields["Cost USD"] : 0), 0);
 
   return {
+    sessions: sessionList,
+    session: selected,
     registrants: inRange.length,
     replied: inRange.filter(replied).length,
     replyRate: rate(inRange.filter(replied).length, inRange.length),

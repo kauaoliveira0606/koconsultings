@@ -3,8 +3,6 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { MetricGroups } from "@/components/dashboard/MetricGroups";
-import type { RangeState } from "@/components/dashboard/RangeFilterBar";
-import { useSectionData } from "@/lib/use-section-data";
 import { formatStatValue } from "@/lib/format";
 import type { ShowRateOutcome, ShowRateResponse, ShowRateStatus } from "@/lib/show-rate";
 
@@ -125,8 +123,18 @@ function EngineSwitch({ offer }: { offer: MasterclassDashboard }) {
   );
 }
 
-export function ShowRateSection({ offer, range }: { offer: MasterclassDashboard; range: RangeState }) {
-  const { data } = useSectionData<ShowRateResponse>(`/api/${offer}/show-rate`, range);
+export function ShowRateSection({ offer }: { offer: MasterclassDashboard }) {
+  // "" = let the API pick the next upcoming session; the answer says which one it picked.
+  const [pick, setPick] = useState("");
+  const { data } = useSWR<ShowRateResponse>(
+    `/api/${offer}/show-rate${pick ? `?session=${encodeURIComponent(pick)}` : ""}`,
+    (url: string) =>
+      fetch(url).then((r) => {
+        if (!r.ok) throw new Error(`Request failed (${r.status})`);
+        return r.json();
+      }),
+    { keepPreviousData: true }
+  );
   const [open, setOpen] = useState<string | null>(null);
   const v = <T,>(value: T) => (data ? value : undefined);
 
@@ -134,12 +142,32 @@ export function ShowRateSection({ offer, range }: { offer: MasterclassDashboard;
     <div className="flex flex-col gap-4">
       <EngineSwitch offer={offer} />
 
+      <div className="flex flex-wrap items-center gap-3">
+        <label htmlFor="session-pick" className="text-[13px] font-medium text-[var(--text-muted)]">
+          Webinar
+        </label>
+        <select
+          id="session-pick"
+          value={data?.session ?? ""}
+          onChange={(e) => setPick(e.target.value)}
+          className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-1.5 text-sm font-semibold text-[var(--text-strong)]"
+        >
+          {!data ? <option value="">Loading…</option> : null}
+          {data?.sessions.map((d) => (
+            <option key={d} value={d}>
+              {sessionFmt(d)}
+            </option>
+          ))}
+          <option value="all">All webinars</option>
+        </select>
+      </div>
+
       <MetricGroups
         groups={[
           {
             title: "Registrants",
             metrics: [
-              { label: "Registered", value: v(data?.registrants), format: "number", subtext: "People registered for the sessions in this range." },
+              { label: "Registered", value: v(data?.registrants), format: "number", subtext: "People registered for this webinar." },
               {
                 label: "Reply Rate",
                 value: v(data?.replyRate ?? null),
@@ -214,7 +242,7 @@ export function ShowRateSection({ offer, range }: { offer: MasterclassDashboard;
               ))}
             </tbody>
           </table>
-          {data && data.bySession.length === 0 ? <p className="px-5 py-4 text-sm text-[var(--text-muted)]">No sessions in this range.</p> : null}
+          {data && data.bySession.length === 0 ? <p className="px-5 py-4 text-sm text-[var(--text-muted)]">No sessions yet.</p> : null}
         </div>
       </div>
 
@@ -277,7 +305,7 @@ export function ShowRateSection({ offer, range }: { offer: MasterclassDashboard;
       <div className={panel}>
         <div className={panelTitle}>Conversations</div>
         {data && data.conversations.length === 0 ? (
-          <p className="px-5 py-4 text-sm text-[var(--text-muted)]">No conversations in this range yet.</p>
+          <p className="px-5 py-4 text-sm text-[var(--text-muted)]">No conversations for this webinar yet.</p>
         ) : null}
         <ul className="max-h-[32rem] divide-y divide-[var(--panel-border)] overflow-y-auto">
           {data?.conversations.map((c) => (
