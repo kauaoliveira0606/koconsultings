@@ -170,9 +170,6 @@ export default function OverviewPage() {
       <DashboardSection title="Live Cash Today">
         <LiveCashToday apiPath="/api/bronson/overview/live-cash" showAffiliate={false} />
       </DashboardSection>
-      <DashboardSection title="Pace">
-        <PacePanel />
-      </DashboardSection>
 
       {/* TIER 1 — KEYSTONE METRICS as hero cards: the numbers that answer "scale or pull the brake" */}
       <DashboardSection title="Keystone Metrics">
@@ -507,6 +504,10 @@ export default function OverviewPage() {
 
       {/* Owner's own reference, not one of the offer's real stats — kept last. */}
       <PaidPnlSection apiPath="/api/bronson/overview/pnl" range={range} />
+
+      <DashboardSection title="Pace">
+        <PacePanel />
+      </DashboardSection>
     </div>
   );
 }
