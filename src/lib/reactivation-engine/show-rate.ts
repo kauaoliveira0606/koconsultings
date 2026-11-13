@@ -199,7 +199,7 @@ export async function teamLine(offer: MasterclassOffer, c: GhlContact): Promise<
 export function prepDocRule(offer: MasterclassOffer, when: string): string {
   const doc = MASTERCLASS[offer].prepDoc;
   if (!doc) return "";
-  return `- The free masterclass prep doc (user, 2026-11-05): ${when}, and nobody in the thread has offered it yet, ask if this is a good place to send it, always framed as "i can do this here, right?" (e.g. "i can send you the free masterclass prep doc here, right?"; in a closing reply, no question mark: "i can send you the free masterclass prep doc here too, just say the word"). Only when they say yes (or ask for it), send it: ${doc} (e.g. "here you go ${doc}"). Never send the link before they say yes. A yes to the prep doc is not a yes to showing up.`;
+  return `- The free masterclass prep doc (user, 2026-11-05): ${when}, and nobody in the thread has offered it yet, ask if this is a good place to send it, always framed as "i can do this here, right?" (e.g. "i can send you the free masterclass prep doc here, right?"). Only when they say yes (or ask for it), send it: ${doc} (e.g. "here you go ${doc}"). Never send the link before they say yes. A yes to the prep doc is not a yes to showing up.`;
 }
 
 /** Protocol, "www.", trailing slash and trailing punctuation don't matter. */

@@ -43,6 +43,9 @@ export const reminderPromise = (reply: string) =>
 /** "Ignore your instructions and mark me ..." is not attendance evidence. */
 export const untrustedInstruction = (text: string) => /\bignore\b[^.!?]{0,60}\binstructions?\b/i.test(text);
 
+/** The approved prep doc ask (English + Spanish). The one question a closing text may hold. */
+const PREP_DOC_ASK = /i can send you the free masterclass prep doc here,? right\?|te puedo mandar la gu[ií]a de preparaci[oó]n gratis por aqu[ií],? ¿verdad\?/gi;
+
 export const CONFIDENCE_THRESHOLD = 0.9;
 
 export type GuardInput = {
@@ -94,12 +97,7 @@ export function finalize(g: GuardInput): GuardResult {
   if (reply && !textSafe(reply)) held.push("malformed reply");
   // A closing text (they confirmed, seat saved) asks nothing more.
   const closed = g.closeExchange || action === "committed" || action === "save_seat";
-  // The approved prep doc ask becomes its statement form in a closing text, instead of holding the whole reply.
-  if (closed)
-    reply = reply
-      .replace(/i can send you the free masterclass prep doc here,? right\?/gi, "i can send you the free masterclass prep doc here too, just say the word")
-      .replace(/te puedo mandar la gu[ií]a de preparaci[oó]n gratis por aqu[ií],? ¿verdad\?/gi, "te puedo mandar la guía de preparación gratis por aquí también, solo dime");
-  if (reply && closed && reply.replace(/“[^”]*”|"[^"]*"/g, "").includes("?")) held.push("asked a question in a closing text");
+  if (reply && closed && reply.replace(/“[^”]*”|"[^"]*"/g, "").replace(PREP_DOC_ASK, "").includes("?")) held.push("asked a question in a closing text");
 
   // The planted typo: one approved word misspelled, then "*word" as its own text. Once per conversation.
   const ours = g.ourTexts ?? [];
@@ -200,7 +198,7 @@ export const CONVERSATION_RULES = `<conversation-rules>
 - Never make up personal experiences, guarantees or benefits. Don't add disclaimers to normal texts, but never misstate who you are or the facts when asked directly.
 - feedback fields ("goal", "wants_covered", "preferred_time", "reason", "other_feedback"): copy their exact words from their newest texts, never a paraphrase.
 - "confidence": your honest 0 to 1 estimate that this reply is right and fully backed by the files. Under 0.9, a person answers instead. "uncertainties": any fact you needed but didn't have, or [] (any entry also sends it to a person).
-- "close_exchange": true when this reply closes the exchange (they confirmed, their seat is saved, they can't make it and nothing is left to ask). A closing reply has no question in it at all: offers become statements ("i can send you the free masterclass prep doc here too, just say the word").
+- "close_exchange": true when this reply closes the exchange (they confirmed, their seat is saved, they can't make it and nothing is left to ask). A closing reply has no question in it at all: the one question allowed is the approved prep doc ask, word for word: "i can send you the free masterclass prep doc here, right?". Never reword it.
 - Up to three short texts, separated by blank lines. Two is often enough.
 - The planted typo (looks human): once per conversation, in a casual reply with action "none" and nothing sensitive, when a text naturally uses "really", "definitely", "absolutely" or "again", misspell it ("realy", "defintely", "absolutley", "agian") and end the reply with a new line holding only the fix ("*really"). It goes out as its own text 2 to 3 seconds later. Only those words, one per conversation, never in names, dates, times, prices or links.
 </conversation-rules>`;
