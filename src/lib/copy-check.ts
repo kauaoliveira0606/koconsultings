@@ -28,7 +28,7 @@ const BANNED: { re: RegExp; rule: string; fix: string; severity: Issue["severity
   { re: /\bguarantee(d|s)?\b/gi, rule: 'No "guaranteed"; guarantee wording must be the 180-day line verbatim', fix: 'Remove, or use: "Make your investment back within 180 days. If you don\'t, we work with you for free until you double your investment."', severity: "fix" },
   { re: /\b(while you sleep|on autopilot|autopilot|push[- ]button|get rich quick|overnight|print money|make a killing|no skills required|spoon[- ]?feed|super easy|get your feet wet|make some money|a couple (of )?dollars|money (from|for) doing nothing)\b/gi, rule: "Banned lazy / get-rich framing", fix: "Cut it; describe the real work and outcome.", severity: "block" },
   { re: /\b(bro|homie|dude)\b/gi, rule: "No bro language", fix: "Cut it; the voice is a genuine young kid.", severity: "fix" },
-  { re: /\bad-?ventur\b/gi, rule: "Company name is The Inner Table", fix: "Use The Inner Table.", severity: "fix" },
+  { re: /\bad-?ventur\b/gi, rule: "Company name is Ecom MBA", fix: "Use Ecom MBA.", severity: "fix" },
 ];
 
 export function ruleScan(text: string): Issue[] {
@@ -84,7 +84,7 @@ export async function checkCopy(text: string, kind: string): Promise<CopyCheckRe
     return { verdict, score: Math.max(0, 100 - ruleHits.length * 10), summary: "Rule scan only (AI review not configured).", issues: [], rewrite: "", ruleHits, reviewedBy: "rules only" };
   }
 
-  const system = `You review marketing copy for Bronson's company, The Inner Table, before it ships. Apply these rules strictly, quoting the exact words that break them:
+  const system = `You review marketing copy for Bronson's company, Ecom MBA, before it ships. Apply these rules strictly, quoting the exact words that break them:
 
 ${rulesText}
 
@@ -95,7 +95,7 @@ Verdict: "block" if anything would hurt the brand or break a hard rule (banned w
   if (jeremyConfigured()) {
     try {
       const j = await askJeremy(
-        `Review this ${kind || "marketing copy"} for Bronson / The Inner Table before it ships. What's weak, what breaks good direct-response practice, and exactly how to fix it? Bullet points only.\n\n"""\n${text}\n"""`,
+        `Review this ${kind || "marketing copy"} for Bronson / Ecom MBA before it ships. What's weak, what breaks good direct-response practice, and exactly how to fix it? Bullet points only.\n\n"""\n${text}\n"""`,
         null,
         150_000,
       );

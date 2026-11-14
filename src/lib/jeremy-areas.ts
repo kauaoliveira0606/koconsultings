@@ -42,7 +42,7 @@ export async function runAreaFeedback(areaId: string, ctx?: string): Promise<Are
   if (!area || !area.focus) throw new Error("Unknown area");
   const docs = (await getBrain()).filter((d) => d.sections.includes(area.id) && d.type !== "Note");
   const sopList = docs.slice(0, 15).map((d) => `- ${d.title}${d.summary ? `: ${d.summary.slice(0, 160)}` : ""}`).join("\n");
-  const message = `Feedback on one area of Bronson's business (The Inner Table, subscription-based e-commerce coaching sold through a live masterclass funnel): **${area.label}**.
+  const message = `Feedback on one area of Bronson's business (Ecom MBA, subscription-based e-commerce coaching sold through a live masterclass funnel): **${area.label}**.
 
 Focus: ${area.focus}
 

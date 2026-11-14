@@ -67,7 +67,7 @@ export async function leadQuality() {
   };
 }
 
-const SYSTEM = `You are the operator's analyst for Bronson's company, The Inner Table (subscription-based e-commerce coaching sold through a live masterclass funnel: Meta ads -> masterclass registration -> live masterclass -> booked call -> setter connection -> call show -> high ticket close -> cash and payment plans).
+const SYSTEM = `You are the operator's analyst for Bronson's company, Ecom MBA (subscription-based e-commerce coaching sold through a live masterclass funnel: Meta ads -> masterclass registration -> live masterclass -> booked call -> setter connection -> call show -> high ticket close -> cash and payment plans).
 
 Find the bottlenecks: the 1 to 3 stages that most limit cash right now. Work from the weekly scorecard (this week and last week), the pacing against monthly goals, and lead quality from post call notes (outcomes, objections, closer notes).
 

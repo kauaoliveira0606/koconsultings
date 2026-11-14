@@ -18,7 +18,7 @@ const TABLE = "tbljVE1MhYrfBNpt1";
 export type Feedback = { id: string; title: string; type: "daily" | "weekly"; date: string; feedback: string; created: string };
 
 const PROMPTS = {
-  daily: `Daily feedback for Bronson / The Inner Table (subscription-based e-commerce coaching sold through a live masterclass funnel).
+  daily: `Daily feedback for Bronson / Ecom MBA (subscription-based e-commerce coaching sold through a live masterclass funnel).
 
 The live numbers from the Berlin dashboard are attached below as JSON (ads by campaign, ad set and ad for today, yesterday, last 7 days and this month; pace; creative scores; active alerts; overview). Rates are percentages.
 
@@ -30,7 +30,7 @@ Give me:
 5. The 3 things to do today, in order.
 
 Be blunt and specific. Short lines.`,
-  weekly: `Weekly process review for Bronson / The Inner Table.
+  weekly: `Weekly process review for Bronson / Ecom MBA.
 
 The live numbers from the Berlin dashboard are attached below as JSON (ads by campaign, ad set and ad; pace; creative scores; alerts; overview). Use your own knowledge for what good looks like.
 

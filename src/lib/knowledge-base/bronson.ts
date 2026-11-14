@@ -1,7 +1,7 @@
 import { withAllSections, type KbItem } from "./types";
 
 /*
- * Bronson / The Inner Table. Sources: the high ticket offer stack the user
+ * Bronson / Ecom MBA. Sources: the high ticket offer stack the user
  * supplied (2026-10-14), the ad-ventur.com pages (
  * /testimonials, /materials, /free-resource, /terms, /guide), the closer
  * script, and Bronson's YouTube channel (@Bronny.builds).
@@ -43,9 +43,9 @@ export const BRONSON_KNOWLEDGE_BASE = withAllSections({
       layout: "stack",
       items: [
         {
-          title: "The Inner Table: subscription-based e-commerce",
+          title: "Ecom MBA: subscription-based e-commerce",
           text: [
-            "The company is The Inner Table. The model is subscription-based e-commerce: pick one proven product people use up and reorder (supplements and other consumables), put your own brand on it, and build monthly recurring revenue.",
+            "The company is Ecom MBA. The model is subscription-based e-commerce: pick one proven product people use up and reorder (supplements and other consumables), put your own brand on it, and build monthly recurring revenue.",
             "We position against generic dropshipping and the endless product-testing loop. One product, chosen on data, built into a real brand that can be sold one day.",
           ],
           bullets: [

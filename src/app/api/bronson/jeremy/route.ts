@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (!b.conversationId) {
     const data = await snapshotText(new URL(request.url).origin).catch(() => "");
     const now = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
-    framed = `[Sent from the Berlin dashboard for Bronson / The Inner Table (page: ${b.page ?? "unknown"}). Live numbers as of ${now} ET are below as JSON; use them for anything about performance. Rates are percentages.]\n\n${message}${data ? `\n\nLIVE NUMBERS:\n${data}` : ""}`;
+    framed = `[Sent from the Berlin dashboard for Bronson / Ecom MBA (page: ${b.page ?? "unknown"}). Live numbers as of ${now} ET are below as JSON; use them for anything about performance. Rates are percentages.]\n\n${message}${data ? `\n\nLIVE NUMBERS:\n${data}` : ""}`;
   }
   try {
     const r = await askJeremy(framed, b.conversationId ?? null);

@@ -178,7 +178,7 @@ def preview(theme, files, name):
     d = ImageDraw.Draw(card)
     lg = Image.open(io.BytesIO(files["logo@2x.png"]))
     card.alpha_composite(lg, (14 * S, 12 * S))
-    d.text((14 * S + lg.width + 8 * S, 12 * S + lg.height / 2), theme.get("preview_brand", "The Inner Table"), font=font(15 * S, 700), fill=theme["ink"], anchor="lm")
+    d.text((14 * S + lg.width + 8 * S, 12 * S + lg.height / 2), theme.get("preview_brand", "Ecom MBA"), font=font(15 * S, 700), fill=theme["ink"], anchor="lm")
     d.text((W - 14 * S, 14 * S), "STARTS", font=font(9 * S, 700), fill=theme.get("preview_accent", (22, 163, 74)), anchor="ra")
     d.text((W - 14 * S, 27 * S), theme.get("preview_date", "Nov 16, 7:00 PM"), font=font(14 * S, 600), fill=theme["ink"], anchor="ra")
     st = Image.open(io.BytesIO(files["strip@2x.png"]))

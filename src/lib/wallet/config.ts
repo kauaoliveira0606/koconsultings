@@ -56,7 +56,7 @@ export const WALLET_EVENTS: WalletEvent[] = [
     id: "bronson-masterclass",
     publicKey: "itm-7f3k2q",
     name: "MRR E-Commerce Masterclass",
-    brand: "The Inner Table",
+    brand: "Ecom MBA",
     timeZone: "America/New_York",
     weekday: 1,
     hour: 19,
