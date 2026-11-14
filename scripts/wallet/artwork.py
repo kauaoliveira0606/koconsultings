@@ -23,23 +23,6 @@ THEMES = {
         "green_bottom": (21, 128, 61),
         "ink": (15, 23, 42),
     },
-    # Aval (Mind Over Market): white + gold. Source logo is a transparent PNG, so the
-    # mark is cut out by its own alpha (mark_alpha) and padded to a square.
-    "aval-masterclass": {
-        "label": "LIVE MASTERCLASS",
-        "headline": "Mind Over Market Masterclass",
-        "logo_src": os.path.join(HERE, "sources", "mind-over-market-logo.png"),
-        "mark_box": (8, 16, 118, 176),
-        "mark_alpha": True,
-        # blank out the "M" of MARKET that sits inside the crop (box relative to the crop)
-        "mark_clear": (85, 112, 110, 160),
-        "green_top": (217, 169, 59),
-        "green_bottom": (156, 112, 12),
-        "ink": (23, 23, 23),
-        "preview_brand": "Mind Over Market",
-        "preview_date": "Nov 8, 7:00 PM",
-        "preview_accent": (156, 112, 12),
-    },
 }
 
 

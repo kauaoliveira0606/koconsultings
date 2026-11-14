@@ -73,29 +73,6 @@ export const WALLET_EVENTS: WalletEvent[] = [
     timeOnFront: true,
     designUpdated: "2026-11-14T03:30:00Z", // new Ecom MBA logo
   },
-  {
-    id: "aval-masterclass",
-    publicKey: "mom-19ureb",
-    name: "Mind Over Market Masterclass",
-    brand: "Mind Over Market",
-    timeZone: "America/New_York",
-    weekday: 0,
-    hour: 19,
-    minute: 0,
-    durationMinutes: 60,
-    // Keep in step with ~/repos/aval masterclass-next-steps/done-shared.js (MASTERCLASS_DATE).
-    // Sun Dec 6, 7 PM ET (user, 2026-11-08; WebinarJam schedule 4).
-    pinnedDate: "2026-12-06",
-    leadMinutes: 180,
-    joinUrl: "https://event.webinarjam.com/qwk59l/go/live/k50k29izins2s1",
-    access: "Live Only",
-    colors: { background: "rgb(255,255,255)", foreground: "rgb(23,23,23)", label: "rgb(156,112,12)" },
-    assets: "aval-masterclass",
-    // TIME with zone on the front instead of STATUS, like Bronson (user, 2026-11-08).
-    timeOnFront: true,
-    designUpdated: "2026-11-08T19:30:01Z",
-    page: { accent: "#9c700c", glow: "rgba(217,169,59,.2)", bgTop: "#fbf6ea", bgBottom: "#ffffff", tagBg: "#f7ecd0", tagInk: "#9c700c" },
-  },
 ];
 
 export const eventById = (id: string) => WALLET_EVENTS.find((e) => e.id === id);

@@ -12,11 +12,4 @@ describe("time on front", () => {
     expect(aux.some((a) => a.startsWith("status="))).toBe(false);
     expect(j.eventTicket.backFields.some((f) => f.key === "status")).toBe(true);
   });
-  it("aval shows TIME instead of STATUS, status on back", () => {
-    const j = passJson(eventById("aval-masterclass")!, "s", "t", new Date("2026-11-10T12:00:00Z"));
-    const aux = j.eventTicket.auxiliaryFields.map((f) => `${f.key}=${f.value}`);
-    expect(aux).toContain("time=7:00 PM EST");
-    expect(aux.some((a) => a.startsWith("status="))).toBe(false);
-    expect(j.eventTicket.backFields.some((f) => f.key === "status")).toBe(true);
-  });
 });
