@@ -15,9 +15,10 @@ THEMES = {
     "bronson-masterclass": {
         "label": "LIVE MASTERCLASS",
         "headline": "MRR E-Commerce Masterclass",
-        "logo_src": os.path.join(HERE, "sources", "inner-table-logo.png"),
-        # crop box of the round mark inside the logo source (x0, y0, x1, y1)
-        "mark_box": (395, 290, 855, 750),
+        # Ecom MBA book mark, transparent PNG cut out by its own alpha (see mark_alpha)
+        "logo_src": os.path.join(HERE, "sources", "ecom-mba-mark.png"),
+        "mark_box": (0, 0, 410, 345),
+        "mark_alpha": True,
         "green_top": (34, 197, 94),
         "green_bottom": (21, 128, 61),
         "ink": (15, 23, 42),

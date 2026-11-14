@@ -45,5 +45,5 @@ const SECTIONS: SidebarSection[] = [
 ];
 
 export function BronsonSidebar() {
-  return <DashboardSidebar initials="BR" name="Berlin" logo="/brand/bronson-logo.png" sections={SECTIONS} />;
+  return <DashboardSidebar initials="BR" name="Berlin" logo="/brand/ecom-mba-logo.png" sections={SECTIONS} />;
 }
