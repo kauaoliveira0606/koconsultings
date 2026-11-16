@@ -157,7 +157,7 @@ function env(offer: ReactivationOffer) {
   return { pat, locationId };
 }
 
-async function ghl<T>(offer: ReactivationOffer, path: string, init?: { method: string; body: unknown }): Promise<T> {
+export async function ghl<T>(offer: ReactivationOffer, path: string, init?: { method: string; body: unknown }): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`${GHL_API}${path}`, {
       method: init?.method ?? "GET",
