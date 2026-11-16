@@ -1,6 +1,6 @@
 import { getReactivationRows } from "@/lib/airtable/reactivation";
 import { firstNameOf, generate, MODELS, smsPausedUntil, trySend, type RunReport } from "./engine";
-import { deadNumber, flagReview, getContact, ghl, history, recentConversations, replyLine, ROEZAN_SMS, smsBlocked, type GhlContact } from "./ghl";
+import { BRONSON_MASTERCLASS_NO_SHOW_STAGE, deadNumber, flagReview, getContact, ghl, history, pipelineOpportunities, recentConversations, replyLine, ROEZAN_SMS, smsBlocked, type GhlContact } from "./ghl";
 import { humanTextAfter } from "./guards";
 import { s } from "./show-rate";
 import { inSendWindow, nextEncore, noShowText } from "./encore-schedule";
@@ -54,6 +54,25 @@ async function tagsOf(id: string): Promise<string[]> {
   return contact.tags ?? [];
 }
 
+/**
+ * Today's live masterclass no-shows (user, 2026-11-16: they get the Encore invite instead of next week's masterclass).
+ * The WebinarJam poller moves a registrant to the "Masterclass No Show" stage about 2 hours after the start; only those
+ * moved today (Eastern) count, so the first run never texts an older backlog.
+ */
+async function todaysMasterclassNoShows(): Promise<TagContact[]> {
+  const day = (t: string | number) => new Date(t).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const today = day(Date.now());
+  const out: TagContact[] = [];
+  let seen = 0;
+  for await (const o of pipelineOpportunities(OFFER, BRONSON_MASTERCLASS_NO_SHOW_STAGE)) {
+    if (++seen > 300) break;
+    if (day(o.lastStageChangeAt ?? o.createdAt) !== today) continue;
+    // No tags here: the stage listing can lag, so they are read fresh below.
+    out.push({ id: o.contactId, phone: o.contact?.phone });
+  }
+  return out;
+}
+
 // ---------- Switch ----------
 
 async function isOn(): Promise<boolean> {
@@ -69,9 +88,13 @@ export async function runEncoreTexts(deadline: number, report: RunReport): Promi
     return;
   }
   const skip = (why: string) => (report.skipped[`encore: ${why}`] = (report.skipped[`encore: ${why}`] ?? 0) + 1);
-  for (const c of await contactsTagged(TAGS.noShow)) {
+  // AEvent's Encore no-shows plus today's live masterclass no-shows, once each.
+  const byId = new Map<string, TagContact>();
+  for (const c of [...(await contactsTagged(TAGS.noShow)), ...(await todaysMasterclassNoShows())]) byId.set(c.id, byId.get(c.id) ?? c);
+  for (const c of byId.values()) {
     if (Date.now() > deadline) return;
-    const tags = c.tags ?? [];
+    // Fresh tags from the tag search; read them for stage-listed contacts so nobody is texted twice.
+    const tags = c.tags ?? (await tagsOf(c.id));
     if (tags.includes(TAGS.texted) || tags.includes(TAGS.optedOut)) continue;
     const contact = await getContact(OFFER, c.id);
     if (!contact.phone || smsBlocked(contact)) { skip("no number or SMS blocked"); continue; }
