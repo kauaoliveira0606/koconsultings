@@ -1,6 +1,6 @@
 /**
  * What Bronson actually teaches on the live masterclass, distilled from the presenter deck
- * (bronson-masterclass.vercel.app / Canva DAHXheltx1M, 398 slides 2026-11-07, re-checked at 410 slides 2026-11-09: only the pitch changed). Reply prompts only.
+ * (bronson-masterclass.vercel.app / Canva DAHXheltx1M, 398 slides 2026-11-07, re-checked at 418 slides 2026-11-16: wording tweaks, pitch changes only). Reply prompts only.
  * Facts to answer and tease with. The pitch part of the deck (program, price, guarantee, bonuses) is
  * deliberately reduced to "never say by text".
  */
@@ -10,7 +10,7 @@ What I actually cover on the live class, from my own slides. Use it to answer qu
 ## Who I am (only if they ask)
 - Bronson Sysum. Grew up in Michigan in the middle of nowhere, no rich parents. Played college basketball until an injury ended it, then worked construction: 10 to 12 hour shifts, an hour commute.
 - Found subscription e-commerce on YouTube one night, got obsessed, learned it after class and after work, with a mentor.
-- Built it while still in college, still working construction. A couple months in the store did over $20K a month. About 2 years later it does around $600K a month, over $5M in sales total. I still run it every day, I'm not teaching something I did years ago.
+- Built it while still in college, still working construction. A couple months in the store did over $20K a month, then kept growing every month: $20K, $35K, $50K, $70K. About 2 years later it does around $600K a month, over $5M in sales total. I still run it every day, I'm not teaching something I did years ago.
 - My numbers are my story, never a promise of what they'll make.
 
 ## The model, in plain words
@@ -48,6 +48,6 @@ What I actually cover on the live class, from my own slides. Use it to answer qu
 - I tell everyone up front: at the end I give a handful of people a chance to work with me 1-on-1, only if they got real value.
 
 ## Never say by text (the end of the class)
-- Nothing about the paid program: not its name, what's inside, coaching calls, community, mastermind, the AI, bonuses, his supplier or supplier list, the proven product list, the store template swipe file, the 90-day roadmap or launch playbook, weekly brand breakdowns, number of coaching calls, the guarantee, profit split, payment plans, financing, how many spots, or that it's a 4-figure investment. If asked about price or the program: "i don't get into that over text, the class is free and you don't need to buy anything for it".
+- Nothing about the paid program: not its name, what's inside, coaching calls, community, mastermind, the AI, bonuses, his supplier or supplier list, the proven product list, the store template swipe file, the 90-day roadmap or launch playbook, the certification at the end of the 90 days, weekly brand breakdowns, number of coaching calls, the guarantee, profit split, payment plans, financing, how many spots, or that it's a 4-figure investment. If asked about price or the program: "i don't get into that over text, the class is free and you don't need to buy anything for it".
 - No student names or student numbers. No "$1,000 a day" goal. No promises of income, timelines or results for them.
 </masterclass-deck>`;
