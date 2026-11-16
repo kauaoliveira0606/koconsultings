@@ -25,6 +25,11 @@ export type WalletEvent = {
   /** Weekly schedule in the event's own timezone, so daylight saving never moves it. */
   timeZone: string;
   weekday: number; // 0 = Sunday
+  /**
+   * Several sessions a week (Encore: Sun, Tue, Wed, Fri, Sat). When set, `weekday` is ignored and the
+   * pass points at the next session that has not started yet (rolls at the start time, like /encore).
+   */
+  weekdays?: number[];
   hour: number;
   minute: number;
   durationMinutes: number;
@@ -72,6 +77,29 @@ export const WALLET_EVENTS: WalletEvent[] = [
     assets: "bronson-masterclass",
     timeOnFront: true,
     designUpdated: "2026-11-14T03:30:00Z", // new Ecom MBA logo
+  },
+  {
+    // Encore: automated AEvent sessions on every day except the live days (Mon + Thu), 8 PM ET.
+    // Keep weekdays/hour in step with ~/repos/bronson encore/index.html (MASTERCLASS_DAYS / MASTERCLASS_HOUR)
+    // and the AEvent recurring entry (campaign awSPuZl1HKdhVV4). Its own pass so the Monday masterclass pass is untouched.
+    id: "bronson-encore",
+    publicKey: "enc-5r8k3w",
+    name: "MRR E-Commerce Masterclass",
+    brand: "Ecom MBA",
+    timeZone: "America/New_York",
+    weekday: 2,
+    weekdays: [0, 2, 3, 5, 6],
+    hour: 20,
+    minute: 0,
+    durationMinutes: 90,
+    leadMinutes: 60,
+    // The AEvent join link is personal and arrives by text and email; the pass points at the Encore page.
+    joinUrl: "https://www.ad-ventur.com/encore",
+    access: "Live Only",
+    colors: { background: "rgb(252,253,252)", foreground: "rgb(15,23,42)", label: "rgb(22,163,74)" },
+    assets: "bronson-masterclass",
+    timeOnFront: true,
+    designUpdated: "2026-11-16T17:00:00Z",
   },
 ];
 

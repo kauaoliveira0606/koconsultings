@@ -42,7 +42,22 @@ export function dayEnd(date: Date, timeZone: string): Date {
  * whole local day it runs (like the confirmation page), then rolls to the next
  * week. One event, rolling forward, so the claim link never changes.
  */
+/** Start of the Encore-style session on day offset `add` from `now`'s local day, or null if not a session day. */
+function weekdaySessionStart(ev: WalletEvent, now: Date, add: number): Date | null {
+  const p = zoneParts(now, ev.timeZone);
+  const dow = new Date(Date.UTC(+p.year, +p.month - 1, +p.day + add)).getUTCDay();
+  if (!ev.weekdays!.includes(dow)) return null;
+  return wall(Date.UTC(+p.year, +p.month - 1, +p.day + add, ev.hour, ev.minute, 0), ev.timeZone);
+}
+
 export function currentSession(ev: WalletEvent, now = new Date()): { start: Date; end: Date } {
+  if (ev.weekdays?.length) {
+    // Next session that has not started yet; rolls the moment one starts.
+    for (let add = 0; add < 9; add++) {
+      const s = weekdaySessionStart(ev, now, add);
+      if (s && s > now) return { start: s, end: new Date(s.getTime() + ev.durationMinutes * 60000) };
+    }
+  }
   let start: Date | null = null;
   if (ev.pinnedDate) {
     const [y, m, d] = ev.pinnedDate.split("-").map(Number);
@@ -64,6 +79,13 @@ export function currentSession(ev: WalletEvent, now = new Date()): { start: Date
 /** The session before the current one (for knowing when the pass rolled). */
 export function previousSessionEnd(ev: WalletEvent, now = new Date()): Date {
   const { start } = currentSession(ev, now);
+  if (ev.weekdays?.length) {
+    // The pass rolled to this session when the previous one started.
+    for (let back = 1; back < 9; back++) {
+      const s = weekdaySessionStart(ev, new Date(start.getTime() - back * 864e5), 0);
+      if (s && s < start && s <= now) return s;
+    }
+  }
   let prevStart = new Date(start.getTime() - 7 * 864e5);
   // Local midnight after the previous session is when this one became current.
   // A pinned date can skip a week, which would put that moment in the future;
