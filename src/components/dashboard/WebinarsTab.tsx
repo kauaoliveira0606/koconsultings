@@ -10,7 +10,7 @@ import { formatStatValue, type StatFormat } from "@/lib/format";
 import type { GoalsConfig, MaxGoal, MinGoal } from "@/lib/goals";
 import { cellStatus } from "@/lib/weekly-scorecard";
 import type { WebinarReport } from "@/lib/webinar-report";
-import type { BookedCall, SourceFunnel } from "@/lib/webinar-source-funnel";
+import { LEAD_TIME_MAX, type BookedCall, type LeadTimeCounts, type SourceFunnel } from "@/lib/webinar-source-funnel";
 import { WebinarDailyChart } from "@/components/dashboard/WebinarDailyChart";
 import type { WebinarDay } from "@/lib/webinar-source-funnel";
 import { PITCH_AT_SECONDS, PITCH_TIME_CONFIRMED } from "@/lib/webinar-schedule";
@@ -349,6 +349,102 @@ function BookedCallsList({ calls }: { calls: BookedCall[] }) {
   );
 }
 
+const LEAD_LABELS = Array.from({ length: LEAD_TIME_MAX + 1 }, (_, d) =>
+  d === 0 ? "Same day" : d === LEAD_TIME_MAX ? `${d}+ days before` : d === 1 ? "1 day before" : `${d} days before`,
+);
+
+/**
+ * Same stats, split by how far ahead of the webinar people registered (user,
+ * 2026-11-16): same day, 1 day before, 2 days before, and so on. One webinar
+ * or all of them added together; paid, organic or total.
+ */
+function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
+  const [pick, setPick] = useState<string>("all");
+  const [source, setSource] = useState<"Total" | "Paid" | "Organic">("Total");
+  const chosen = pick === "all" ? webinars.filter((x) => x.status === "done") : webinars.filter((x) => x.date === pick);
+  const rows: LeadTimeCounts[] = LEAD_LABELS.map((_, i) =>
+    chosen.reduce(
+      (acc, x) => {
+        const c = x.leadTime?.[source]?.[i];
+        return c
+          ? { registered: acc.registered + c.registered, attended: acc.attended + c.attended, stayed: acc.stayed + c.stayed, booked: acc.booked + c.booked }
+          : acc;
+      },
+      { registered: 0, attended: 0, stayed: 0, booked: 0 },
+    ),
+  );
+  const total = rows.reduce(
+    (a, c) => ({ registered: a.registered + c.registered, attended: a.attended + c.attended, stayed: a.stayed + c.stayed, booked: a.booked + c.booked }),
+    { registered: 0, attended: 0, stayed: 0, booked: 0 },
+  );
+  const pct = (n: number, d: number) => formatStatValue(d ? n / d : null, "percent");
+  const upcomingOnly = pick !== "all" && chosen[0]?.status === "upcoming";
+  const line = (label: string, c: LeadTimeCounts, bold = false) => (
+    <tr key={label} className={bold ? "font-bold" : undefined}>
+      <th className="sticky left-0 bg-[var(--panel-bg)] px-3 py-2.5 text-left font-medium text-[var(--text-strong)]">{label}</th>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{c.registered}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{pct(c.registered, total.registered)}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{c.attended}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{upcomingOnly ? "—" : pct(c.attended, c.registered)}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{c.stayed}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{upcomingOnly ? "—" : pct(c.stayed, c.registered)}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{upcomingOnly ? "—" : pct(c.stayed, c.attended)}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{c.booked}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{pct(c.booked, c.stayed)}</td>
+    </tr>
+  );
+  const chip = (active: boolean) =>
+    `rounded-lg border px-3 py-1.5 text-sm font-semibold ${
+      active ? "border-sky-400 bg-sky-400/15 text-white" : "border-[var(--panel-border)] text-[var(--text-muted)] hover:text-white"
+    }`;
+  const heads = ["Registered", "% of Registered", "Attended", "Show Rate", "Stayed Until Pitch", "Stayed ÷ Registered", "Stayed ÷ Attended", "Calls Booked", "Booking Rate"];
+  return (
+    <DashboardSection title="By Registration Day">
+      <p className="mb-4 text-sm text-[var(--text-muted)]">
+        How far ahead of the webinar people registered, and how each group behaved. Show rate = attended ÷ registered. Booking rate = calls booked ÷ stayed until pitch.
+        {pick === "all" ? " All webinars held so far, added together." : ""}
+      </p>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setPick("all")} className={chip(pick === "all")}>
+          All webinars
+        </button>
+        {webinars.map((x) => (
+          <button key={x.date} type="button" onClick={() => setPick(x.date)} className={chip(pick === x.date)}>
+            #{x.number} · {shortDate(x.date)}
+            {x.status === "upcoming" ? " (upcoming)" : ""}
+          </button>
+        ))}
+        <span className="mx-1 h-5 w-px bg-white/15" />
+        {(["Total", "Paid", "Organic"] as const).map((k) => (
+          <button key={k} type="button" onClick={() => setSource(k)} className={chip(source === k)}>
+            {k}
+          </button>
+        ))}
+      </div>
+      <div className="min-w-0 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
+            <thead>
+              <tr className="text-[13px] text-[var(--text-muted)]">
+                <th className="sticky left-0 bg-[var(--panel-bg)] px-3 py-2.5 text-left font-semibold">Registered</th>
+                {heads.map((h) => (
+                  <th key={h} className="px-3 py-2.5 text-right font-semibold text-[var(--text-strong)]">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((c, i) => line(LEAD_LABELS[i], c))}
+              {line("All", total, true)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </DashboardSection>
+  );
+}
+
 /**
  * Webinars tab (Bronson + Aval), one webinar at a time (user, 2026-10-19):
  * Front End runs from the ads to the booked call, ending on cost per booked
@@ -361,6 +457,8 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
   const [picked, setPicked] = useState<string | null>(null);
   // Concurrent (peak) attendees instead of total attendees (user, 2026-11-06).
   const [concurrent, setConcurrent] = useState(false);
+  // "By registration day" view: stats split by how far ahead people registered (user, 2026-11-16).
+  const [byRegDay, setByRegDay] = useState(false);
   const w = webinars.find((x) => x.date === picked) ?? webinars.find((x) => x.status === "done") ?? webinars[0];
   const pill = w ? `Webinar #${w.number} · ${shortDate(w.date)}` : null;
   const hero = (label: string, value: number | null | undefined, format: StatFormat, sub: string, goal?: Goal) => (
@@ -381,8 +479,12 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
             />
             Concurrent attendees
           </label>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--panel-border)] px-3 py-1.5 text-sm font-semibold text-[var(--text-strong)]">
+            <input type="checkbox" checked={byRegDay} onChange={(e) => setByRegDay(e.target.checked)} className="h-4 w-4 accent-sky-400" />
+            By registration day
+          </label>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className={`flex flex-wrap gap-2 ${byRegDay ? "hidden" : ""}`}>
           {webinars.map((x) => (
             <button
               key={x.date}
@@ -405,6 +507,8 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
         <p className="text-sm text-[var(--text-muted)]">Couldn&apos;t load the webinars.</p>
       ) : !w ? (
         <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+      ) : byRegDay ? (
+        <RegistrationDayView webinars={webinars} />
       ) : (
         <>
           <p className="mb-6 text-sm text-[var(--text-muted)]">

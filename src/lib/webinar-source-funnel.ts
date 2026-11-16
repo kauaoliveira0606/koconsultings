@@ -82,6 +82,17 @@ export type BookedCall = {
   fathomLinks: string[];
 };
 
+/**
+ * Counts for people who registered N days before the session (user,
+ * 2026-11-16): 0 = same day, 1 = the day before ... LEAD_TIME_MAX = that many
+ * days or more. Rates are worked out where they're shown, so webinars can be
+ * added together.
+ */
+export const LEAD_TIME_MAX = 7;
+export type LeadTimeCounts = { registered: number; attended: number; stayed: number; booked: number };
+/** Index = days before the session. */
+export type LeadTimeSplit = Record<"Paid" | "Organic" | "Total", LeadTimeCounts[]>;
+
 export type WebinarSourceRow = {
   number: number;
   date: string;
@@ -91,6 +102,8 @@ export type WebinarSourceRow = {
   paid: SourceFunnel;
   organic: SourceFunnel;
   total: SourceFunnel;
+  /** Registered / attended / stayed / booked by how many days before the session they registered. */
+  leadTime: LeadTimeSplit;
   /** Every booked call counted toward this webinar, newest call first. */
   calls: BookedCall[];
 };
@@ -204,8 +217,36 @@ export function webinarSourceRows(
 
   // Each session's live attendees, by source, for the room numbers.
   const attendees = new Map<string, Record<BookingSource, MasterclassRegistrantRow[]>>();
+  const leadTimes = new Map<string, LeadTimeSplit>();
+  const blankSplit = (): LeadTimeSplit => {
+    const mk = () => Array.from({ length: LEAD_TIME_MAX + 1 }, () => ({ registered: 0, attended: 0, stayed: 0, booked: 0 }));
+    return { Paid: mk(), Organic: mk(), Total: mk() };
+  };
+  const bucketOf = (signup: string | null | undefined, session: string) => {
+    if (!signup) return null;
+    const days = Math.round((Date.parse(`${session}T00:00:00Z`) - Date.parse(`${signup}T00:00:00Z`)) / 86_400_000);
+    return Math.min(Math.max(days, 0), LEAD_TIME_MAX);
+  };
+  const bump = (session: string, source: BookingSource, bucket: number | null, field: keyof LeadTimeCounts) => {
+    if (bucket === null) return;
+    let s = leadTimes.get(session);
+    if (!s) leadTimes.set(session, (s = blankSplit()));
+    s[source][bucket][field] += 1;
+    s.Total[bucket][field] += 1;
+  };
+  // email + session -> bucket, so a booked call lands in its lead's bucket.
+  const bucketByLead = new Map<string, number>();
   for (const r of registrants) {
     if (!r.sessionDate || (r.source !== "Paid" && r.source !== "Organic")) continue;
+    const bucket = bucketOf(r.signupDate, r.sessionDate);
+    bump(r.sessionDate, r.source, bucket, "registered");
+    if (r.stage === "Attended" || r.stage === "Stayed Until Pitch") bump(r.sessionDate, r.source, bucket, "attended");
+    if (r.stage === "Stayed Until Pitch") bump(r.sessionDate, r.source, bucket, "stayed");
+    if (r.email && bucket !== null) {
+      const k = `${r.email}|${r.sessionDate}`;
+      // Someone registered twice: keep the earliest sign-up (longest lead time).
+      bucketByLead.set(k, Math.max(bucketByLead.get(k) ?? 0, bucket));
+    }
     if (typeof r.enteredAt === "number") {
       let a = attendees.get(r.sessionDate);
       if (!a) attendees.set(r.sessionDate, (a = { Paid: [], Organic: [] }));
@@ -266,6 +307,10 @@ export function webinarSourceRows(
     if (b.source !== "Paid" && b.source !== "Organic") continue;
     const c = at(w)[b.source];
     c.booked += 1;
+    if (b.email) {
+      const bucket = bucketByLead.get(`${b.email.trim().toLowerCase()}|${w}`);
+      if (bucket !== undefined) bump(w, b.source, bucket, "booked");
+    }
     if (b.canceled) c.canceled += 1;
     if (isConnectable(b)) {
       c.connectable += 1;
@@ -298,6 +343,7 @@ export function webinarSourceRows(
         paid: held(finish(c.Paid, adSpend, room(a.Paid, pitchAtSeconds))),
         organic: held(finish(c.Organic, null, room(a.Organic, pitchAtSeconds))),
         total: held(finish(plus(c.Paid, c.Organic), null, room([...a.Paid, ...a.Organic], pitchAtSeconds))),
+        leadTime: leadTimes.get(run.date) ?? blankSplit(),
         calls: (callLists.get(run.date) ?? []).sort((x, y) => (y.callTime ?? "").localeCompare(x.callTime ?? "")),
       };
     })

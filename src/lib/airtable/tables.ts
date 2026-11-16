@@ -817,6 +817,10 @@ const MASTERCLASS_REGISTRANTS_TABLE_ID = "tblekAN7Ba1YCeEa9";
 export type MasterclassRegistrantRow = {
   id: string;
   sessionDate: string | null;
+  /** Day they registered (WebinarJam reads only). */
+  signupDate?: string | null;
+  /** Lowercased email (WebinarJam reads only), to match their booked call. */
+  email?: string | null;
   source: string | null;
   stage: string | null;
   /** Live room, seconds into the session (WebinarJam reads only; null if they never came in). */

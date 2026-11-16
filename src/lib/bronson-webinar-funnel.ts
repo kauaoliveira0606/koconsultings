@@ -34,6 +34,8 @@ async function load(today: string): Promise<MasterclassRegistrantRow[]> {
   return people.map((p) => ({
     id: p.key,
     sessionDate: p.sessionDate,
+    signupDate: p.signupDate,
+    email: p.email,
     source: paid.has(p.email) ? "Paid" : "Organic",
     stage: p.stage,
     enteredAt: p.enteredAt,
@@ -44,7 +46,7 @@ async function load(today: string): Promise<MasterclassRegistrantRow[]> {
 /** Re-read in the background once 5 minutes old, so no visitor waits on WebinarJam. */
 export async function bronsonRegistrants(today: string): Promise<MasterclassRegistrantRow[]> {
   try {
-    return await staleWhileRevalidate("bronson-webinarjam-registrants:v1", () => load(today), 300, 24 * 60 * 60);
+    return await staleWhileRevalidate("bronson-webinarjam-registrants:v2", () => load(today), 300, 24 * 60 * 60);
   } catch (err) {
     console.error("WebinarJam (Bronson) unavailable, using Airtable registrants", err);
     return getMasterclassRegistrants();

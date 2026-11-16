@@ -54,6 +54,8 @@ async function loadAvalInputs(today: string): Promise<AvalInputs> {
   const registrants: MasterclassRegistrantRow[] = people.map((p) => ({
     id: p.key,
     sessionDate: p.sessionDate,
+    signupDate: p.signupDate,
+    email: p.email,
     source: sourceOf(p.email),
     stage: p.stage,
     enteredAt: p.enteredAt,
@@ -96,7 +98,7 @@ async function loadAvalInputs(today: string): Promise<AvalInputs> {
 
 /** Re-read in the background once 15 minutes old, so no visitor waits on WebinarJam, Calendly and GHL. */
 function avalInputs(today: string): Promise<AvalInputs> {
-  return staleWhileRevalidate("aval-webinar-funnel-inputs:v3", () => loadAvalInputs(today), 900, 24 * 60 * 60);
+  return staleWhileRevalidate("aval-webinar-funnel-inputs:v4", () => loadAvalInputs(today), 900, 24 * 60 * 60);
 }
 
 /** Aval's masterclass Calendly bookings (reschedules counted once), with source. */

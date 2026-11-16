@@ -21,6 +21,7 @@ type Registrant = {
   schedule_id: number | null;
   email: string | null;
   event: string;
+  signup_date?: string | null;
   attended_live: string;
   entered_live: string;
   time_live: string;
@@ -33,6 +34,8 @@ export type WebinarJamRegistrant = {
   /** YYYY-MM-DD of the session (from its schedule_id). */
   sessionDate: string | null;
   stage: "Registered" | "No Show" | "Attended" | "Stayed Until Pitch";
+  /** YYYY-MM-DD the person registered (WebinarJam's signup_date). */
+  signupDate: string | null;
   /** The sign-up carried an ad campaign UTM. */
   paidSignup: boolean;
   /** Seconds into the session they came into the live room; null if they never did. */
@@ -118,6 +121,7 @@ export async function getWebinarJamRegistrants(
         key: `${r.id}:${r.event_id}`,
         email: r.email!.trim().toLowerCase(),
         sessionDate,
+        signupDate: toDay(r.signup_date),
         stage,
         paidSignup: !!(r.utm_campaign ?? "").trim(),
         enteredAt,
