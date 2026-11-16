@@ -360,7 +360,8 @@ const LEAD_LABELS = Array.from({ length: LEAD_TIME_MAX + 1 }, (_, d) =>
  */
 function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
   const [pick, setPick] = useState<string>("all");
-  const [source, setSource] = useState<"Total" | "Paid" | "Organic">("Total");
+  // Paid traffic only (user, 2026-11-16).
+  const source = "Paid" as const;
   const chosen = pick === "all" ? webinars.filter((x) => x.status === "done") : webinars.filter((x) => x.date === pick);
   const rows: LeadTimeCounts[] = LEAD_LABELS.map((_, i) =>
     chosen.reduce(
@@ -373,13 +374,17 @@ function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
       { registered: 0, attended: 0, stayed: 0, booked: 0 },
     ),
   );
+  const spend = LEAD_LABELS.map((_, i) => chosen.reduce((s, x) => s + (x.adSpendByLead?.[i] ?? 0), 0));
+  const spendTotal = spend.reduce((a, b) => a + b, 0);
   const total = rows.reduce(
     (a, c) => ({ registered: a.registered + c.registered, attended: a.attended + c.attended, stayed: a.stayed + c.stayed, booked: a.booked + c.booked }),
     { registered: 0, attended: 0, stayed: 0, booked: 0 },
   );
   const pct = (n: number, d: number) => formatStatValue(d ? n / d : null, "percent");
   const upcomingOnly = pick !== "all" && chosen[0]?.status === "upcoming";
-  const line = (label: string, c: LeadTimeCounts, bold = false) => (
+  const line = (label: string, c: LeadTimeCounts, ad: number, bold = false) => {
+    const cost = (n: number) => (ad && n ? formatStatValue(ad / n, "currency") : "—");
+    return (
     <tr key={label} className={bold ? "font-bold" : undefined}>
       <th className="sticky left-0 bg-[var(--panel-bg)] px-3 py-2.5 text-left font-medium text-[var(--text-strong)]">{label}</th>
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{c.registered}</td>
@@ -391,17 +396,22 @@ function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{upcomingOnly ? "—" : pct(c.stayed, c.attended)}</td>
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{c.booked}</td>
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{pct(c.booked, c.stayed)}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{ad ? formatStatValue(ad, "currency") : "—"}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{cost(c.registered)}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{upcomingOnly ? "—" : cost(c.attended)}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-white">{cost(c.booked)}</td>
     </tr>
-  );
+    );
+  };
   const chip = (active: boolean) =>
     `rounded-lg border px-3 py-1.5 text-sm font-semibold ${
       active ? "border-sky-400 bg-sky-400/15 text-white" : "border-[var(--panel-border)] text-[var(--text-muted)] hover:text-white"
     }`;
-  const heads = ["Registered", "% of Registered", "Attended", "Show Rate", "Stayed Until Pitch", "Stayed ÷ Registered", "Stayed ÷ Attended", "Calls Booked", "Booking Rate"];
+  const heads = ["Registered", "% of Registered", "Attended", "Show Rate", "Stayed Until Pitch", "Stayed ÷ Registered", "Stayed ÷ Attended", "Calls Booked", "Booking Rate", "Ad Spend", "Cost Per Lead", "Cost Per Attendee", "Cost Per Booked Call"];
   return (
     <DashboardSection title="By Registration Day">
       <p className="mb-4 text-sm text-[var(--text-muted)]">
-        How far ahead of the webinar people registered, and how each group behaved. Show rate = attended ÷ registered. Booking rate = calls booked ÷ stayed until pitch.
+        How far ahead of the webinar paid leads registered, and how each group behaved. Show rate = attended ÷ registered. Booking rate = calls booked ÷ stayed until pitch. Ad spend = Meta spend on the days that group registered. Paid traffic only; costs = ad spend ÷ paid count.
         {pick === "all" ? " All webinars held so far, added together." : ""}
       </p>
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -414,16 +424,10 @@ function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
             {x.status === "upcoming" ? " (upcoming)" : ""}
           </button>
         ))}
-        <span className="mx-1 h-5 w-px bg-white/15" />
-        {(["Total", "Paid", "Organic"] as const).map((k) => (
-          <button key={k} type="button" onClick={() => setSource(k)} className={chip(source === k)}>
-            {k}
-          </button>
-        ))}
       </div>
       <div className="min-w-0 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
+          <table className="w-full min-w-[1250px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
             <thead>
               <tr className="text-[13px] text-[var(--text-muted)]">
                 <th className="sticky left-0 bg-[var(--panel-bg)] px-3 py-2.5 text-left font-semibold">Registered</th>
@@ -435,8 +439,8 @@ function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((c, i) => line(LEAD_LABELS[i], c))}
-              {line("All", total, true)}
+              {rows.map((c, i) => line(LEAD_LABELS[i], c, spend[i]))}
+              {line("All", total, spendTotal, true)}
             </tbody>
           </table>
         </div>

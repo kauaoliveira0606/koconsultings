@@ -104,6 +104,8 @@ export type WebinarSourceRow = {
   total: SourceFunnel;
   /** Registered / attended / stayed / booked by how many days before the session they registered. */
   leadTime: LeadTimeSplit;
+  /** Meta ad spend on the days people registered, by days before the session (same buckets as leadTime). */
+  adSpendByLead: number[];
   /** Every booked call counted toward this webinar, newest call first. */
   calls: BookedCall[];
 };
@@ -333,6 +335,11 @@ export function webinarSourceRows(
       const status = run.date < today ? ("done" as const) : ("upcoming" as const);
       // Before the webinar runs, nobody could have shown up yet: blank, not 0%.
       const held = (f: SourceFunnel): SourceFunnel => (status === "upcoming" ? { ...f, showRate: null, concurrentShowRate: null } : f);
+      const adSpendByLead = Array.from({ length: LEAD_TIME_MAX + 1 }, () => 0);
+      for (const m of days) {
+        const d = Math.round((Date.parse(`${run.date}T00:00:00Z`) - Date.parse(`${m.date}T00:00:00Z`)) / 86_400_000);
+        adSpendByLead[Math.min(Math.max(d, 0), LEAD_TIME_MAX)] += m.adSpendMeta ?? 0;
+      }
       const a = attendees.get(run.date) ?? { Paid: [], Organic: [] };
       return {
         number: i + 1,
@@ -344,6 +351,7 @@ export function webinarSourceRows(
         organic: held(finish(c.Organic, null, room(a.Organic, pitchAtSeconds))),
         total: held(finish(plus(c.Paid, c.Organic), null, room([...a.Paid, ...a.Organic], pitchAtSeconds))),
         leadTime: leadTimes.get(run.date) ?? blankSplit(),
+        adSpendByLead,
         calls: (callLists.get(run.date) ?? []).sort((x, y) => (y.callTime ?? "").localeCompare(x.callTime ?? "")),
       };
     })
