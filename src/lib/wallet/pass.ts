@@ -39,16 +39,8 @@ export function passJson(ev: WalletEvent, serial: string, authToken: string, now
     authenticationToken: authToken,
     barcodes: [{ format: "PKBarcodeFormatQR", message: ev.joinUrl, messageEncoding: "iso-8859-1", altText: "Scan to join" }],
     eventTicket: {
-      headerFields: [
-        {
-          key: "starts",
-          label: "STARTS",
-          value: w3c(ph.start),
-          dateStyle: "PKDateStyleMedium",
-          timeStyle: "PKDateStyleShort",
-          changeMessage: "Next session: %@",
-        },
-      ],
+      // No header field: the top-right "STARTS" next to the logo was removed (user, 2026-11-16).
+      headerFields: [],
       // Date and time in one unambiguous line, in the event's own zone ("Nov 17, 2026 at 7:00 PM EST").
       primaryFields: ev.timeOnFront ? [{ key: "time", label: "DATE & TIME", value: timeLabel(ev, ph.start) }] : [],
       secondaryFields: [
