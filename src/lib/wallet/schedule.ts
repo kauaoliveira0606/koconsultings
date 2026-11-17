@@ -107,7 +107,7 @@ export function leadLabel(minutes: number): string {
   return `${minutes} minutes`;
 }
 
-export type Phase = "confirmed" | "tomorrow" | "today" | "lead" | "now" | "ended";
+export type Phase = "confirmed" | "tomorrow" | "today" | "lead" | "hour" | "now" | "live" | "last" | "ended";
 
 /** Where we are relative to the session, and when that state began. */
 export function phase(ev: WalletEvent, now = new Date()) {
@@ -120,12 +120,19 @@ export function phase(ev: WalletEvent, now = new Date()) {
     today: dayEnd(new Date(s - 24 * 3600e3), ev.timeZone).getTime(),
     lead: s - ev.leadMinutes * 60e3,
     now: s - 15 * 60e3,
+    // liveReminders events: 1 hour before, live at the start, last call 15 minutes in (user, 2026-11-16).
+    hour: s - 60 * 60e3,
+    live: s,
+    last: s + 15 * 60e3,
     ended: end.getTime(),
   };
   let p: Phase = "confirmed";
   let since = previousSessionEnd(ev, now).getTime();
   if (t >= marks.ended) [p, since] = ["ended", marks.ended];
-  else if (t >= marks.now) [p, since] = ["now", marks.now];
+  else if (ev.liveReminders && t >= marks.last) [p, since] = ["last", marks.last];
+  else if (ev.liveReminders && t >= marks.live) [p, since] = ["live", marks.live];
+  else if (ev.liveReminders && t >= marks.hour) [p, since] = ["hour", marks.hour];
+  else if (!ev.liveReminders && t >= marks.now) [p, since] = ["now", marks.now];
   else if (t >= marks.lead) [p, since] = ["lead", marks.lead];
   else if (t >= marks.today) [p, since] = ["today", marks.today];
   else if (t >= marks.tomorrow) [p, since] = ["tomorrow", marks.tomorrow];
@@ -140,8 +147,14 @@ export function statusText(ev: WalletEvent, p: Phase): string {
       return "Starts today";
     case "lead":
       return `Starts in ${leadLabel(ev.leadMinutes)}`;
+    case "hour":
+      return "Starts in 1 hour";
     case "now":
       return "Starting now";
+    case "live":
+      return "Live now";
+    case "last":
+      return "Last call, class is live";
     case "ended":
       return "See you next week";
     default:

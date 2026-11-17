@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/wallet",
-      "schedule": "*/5 * * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/cron/ad-alerts",

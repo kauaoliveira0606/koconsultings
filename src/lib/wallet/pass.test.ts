@@ -20,7 +20,13 @@ describe("wallet schedule", () => {
     expect(phase(ev, new Date("2026-11-16T05:30:00Z")).phase).toBe("today");
     expect(phase(ev, new Date("2026-11-16T19:00:00Z")).phase).toBe("today");
     expect(phase(ev, new Date("2026-11-16T21:30:00Z")).phase).toBe("lead");
-    expect(phase(ev, new Date("2026-11-16T23:50:00Z")).phase).toBe("now");
+    expect(phase(ev, new Date("2026-11-16T23:00:00Z")).phase).toBe("hour");
+    expect(phase(ev, new Date("2026-11-16T22:59:00Z")).phase).toBe("lead");
+    expect(phase(ev, new Date("2026-11-16T23:50:00Z")).phase).toBe("hour");
+    expect(phase(ev, new Date("2026-11-17T00:00:00Z")).phase).toBe("live");
+    expect(phase(ev, new Date("2026-11-17T00:14:00Z")).phase).toBe("live");
+    expect(phase(ev, new Date("2026-11-17T00:15:00Z")).phase).toBe("last");
+    expect(phase(ev, new Date("2026-11-17T01:30:00Z")).phase).toBe("ended");
     expect(leadLabel(180)).toBe("3 hours");
     expect(leadLabel(90)).toBe("90 minutes");
   });

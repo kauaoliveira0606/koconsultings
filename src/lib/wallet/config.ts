@@ -35,6 +35,11 @@ export type WalletEvent = {
   durationMinutes: number;
   /** Pins the next session to this local date (YYYY-MM-DD) until it has run. */
   pinnedDate?: string;
+  /**
+   * Reminder ladder 24h / lead / 1h before, "Live now" at the start, last call 15 minutes in (replaces the
+   * 15-minutes-before "Starting now"). Not for weekdays events: those roll to the next session at the start.
+   */
+  liveReminders?: boolean;
   /** Lead time for the middle reminder, in minutes. */
   leadMinutes: number;
   joinUrl: string;
@@ -71,6 +76,7 @@ export const WALLET_EVENTS: WalletEvent[] = [
     // Mon Nov 16, 7 PM ET (user, 2026-11-08); weekly on Mondays after that.
     pinnedDate: "2026-11-16",
     leadMinutes: 180,
+    liveReminders: true,
     joinUrl: "https://event.webinarjam.com/8wgzn9/go/live/13q192tyipsxs4",
     access: "Live Only",
     colors: { background: "rgb(252,253,252)", foreground: "rgb(15,23,42)", label: "rgb(22,163,74)" },
