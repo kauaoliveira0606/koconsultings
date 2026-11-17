@@ -387,7 +387,8 @@ function RegistrationDayView({ webinars, withApplications }: { webinars: Webinar
     { registered: 0, attended: 0, stayed: 0, booked: 0, applied: 0 },
   );
   const pct = (n: number, d: number) => formatStatValue(d ? n / d : null, "percent");
-  const upcomingOnly = pick !== "all" && chosen[0]?.status === "upcoming";
+  // A webinar running today is still "upcoming" until midnight, but once people have attended the rates are real (user, 2026-11-16).
+  const upcomingOnly = pick !== "all" && chosen[0]?.status === "upcoming" && total.attended === 0;
   const line = (label: string, c: LeadTimeCounts, ad: number, bold = false) => {
     const cost = (n: number) => (ad && n ? formatStatValue(ad / n, "currency") : "—");
     return (
