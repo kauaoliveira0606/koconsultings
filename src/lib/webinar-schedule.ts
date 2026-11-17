@@ -35,6 +35,8 @@ export const WEBINAR_SCHEDULE: Record<WebinarOffer, WebinarRun[]> = {
     { date: "2026-11-04" },
     // Fourth session: moved from Wed Nov 18 to Mon Nov 16, 7 PM ET (user, 2026-11-08; WebinarJam updated).
     { date: "2026-11-16" },
+    // Fifth session: Mon Nov 23, 7 PM ET (user, 2026-11-16).
+    { date: "2026-11-23" },
   ]),
   aval: chainPromos([
     { promoStart: "2026-10-14", date: "2026-10-18" },

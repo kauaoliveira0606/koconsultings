@@ -73,8 +73,8 @@ export const WALLET_EVENTS: WalletEvent[] = [
     minute: 0,
     durationMinutes: 90,
     // Keep in step with ~/repos/bronson masterclass-confirmation/done-shared.js (MASTERCLASS_DATE).
-    // Mon Nov 16, 7 PM ET (user, 2026-11-08); weekly on Mondays after that.
-    pinnedDate: "2026-11-16",
+    // Mon Nov 23, 7 PM ET (user, 2026-11-16); weekly on Mondays after that.
+    pinnedDate: "2026-11-23",
     leadMinutes: 180,
     liveReminders: true,
     joinUrl: "https://event.webinarjam.com/8wgzn9/go/live/13q192tyipsxs4",
