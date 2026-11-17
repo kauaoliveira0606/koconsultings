@@ -49,7 +49,8 @@ export function passJson(ev: WalletEvent, serial: string, authToken: string, now
           changeMessage: "Next session: %@",
         },
       ],
-      primaryFields: [],
+      // Date and time in one unambiguous line, in the event's own zone ("Nov 17, 2026 at 7:00 PM EST").
+      primaryFields: ev.timeOnFront ? [{ key: "time", label: "DATE & TIME", value: timeLabel(ev, ph.start) }] : [],
       secondaryFields: [
         { key: "seat", label: "YOUR SEAT", value: "Reserved" },
         { key: "access", label: "ACCESS", value: ev.access, textAlignment: "PKTextAlignmentRight" },
@@ -57,9 +58,7 @@ export function passJson(ev: WalletEvent, serial: string, authToken: string, now
       auxiliaryFields: [
         // Front-of-pass text cannot be a link (user wording 2026-11-06).
         { key: "join", label: "HOW TO JOIN", value: "The Link Is In Your Email!" },
-        ev.timeOnFront
-          ? { key: "time", label: "TIME", value: timeLabel(ev, ph.start), textAlignment: "PKTextAlignmentRight" }
-          : statusField,
+        ...(ev.timeOnFront ? [] : [statusField]),
       ],
       backFields: [
         {
@@ -76,9 +75,10 @@ export function passJson(ev: WalletEvent, serial: string, authToken: string, now
   };
 }
 
-/** "7:00 PM EST": start time with the zone abbreviation, in the event's own timezone. */
+/** "Nov 17, 2026 at 7:00 PM EST": full date and start time with the zone abbreviation, in the event's own timezone. */
 export function timeLabel(ev: WalletEvent, start: Date): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone: ev.timeZone, hour: "numeric", minute: "2-digit", hour12: true, timeZoneName: "short" }).format(start);
+  const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: ev.timeZone, ...o }).format(start);
+  return `${f({ month: "short", day: "numeric", year: "numeric" })} at ${f({ hour: "numeric", minute: "2-digit", hour12: true, timeZoneName: "short" })}`;
 }
 
 /** Last-Modified for a pass: when its current content took effect. */

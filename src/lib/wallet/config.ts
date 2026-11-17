@@ -82,7 +82,7 @@ export const WALLET_EVENTS: WalletEvent[] = [
     colors: { background: "rgb(252,253,252)", foreground: "rgb(15,23,42)", label: "rgb(22,163,74)" },
     assets: "bronson-masterclass",
     timeOnFront: true,
-    designUpdated: "2026-11-14T03:30:00Z", // new Ecom MBA logo
+    designUpdated: "2026-11-16T20:00:00Z", // full date + time as the primary field
   },
   {
     // Encore: automated AEvent sessions on every day except the live days (Mon + Thu), 8 PM ET.
@@ -106,7 +106,7 @@ export const WALLET_EVENTS: WalletEvent[] = [
     colors: { background: "rgb(252,253,252)", foreground: "rgb(15,23,42)", label: "rgb(22,163,74)" },
     assets: "bronson-masterclass",
     timeOnFront: true,
-    designUpdated: "2026-11-16T17:00:00Z",
+    designUpdated: "2026-11-16T20:00:00Z", // full date + time as the primary field
   },
 ];
 
