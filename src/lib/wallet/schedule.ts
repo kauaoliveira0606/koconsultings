@@ -52,10 +52,12 @@ function weekdaySessionStart(ev: WalletEvent, now: Date, add: number): Date | nu
 
 export function currentSession(ev: WalletEvent, now = new Date()): { start: Date; end: Date } {
   if (ev.weekdays?.length) {
-    // Next session that has not started yet; rolls the moment one starts.
-    for (let add = 0; add < 9; add++) {
+    // Next session that has not started yet; rolls the moment one starts (liveReminders: when it ends).
+    for (let add = -1; add < 9; add++) {
       const s = weekdaySessionStart(ev, now, add);
-      if (s && s > now) return { start: s, end: new Date(s.getTime() + ev.durationMinutes * 60000) };
+      if (!s) continue;
+      const end = new Date(s.getTime() + ev.durationMinutes * 60000);
+      if (ev.liveReminders ? end > now : s > now) return { start: s, end };
     }
   }
   let start: Date | null = null;
@@ -80,10 +82,10 @@ export function currentSession(ev: WalletEvent, now = new Date()): { start: Date
 export function previousSessionEnd(ev: WalletEvent, now = new Date()): Date {
   const { start } = currentSession(ev, now);
   if (ev.weekdays?.length) {
-    // The pass rolled to this session when the previous one started.
+    // The pass rolled to this session when the previous one started (liveReminders: when it ended).
     for (let back = 1; back < 9; back++) {
       const s = weekdaySessionStart(ev, new Date(start.getTime() - back * 864e5), 0);
-      if (s && s < start && s <= now) return s;
+      if (s && s < start && s <= now) return ev.liveReminders ? new Date(s.getTime() + ev.durationMinutes * 60000) : s;
     }
   }
   let prevStart = new Date(start.getTime() - 7 * 864e5);

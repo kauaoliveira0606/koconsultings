@@ -37,7 +37,7 @@ export type WalletEvent = {
   pinnedDate?: string;
   /**
    * Reminder ladder 24h / lead / 1h before, "Live now" at the start, last call 15 minutes in (replaces the
-   * 15-minutes-before "Starting now"). Not for weekdays events: those roll to the next session at the start.
+   * 15-minutes-before "Starting now"). For weekdays events the pass then rolls to the next session when this one ends, not at its start.
    */
   liveReminders?: boolean;
   /** Lead time for the middle reminder, in minutes. */
@@ -98,7 +98,8 @@ export const WALLET_EVENTS: WalletEvent[] = [
     hour: 20,
     minute: 0,
     durationMinutes: 90,
-    leadMinutes: 60,
+    leadMinutes: 180,
+    liveReminders: true,
     // The AEvent join link is personal and arrives by text and email; the pass points at the Encore page.
     joinUrl: "https://www.ad-ventur.com/encore",
     access: "Live Only",
