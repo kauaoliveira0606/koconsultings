@@ -118,7 +118,7 @@ const INTENT_SCHEMA = {
   additionalProperties: false,
 };
 
-const INTENT_SYSTEM = `You label one text message from someone who registered for a live online masterclass, missed it, and was offered "we'll grab the spot for you [tomorrow/day] at 8pm est. Just let me know if you want it."
+const INTENT_SYSTEM = `You label one text message from someone who registered for a live online masterclass, missed it, and was offered a private invite to the next session ("I can give you a private invite for [tomorrow/day] at 8pm est ... Want me to save your seat?", or the older "we'll grab the spot for you ... Just let me know if you want it.")
 Return JSON {"intent": ...}:
 - "yes": a clear yes to being signed up (yes, yeah, yep, sure, please do, I'm in, do it, ok sign me up).
 - "no": a clear no to this offer (no, can't make it, not interested in that one) that does not ask us to stop texting.
@@ -178,7 +178,7 @@ export async function runEncoreReplies(deadline: number, report: RunReport): Pro
 
     const msgs = await history(OFFER, c.id);
     const sms = msgs.filter((m) => m.messageType === "TYPE_SMS" || m.messageType === ROEZAN_SMS);
-    const ourText = [...sms].reverse().find((m) => m.direction === "outbound" && /grab the spot for you/i.test(m.body ?? ""));
+    const ourText = [...sms].reverse().find((m) => m.direction === "outbound" && /(grab the spot for you|private invite for)/i.test(m.body ?? ""));
     const inbound = [...sms].reverse().find((m) => m.direction === "inbound" && m.dateAdded > (ourText?.dateAdded ?? "9999"));
     if (!ourText || !inbound?.body) continue; // not a reply to our text
     // A person on the team already answered: stay out of it.

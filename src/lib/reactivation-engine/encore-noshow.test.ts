@@ -17,8 +17,8 @@ describe("encore no-show wording", () => {
     expect(whenWords(at("2026-11-21T15:00:00Z"))).toBe("tonight at 8pm est");
   });
   it("uses the user's wording and only names someone with a real first name", () => {
-    expect(noShowText("Kaua", at("2026-11-18T02:30:00Z"))).toBe("Hey Kaua, we'll grab the spot for you tomorrow at 8pm est. Just let me know if you want it.");
-    expect(noShowText(null, at("2026-11-18T02:30:00Z"))).toBe("Hey, we'll grab the spot for you tomorrow at 8pm est. Just let me know if you want it.");
+    expect(noShowText("Kaua", at("2026-11-18T02:30:00Z"))).toBe("Hey Kaua, saw you missed the masterclass, no worries. I can give you a private invite for tomorrow at 8pm est. I'm hosting one more for people that missed it. Want me to save your seat?");
+    expect(noShowText(null, at("2026-11-18T02:30:00Z"))).toBe("Hey, saw you missed the masterclass, no worries. I can give you a private invite for tomorrow at 8pm est. I'm hosting one more for people that missed it. Want me to save your seat?");
   });
   it("matches the AEvent schedule", () => {
     const n = nextEncore(at("2026-11-16T17:00:00Z"));
