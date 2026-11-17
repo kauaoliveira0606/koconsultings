@@ -42,15 +42,19 @@ export function passJson(ev: WalletEvent, serial: string, authToken: string, now
       // No header field: the top-right "STARTS" next to the logo was removed (user, 2026-11-16).
       headerFields: [],
       // Date and time in one unambiguous line, in the event's own zone ("Nov 17, 2026 at 7:00 PM EST").
-      primaryFields: ev.timeOnFront ? [{ key: "time", label: "DATE & TIME", value: timeLabel(ev, ph.start) }] : [],
-      secondaryFields: [
-        { key: "seat", label: "YOUR SEAT", value: "Reserved" },
-        { key: "access", label: "ACCESS", value: ev.access, textAlignment: "PKTextAlignmentRight" },
-      ],
+      // timeOnFront passes: ACCESS is the big line, DATE & TIME sits below it full width so the long date never
+      // truncates (user, 2026-11-16: switch time and access); YOUR SEAT moved next to HOW TO JOIN.
+      primaryFields: ev.timeOnFront ? [{ key: "access", label: "ACCESS", value: ev.access }] : [],
+      secondaryFields: ev.timeOnFront
+        ? [{ key: "time", label: "DATE & TIME", value: timeLabel(ev, ph.start) }]
+        : [
+            { key: "seat", label: "YOUR SEAT", value: "Reserved" },
+            { key: "access", label: "ACCESS", value: ev.access, textAlignment: "PKTextAlignmentRight" },
+          ],
       auxiliaryFields: [
         // Front-of-pass text cannot be a link (user wording 2026-11-06).
         { key: "join", label: "HOW TO JOIN", value: "The Link Is In Your Email!" },
-        ...(ev.timeOnFront ? [] : [statusField]),
+        ...(ev.timeOnFront ? [{ key: "seat", label: "YOUR SEAT", value: "Reserved", textAlignment: "PKTextAlignmentRight" }] : [statusField]),
       ],
       backFields: [
         {
