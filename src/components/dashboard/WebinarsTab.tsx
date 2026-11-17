@@ -146,6 +146,12 @@ function frontEnd(offer: "bronson" | "aval", goals: GoalsConfig | undefined, con
       rows: [
         split("Calls Booked", "number", (f) => f.booked),
         split("Booking Rate", "percent", (f) => f.bookingRate, { note: "Calls booked ÷ stayed until pitch." }),
+        ...(offer === "bronson"
+          ? [
+              split("Applications", "number", (f) => f.applied, { note: "Completed Typeform applications from webinar registrants." }),
+              split("Application Rate", "percent", (f) => f.applicationRate, { note: "Applications ÷ stayed until pitch." }),
+            ]
+          : []),
         { label: "Cost Per Booked Call", format: "currency", paid: (w) => w.paid.costPerBookedCall, note: "Ad spend ÷ paid calls booked." },
       ],
     },
@@ -358,7 +364,7 @@ const LEAD_LABELS = Array.from({ length: LEAD_TIME_MAX + 1 }, (_, d) =>
  * 2026-11-16): same day, 1 day before, 2 days before, and so on. One webinar
  * or all of them added together; paid, organic or total.
  */
-function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
+function RegistrationDayView({ webinars, withApplications }: { webinars: WebinarReport[]; withApplications: boolean }) {
   const [pick, setPick] = useState<string>("all");
   // Paid traffic only (user, 2026-11-16).
   const source = "Paid" as const;
@@ -368,17 +374,17 @@ function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
       (acc, x) => {
         const c = x.leadTime?.[source]?.[i];
         return c
-          ? { registered: acc.registered + c.registered, attended: acc.attended + c.attended, stayed: acc.stayed + c.stayed, booked: acc.booked + c.booked }
+          ? { registered: acc.registered + c.registered, attended: acc.attended + c.attended, stayed: acc.stayed + c.stayed, booked: acc.booked + c.booked, applied: acc.applied + (c.applied ?? 0) }
           : acc;
       },
-      { registered: 0, attended: 0, stayed: 0, booked: 0 },
+      { registered: 0, attended: 0, stayed: 0, booked: 0, applied: 0 },
     ),
   );
   const spend = LEAD_LABELS.map((_, i) => chosen.reduce((s, x) => s + (x.adSpendByLead?.[i] ?? 0), 0));
   const spendTotal = spend.reduce((a, b) => a + b, 0);
   const total = rows.reduce(
-    (a, c) => ({ registered: a.registered + c.registered, attended: a.attended + c.attended, stayed: a.stayed + c.stayed, booked: a.booked + c.booked }),
-    { registered: 0, attended: 0, stayed: 0, booked: 0 },
+    (a, c) => ({ registered: a.registered + c.registered, attended: a.attended + c.attended, stayed: a.stayed + c.stayed, booked: a.booked + c.booked, applied: a.applied + (c.applied ?? 0) }),
+    { registered: 0, attended: 0, stayed: 0, booked: 0, applied: 0 },
   );
   const pct = (n: number, d: number) => formatStatValue(d ? n / d : null, "percent");
   const upcomingOnly = pick !== "all" && chosen[0]?.status === "upcoming";
@@ -396,6 +402,8 @@ function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{upcomingOnly ? "—" : pct(c.stayed, c.attended)}</td>
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{c.booked}</td>
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{pct(c.booked, c.stayed)}</td>
+      {withApplications && <td className="px-3 py-2.5 text-right tabular-nums text-white">{c.applied}</td>}
+      {withApplications && <td className="px-3 py-2.5 text-right tabular-nums text-white">{pct(c.applied, c.stayed)}</td>}
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{ad ? formatStatValue(ad, "currency") : "—"}</td>
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{cost(c.registered)}</td>
       <td className="px-3 py-2.5 text-right tabular-nums text-white">{upcomingOnly ? "—" : cost(c.attended)}</td>
@@ -407,11 +415,11 @@ function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
     `rounded-lg border px-3 py-1.5 text-sm font-semibold ${
       active ? "border-sky-400 bg-sky-400/15 text-white" : "border-[var(--panel-border)] text-[var(--text-muted)] hover:text-white"
     }`;
-  const heads = ["Registered", "% of Registered", "Attended", "Show Rate", "Stayed Until Pitch", "Stayed ÷ Registered", "Stayed ÷ Attended", "Calls Booked", "Booking Rate", "Ad Spend", "Cost Per Lead", "Cost Per Attendee", "Cost Per Booked Call"];
+  const heads = ["Registered", "% of Registered", "Attended", "Show Rate", "Stayed Until Pitch", "Stayed ÷ Registered", "Stayed ÷ Attended", "Calls Booked", "Booking Rate", ...(withApplications ? ["Applications", "Application Rate"] : []), "Ad Spend", "Cost Per Lead", "Cost Per Attendee", "Cost Per Booked Call"];
   return (
     <DashboardSection title="By Registration Day">
       <p className="mb-4 text-sm text-[var(--text-muted)]">
-        How far ahead of the webinar paid leads registered, and how each group behaved. Show rate = attended ÷ registered. Booking rate = calls booked ÷ stayed until pitch. Ad spend = Meta spend on the days that group registered. Paid traffic only; costs = ad spend ÷ paid count.
+        How far ahead of the webinar paid leads registered, and how each group behaved. Show rate = attended ÷ registered. Booking rate = calls booked ÷ stayed until pitch.{withApplications ? " Application rate = applications ÷ stayed until pitch." : ""} Ad spend = Meta spend on the days that group registered. Paid traffic only; costs = ad spend ÷ paid count.
         {pick === "all" ? " All webinars held so far, added together." : ""}
       </p>
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -427,7 +435,7 @@ function RegistrationDayView({ webinars }: { webinars: WebinarReport[] }) {
       </div>
       <div className="min-w-0 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 backdrop-blur-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1250px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
+          <table className="w-full min-w-[1450px] border-collapse text-sm [&_tbody_tr]:border-b [&_tbody_tr]:border-white/[0.06]">
             <thead>
               <tr className="text-[13px] text-[var(--text-muted)]">
                 <th className="sticky left-0 bg-[var(--panel-bg)] px-3 py-2.5 text-left font-semibold">Registered</th>
@@ -512,7 +520,7 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
       ) : !w ? (
         <p className="text-sm text-[var(--text-muted)]">Loading...</p>
       ) : byRegDay ? (
-        <RegistrationDayView webinars={webinars} />
+        <RegistrationDayView webinars={webinars} withApplications={offer === "bronson"} />
       ) : (
         <>
           <p className="mb-6 text-sm text-[var(--text-muted)]">
@@ -530,6 +538,8 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
                 : hero("Cost Per Attendee (Paid)", w.paid.costPerAttendee, "currency", `Ad spend ÷ ${w.paid.attended} paid live attendees`)}
               {hero("Booking Rate (Paid)", w.paid.bookingRate, "percent", `${w.paid.booked} booked of ${w.paid.stayed} at pitch`)}
               {hero("Booking Rate (Organic)", w.organic.bookingRate, "percent", `${w.organic.booked} booked of ${w.organic.stayed} at pitch`)}
+              {offer === "bronson" && hero("Application Rate (Paid)", w.paid.applicationRate, "percent", `${w.paid.applied} applied of ${w.paid.stayed} at pitch`)}
+              {offer === "bronson" && hero("Application Rate (Organic)", w.organic.applicationRate, "percent", `${w.organic.applied} applied of ${w.organic.stayed} at pitch`)}
               {concurrent ? (
                 <>
                   {hero("Concurrent Show Rate (Paid)", w.paid.concurrentShowRate, "percent", `${w.paid.peakRoom ?? "–"} peak of ${w.paid.registered} registered`)}

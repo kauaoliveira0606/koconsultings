@@ -8,6 +8,7 @@ import { safeDivide, sum } from "@/lib/metrics";
 import { connectedBookingIds, countedBookings, isConnectable, type BookingSource } from "@/lib/booking-source";
 import type { WebinarRun } from "@/lib/webinar-schedule";
 import { addDaysToDateString } from "@/lib/date-range";
+import type { ApplicationRow } from "@/lib/typeform-applications";
 
 /**
  * One webinar's funnel split paid vs organic, all automatic (user,
@@ -27,6 +28,8 @@ export type SourceFunnel = {
   attended: number;
   stayed: number;
   booked: number;
+  /** Completed Typeform applications from webinar registrants (Bronson only). */
+  applied: number;
   canceled: number;
   connected: number;
   connectable: number;
@@ -49,6 +52,8 @@ export type SourceFunnel = {
    */
   concurrentShowRate: number | null;
   bookingRate: number | null;
+  /** Applications ÷ stayed until pitch. */
+  applicationRate: number | null;
   connectionRate: number | null;
   /** Calls that showed ÷ calls due so far. */
   callShowRate: number | null;
@@ -89,7 +94,7 @@ export type BookedCall = {
  * added together.
  */
 export const LEAD_TIME_MAX = 7;
-export type LeadTimeCounts = { registered: number; attended: number; stayed: number; booked: number };
+export type LeadTimeCounts = { registered: number; attended: number; stayed: number; booked: number; applied: number };
 /** Index = days before the session. */
 export type LeadTimeSplit = Record<"Paid" | "Organic" | "Total", LeadTimeCounts[]>;
 
@@ -127,7 +132,7 @@ const CLOSED = (outcome: string) => outcome === "Closed (PIF)" || outcome === "P
 
 type Counts = Pick<
   SourceFunnel,
-  "registered" | "attended" | "stayed" | "booked" | "canceled" | "connected" | "connectable" | "due" | "showed" | "closed" | "cashCollected"
+  "registered" | "attended" | "stayed" | "booked" | "applied" | "canceled" | "connected" | "connectable" | "due" | "showed" | "closed" | "cashCollected"
 >;
 
 const zero = (): Counts => ({
@@ -135,6 +140,7 @@ const zero = (): Counts => ({
   attended: 0,
   stayed: 0,
   booked: 0,
+  applied: 0,
   canceled: 0,
   connected: 0,
   connectable: 0,
@@ -181,6 +187,7 @@ function finish(c: Counts, adSpend: number | null, r: Room = noRoom): SourceFunn
     showRate: safeDivide(c.attended, c.registered || null),
     concurrentShowRate: r.peakRoom === null ? null : safeDivide(r.peakRoom, c.registered || null),
     bookingRate: safeDivide(c.booked, c.stayed || null),
+    applicationRate: safeDivide(c.applied, c.stayed || null),
     connectionRate: safeDivide(c.connected, c.connectable || null),
     callShowRate: safeDivide(c.showed, c.due || null),
     closeRate: safeDivide(c.closed, c.showed || null),
@@ -205,6 +212,7 @@ export function webinarSourceRows(
   today: string,
   /** Seconds into the session the pitch starts; needed for the live room numbers. */
   pitchAtSeconds?: number,
+  applications: ApplicationRow[] = [],
 ): WebinarSourceRow[] {
   const now = Date.now();
   const dates = [...runs].map((r) => r.date).sort();
@@ -221,7 +229,7 @@ export function webinarSourceRows(
   const attendees = new Map<string, Record<BookingSource, MasterclassRegistrantRow[]>>();
   const leadTimes = new Map<string, LeadTimeSplit>();
   const blankSplit = (): LeadTimeSplit => {
-    const mk = () => Array.from({ length: LEAD_TIME_MAX + 1 }, () => ({ registered: 0, attended: 0, stayed: 0, booked: 0 }));
+    const mk = () => Array.from({ length: LEAD_TIME_MAX + 1 }, () => ({ registered: 0, attended: 0, stayed: 0, booked: 0, applied: 0 }));
     return { Paid: mk(), Organic: mk(), Total: mk() };
   };
   const bucketOf = (signup: string | null | undefined, session: string) => {
@@ -270,6 +278,24 @@ export function webinarSourceRows(
 
   const counted = countedBookings(bookings);
   const conn = connectedBookingIds(counted, calls);
+  // Applications: an applicant's source is their webinar registration's
+  // (paid if any sign-up was paid); one application per person per webinar.
+  const sourceByEmail = new Map<string, BookingSource>();
+  for (const r of registrants) {
+    if (!r.email || (r.source !== "Paid" && r.source !== "Organic")) continue;
+    if (sourceByEmail.get(r.email) !== "Paid") sourceByEmail.set(r.email, r.source);
+  }
+  const appliedSeen = new Set<string>();
+  for (const a of applications) {
+    const w = webinarFor(a.date);
+    const source = sourceByEmail.get(a.email);
+    if (!w || !source || appliedSeen.has(`${a.email}|${w}`)) continue;
+    appliedSeen.add(`${a.email}|${w}`);
+    at(w)[source].applied += 1;
+    const bucket = bucketByLead.get(`${a.email}|${w}`);
+    if (bucket !== undefined) bump(w, source, bucket, "applied");
+  }
+
   const callLists = new Map<string, BookedCall[]>();
   for (const b of counted) {
     const w = webinarFor(b.bookedDate!);
