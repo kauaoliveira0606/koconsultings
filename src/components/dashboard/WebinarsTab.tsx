@@ -148,7 +148,7 @@ function frontEnd(offer: "bronson" | "aval", goals: GoalsConfig | undefined, con
         split("Booking Rate", "percent", (f) => f.bookingRate, { note: "Calls booked ÷ stayed until pitch." }),
         ...(offer === "bronson"
           ? [
-              split("Applications", "number", (f) => f.applied, { note: "Completed Typeform applications from webinar registrants." }),
+              split("Applications", "number", (f) => f.applied, { note: "Completed /application form submissions from webinar registrants." }),
               split("Application Rate", "percent", (f) => f.applicationRate, { note: "Applications ÷ stayed until pitch." }),
             ]
           : []),

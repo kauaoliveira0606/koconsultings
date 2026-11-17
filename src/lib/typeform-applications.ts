@@ -1,7 +1,7 @@
 import { toEasternDateOnly } from "@/lib/date-range";
 
-/** Bronson's two application forms: the /application page and the home page. */
-const APPLICATION_FORMS = ["E5NzxcXh", "IUYQeIuA"];
+/** Only the /application page form counts (user, 2026-11-16), not the home page form. */
+const APPLICATION_FORMS = ["E5NzxcXh"];
 
 export type ApplicationRow = { email: string; date: string };
 
