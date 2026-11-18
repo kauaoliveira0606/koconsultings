@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
   // Show rate without cancelled calls (user, 2026-11-18): showed ÷ (booked − cancelled).
   // Cancelled Calls only exists on the EOD Closer form, so all three come from it.
   const closerBooked = sum(inRangeCloser.map((r) => r.callsBooked));
-  const closerCancelled = sum(inRangeCloser.map((r) => r.cancelledCalls)) ?? 0;
+  const closerCancelled = sum(inRangeCloser.map((r) => r.cancelledCalls ?? null)) ?? 0;
   const closerShowed = sum(inRangeCloser.map((r) => r.callsShowed));
   const highTicketCallsHeld = closerBooked == null ? null : closerBooked - closerCancelled;
 
