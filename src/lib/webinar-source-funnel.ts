@@ -57,6 +57,8 @@ export type SourceFunnel = {
   connectionRate: number | null;
   /** Calls that showed ÷ calls due so far. */
   callShowRate: number | null;
+  /** Calls that showed ÷ (calls booked minus canceled). */
+  callShowRateExCancelled: number | null;
   /** Closed ÷ calls that showed. */
   closeRate: number | null;
   /** Paid only: the webinar's ad spend ÷ paid live attendees. */
@@ -190,6 +192,7 @@ function finish(c: Counts, adSpend: number | null, r: Room = noRoom): SourceFunn
     applicationRate: safeDivide(c.applied, c.stayed || null),
     connectionRate: safeDivide(c.connected, c.connectable || null),
     callShowRate: safeDivide(c.showed, c.due || null),
+    callShowRateExCancelled: safeDivide(c.showed, c.booked - c.canceled || null),
     closeRate: safeDivide(c.closed, c.showed || null),
     costPerAttendee: adSpend ? safeDivide(adSpend, c.attended || null) : null,
     costPerConcurrentAttendee: adSpend && r.peakRoom ? safeDivide(adSpend, r.peakRoom) : null,

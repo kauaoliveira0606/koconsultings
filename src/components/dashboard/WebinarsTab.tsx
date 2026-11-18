@@ -179,6 +179,7 @@ function backEnd(goals?: GoalsConfig): Group[] {
         split("Showed", "number", (f) => f.showed),
         split("Calls Due So Far", "number", (f) => f.due, { note: "Call time has passed; self-cancels left out." }),
         split("Call Show Rate", "percent", (f) => f.callShowRate, { note: "Showed ÷ calls due so far." }),
+        split("Call Show Rate (Excl. Cancelled)", "percent", (f) => f.callShowRateExCancelled, { note: "Showed ÷ (calls booked − canceled)." }),
         { label: "Cost Per Live Call", format: "currency", paid: (w) => w.paid.costPerLiveCall, note: "Ad spend ÷ paid calls that showed." },
         split("Closed", "number", (f) => f.closed),
         split("Close Rate", "percent", (f) => f.closeRate, { note: "Closed (PIF or payment plan) ÷ showed." }),
@@ -574,6 +575,8 @@ export function WebinarsTab({ offer }: { offer: "bronson" | "aval" }) {
             <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
               {hero("Call Show Rate (Paid)", w.paid.callShowRate, "percent", `${w.paid.showed} of ${w.paid.due} calls due so far`)}
               {hero("Call Show Rate (Organic)", w.organic.callShowRate, "percent", `${w.organic.showed} of ${w.organic.due} calls due so far`)}
+              {hero("Call Show Rate Excl. Cancelled (Paid)", w.paid.callShowRateExCancelled, "percent", `${w.paid.showed} of ${w.paid.booked - w.paid.canceled} (${w.paid.booked} booked − ${w.paid.canceled} canceled)`)}
+              {hero("Call Show Rate Excl. Cancelled (Organic)", w.organic.callShowRateExCancelled, "percent", `${w.organic.showed} of ${w.organic.booked - w.organic.canceled} (${w.organic.booked} booked − ${w.organic.canceled} canceled)`)}
               {hero("Cost Per Live Call (Paid)", w.paid.costPerLiveCall, "currency", "Ad spend ÷ paid calls that showed")}
               {hero("Close Rate (Paid)", w.paid.closeRate, "percent", `${w.paid.closed} of ${w.paid.showed} showed`)}
               {hero("Close Rate (Organic)", w.organic.closeRate, "percent", `${w.organic.closed} of ${w.organic.showed} showed`)}
