@@ -66,6 +66,9 @@ type MetricsResponse = {
   highTicketCallsBooked: number | null;
   highTicketCallsShowed: number | null;
   highTicketShowRate: number | null;
+  highTicketCancelledCalls: number | null;
+  highTicketCallsHeld: number | null;
+  highTicketShowRateExCancelled: number | null;
   highTicketPitched: number | null;
   highTicketClosed: number | null;
   highTicketCloseRate: number | null;
@@ -271,6 +274,15 @@ export default function OverviewPage() {
           />
           <HeroStat
             size="md"
+            label="Show Rate (Excl. Cancelled)"
+            value={metrics?.highTicketShowRateExCancelled}
+            format="percent"
+            status={kpiStatus(metrics?.highTicketShowRateExCancelled, goals?.showRate?.min, "higher")}
+            goal={kpiLabel(goals?.showRate?.min, "higher", "percent")}
+            sub="Calls showed ÷ (booked − cancelled)"
+          />
+          <HeroStat
+            size="md"
             label="Close Rate"
             value={metrics?.highTicketCloseRate}
             format="percent"
@@ -381,6 +393,18 @@ export default function OverviewPage() {
               inputs: [
                 { label: "Calls Showed", value: metrics?.highTicketCallsShowed, note: "High Ticket Closer's EOD log." },
                 { label: "Calls Booked", value: metrics?.highTicketCallsBooked, note: "High Ticket Closer's EOD log." },
+              ],
+            },
+            {
+              title: "Show Rate (Excl. Cancelled)",
+              value: metrics?.highTicketShowRateExCancelled,
+              formula: "Calls Showed ÷ (Calls Booked − Cancelled Calls).",
+              status: kpiStatus(metrics?.highTicketShowRateExCancelled, goals?.showRate?.min, "higher"),
+              goal: kpiLabel(goals?.showRate?.min, "higher", "percent"),
+              inputs: [
+                { label: "Calls Showed", value: metrics?.highTicketCallsShowed, note: "Closer EOD log." },
+                { label: "Calls Booked", value: metrics?.highTicketCallsBooked, note: "Closer EOD log." },
+                { label: "Cancelled", value: metrics?.highTicketCancelledCalls, note: "Closer EOD log." },
               ],
             },
             {

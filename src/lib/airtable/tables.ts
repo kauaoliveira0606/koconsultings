@@ -964,6 +964,7 @@ export type BronsonEodCloserRow = {
   offersMade: number | null;
   callsBooked: number | null;
   callsShowed: number | null;
+  cancelledCalls?: number | null;
   cashCollectedHighTicket: number | null;
   revenueHighTicket: number | null;
   // Bronson AI ($147/mo), on Bronson's EOD Closer form only.
@@ -986,6 +987,7 @@ export async function getBronsonEodCloser(): Promise<BronsonEodCloserRow[]> {
       offersMade: parseNumericText(f["Offers Made"]),
       callsBooked: parseNumericText(f["Calls Booked"]),
       callsShowed: parseNumericText(f["Calls Showed"]),
+      cancelledCalls: parseNumericText(f["Cancelled Calls"]),
       cashCollectedHighTicket: parseNumericText(f["Total Cash Collected"]),
       revenueHighTicket: parseNumericText(f["Total Revenue"]),
       bronsonAiSales: parseNumericText(f["Bronson AI Sales"]),

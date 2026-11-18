@@ -123,6 +123,13 @@ export async function GET(request: NextRequest) {
     ]
   );
 
+  // Show rate without cancelled calls (user, 2026-11-18): showed ÷ (booked − cancelled).
+  // Cancelled Calls only exists on the EOD Closer form, so all three come from it.
+  const closerBooked = sum(inRangeCloser.map((r) => r.callsBooked));
+  const closerCancelled = sum(inRangeCloser.map((r) => r.cancelledCalls)) ?? 0;
+  const closerShowed = sum(inRangeCloser.map((r) => r.callsShowed));
+  const highTicketCallsHeld = closerBooked == null ? null : closerBooked - closerCancelled;
+
   // Tier 1 keystone: the single number that captures show rate, close rate,
   // average price, and collections all at once for the high-ticket side.
   const collectedPerBookedCallHT = safeDivide(cashHighTicket, highTicketCallsBooked || null);
@@ -330,6 +337,9 @@ export async function GET(request: NextRequest) {
     highTicketCallsBooked,
     highTicketCallsShowed,
     highTicketShowRate: safeDivide(highTicketCallsShowed, highTicketCallsBooked || null),
+    highTicketCancelledCalls: closerCancelled,
+    highTicketCallsHeld,
+    highTicketShowRateExCancelled: safeDivide(closerShowed, highTicketCallsHeld || null),
     highTicketPitched,
     highTicketClosed,
     highTicketCloseRate: safeDivide(highTicketClosed, highTicketCallsShowed || null),
