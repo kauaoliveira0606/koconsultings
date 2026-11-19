@@ -40,9 +40,9 @@ export function whenWords(now = Date.now()): string {
   return `${day} at 8pm est`;
 }
 
-/** The one text. User's wording (2026-11-17): acknowledge the miss, offer a private invite, ask to save the seat. No "tonight" about the miss itself, since a text can go out the next day. */
+/** The one text. User's wording (2026-11-17, "pop up masterclass" added 2026-11-19): acknowledge the miss, offer a private invite, ask to save the seat. No "tonight" about the miss itself, since a text can go out the next day. */
 export function noShowText(first: string | null, now = Date.now()): string {
-  return `Hey${first ? ` ${first}` : ""}, saw you missed the masterclass, no worries. I can give you a private invite for ${whenWords(now)}. I'm hosting one more for people that missed it. Want me to save your seat?`;
+  return `Hey${first ? ` ${first}` : ""}, saw you missed the masterclass, no worries. I can give you a private invite for ${whenWords(now).replace(" at 8pm est", " pop up masterclass at 8pm est")}. I'm hosting one more for people that missed it. Want me to save your seat?`;
 }
 
 /** 9 AM to 10:45 PM Eastern: the night-of text goes out after the 8 PM session, never in the small hours. */

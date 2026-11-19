@@ -124,7 +124,7 @@ const INTENT_SCHEMA = {
   additionalProperties: false,
 };
 
-const INTENT_SYSTEM = `You label one text message from someone who registered for a live online masterclass, missed it, and was offered a private invite to the next session ("I can give you a private invite for [tomorrow/day] at 8pm est ... Want me to save your seat?", or the older "we'll grab the spot for you ... Just let me know if you want it.")
+const INTENT_SYSTEM = `You label one text message from someone who registered for a live online masterclass, missed it, and was offered a private invite to the next session ("I can give you a private invite for [tomorrow/day] pop up masterclass at 8pm est ... Want me to save your seat?", or the older "we'll grab the spot for you ... Just let me know if you want it.")
 Return JSON {"intent": ...}:
 - "yes": a clear yes to being signed up (yes, yeah, yep, sure, please do, I'm in, do it, ok sign me up).
 - "no": a clear no to this offer (no, can't make it, not interested in that one) that does not ask us to stop texting.
