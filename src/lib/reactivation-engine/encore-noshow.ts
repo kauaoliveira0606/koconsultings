@@ -41,11 +41,17 @@ type TagContact = { id: string; firstName?: string; phone?: string; tags?: strin
 
 async function contactsTagged(tag: string): Promise<TagContact[]> {
   const locationId = (process.env.GHL_BRONSON_LOCATION_ID ?? "").trim();
-  const { contacts } = await ghl<{ contacts: TagContact[] }>(OFFER, "/contacts/search", {
-    method: "POST",
-    body: { locationId, pageLimit: 100, filters: [{ field: "tags", operator: "contains", value: [tag] }] },
-  });
-  return contacts ?? [];
+  // Paged: one page is 100, and more than 100 people carry the "texted" tag (2026-11-19: 166, so replies from the rest were never seen).
+  const all: TagContact[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const { contacts } = await ghl<{ contacts: TagContact[] }>(OFFER, "/contacts/search", {
+      method: "POST",
+      body: { locationId, page, pageLimit: 100, filters: [{ field: "tags", operator: "contains", value: [tag] }] },
+    });
+    all.push(...(contacts ?? []));
+    if ((contacts ?? []).length < 100) break;
+  }
+  return all;
 }
 
 const addTag = (id: string, tag: string) => ghl(OFFER, `/contacts/${id}/tags`, { method: "POST", body: { tags: [tag] } });
