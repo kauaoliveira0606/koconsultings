@@ -78,6 +78,7 @@ export function PayoutsSection({
   const { data } = useSectionData<Payouts>(apiPath, range);
   const money = (value: number | undefined) => formatStatValue(value, "currency");
   const bronson = data?.offer === "bronson";
+  const aaron = data?.offer === "aaron";
   const alsoOff = data
     ? [
         data.fees ? `${money(data.fees)} processing and financing fees` : null,
@@ -154,7 +155,9 @@ export function PayoutsSection({
             subtext={
               bronson
                 ? "Paid-traffic commissions from the Commissions tab."
-                : "Setter and closer commissions. Nothing before October 2026."
+                : aaron
+                  ? "Flat 10% on affiliate cash, 15% on high ticket."
+                  : "Setter and closer commissions. Nothing before October 2026."
             }
             cost
           />
@@ -176,7 +179,9 @@ export function PayoutsSection({
             subtext={
               bronson
                 ? "50% of the paid share + 20% of the organic share."
-                : "35% of the payable share."
+                : aaron
+                  ? "Of net profit: Base44 70% paid, 30% organic. High ticket 50% paid, 30% organic."
+                  : "35% of the payable share."
             }
           />
         </div>

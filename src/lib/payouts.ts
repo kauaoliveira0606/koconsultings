@@ -38,8 +38,39 @@ import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
 
 export type PayoutsOffer = "bronson" | "aval" | "aaron";
 
-/** Aaron's "Our Share" rate. The deal terms are not set yet, so the card reads $0 until this is filled in. */
-const AARON_PAYOUTS_SHARE = 0;
+/**
+ * Aaron's deal (user, 2026-11-21): our share of NET PROFIT by product and traffic source.
+ * Base44 (affiliate front end): 70% paid, 30% organic. High ticket: 50% paid, 30% organic.
+ */
+const AARON_SHARE = { affiliatePaid: 0.7, affiliateOrganic: 0.3, highTicketPaid: 0.5, highTicketOrganic: 0.3 };
+/** Aaron's sales team: flat 10% on affiliate cash every day ($25 monthly / $27.50 yearly sale), 15% on high ticket. */
+const AARON_AFFILIATE_COMMISSION = 0.1;
+const AARON_HIGH_TICKET_COMMISSION = 0.15;
+
+/**
+ * Net profit per leg, then each leg's rate. Ad spend is paid traffic only and
+ * is split between the paid Base44 cash and the paid high ticket cash in
+ * proportion to each one's paid cash that day (all on Base44 when neither
+ * has cash). Fees are high ticket only.
+ */
+function aaronAgencyShare(rows: DailyOfferRow[]): number {
+  let total = 0;
+  for (const r of rows) {
+    const paidTotal = r.ltCashPaid + r.htCashPaid;
+    const ltAdShare = paidTotal > 0 ? r.ltCashPaid / paidTotal : 1;
+    const ltPaidNet = r.ltCashPaid * (1 - AARON_AFFILIATE_COMMISSION) - r.adSpend * ltAdShare;
+    const htPaidNet =
+      r.htCashPaid * (1 - AARON_HIGH_TICKET_COMMISSION) - r.adSpend * (1 - ltAdShare) - (r.fees?.paid ?? 0);
+    const ltOrganicNet = r.ltCashOrganic * (1 - AARON_AFFILIATE_COMMISSION);
+    const htOrganicNet = r.htCashOrganic * (1 - AARON_HIGH_TICKET_COMMISSION) - (r.fees?.organic ?? 0);
+    total +=
+      AARON_SHARE.affiliatePaid * ltPaidNet +
+      AARON_SHARE.highTicketPaid * htPaidNet +
+      AARON_SHARE.affiliateOrganic * ltOrganicNet +
+      AARON_SHARE.highTicketOrganic * htOrganicNet;
+  }
+  return total;
+}
 
 /** Share shown on Aval's Payouts "Our Share" card only. Nothing else uses it. */
 const AVAL_PAYOUTS_SHARE = 0.35;
@@ -109,7 +140,14 @@ async function aaronRows(): Promise<DailyOfferRow[]> {
     getAaronMarketingDailyMetrics(),
     getFinancedHighTicketCashByDay(AARON_BASE_ID),
   ]);
-  return withDealFees(buildDailyOfferRows(marketing), financed, DEAL_FEE_RATES.aaron);
+  const rows = buildDailyOfferRows(marketing).map((r) => ({
+    ...r,
+    salesTeamPayout: {
+      paid: r.ltCashPaid * AARON_AFFILIATE_COMMISSION + r.htCashPaid * AARON_HIGH_TICKET_COMMISSION,
+      organic: r.ltCashOrganic * AARON_AFFILIATE_COMMISSION + r.htCashOrganic * AARON_HIGH_TICKET_COMMISSION,
+    },
+  }));
+  return withDealFees(rows, financed, DEAL_FEE_RATES.aaron);
 }
 
 export async function getPayouts(offer: PayoutsOffer, range: ResolvedRange): Promise<Payouts> {
@@ -150,6 +188,8 @@ export async function getPayouts(offer: PayoutsOffer, range: ResolvedRange): Pro
     agencyShare:
       offer === "bronson"
         ? bronsonAgencyProfit(rows)
-        : (offer === "aaron" ? AARON_PAYOUTS_SHARE : AVAL_PAYOUTS_SHARE) * (payablePaid + payableOrganic),
+        : offer === "aaron"
+          ? aaronAgencyShare(rows)
+          : AVAL_PAYOUTS_SHARE * (payablePaid + payableOrganic),
   };
 }

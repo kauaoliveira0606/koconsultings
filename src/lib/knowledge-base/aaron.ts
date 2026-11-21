@@ -1,13 +1,17 @@
 import { withAllSections, type KbItem } from "./types";
 
 /*
- * Aaron / SetterHQ (Benicio Valentin, "AaronTrades"). Sources: the
- * offer stack the user supplied (2026-10-15), the setterhq.com pages
- * (/guide, /materials, /confirmation, /masterclass-replay) and the
- * @AaronTrading YouTube channel.
+ * Aaron Thomas / SetterHQ (@aaronsets). Remote sales (setting + closing).
+ * Front end: free kit + The Full Crash Course, unlocked by signing up for
+ * the AI tool (Base44, monthly or yearly). Back end: Inner Circle.
+ * Sources: the member portal (aaron-portal.vercel.app, Module 9 Student Wins
+ * and Module 10 The Next Step), the @aaronsets YouTube channel, the
+ * SetterHQ pages on aaron-free-kit.vercel.app and the Inner Circle stack
+ * the user supplied (2026-11-20).
  */
 
-const SITE = "https://www.setterhq.com";
+const SITE = "https://aaron-free-kit.vercel.app";
+const CHANNEL = "https://www.youtube.com/@aaronsets";
 
 const yt = (id: string, title: string, sendWhen: string, meta: string): KbItem => ({
   title,
@@ -25,110 +29,64 @@ const page = (path: string, title: string, sendWhen: string, bullets?: string[])
   copy: `${SITE}${path}`,
 });
 
-const win = (title: string, meta: string, image: string): KbItem => ({
-  title,
-  meta,
-  image: `${SITE}/images/${image}`,
+const shot = (n: number, ext: "png" | "jpg"): KbItem => ({
+  title: `Student result #${n}`,
+  meta: "From the SetterHQ results wall",
+  image: `${SITE}/home/testimonial-${n}.${ext}`,
 });
 
 export const AARON_KNOWLEDGE_BASE = withAllSections({
   offers: [
     {
-      title: "High Ticket Packages",
-      description: "Offer: Learn how to be consistently profitable in less than 180 days, or you don't pay.",
-      layout: "pricing",
-      compare: true,
-      items: [
-        {
-          title: "$6.8K",
-          meta: "6 months + $500 a month after 6 months to keep access",
-          badge: "Guarantee",
-          text: ["Guarantee: get a payout in less than 180 days or you don't pay."],
-          bullets: [
-            "Onboarding call",
-            "5 live trading classes a week",
-            "2 psychology a week",
-            "3 coaching a week",
-            "6 1-1 calls (one a month)",
-            "In-person mastermind 2 times a year",
-            "1:1 support chat",
-            "Community",
-            "Course",
-            "Personal psychology coach",
-          ],
-        },
-        {
-          title: "$4K",
-          meta: "6 months + $500 a month after 6 months to keep access",
-          text: [
-            "Guarantee: get a payout in less than 180 days or you don't pay.",
-          ],
-          bullets: [
-            "5 live trading classes a week",
-            "1:1 support chat",
-            "Community",
-            "Course",
-            "Personal psychology coach",
-            "In-person mastermind 2 times a year",
-          ],
-        },
-        {
-          title: "$1.5K",
-          meta: "3 months + $500 a month after 3 months to keep access",
-          text: [
-            "For the people who only want live trading.",
-            "You can do split pays of 2 or 3, then just charge them $500 monthly. It's pretty much an MRR offer.",
-          ],
-          bullets: [
-            "5 live trading classes a week",
-            "Course",
-          ],
-        },
-      ],
-    },
-    {
-      title: "Deposits",
-      description: "Whop checkouts for deposits. Copy the right amount and send it.",
-      layout: "rows",
-      items: [
-        {
-          title: "$50 deposit",
-        },
-        {
-          title: "$100 deposit",
-        },
-        {
-          title: "$200 deposit",
-        },
-        {
-          title: "$300 deposit",
-        },
-        {
-          title: "$500 deposit",
-        },
-        {
-          title: "$750 deposit",
-        },
-        {
-          title: "$1,000 deposit",
-        },
-      ],
-    },
-    {
-      title: "$15K Upsell",
+      title: "Front End: Free Kit + The Full Crash Course",
+      description: "What a new lead gets. Free, unlocked by signing up for the AI tool.",
       layout: "stack",
       items: [
         {
-          title: "$15K Upsell",
+          title: "The free kit",
+          meta: "Free. The only thing needed is to sign up for the AI tool (paid subscription, monthly or yearly)",
           bullets: [
-            "Weekly 1 on 1s for 12 weeks, so 12 total (Aaron does 3)",
-            "Private in person mastermind (on top of the regular mastermind we will do in the future for regular high ticket)",
-            "Lifetime MOM, which has 10 calls per week (including the live trading)",
-            "Private support chat with Aaron and coach",
-            "Private GC with the rest of the group (3 other people right now)",
-            "Personal psychology coach",
+            "The Full Crash Course: the whole system, start to finish",
+            "The AI tool: builds their resume, finds offers and the people running them, writes their messages",
+            "The outreach CRM: every offer, every reply, every follow-up in one place",
+            "The job board: real roles Aaron checks himself",
+            "Aaron's own tools: scripts, Loom template, bad-offer checklist, interview questions, follow-up tracker",
           ],
-          checkouts: [{ title: "$15K checkout", href: "https://whop.com/checkout/plan_3z7etzwEAX14c" }],
+          text: [
+            "Mechanism: the Sniper Placement System. Scope it (vet the offer), take the shot (one specific message, 3 a day), follow up.",
+          ],
+          note: "Never quote AI tool plan prices to a lead, and never promise a job on the front end. The yearly plan unlocks the Call Vault in the portal; monthly does not.",
+        },
+      ],
+    },
+    {
+      title: "High Ticket: Inner Circle",
+      description: "The back end, pitched on the call. Offer name is not final.",
+      layout: "stack",
+      items: [
+        {
+          title: "Inner Circle",
+          badge: "Guarantee",
+          meta: "Capped at 100 active people",
+          text: [
+            "Guarantee: get placed on an offer doing 6 figures a month, or we keep working with you for free until you do.",
+            "Payment: 60% up front, the rest only after they collect $100K in cash. Tiers go by the amount of 1-on-1 help.",
+          ],
+          bullets: [
+            "3 months of 1:1 coaching with Aaron (call reviews, Loom reviews, role plays)",
+            "Group coaching calls twice a week for life (Wednesday and Friday, 12pm ET)",
+            "The full curriculum for life",
+            "90-day roadmap: day-by-day breakdowns with clear milestones",
+            "Sales certification",
+            "Placement support: every role vetted by Aaron, access to his network of offer owners",
+            "24/7 access to Aaron",
+            "Aaron AI: trained on his coaching calls, modules and 1-on-1 chats, instant feedback",
+            "Accent coach",
+            "Accountability pods of 3",
+            "In-person mastermind",
+            "Community",
+          ],
+          note: "No named packages yet. Post Call Notes log the deal by price point: $500-$1k, $3k, $5k, $10k-$15k+.",
         },
       ],
     },
@@ -136,58 +94,46 @@ export const AARON_KNOWLEDGE_BASE = withAllSections({
 
   content: [
     {
-      title: "Featured Videos",
-      description: "The videos on the Opportunity Guide page. Send these first.",
+      title: "Pages To Send",
       layout: "rows",
       items: [
-        yt("fgSUgtsWfmA", "Benicio's full story", "Lead who wants to know who Benicio is and if he's real. YouTube title: \"How I Went From Broke and Lost To A Millionaire at 19 (My Story)\".", "Story"),
-        yt("titMR4fUOQE", "The full strategy breakdown", "Lead who asks what we actually trade. YouTube title: \"Revealing The Strategy That Made Me $25,000 in 20 Days (Just Copy Me)\".", "Jun 2026"),
-        yt("xCgOd6hn6kQ", "The strategy I trade, step by step", "Same question, the newer video. YouTube title: \"This Asia Session Strategy Made Me $137,000 In 30 Days\". Also on the Materials page.", "Sep 2026"),
+        page("/home", "SetterHQ home", "Lead who wants to see who Aaron is and what SetterHQ does before booking."),
+        page("/ty", "Call Confirmed", "Right after a call is booked, so the lead shows up warm."),
+        page("/free-course", "Free kit + Full Crash Course", "Lead who isn't ready for a call yet. Gets them into the front end."),
       ],
     },
     {
-      title: "Pages To Send",
-      description: "Send before a booked call so the lead shows up warm.",
+      title: "FAQ Videos",
+      description: "Short answers to the questions leads ask most.",
       layout: "rows",
       items: [
-        page("/confirmation", "Call Confirmed", "Right after a call is booked: the pre-call training, the steps to confirm, student interviews, student payouts and FAQ videos.", [
-          "Is this just another course or signal group?",
-          "Do I need experience to start?",
-          "How much time do I need to put in each day?",
-          "What makes this different from everything else out there?",
-          "How soon can I get results?",
-          "Is this legit? Can I trust this?",
-          "What happens after I join?",
-        ]),
-        page("/materials", "Materials", "Lead with doubts about time, results or whether it's legit: FAQ videos, the strategy video, Benicio's payout proof and student interviews.", [
-          "Is this just another course or signal group?",
-          "Do I need experience to start?",
-          "How much time do I need to put in each day?",
-          "What makes this different from everything else out there?",
-          "What is the worst-case scenario?",
-          "Addressing reviews transparently",
-          "How long will it take to see results?",
-        ]),
-        page("/guide", "The Opportunity Guide", "Lead who wants to read everything: Benicio's story, the framework, the 90 day roadmap, payout proof, student interviews and wins, and the written FAQ (capital needed, losing money, partner on the call)."),
-        page("/masterclass-replay", "Masterclass Replay", "Lead who registered but missed the live masterclass. The replay video isn't up yet; the page is live with student wins and interviews."),
+        yt("ehirE8VUFVw", "How does guaranteed placement work?", "Lead asking what the guarantee actually means.", "FAQ"),
+        yt("uU_JaD7Z_cQ", "What makes SetterHQ different?", "Lead comparing us to other sales programs.", "FAQ"),
+        yt("kr-a0-J28oY", "What if I don't have sales experience?", "Lead who thinks they need experience first.", "FAQ"),
+        yt("52KvustIReM", "How much time do you need to commit to this?", "Lead with a job or school who worries about time.", "FAQ"),
+        yt("SVAMKZm6JKQ", "How long will it take for me to see results?", "Lead asking how fast this works.", "FAQ"),
       ],
     },
     {
       title: "YouTube Videos",
-      description: "Long-form videos from @AaronTrading, newest first.",
+      description: "Long-form videos from @aaronsets. Send as value-driven follow-up.",
       layout: "rows",
       items: [
-        yt("LxN5lRj-Els", "This one trading confluence made me $182,400 in 60 days", "Lead who wants to see the edge behind the results.", "Oct 2026"),
-        yt("xCgOd6hn6kQ", "This Asia session strategy made me $137,000 in 30 days", "Our most watched recent video. Lead who asks what we trade.", "Sep 2026"),
-        yt("3F_Oayf9rwk", "POV: taking $55,000 in prop firm payouts", "Lead who doubts prop firms actually pay out.", "Jun 2026"),
-        yt("titMR4fUOQE", "Revealing the strategy that made me $25,000 in 20 days (just copy me)", "Lead who wants to learn the strategy before buying.", "Jun 2026"),
-        yt("HoAxWZTd0yM", "The only 3 concepts I use to make $9,720/day trading", "Lead who thinks trading is too complicated.", "Apr 2026"),
-        yt("1XEFHIXzlpk", "These 3 mindset changes made me $1,180,600 in trading... copy me", "Lead who knows it's their psychology.", "Apr 2026"),
+        yt("unBN2Q6npUM", "How To Actually Land An Appointment Setting Role (No Experience)", "Lead stuck getting ignored when applying.", "Apr 2026"),
+        yt("IuVmBwm6nDg", "How To Become an ELITE Appointment Setter in 2026 (From a $9M Setter)", "Lead who wants the full picture. His most watched video.", "Apr 2026"),
+        yt("0s-TYZ9Jz2k", "Don't Start a Business, Do This Instead (My Story)", "Lead who wants to know who Aaron is.", "Jul 2026"),
+        yt("O_ITxmMvUi8", "How I scaled this offer from $170k to $851k/mo in 4 months", "Lead who doubts Aaron's results.", "Jan 2026"),
+        yt("_M3q_K5RtHE", "The ONLY 6 Appointment Setting Jobs That Will Make You Rich in 2026", "Lead unsure which offers are worth working on.", "Sep 2026"),
+        yt("wuIWWOl2JZg", "I Tried Appointment Setting For 7 Days (real results)", "Lead who thinks it's too good to be true.", "Oct 2026"),
+        yt("C2cL6ihpM4o", "Day In The Life Of A High Ticket Appointment Setter Making $1,200/Day", "Lead who wants to see what the job looks like.", "Aug 2026"),
+        yt("wsX3F2mHOxU", "Claude + Appointment Setting = Easiest $10k/Mo of Your Life", "Lead curious how AI fits in.", "Sep 2026"),
+        yt("41eIsW4k_0w", "Watch Me Audit 12 Setter Loom Applications LIVE", "Lead working on their Loom.", "Nov 2026"),
+        yt("OFVxrIxcA6k", "How I Get Vague Prospects to ACTUALLY Open Up On My Sales Calls", "Lead already setting who wants better calls.", "Nov 2026"),
         {
           title: "Full channel",
           text: ["Check here for anything newer than this list."],
-          links: [{ href: "https://www.youtube.com/@AaronTrading", label: "Open" }],
-          copy: "https://www.youtube.com/@AaronTrading",
+          links: [{ href: CHANNEL, label: "Open" }],
+          copy: CHANNEL,
         },
       ],
     },
@@ -199,95 +145,56 @@ export const AARON_KNOWLEDGE_BASE = withAllSections({
       layout: "stack",
       items: [
         {
-          title: "Sugar: blowing accounts to $50K+ in payouts",
-          meta: "Came in knowing basically nothing about trading",
-          text: [
-            "Sugar blew his first account in minutes. Six months into SetterHQ he had pulled over $50K in payouts, and he now mentors other members.",
-          ],
-          quote: "I went from blowing accounts to hitting $50K in payouts in under 6 months. One shift in how I approached my trades changed everything.",
+          title: "Offer owner: $170K to $851K a month",
+          meta: "Aaron's own result as setter / setter manager",
+          text: ["Aaron helped scale one offer from $170K a month to $851K a month in 4 months."],
           links: [
-            { href: "https://www.youtube.com/watch?v=DE1zyjf7eqw", label: "Full video" },
-            { href: `${SITE}/materials`, label: "Materials page" },
+            { href: "https://www.youtube.com/watch?v=Kmoc7oLtRUg", label: "Offer owner interview" },
+            { href: "https://www.youtube.com/watch?v=O_ITxmMvUi8", label: "Full breakdown" },
           ],
         },
       ],
     },
     {
       title: "Student Interviews",
-      description: "Unscripted student recordings.",
+      description: "Unscripted student case studies (also in portal Module 9).",
       layout: "rows",
       items: [
-        {
-          title: "Johnny: years of blown accounts to $100K months",
-          text: ["Johnny failed over and over before SetterHQ. Now $10K months are his baseline and he hit $100K in January."],
-          links: [{ href: "https://www.youtube.com/watch?v=jyE_87ndx9E", label: "Watch" }],
-          copy: "https://www.youtube.com/watch?v=jyE_87ndx9E",
-          note: "The /confirmation page labels this same video as Landon. The guide, materials and replay pages say Johnny.",
-        },
-        {
-          title: "Sugar: blowing accounts to $50K+ in payouts",
-          text: ["Six months in, over $50K in payouts. Now mentors other members."],
-          links: [{ href: "https://www.youtube.com/watch?v=DE1zyjf7eqw", label: "Watch" }],
-          copy: "https://www.youtube.com/watch?v=DE1zyjf7eqw",
-        },
-        {
-          title: "Landon: from stuck to consistent payouts",
-          text: ["Landon spent years without a repeatable process. Now he trades one framework and takes consistent payouts. His interview is on the site pages, not on YouTube."],
-          links: [{ href: `${SITE}/guide#interviews`, label: "Open" }],
-          copy: `${SITE}/guide#interviews`,
-        },
+        yt("xYenm8170Lk", "Mikhi: $145K collected in 1 month", "Collected $145K for her offer in one month as a setter, about $8K for her.", "Case study"),
+        yt("NQRwa8kHYaw", "Emi: 18 years old, $10,079 his first month", "$300K collected for the offer, $10K for him in his first month of setting.", "Case study"),
+        yt("kJFMGWBmLbM", "Denys: 18 years old, $10,228 in a month", "Came from serving jobs. $10,228 in commissions in one month.", "Case study"),
+        yt("9-TLVEV-nSo", "Zorad: $21K in 1 month", "$414K collected for the offer in one month, $21K in commissions for him.", "Case study"),
+        yt("vHX8bIdLRTk", "Diego: $11.5K in 30 days", "$176K collected for the offer, $11.5K for him in 30 days.", "Case study"),
+        yt("1cGDHt88pQw", "Moony: 20 years old, $9K/mo from his bedroom", "$167K collected for the offer, $9K a month for him.", "Case study"),
+        yt("7j4wu78G-SM", "Tarik: $7K+/mo role in 1 week", "Landed a $7K+/mo OTE role in one week, then broke every setter record at his company.", "Case study"),
+        yt("TQsLdmq-y-o", "Albert: construction to $5K/mo", "Landed a role in about a week and a half. $5K in commissions his first full month.", "Case study"),
+        yt("VHQL0mcRCEU", "High schooler: $8K/mo sending DMs", "A high schooler making $8K a month as a DM setter.", "Case study"),
+        yt("dL_Zk-kooDQ", "Moe: 17 years old, out-earning his teachers", "$5K as a DM setter while still in high school.", "Case study"),
+        yt("_-Iydn3Z94M", "Andrew: 37% to 90% show rate", "Took his show rate from 37% to 90% in 2 weeks.", "Case study"),
+        yt("wVCzDfSXONU", "William: setter to closer in 2 months", "Moved up from setter to closer within 2 months.", "Case study"),
+        yt("CyyvAcpoQYI", "Jordan: from no Loom to Brez Scales", "Went from not knowing how to make a Loom to working for Brez Scales and Alex Eubanks.", "Case study"),
+        yt("kIvA7YHOEo0", "Donte: placed in 2 weeks", "Got placed in a role within 2 weeks.", "Case study"),
       ],
     },
     {
-      title: "Big Numbers",
+      title: "Results Wall",
+      description: "Student screenshots from the SetterHQ site.",
       layout: "gallery",
       items: [
-        win("Isaac: $100K+ in payouts", "Total payouts", "testimonials/t16.webp"),
-        win("Landon: $85K month", "Passed 5 more accounts", "testimonials/t15.webp"),
-        win("Anthony: crossing $100K in profits", "This year", "testimonials/t14.webp"),
-        win("Landon: $35K month", "Bought a new truck", "testimonials/t13.webp"),
-        win("Landon: $10,000 in one payout", "$30,000 month", "testimonials/t12.webp"),
-        win("Landon: $24,000 in a week", "Student", "testimonials/t4.webp"),
-        win("Nahom: another $10K payout", "$30K month, Topstep + Apex", "testimonials/t5.webp"),
-        win("Nahom: 10 payouts approved", "Halfway through the month", "testimonials/t17.webp"),
-        win("Chris: first $10,000 month", "Student", "testimonials/t3.webp"),
-        win("Hit $10K on PA accounts", "Student", "testimonials/t10.webp"),
-      ],
-    },
-    {
-      title: "Payout Proof",
-      description: "Straight from the funding portals.",
-      layout: "gallery",
-      items: [
-        win("Isaac: $50K", "Student payout proof", "proof/isaac-50k.webp"),
-        win("Nahom: $30K", "Student payout proof", "proof/nahom-10k.webp"),
-        win("Nahom: $25K", "Student payout proof", "proof/nahom-25k.webp"),
-        win("Landon", "Student payout proof", "proof/landon.webp"),
-        win("Jonah P", "Student payout proof", "proof/jonah.webp"),
-        win("Keo", "Student payout proof", "proof/keo.webp"),
-        win("Benicio's payouts", "Withdrawal requests in the funding portal", "payouts/p1.webp"),
-        win("Benicio's payouts", "Full list of withdrawal requests", "payouts/p2.webp"),
-        win("Benicio's payouts", "Withdrawals paid to bank account", "payouts/p3.webp"),
-        win("Benicio's payouts", "Wire withdrawals from the funding portal", "payouts/p4.webp"),
-      ],
-    },
-    {
-      title: "Early Wins & First Payouts",
-      description: "Best for a beginner who doubts they can get started.",
-      layout: "gallery",
-      items: [
-        win("Jonah: quit his job", "After a $5,000 payout", "testimonials/t18.webp"),
-        win("$6K payout secured", "Student", "testimonials/t11.webp"),
-        win("Joe: +$3,600", "Passed his first eval", "testimonials/t21.webp"),
-        win("Ollie: passed 4 50K Apex accounts", "Student", "testimonials/t22.webp"),
-        win("Niels: first payout", "No losing trade in over a month", "testimonials/t20.webp"),
-        win("Matthew: first ever payout", "After a year and two months", "testimonials/t1.webp"),
-        win("Jacob: first ever payout", "Student", "testimonials/t19.webp"),
-        win("Angelo: second Topstep payout", "Payout requested", "testimonials/t6.webp"),
-        win("Passed first funded account in 3 weeks", "Student", "testimonials/t2.webp"),
-        win("First funded account passed", "Made $500 the next day", "testimonials/t9.webp"),
-        win("Elliot: funded 50K Apex account", "Certificate", "testimonials/t8.webp"),
-        win("Frankie: passed his first eval", "Student", "testimonials/t7.webp"),
+        shot(1, "png"),
+        shot(2, "png"),
+        shot(3, "png"),
+        shot(4, "png"),
+        shot(5, "png"),
+        shot(6, "png"),
+        shot(7, "png"),
+        shot(8, "png"),
+        shot(9, "jpg"),
+        shot(10, "jpg"),
+        shot(11, "jpg"),
+        shot(12, "png"),
+        shot(13, "jpg"),
+        shot(14, "jpg"),
       ],
     },
   ],
@@ -300,11 +207,11 @@ export const AARON_KNOWLEDGE_BASE = withAllSections({
         {
           title: "When to add a disclaimer",
           bullets: [
-            "Never promise a lead they will make a specific amount, or by a specific date.",
-            "Share the guarantee only in its exact current wording (see Products & Offers).",
-            "Never call it financial advice and never give a lead a trade to take. We don't give signals.",
-            "Don't call results typical or average. Every result shown is an individual one.",
-            "Never tell a lead they can't lose money. Losing trades are part of trading; what they control is the size of the loss.",
+            "Never promise a lead a specific income, or a role by a specific date.",
+            "The free kit and the AI tool never guarantee a job. Guaranteed placement is only part of Inner Circle, and only in its exact wording (see Products & Offers).",
+            "Student results are not typical and not a promise of what anyone will earn. Say so whenever you share one.",
+            "Never quote AI tool plan prices or our commission on it.",
+            "Commission figures are what the student earned; cash figures are what the offer collected. Never mix them up.",
           ],
         },
       ],

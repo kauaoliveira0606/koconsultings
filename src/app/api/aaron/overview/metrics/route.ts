@@ -24,11 +24,8 @@ export const revalidate = 60;
 /** First day paid bookings count toward Cost Per Booked/Live Call (Paid). */
 const COST_PER_CALL_TRACKED_FROM = "2026-10-28";
 
-/** Sun/Sat get the 20% affiliate commission rate; Mon–Fri get 10%. */
-function isWeekendDate(dateStr: string): boolean {
-  const day = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
-  return day === 0 || day === 6;
-}
+/** Aaron's affiliate (Base44) commission: a flat 10% every day ($25 a monthly sale, $27.50 a yearly one). */
+const AFFILIATE_COMMISSION_RATE = 0.1;
 
 export async function GET(request: NextRequest) {
   const range = parseRangeFromRequest(request);
@@ -140,13 +137,12 @@ export async function GET(request: NextRequest) {
   const collectedPerBookedCallHT = safeDivide(cashHighTicket, highTicketCallsBooked || null);
 
   // Net Cash: Cash Collected − Ad Spend − affiliate/closer/setter
-  // commissions. Low-ticket affiliate commission is 10% on weekdays, 20% on
-  // Sat/Sun (keyed off the day the Marketing Daily Metrics form logged the
-  // cash for); high-ticket is a flat 15% regardless of day.
+  // commissions. Affiliate commission is a flat 10% every day;
+  // high-ticket is a flat 15%.
   const lowTicketCommission = sum(
     inRangeMarketing.map((r) => {
       if (r.date === null || r.cashCollectedLowTicket === null) return null;
-      return r.cashCollectedLowTicket * (isWeekendDate(r.date) ? 0.2 : 0.1);
+      return r.cashCollectedLowTicket * AFFILIATE_COMMISSION_RATE;
     })
   );
   const highTicketCommission = cashHighTicket !== null ? cashHighTicket * 0.15 : null;
@@ -172,13 +168,13 @@ export async function GET(request: NextRequest) {
   const frontEndRoas =
     adsActive && paidCash !== null ? safeDivide(paidCash - fees.paidFees, adSpend) : null;
   // Net ROAS: the same, after the sales team's commissions on that paid cash too
-  // (10%/20% weekday/weekend on low ticket, flat 15% on high ticket).
+  // (flat 10% on affiliate, flat 15% on high ticket).
   const paidCommissions =
     (sum(
       inRangeMarketing.map((r) =>
         r.date === null || r.cashCollectedLowTicketPaid === null
           ? null
-          : r.cashCollectedLowTicketPaid * (isWeekendDate(r.date) ? 0.2 : 0.1)
+          : r.cashCollectedLowTicketPaid * AFFILIATE_COMMISSION_RATE
       )
     ) ?? 0) +
     (cashHighTicketPaidForm ?? 0) * 0.15;
