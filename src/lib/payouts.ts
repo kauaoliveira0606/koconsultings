@@ -5,6 +5,7 @@
  */
 import { BRONSON_BASE_ID, getMarketingDailyMetrics } from "@/lib/airtable/tables";
 import { AVAL_BASE_ID, getAvalMarketingDailyMetrics } from "@/lib/airtable/tables-aval";
+import { AARON_BASE_ID, getAaronMarketingDailyMetrics } from "@/lib/airtable/tables-aaron";
 import {
   COMMISSIONS_OFFERS,
   getPaidCommissionsByDay,
@@ -35,7 +36,10 @@ import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
 import { getFinancedHighTicketCashByDay } from "@/lib/deal-fees";
 import { isDateInRange, type ResolvedRange } from "@/lib/date-range";
 
-export type PayoutsOffer = "bronson" | "aval";
+export type PayoutsOffer = "bronson" | "aval" | "aaron";
+
+/** Aaron's "Our Share" rate. The deal terms are not set yet, so the card reads $0 until this is filled in. */
+const AARON_PAYOUTS_SHARE = 0;
 
 /** Share shown on Aval's Payouts "Our Share" card only. Nothing else uses it. */
 const AVAL_PAYOUTS_SHARE = 0.35;
@@ -99,8 +103,17 @@ async function avalRows(): Promise<DailyOfferRow[]> {
   );
 }
 
+/** Aaron: same shape as Aval (affiliate + high ticket), no profit split start date, no bills. */
+async function aaronRows(): Promise<DailyOfferRow[]> {
+  const [marketing, financed] = await Promise.all([
+    getAaronMarketingDailyMetrics(),
+    getFinancedHighTicketCashByDay(AARON_BASE_ID),
+  ]);
+  return withDealFees(buildDailyOfferRows(marketing), financed, DEAL_FEE_RATES.aaron);
+}
+
 export async function getPayouts(offer: PayoutsOffer, range: ResolvedRange): Promise<Payouts> {
-  const rows = (await (offer === "bronson" ? bronsonRows() : avalRows())).filter((r) =>
+  const rows = (await (offer === "bronson" ? bronsonRows() : offer === "aaron" ? aaronRows() : avalRows())).filter((r) =>
     isDateInRange(r.date, range)
   );
   const sumOf = (pick: (r: DailyOfferRow) => number) => rows.reduce((t, r) => t + pick(r), 0);
@@ -137,6 +150,6 @@ export async function getPayouts(offer: PayoutsOffer, range: ResolvedRange): Pro
     agencyShare:
       offer === "bronson"
         ? bronsonAgencyProfit(rows)
-        : AVAL_PAYOUTS_SHARE * (payablePaid + payableOrganic),
+        : (offer === "aaron" ? AARON_PAYOUTS_SHARE : AVAL_PAYOUTS_SHARE) * (payablePaid + payableOrganic),
   };
 }

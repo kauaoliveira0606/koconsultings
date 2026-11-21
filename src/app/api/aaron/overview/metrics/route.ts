@@ -1,0 +1,384 @@
+import type { NextRequest } from "next/server";
+import { parseRangeFromRequest } from "@/lib/api-range";
+import { aaronBookings } from "@/lib/aaron-funnel";
+import { paidCallsShowed } from "@/lib/webinar-source-funnel";
+import { DEAL_FEE_RATES } from "@/lib/deal-fee-rates";
+import { dealFees, getFinancedHighTicketCash } from "@/lib/deal-fees";
+import { PAYMENT_PLAN_OFFERS } from "@/lib/payment-plans";
+import { isDateInRange, toEasternDateOnly, easternDateString } from "@/lib/date-range";
+import {
+  getAaronLeads,
+  getAaronMarketingDailyMetrics,
+  getAaronAffiliateEod,
+  getAaronEodCloserScorecard,
+  getAaronPostCallNotes,
+  getAaronAffiliatePcn,
+} from "@/lib/airtable/tables-aaron";
+import { wasHighTicketPitched } from "@/lib/airtable/tables";
+import { isPaidSource, normalizeEmail } from "@/lib/airtable/lead-source-lookup";
+import { COMMISSIONS_OFFERS, getPortalCashByDay } from "@/lib/airtable/commissions";
+import { average, safeDivide, sum, sumByDate, vslTotals, formFirstByDay, webinarTotals } from "@/lib/metrics";
+
+export const revalidate = 60;
+
+/** First day paid bookings count toward Cost Per Booked/Live Call (Paid). */
+const COST_PER_CALL_TRACKED_FROM = "2026-10-28";
+
+/** Sun/Sat get the 20% affiliate commission rate; Mon–Fri get 10%. */
+function isWeekendDate(dateStr: string): boolean {
+  const day = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
+
+export async function GET(request: NextRequest) {
+  const range = parseRangeFromRequest(request);
+
+  const [marketing, leads, affiliateEod, eodCloser, postCallNotes, affiliatePcn] =
+    await Promise.all([
+      getAaronMarketingDailyMetrics(),
+      getAaronLeads(),
+      getAaronAffiliateEod(),
+      getAaronEodCloserScorecard(),
+      getAaronPostCallNotes(),
+      getAaronAffiliatePcn(),
+    ]);
+
+  const inRangeMarketing = marketing.filter((r) => isDateInRange(r.date, range));
+  const inRangeLeads = leads.filter((l) => isDateInRange(l.createdAt, range));
+  const inRangeEod = affiliateEod.filter((r) => isDateInRange(r.date, range));
+  const inRangeCloser = eodCloser.filter((r) => isDateInRange(r.date, range));
+  const inRangePostCallNotes = postCallNotes.filter((r) => isDateInRange(r.date, range));
+  const inRangePcn = affiliatePcn.filter((r) => isDateInRange(r.date, range));
+
+  const salesCount = sum(inRangeMarketing.map((r) => r.salesLowTicket)) ?? 0;
+  const salesLowTicketPaid = sum(inRangeMarketing.map((r) => r.salesLowTicketPaid));
+  const adSpend = sum(inRangeMarketing.map((r) => r.adSpendMeta));
+  // A $0/range isn't necessarily a tracking bug — it can genuinely mean no
+  // paid spend happened in that window. Every paid-derivative metric below
+  // keys off this flag so the UI shows "Not Active" instead of a
+  // misleading $0.00 or a nonsensical divide-by-zero result.
+  const adsActive = (adSpend ?? 0) > 0;
+  const cashLowTicket = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicket));
+  const cashHighTicketPaidForm = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicketPaid));
+  const cashHighTicketOrganicForm = sum(
+    inRangeMarketing.map((r) => r.cashCollectedHighTicketOrganic)
+  );
+  // Cash Collected and Revenue come exclusively from the Marketing Daily
+  // Metrics form, per the client — no blending in Affiliate EOD or EOD
+  // Closer even though those tables also log a high-ticket cash figure.
+  const revenueHighTicket = sum(inRangeMarketing.map((r) => r.revenueHighTicket));
+  const cashHighTicket = sum(inRangeMarketing.map((r) => r.cashCollectedHighTicket));
+  // Attributed affiliate cash: what the affiliate portal actually tracked and
+  // pays on (reversed sales out), as opposed to what the form logged.
+  let attributedCashLowTicket: number | null = null;
+  for (const [date, cash] of await getPortalCashByDay(COMMISSIONS_OFFERS.aaron)) {
+    if (isDateInRange(date, range)) attributedCashLowTicket = (attributedCashLowTicket ?? 0) + cash;
+  }
+  // Webinar VIP purchases count as cash, split paid / organic like affiliate
+  // cash. No sales commission comes off them; 2.5% processing does.
+  const webinar = webinarTotals(inRangeMarketing);
+  const totalCashCollected =
+    cashLowTicket !== null || cashHighTicket !== null || webinar.vipCash !== null
+      ? (cashLowTicket ?? 0) + (cashHighTicket ?? 0) + (webinar.vipCash ?? 0)
+      : null;
+  // Real paid-lead count from the Leads table, not the manually-typed form field.
+  const optInsPaid = inRangeLeads.filter((l) => isPaidSource(l.source)).length || null;
+  const optInsOrganic =
+    inRangeLeads.length - (inRangeLeads.filter((l) => isPaidSource(l.source)).length || 0);
+  // Days in the selected range, ending no later than today. All Time starts at
+  // the first lead.
+  const todayEastern = easternDateString();
+  const firstLeadDate = inRangeLeads
+    .map((l) => toEasternDateOnly(l.createdAt))
+    .filter((d): d is string => !!d)
+    .sort()[0];
+  const optInDaysFrom = range.start ?? firstLeadDate ?? null;
+  const optInDaysTo = range.end && range.end < todayEastern ? range.end : todayEastern;
+  const optInDays =
+    optInDaysFrom && optInDaysFrom <= optInDaysTo
+      ? Math.round((Date.parse(`${optInDaysTo}T00:00:00Z`) - Date.parse(`${optInDaysFrom}T00:00:00Z`)) / 86_400_000) + 1
+      : null;
+  const cashLowTicketPaid = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketPaid));
+  const cashLowTicketOrganic = sum(inRangeMarketing.map((r) => r.cashCollectedLowTicketOrganic));
+
+  const pickups = sum(inRangeEod.map((r) => r.pickups));
+  const dials = sum(inRangeEod.map((r) => r.outboundDials));
+  const softwarePitched = sum(inRangeEod.map((r) => r.softwarePitched));
+  const softwareClosed = sum(inRangeEod.map((r) => r.softwareClosed));
+  const highTicketCallsPitched = sum(inRangeEod.map((r) => r.highTicketCallsPitched));
+  const newHighTicketCallsBooked = sum(inRangeEod.map((r) => r.newHighTicketCallsBooked));
+
+  const highTicketPitched = inRangePostCallNotes.filter(wasHighTicketPitched).length;
+  // Form first per day; EOD Closer, then Affiliate EOD, only fill days the
+  // form left blank. Same order as the Weekly Scorecard.
+  const highTicketClosed =
+    formFirstByDay(inRangeMarketing, (r) => r.date, (r) => r.highTicketDealsClosed, [
+      sumByDate(inRangeCloser, (r) => r.date, (r) => r.dealsClosed),
+      sumByDate(inRangeEod, (r) => r.date, (r) => r.highTicketSetClosed),
+    ]) ?? 0;
+  const highTicketCallsBooked = formFirstByDay(
+    inRangeMarketing,
+    (r) => r.date,
+    (r) => r.callsBooked,
+    [
+      sumByDate(inRangeCloser, (r) => r.date, (r) => r.callsBooked),
+      sumByDate(inRangeEod, (r) => r.date, (r) => r.highTicketCallsOnCalendar),
+    ]
+  );
+  const highTicketCallsShowed = formFirstByDay(
+    inRangeMarketing,
+    (r) => r.date,
+    (r) => r.callsShowed,
+    [
+      sumByDate(inRangeCloser, (r) => r.date, (r) => r.callsShowed),
+      sumByDate(inRangeEod, (r) => r.date, (r) => r.highTicketCallsShowed),
+    ]
+  );
+
+  // Tier 1 keystone: the single number that captures show rate, close rate,
+  // average price, and collections all at once for the high-ticket side.
+  const collectedPerBookedCallHT = safeDivide(cashHighTicket, highTicketCallsBooked || null);
+
+  // Net Cash: Cash Collected − Ad Spend − affiliate/closer/setter
+  // commissions. Low-ticket affiliate commission is 10% on weekdays, 20% on
+  // Sat/Sun (keyed off the day the Marketing Daily Metrics form logged the
+  // cash for); high-ticket is a flat 15% regardless of day.
+  const lowTicketCommission = sum(
+    inRangeMarketing.map((r) => {
+      if (r.date === null || r.cashCollectedLowTicket === null) return null;
+      return r.cashCollectedLowTicket * (isWeekendDate(r.date) ? 0.2 : 0.1);
+    })
+  );
+  const highTicketCommission = cashHighTicket !== null ? cashHighTicket * 0.15 : null;
+  const totalCommissions = (lowTicketCommission ?? 0) + (highTicketCommission ?? 0);
+  // Processing (2.5% of all high ticket cash) and financing (a further 15% of
+  // financed deals) come off before anything counts as net.
+  const fees = dealFees({
+    cashHighTicket,
+    cashHighTicketPaid: cashHighTicketPaidForm,
+    vipCash: webinar.vipCash,
+    vipCashPaid: webinar.vipCashPaid,
+    financedCash: await getFinancedHighTicketCash(PAYMENT_PLAN_OFFERS.aaron.baseId, range),
+  }, DEAL_FEE_RATES.aaron);
+  const netCash =
+    totalCashCollected !== null
+      ? totalCashCollected - (adSpend ?? 0) - totalCommissions - fees.totalFees
+      : null;
+  // Front-End ROAS: paid cash (low ticket + high ticket + VIP) after its fees, per ad dollar.
+  const paidCash =
+    cashLowTicketPaid !== null || cashHighTicketPaidForm !== null || webinar.vipCashPaid !== null
+      ? (cashLowTicketPaid ?? 0) + (cashHighTicketPaidForm ?? 0) + (webinar.vipCashPaid ?? 0)
+      : null;
+  const frontEndRoas =
+    adsActive && paidCash !== null ? safeDivide(paidCash - fees.paidFees, adSpend) : null;
+  // Net ROAS: the same, after the sales team's commissions on that paid cash too
+  // (10%/20% weekday/weekend on low ticket, flat 15% on high ticket).
+  const paidCommissions =
+    (sum(
+      inRangeMarketing.map((r) =>
+        r.date === null || r.cashCollectedLowTicketPaid === null
+          ? null
+          : r.cashCollectedLowTicketPaid * (isWeekendDate(r.date) ? 0.2 : 0.1)
+      )
+    ) ?? 0) +
+    (cashHighTicketPaidForm ?? 0) * 0.15;
+  const netRoas =
+    adsActive && paidCash !== null
+      ? safeDivide(paidCash - fees.paidFees - paidCommissions, adSpend)
+      : null;
+
+  // Ad spend only buys paid calls (user, 2026-10-19): cost per call is over the
+  // paid masterclass Calendly bookings made in range. Blank if they can't be read.
+  // Bookings before COST_PER_CALL_TRACKED_FROM were inaccurate (user, 2026-10-27),
+  // so only bookings and spend from that day on count; earlier ranges show N/A.
+  const costPerCallTracked = !range.end || range.end >= COST_PER_CALL_TRACKED_FROM;
+  const paidCalls = await aaronBookings(easternDateString())
+    .then((rows) => paidCallsShowed(rows, postCallNotes, (d) => d >= COST_PER_CALL_TRACKED_FROM && isDateInRange(d, range)))
+    .catch((err) => {
+      console.error("Aaron paid bookings", err);
+      return null;
+    });
+  const paidCallsBooked = paidCalls?.booked ?? null;
+  // Only the ad spend from the same days, so older spend isn't put on these calls.
+  const trackedSpend = sum(inRangeMarketing.filter((r) => !!r.date && r.date >= COST_PER_CALL_TRACKED_FROM).map((r) => r.adSpendMeta));
+  const costPerCallHT = adsActive && costPerCallTracked && paidCallsBooked !== null ? safeDivide(trackedSpend, paidCallsBooked || null) : null;
+  // Cost per live call: the same spend over the paid bookings that showed (a Post Call Note after booking, not a no show).
+  const costPerLiveCallHT = adsActive && costPerCallTracked && paidCalls ? safeDivide(trackedSpend, paidCalls.showed || null) : null;
+
+  // Time to Close: average days from a lead's opt-in to the call that
+  // actually collected cash for them, matched by email across Affiliate PCN
+  // (low-ticket) and Post Call Note (high-ticket) closes in this range.
+  const leadCreatedAtByEmail = new Map<string, string>();
+  for (const l of leads) {
+    const email = normalizeEmail(l.email);
+    if (!email || !l.createdAt) continue;
+    const existing = leadCreatedAtByEmail.get(email);
+    if (!existing || l.createdAt < existing) leadCreatedAtByEmail.set(email, l.createdAt);
+  }
+  const daysBetween = (from: string, to: string) =>
+    (new Date(`${to}T00:00:00Z`).getTime() - new Date(`${from}T00:00:00Z`).getTime()) / 864e5;
+  const closeLags: number[] = [];
+  for (const r of inRangePcn) {
+    if (r.cpaCash === null || !r.date) continue;
+    const createdAt = leadCreatedAtByEmail.get(normalizeEmail(r.leadEmail) ?? "");
+    if (!createdAt) continue;
+    const lag = daysBetween(createdAt, r.date);
+    if (lag >= 0) closeLags.push(lag);
+  }
+  for (const r of inRangePostCallNotes) {
+    if (r.cashCollected === null || r.cashCollected <= 0 || !r.date) continue;
+    const createdAt = leadCreatedAtByEmail.get(normalizeEmail(r.leadEmail) ?? "");
+    if (!createdAt) continue;
+    const lag = daysBetween(createdAt, r.date);
+    if (lag >= 0) closeLags.push(lag);
+  }
+  const avgDaysToClose = average(closeLags);
+
+  // Refund / Chargeback — from the offer's "Refunds" table, overlaid on the
+  // marketing rows by getMarketingDailyMetrics.
+  const refundCount = sum(inRangeMarketing.map((r) => r.refundCount));
+  const refundDollars = sum(inRangeMarketing.map((r) => r.refundDollars));
+  const chargebackCount = sum(inRangeMarketing.map((r) => r.chargebackCount));
+  const chargebackDollars = sum(inRangeMarketing.map((r) => r.chargebackDollars));
+  const refundChargebackDollars =
+    refundDollars !== null || chargebackDollars !== null
+      ? (refundDollars ?? 0) + (chargebackDollars ?? 0)
+      : null;
+  // Total cash collected minus refunds and chargebacks in the same range.
+  const cashAfterRefunds =
+    totalCashCollected !== null ? totalCashCollected - (refundChargebackDollars ?? 0) : null;
+  const highTicketDealsClosedPaid = sum(inRangeMarketing.map((r) => r.highTicketDealsClosedPaid));
+
+  const vsl = vslTotals(inRangeMarketing);
+  // High ticket VSL on /apply, same weighting.
+  const htVsl = vslTotals(
+    inRangeMarketing.map((r) => ({
+      vslViews: r.htVslViews,
+      vslPlays: r.htVslPlays,
+      vslPlayRate: r.htVslPlayRate,
+      vslEngagementRate: r.htVslEngagementRate,
+    }))
+  );
+  // Opt-in rate only counts paid leads from days that actually have VSL
+  // views, so days before a VSL existed can't inflate the rate.
+  const vslDays = new Set(
+    inRangeMarketing.filter((r) => (r.vslViews ?? 0) > 0).map((r) => r.date)
+  );
+  const paidLeadsOnVslDays = inRangeLeads.filter(
+    (l) => isPaidSource(l.source) && vslDays.has(toEasternDateOnly(l.createdAt))
+  ).length;
+
+  return Response.json({
+    // Tier 1 — Keystone
+    totalCashCollected,
+    collectedPerBookedCallHT,
+    // Front-end keystone: Cash Collected — Low Ticket (Paid) ÷ Paid Opt-Ins,
+    // not total cash — this is specifically the paid front-end's efficiency.
+    cashCollectedPerOptInPaid: safeDivide(cashLowTicketPaid, optInsPaid),
+    netCash,
+    frontEndRoas,
+    netRoas,
+    processingFees: fees.processingFees,
+    financingFees: fees.financingFees,
+    financedCash: fees.financedCash,
+    lowTicketCommission,
+    highTicketCommission,
+    adsActive,
+
+    // Tier 2 — Revenue breakdown
+    cashCollectedLowTicket: cashLowTicket,
+    cashCollectedLowTicketPaid: cashLowTicketPaid,
+    cashCollectedLowTicketOrganic: cashLowTicketOrganic,
+    cashCollectedHighTicket: cashHighTicket,
+    cashCollectedHighTicketPaid: cashHighTicketPaidForm,
+    cashCollectedHighTicketOrganic: cashHighTicketOrganicForm,
+    adSpend,
+
+    // Tier 3 — Acquisition
+    optInsPaid,
+    optInsOrganic,
+    optInDays,
+    landingPageConnectRate: average(inRangeMarketing.map((r) => r.landingPageConnectRate)),
+    // Form's typed opt-in rate first (client rule); otherwise paid leads /
+    // VSL views, calculated.
+    optInRate:
+      average(inRangeMarketing.map((r) => r.optInRate)) ??
+      safeDivide(paidLeadsOnVslDays, vsl.vslViews),
+    // Form's typed CPL first; otherwise ad spend / paid opt-ins.
+    costPerLeadPaid:
+      average(inRangeMarketing.map((r) => r.costPerLeadMeta)) ??
+      (adsActive ? safeDivide(adSpend, optInsPaid) : null),
+
+    // Tier 4 — Front-end conversion
+    pickups,
+    dials,
+    pickupRate: safeDivide(pickups, dials),
+    softwarePitched,
+    // Affiliate pitch rate: software pitched ÷ pickups.
+    pitchRate: safeDivide(softwarePitched, pickups || null),
+    sales: salesCount,
+    averageOrderValueLowTicket: safeDivide(cashLowTicket, salesCount || null),
+    averageOrderValueHighTicket: safeDivide(cashHighTicket, highTicketClosed || null),
+    // Software closed ÷ pickups (client definition, 2026-10-23). The form's
+    // typed close rate is ignored since it isn't on pickups.
+    closeRateLowTicket: safeDivide(softwareClosed, pickups || null),
+    connectionRate:
+      average(inRangeMarketing.map((r) => r.connectionRate)) ??
+      safeDivide(pickups, (optInsPaid ?? 0) + optInsOrganic || null),
+
+    // Tier 5 — High-ticket backend
+    highTicketCallsBooked,
+    highTicketCallsShowed,
+    highTicketShowRate: safeDivide(highTicketCallsShowed, highTicketCallsBooked || null),
+    highTicketPitched,
+    highTicketClosed,
+    highTicketCloseRate: safeDivide(highTicketClosed, highTicketCallsShowed || null),
+    newHighTicketCallsBooked,
+    // Affiliate EOD new HT calls booked ÷ Affiliate EOD software closes (client, 2026-10-25).
+    highTicketBookingRateFromLowTicket: safeDivide(newHighTicketCallsBooked, softwareClosed || null),
+    // High ticket booking pitch rate (client definition, 2026-10-24): software
+    // closes ÷ pitched high ticket calls. Both from the Affiliate EOD.
+    softwareClosed,
+    highTicketCallsPitched,
+    highTicketPitchRate: safeDivide(softwareClosed, highTicketCallsPitched || null),
+    revenueHighTicket,
+
+    // Tier 6 — Unit economics (paid only — CAC is inherently a paid concept)
+    cacLowTicketPaid: adsActive ? safeDivide(adSpend, salesLowTicketPaid || null) : null,
+    cacHighTicketPaid: safeDivide(adSpend, highTicketDealsClosedPaid || null),
+    costPerCallHT,
+    costPerLiveCallHT,
+    costPerCallTracked,
+    leadToCloseRate: safeDivide(salesCount || null, inRangeLeads.length || null),
+    avgDaysToClose,
+
+    // Tier 7 — Funnel / marketing health (diagnostic)
+    ...vsl,
+    htVslViews: htVsl.vslViews,
+    htVslPlayRate: htVsl.vslPlayRate,
+    htVslEngagementRate: htVsl.vslEngagementRate,
+    // The form's own typed rate when the team filled it in; otherwise worked
+    // out from what the form does have: low ticket sales ÷ opt-ins, per source.
+    // (Aaron's form has no paid conversion column at all, so paid is always computed there.)
+    funnelConversionRatePaid:
+      average(inRangeMarketing.map((r) => r.funnelConversionRatePaid)) ??
+      safeDivide(salesLowTicketPaid, optInsPaid),
+    funnelConversionRateOrganic:
+      average(inRangeMarketing.map((r) => r.funnelConversionRateOrganic)) ??
+      safeDivide(
+        sum(inRangeMarketing.map((r) => r.salesLowTicketOrganic)),
+        optInsOrganic || null
+      ),
+
+    webinar,
+    attributedCashLowTicket,
+
+    refundCount,
+    refundDollars,
+    chargebackCount,
+    chargebackDollars,
+    refundChargebackDollars,
+    cashAfterRefunds,
+    refundChargebackRate: safeDivide(refundChargebackDollars, totalCashCollected),
+  });
+}

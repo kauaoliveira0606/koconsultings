@@ -30,6 +30,13 @@ export const OFFERS: Record<
     setterEodTableId: "tblMsNIo5ZbNECcSv",
     setterEodNameField: "Your Name",
   },
+  // Aaron's base is a copy of Aval's: same table ids.
+  aaron: {
+    baseId: "appuxfqSlDCFgNzn0",
+    rosterTableId: "tbl8GjGQVd81Xz5Ic",
+    setterEodTableId: "tblMsNIo5ZbNECcSv",
+    setterEodNameField: "Your Name",
+  },
 };
 
 // Same IDs in both bases (cloned from one template).

@@ -16,6 +16,8 @@ const OFFERS = {
   // Onboarding, Follow Up Payment, Mock Calls and internal meetings are left out.
   bronson: { patEnv: "CALENDLY_BRONSON_PAT", salesCall: /gameplan|strategy session|discovery call|demo call/i },
   aval: { patEnv: "CALENDLY_AVAL_PAT", salesCall: /gameplan|strategy|discovery|demo|sales|consult|call with/i },
+  // "Next Level - SalesHQ" (self-booked, triage) and "SalesHQ Game Plan" (setter-booked).
+  aaron: { patEnv: "CALENDLY_AARON_PAT", salesCall: /next level|game ?plan|saleshq|setterhq/i },
 } as const;
 
 export type CalendlyOffer = keyof typeof OFFERS;

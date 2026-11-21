@@ -67,6 +67,26 @@ const OFFERS: Record<
       htCash: "Cash collected High Ticket",
     },
   },
+  // Aaron's base is a copy of Aval's: same table and column names.
+  aaron: {
+    baseId: "appuxfqSlDCFgNzn0",
+    setterEodTableId: "tblMsNIo5ZbNECcSv",
+    setterNameField: "Your Name",
+    setter: {
+      dials: "Outbound dials",
+      pickups: "Pick ups",
+      talkTime: "Total talk time",
+      softwarePitched: "Software pitched",
+      softwareClosed: "Software closes",
+      htPitched: "Pitched high ticket calls",
+      htBooked: "New high ticket calls booked",
+      selfBookedToReach: "Self-booked calls to reach out to",
+      selfBookedConnected: "Self-booked leads connected",
+      setClosed: "High ticket set closes",
+      affiliateCash: "Cash collected Affiliate",
+      htCash: "Cash collected High Ticket",
+    },
+  },
 };
 
 // Same ID in both bases (cloned from one template).

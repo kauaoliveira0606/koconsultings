@@ -24,6 +24,7 @@ import { airtableListAll } from "@/lib/airtable/client";
 import { parseDateOnly, parseNumericText } from "@/lib/airtable/parse";
 import { getLeads, type LeadRow } from "@/lib/airtable/tables";
 import { getAvalLeads } from "@/lib/airtable/tables-aval";
+import { getAaronLeads } from "@/lib/airtable/tables-aaron";
 import { normalizeEmail } from "@/lib/airtable/lead-source-lookup";
 import { parseRangeFromRequest } from "@/lib/api-range";
 import { isDateInRange, toEasternDateOnly } from "@/lib/date-range";
@@ -36,7 +37,7 @@ const CLOSED_OUTCOMES = ["Closed (PIF)", "Payment Plan", "Deposit"];
 const GHL_API = "https://services.leadconnectorhq.com";
 
 type SalesCycleOffer = {
-  key: "bronson" | "aval";
+  key: "bronson" | "aval" | "aaron";
   baseId: string;
   getLeads: () => Promise<LeadRow[]>;
   ghlPatEnv: string;
@@ -44,7 +45,7 @@ type SalesCycleOffer = {
   affiliatePcn: { tableId: string; emailField: string; nameField: string; repField: string; cashField: string } | null;
 };
 
-export const SALES_CYCLE_OFFERS: Record<"bronson" | "aval", SalesCycleOffer> = {
+export const SALES_CYCLE_OFFERS: Record<"bronson" | "aval" | "aaron", SalesCycleOffer> = {
   bronson: {
     key: "bronson",
     baseId: "appiMw8gpaLv2WITA",
@@ -59,6 +60,21 @@ export const SALES_CYCLE_OFFERS: Record<"bronson" | "aval", SalesCycleOffer> = {
     getLeads: getAvalLeads,
     ghlPatEnv: "GHL_AVAL_PIT",
     ghlLocationEnv: "GHL_AVAL_LOCATION_ID",
+    affiliatePcn: {
+      tableId: "tblFZy89IvQ6Dcsl0",
+      emailField: "Lead Email",
+      nameField: "Lead Name",
+      repField: "Your Name",
+      cashField: "CPA?",
+    },
+  },
+  // Aaron's base is a copy of Aval's, so the table ids and field names match.
+  aaron: {
+    key: "aaron",
+    baseId: "appuxfqSlDCFgNzn0",
+    getLeads: getAaronLeads,
+    ghlPatEnv: "GHL_AARON_PIT",
+    ghlLocationEnv: "GHL_AARON_LOCATION_ID",
     affiliatePcn: {
       tableId: "tblFZy89IvQ6Dcsl0",
       emailField: "Lead Email",

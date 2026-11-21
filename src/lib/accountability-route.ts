@@ -3,7 +3,7 @@ import { accountabilityMessage, getAccountabilityReport } from "@/lib/accountabi
 import type { CalendlyOffer } from "@/lib/calendly-offers";
 import { addDaysToDateString, easternDateString } from "@/lib/date-range";
 
-export const ACCOUNTABILITY_LABELS: Record<CalendlyOffer, string> = { bronson: "Bronson", aval: "Aval" };
+export const ACCOUNTABILITY_LABELS: Record<CalendlyOffer, string> = { bronson: "Bronson", aval: "Aval", aaron: "Aaron" };
 
 /** GET ?date=YYYY-MM-DD (default: yesterday, Eastern). Called by n8n at 9 AM ET. */
 export function accountabilityGet(offer: CalendlyOffer) {

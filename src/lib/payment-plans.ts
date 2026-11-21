@@ -87,6 +87,14 @@ export const PAYMENT_PLAN_OFFERS = {
       ],
     } as AccessRules | null,
   },
+  // Aaron's base is a copy of Aval's: same tables. No package access rules yet.
+  aaron: {
+    baseId: "appuxfqSlDCFgNzn0",
+    updatesTableId: "tblqY5GaHBYTm1vVt",
+    upsellStatusTableId: "tbl3Z2nWIR0iGRrEw",
+    affiliatePcn: { tableId: "tblFZy89IvQ6Dcsl0", repField: "Your Name", cashField: "CPA?" },
+    access: null as AccessRules | null,
+  },
 } as const;
 
 export type PaymentPlanOffer = (typeof PAYMENT_PLAN_OFFERS)[keyof typeof PAYMENT_PLAN_OFFERS];

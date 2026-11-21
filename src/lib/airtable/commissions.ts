@@ -84,6 +84,18 @@ export const COMMISSIONS_OFFERS = {
     // Jarek/James, Seb/Sahil) so they stay as their own cards until confirmed.
     sharedIdAliases: { keizer: "Khizer", k: "Khizer", r: "Rashardo", moecopy: "Moe" },
   },
+  // Aaron's base is a copy of Aval's: same table ids and field names.
+  aaron: {
+    baseId: "appuxfqSlDCFgNzn0",
+    affiliatePortalByRepTableId: "tbl4W4Yr4noU0wAUa",
+    affiliatePcnTableId: "tblFZy89IvQ6Dcsl0",
+    affiliatePcnRepField: "Your Name",
+    affiliatePcnCashField: "CPA?",
+    clawbacksTableId: "tblHmOXHGSsXeWqrI",
+    feeRates: DEAL_FEE_RATES.aaron,
+    sharedIdTrackingStart: "2026-11-21",
+    leadsTableId: "tblerHUAulw1k5otC",
+  },
 } satisfies Record<string, CommissionsOffer>;
 
 export const LOW_TICKET_RATE = 0.1;

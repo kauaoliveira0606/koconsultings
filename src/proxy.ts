@@ -35,9 +35,11 @@ export const config = {
   matcher: [
     "/bronson/:path*",
     "/aval/:path*",
+    "/aaron/:path*",
     "/agency/:path*",
     "/api/bronson/:path*",
     "/api/aval/:path*",
+    "/api/aaron/:path*",
     "/api/agency/:path*",
   ],
 };
