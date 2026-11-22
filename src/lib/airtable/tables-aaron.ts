@@ -9,7 +9,7 @@ import {
 } from "./tables";
 import { parseDateOnly, parseNumericText } from "./parse";
 
-export const AARON_BASE_ID = "appuxfqSlDCFgNzn0"; // "Aaron" base (SetterHQ)
+export const AARON_BASE_ID = "appuxfqSlDCFgNzn0"; // "Aaron" base (Remote Sales HQ)
 
 // Aaron doesn't have a Leaderboard table, so that getter is never called for Aaron.
 export const AARON_TABLE_IDS: TableIds = {

@@ -1,12 +1,12 @@
 import { withAllSections, type KbItem } from "./types";
 
 /*
- * Aaron Thomas / SetterHQ (@aaronsets). Remote sales (setting + closing).
+ * Aaron Thomas / Remote Sales HQ (@aaronsets). Remote sales (setting + closing).
  * Front end: free kit + The Full Crash Course, unlocked by signing up for
  * the AI tool (Base44, monthly or yearly). Back end: Inner Circle.
  * Sources: the member portal (aaron-portal.vercel.app, Module 9 Student Wins
  * and Module 10 The Next Step), the @aaronsets YouTube channel, the
- * SetterHQ pages on aaron-free-kit.vercel.app and the Inner Circle stack
+ * Remote Sales HQ pages on aaron-free-kit.vercel.app and the Inner Circle stack
  * the user supplied (2026-11-20).
  */
 
@@ -31,7 +31,7 @@ const page = (path: string, title: string, sendWhen: string, bullets?: string[])
 
 const shot = (n: number, ext: "png" | "jpg"): KbItem => ({
   title: `Student result #${n}`,
-  meta: "From the SetterHQ results wall",
+  meta: "From the Remote Sales HQ results wall",
   image: `${SITE}/home/testimonial-${n}.${ext}`,
 });
 
@@ -97,7 +97,7 @@ export const AARON_KNOWLEDGE_BASE = withAllSections({
       title: "Pages To Send",
       layout: "rows",
       items: [
-        page("/home", "SetterHQ home", "Lead who wants to see who Aaron is and what SetterHQ does before booking."),
+        page("/home", "Remote Sales HQ home", "Lead who wants to see who Aaron is and what Remote Sales HQ does before booking."),
         page("/ty", "Call Confirmed", "Right after a call is booked, so the lead shows up warm."),
         page("/free-course", "Free kit + Full Crash Course", "Lead who isn't ready for a call yet. Gets them into the front end."),
       ],
@@ -108,7 +108,7 @@ export const AARON_KNOWLEDGE_BASE = withAllSections({
       layout: "rows",
       items: [
         yt("ehirE8VUFVw", "How does guaranteed placement work?", "Lead asking what the guarantee actually means.", "FAQ"),
-        yt("uU_JaD7Z_cQ", "What makes SetterHQ different?", "Lead comparing us to other sales programs.", "FAQ"),
+        yt("uU_JaD7Z_cQ", "What makes Remote Sales HQ different?", "Lead comparing us to other sales programs.", "FAQ"),
         yt("kr-a0-J28oY", "What if I don't have sales experience?", "Lead who thinks they need experience first.", "FAQ"),
         yt("52KvustIReM", "How much time do you need to commit to this?", "Lead with a job or school who worries about time.", "FAQ"),
         yt("SVAMKZm6JKQ", "How long will it take for me to see results?", "Lead asking how fast this works.", "FAQ"),
@@ -178,7 +178,7 @@ export const AARON_KNOWLEDGE_BASE = withAllSections({
     },
     {
       title: "Results Wall",
-      description: "Student screenshots from the SetterHQ site.",
+      description: "Student screenshots from the Remote Sales HQ site.",
       layout: "gallery",
       items: [
         shot(1, "png"),

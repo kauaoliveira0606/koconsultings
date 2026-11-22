@@ -21,5 +21,5 @@ const SECTIONS: SidebarSection[] = [
 ];
 
 export function AaronSidebar() {
-  return <DashboardSidebar initials="AT" name="Aaron (SetterHQ)" logo="/brand/aaron-logo.png" sections={SECTIONS} />;
+  return <DashboardSidebar initials="AT" name="Aaron (Remote Sales HQ)" logo="/brand/aaron-logo.png" sections={SECTIONS} />;
 }

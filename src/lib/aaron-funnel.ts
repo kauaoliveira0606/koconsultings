@@ -5,7 +5,7 @@ import { aaronContacts } from "@/lib/ghl-aaron";
 import { staleWhileRevalidate } from "@/lib/swr-cache";
 
 /**
- * Aaron (SetterHQ) runs no webinar: leads opt in to the free course, buy the
+ * Aaron (Remote Sales HQ) runs no webinar: leads opt in to the free course, buy the
  * Base44 affiliate plan, then book a high ticket call. So there are no
  * webinar registrants, and bookings are his Calendly sales calls:
  * "Next Level - SalesHQ" (self-booked) and "SalesHQ Game Plan" (setter-booked).

@@ -1764,7 +1764,7 @@ export const AVAL_PACING_ROWS = {
 };
 
 /**
- * Aaron's scorecard (SetterHQ): no webinar. Free course opt-in -> Base44
+ * Aaron's scorecard (Remote Sales HQ): no webinar. Free course opt-in -> Base44
  * affiliate (monthly / yearly) -> high ticket VSL and call. Same rows as
  * Aval minus the Webinar section; the ad rows get their own section.
  */
