@@ -15,7 +15,8 @@ export default function AaronLayout({ children }: { children: ReactNode }) {
   return (
     <RangeProvider initialPreset="this_month">
       <div
-        data-theme="deepspace"
+        data-theme="cream"
+        data-palette="blue"
         style={{ background: "var(--app-bg)" }}
         className="flex min-h-screen flex-col text-[var(--text)] lg:flex-row"
       >
