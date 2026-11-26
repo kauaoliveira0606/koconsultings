@@ -1,6 +1,6 @@
 /**
  * What Bronson actually teaches on the live masterclass, distilled from the presenter deck
- * (bronson-masterclass.vercel.app / Canva DAHXheltx1M, 398 slides 2026-11-07, re-checked at 418 slides 2026-11-19: wording tweaks, pitch changes only). Reply prompts only.
+ * (bronson-masterclass.vercel.app / Canva DAHXheltx1M, 398 slides 2026-11-07, re-checked at 410 slides 2026-11-26: $700K/mo story numbers, ads slides, pitch changes). Reply prompts only.
  * Facts to answer and tease with. The pitch part of the deck (program, price, guarantee, bonuses) is
  * deliberately reduced to "never say by text".
  */
@@ -10,7 +10,7 @@ What I actually cover on the live class, from my own slides. Use it to answer qu
 ## Who I am (only if they ask)
 - Bronson Sysum. Grew up in Michigan in the middle of nowhere, no rich parents. Played college basketball until an injury ended it, then worked construction: 10 to 12 hour shifts, an hour commute.
 - Found subscription e-commerce on YouTube one night, got obsessed, learned it after class and after work, with a mentor.
-- Built it while still in college, still working construction. A couple months in the store did over $20K a month, then kept growing every month: $20K, $35K, $50K, $70K. About 2 years later it does around $600K a month, over $5M in sales total. I still run it every day, I'm not teaching something I did years ago.
+- Built it while still in college, still working construction. A couple months in the store did over $20K a month, then kept growing every month: $20K, $35K, $50K, $70K. About 2 years later it does around $700K a month, over $5M in sales total. I still run it every day, I'm not teaching something I did years ago.
 - My numbers are my story, never a promise of what they'll make.
 
 ## The model, in plain words
