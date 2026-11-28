@@ -68,13 +68,13 @@ export const WALLET_EVENTS: WalletEvent[] = [
     name: "MRR E-Commerce Masterclass",
     brand: "Ecom MBA",
     timeZone: "America/New_York",
-    weekday: 1,
+    weekday: 4,
     hour: 19,
     minute: 0,
     durationMinutes: 90,
     // Keep in step with ~/repos/bronson masterclass-confirmation/done-shared.js (MASTERCLASS_DATE).
-    // Mon Nov 23, 7 PM ET (user, 2026-11-16); weekly on Mondays after that.
-    pinnedDate: "2026-11-23",
+    // Thu Dec 3, 7 PM ET (user, 2026-11-28); weekly on Thursdays after that.
+    pinnedDate: "2026-12-03",
     leadMinutes: 180,
     liveReminders: true,
     joinUrl: "https://event.webinarjam.com/8wgzn9/go/live/13q192tyipsxs4",

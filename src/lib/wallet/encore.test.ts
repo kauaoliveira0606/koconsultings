@@ -31,7 +31,7 @@ describe("encore wallet schedule", () => {
     expect(phase(enc, new Date("2026-11-21T01:00:00Z")).phase).toBe("live");
     expect(phase(enc, new Date("2026-11-21T01:15:00Z")).phase).toBe("last");
   });
-  it("leaves the Monday masterclass pass alone", () => {
-    expect(w3c(currentSession(mc, new Date("2026-11-05T12:00:00Z")).start)).toBe("2026-11-24T00:00:00+00:00");
+  it("leaves the Bronson masterclass pass alone", () => {
+    expect(w3c(currentSession(mc, new Date("2026-11-05T12:00:00Z")).start)).toBe("2026-12-04T00:00:00+00:00");
   });
 });
